@@ -19,8 +19,17 @@ Protocol, database and mutation-authority contracts are unchanged.
 
 Firebase uses the existing phone SDKs and matching distribution configuration. Crashlytics gets
 the custom key `platform=phone` or `platform=watch` at application startup, before graph/runtime
-work. Wear telemetry must not serialize workout payloads through action/event descriptions.
+work. Release mapping upload is opt-in (`-PcrashlyticsMappingUpload=true`); PR CI assembles
+storeRelease without it (review follow-up F07, [ci-cd.md](../ci-cd.md#wear-review-follow-up-registry)).
+Open before Wear ships: phone and watch share one Firebase app per flavor, separated only by that
+key. A second Firebase app in the same project is impossible, since the Data Layer requires the
+phone's package name and signature and Firebase rejects a duplicate package, so the only
+alternative is a separate project; the lean is the shared app plus an Analytics user property
+`platform`. Wear telemetry must not serialize workout payloads through action/event descriptions.
 The real-phone-payload privacy gate remains closed; validation uses synthetic/debug sources only.
+Deferred before Wear ships (review follow-up F06): every consumed Store action still reaches Analytics
+and a Crashlytics breadcrumb, release included (an ambient tick is two actions, a rotary step three);
+the lean is a quiet-action marker in `core:ui:mvi` that skips both sinks for high-frequency actions.
 
 The explicit notification-settings action first opens the public per-app notification page.
 If the platform has no handler for that action, it falls back to public system Settings.
@@ -71,6 +80,40 @@ and 60dp content per card under an equal split. Its inline derivation also recor
 `108 + 52 + 8 > 160` for a weight including its unit and 88dp for Russian unset copy.
 These are preserved source-recorded measurements of the earlier typography; they are
 not measurements or acceptance evidence for the new font roles.
+
+## System Tile
+
+The Tile is a cache-first render of the runtime snapshot; it never waits for phone I/O. Two contracts
+keep it honest without a polling loop:
+
+- **Refresh key = rendered content.** `WatchTileCoordinator` requests a platform update when
+  `WorkoutTileRenderer.refreshKey` changes: the text lines the Tile draws plus the locale they were
+  formatted for. Every field that moves a rendered line, mutation authority included, is covered by
+  construction; draft-only edits request nothing because the Tile does not draw them.
+- **Freshness interval = the owner's next boundary.** `Tile.freshnessIntervalMillis` is elapsed
+  time (never wall clock, so Phase 1 section 5.1 holds and no timeline validity is used): the
+  service renders `WatchRuntime.tileFrame(locale)`, one owner operation with expiry inside it that
+  returns the snapshot and the time to the same authority / ongoing / display-cache deadline the
+  owner schedules its one-shot callback on. 0 means no boundary and nothing else (release read-only
+  runtime, LOADING); a boundary that has already passed asks for 1 ms and a pending recovery for
+  60 s (`tileFreshnessIntervalMs`). A NoSession tombstone keeps its display-cache TTL as a
+  boundary. The platform may throttle refreshes to about one per minute, so a request at the
+  boundary is a request, not a guarantee; the stale request then changes the rendered content once
+  and asks for at most one follow-up update.
+
+### Review follow-up registry
+
+Findings of the independent review of the Wear stack (#286-#295) that changed this contract. One row
+per finding: the commit, the guard that now holds it, and the negative control that proved the guard
+can fail. Rows are append-only.
+
+| Finding | Commit | Guard | Control |
+|---|---|---|---|
+| F02 - the Tile declared no freshness interval, so after process death an ACTIVE Tile kept its progress past the mutation window | `fix(wear): let the Tile request a platform refresh at the owner boundary` | `WorkoutTileFreshnessTest` (W, expiry, single follow-up), `WorkoutTileServiceFreshnessTest` (debug service after `expire`), `ReleaseRuntimeBoundaryTest.releaseTileDeclaresNoFreshnessInterval` | `f02-freshness-forced-zero`: renderer always writes 0, RED |
+| F02 follow-up (Codex P2 on #296) - a boundary that passed between `onWake()` and the separate freshness read was sent as 0, which tells the platform never to refresh | `fix(wear): read the Tile snapshot and its freshness in one owner operation` | `WatchRuntime.tileFrame` (snapshot + freshness under one owner lock, expiry inside); `WorkoutTileFreshnessTest` (overdue boundary → 1 ms, recovery → 60 s, 0 only without a boundary, the Tile renders the frame's snapshot) | `p2-overdue-floor-removed` (`coerceAtLeast(0)`), `p2-separate-snapshot-read` (`runtime.snapshot.value`): RED |
+| F06 - payload safety of Store telemetry rested on three `toString` overrides checked by one test | `test(wear): guard every Store action and event description against workout values` | `WearStoreActionRegistryTest` (explicit list of the 10 Action leaves and 1 Event leaf, each built with sentinel values; fails on a missing or extra leaf) | `f06-draft-tostring-override-removed`: the `Draft` override dropped, RED |
+| F09 - no `@Stable`/`@Immutable` on the Composable-facing Wear models and a `List` in `WearSurfaceModel` | `refactor(wear): annotate the Composable-facing models and use ImmutableList` | `WearStableModelsTest` (class-file annotation check on the eight models; `ImmutableList` return types) | `f09-surface-model-annotation-removed`: `@Immutable` dropped from `WearSurfaceModel`, RED |
+| F03 - the refresh key omitted authority, so a handshake that retired it changed the rendered Tile without an update request | `fix(wear): key the system Tile refresh on the rendered content` | `WatchTileAuthorityRetiredTest` (anchor: display change requests one update; target: retired authority requests one more) | `f03-key-drops-rendered-lines`: key without the rendered lines, RED |
 
 ## Implementation ledger
 

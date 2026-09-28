@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
+import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
@@ -15,6 +16,8 @@ import io.github.stslex.workeeper.wear.state.WatchReducerState
 import io.github.stslex.workeeper.wear.state.WearDraftPolicy
 import io.github.stslex.workeeper.wear.state.sourceVersion
 import io.github.stslex.workeeper.wear.state.targetKeyOrNull
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import java.util.Locale
 
 internal enum class WearSurfaceKind {
@@ -39,6 +42,7 @@ internal enum class CompletionUnavailableReason {
     INVALID_WEIGHT,
 }
 
+@Immutable
 internal data class WearSurfaceModel(
     val kind: WearSurfaceKind,
     val trainingName: String? = null,
@@ -67,10 +71,10 @@ internal data class WearSurfaceModel(
         WearDraftPolicy.incrementWeight(weightHundredthsKg) != null
     val decrementWeightEnabled: Boolean = controlsEnabled && weighted &&
         WearDraftPolicy.decrementWeight(weightHundredthsKg) != null
-    val setScaleSlots: List<WearSetScaleSlot> = if (setOrdinal != null && totalSets != null) {
+    val setScaleSlots: ImmutableList<WearSetScaleSlot> = if (setOrdinal != null && totalSets != null) {
         wearSetScaleSlots(setOrdinal, totalSets)
     } else {
-        emptyList()
+        persistentListOf()
     }
 }
 

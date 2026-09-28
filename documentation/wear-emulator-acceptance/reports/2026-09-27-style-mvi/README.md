@@ -75,7 +75,7 @@ Frozen APK SHA-256 values:
 | StoreDebug test | `722d311c386bd6087de26fe1c4b5397677e5ba611dcbd0a4784e55eb3b25e712` |
 | Signed StoreRelease | `3e222dbcb7dbc5a2dedd04e4492a4e9c611150f05ceb56fcbaec26ade08ca879` |
 
-The [corrected scope index](proof/corrected616/notification-fix-closure/scope-index.json)
+The [corrected scope index](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-closure/scope-index.json)
 selects **16 PASS UI cells, 352 fresh instrumentation invocations**, with per-cell native/Compose
 PNGs, semantics, measured bounds and sampled motion reviewed. Matrix: API 30/36 × round 192/240 dp
 × EN/RU × font 1.0/1.24. Each cell contains 18 fixture invocations, rotary/Back/swipe/press checks
@@ -128,7 +128,7 @@ corrected registration are both retained.
 
 These are byte-for-byte original system PNGs, API 36/round 192 dp/RU/font 1.24, DevDebug.
 The before column comes from the historical review APK; after comes from corrected source `6164203f`.
-The [screenshot manifest](screens/manifest.json) keeps separate source/APK provenance.
+The [screenshot manifest](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/screens/manifest.json) keeps separate source/APK provenance.
 
 | Surface | Historical review | Corrected APK |
 | --- | --- | --- |
@@ -242,19 +242,19 @@ source/APK/gate/mutation/cohort indexes and original screenshots accompany this 
 
 ## Evidence and GitHub status
 
-- [Curated proof inventory and hashes](proof/manifest.json).
-- [Archived XML publication paths](proof/xml-publication-paths.json): original XML bytes are kept
+- [Curated proof inventory and hashes](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/manifest.json).
+- [Archived XML publication paths](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/xml-publication-paths.json): original XML bytes are kept
   outside CI current-test discovery paths; historical RED assertions are preserved.
-- [Corrected-source gate sequence](proof/corrected616/notification-fix-gate-sequence.json),
-  [APK manifest](proof/corrected616/notification-fix-apks/manifest.json) and
-  [unchanged runtime boundary](proof/corrected616/notification-fix-unchanged-runtime-boundary.json).
-- [Original source `5920e1ee` qualified index](proof/original592/final-acceptance-closure/qualified-index.json).
-- [Corrected API30 Settings](proof/corrected616/notification-fix-api30-settings-reviewed/operator-review.json)
-  and [API36 Settings](proof/corrected616/notification-fix-api36-settings-reviewed/operator-review.json).
-- [Cleanup evidence index](proof/corrected616/cleanup-index.json) and
-  [preserved checkout/prototype verification](proof/corrected616/final-publication-preservation.json).
+- [Corrected-source gate sequence](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-gate-sequence.json),
+  [APK manifest](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-apks/manifest.json) and
+  [unchanged runtime boundary](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-unchanged-runtime-boundary.json).
+- [Original source `5920e1ee` qualified index](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/original592/final-acceptance-closure/qualified-index.json).
+- [Corrected API30 Settings](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-api30-settings-reviewed/operator-review.json)
+  and [API36 Settings](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/notification-fix-api36-settings-reviewed/operator-review.json).
+- [Cleanup evidence index](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/cleanup-index.json) and
+  [preserved checkout/prototype verification](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/final-publication-preservation.json).
 
-At the linked [pre-publication GitHub snapshot](proof/corrected616/github-before-final-docs.json),
+At the linked [pre-publication GitHub snapshot](https://github.com/stslex/Workeeper/blob/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi/proof/corrected616/github-before-final-docs.json),
 all executed checks on #292, #293, #294 and application commit `6164203f` in #295 were successful;
 #291 still had its original Android failure. The causes of the #291 and first #294 timeouts
 remain unestablished. The existing #295 bot review covers source `5920e1ee` only. Marking the final PR
@@ -263,3 +263,5 @@ from that earlier review.
 
 This publication adds documentation and evidence only. Application sources/APKs remain `6164203f`;
 it does not claim new Gradle execution merely because the report has a later commit SHA.
+
+Raw receipts (JSON and XML) were removed from the tree in the commit that added this line; the originals remain at [https://github.com/stslex/Workeeper/tree/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi](https://github.com/stslex/Workeeper/tree/8442f66f57150beb1e2ee13a1c522df75dba929f/documentation/wear-emulator-acceptance/reports/2026-09-27-style-mvi).

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi33Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-09-27T00:26:50.853Z" hostname="stslexs-MacBook-Pro.local" time="0.934">
-  <properties/>
-  <testcase name="accessInspectionUsesPlatformVersionAndChannelStateWithoutPosting()" classname="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi33Test" time="0.933"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

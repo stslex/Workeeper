@@ -381,7 +381,7 @@ ones, cannot be reused. A copy, receipt-write or publication failure preserves i
 directory and leaves the required case available for a corrected retry. The canonical JSON
 lists `unpublished_manual_attempts`; retain those directories when archiving retries.
 A failed preflight creates neither a case nor a staging directory.
-The [publication review evidence](reports/2026-09-25/manual-publication-review.json) records
+The [publication review evidence](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/manual-publication-review.json) records
 65 fresh tests, eight named assertion controls and the restored 65-test baseline. It also
 retains the earlier unsuccessful test-injector attempt; the emulator report is unchanged.
 

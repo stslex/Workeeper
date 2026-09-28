@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.wear.runtime.ControllerAction
+import io.github.stslex.workeeper.wear.runtime.RuntimeTestEnvironment
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
@@ -37,7 +38,14 @@ internal class WearDisabledPressGateTest {
     @DisplayName("disabled button pixels stay fixed while held and enabled control accepts a touch")
     fun pressDoesNotCompressTheDisabledLabel() = runComposeUiTest {
         val active = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY))
-        var model by mutableStateOf(active.copy(completeEnabled = false))
+        // The blocked state comes from the mapper: a disconnected session, the way production reaches it.
+        val blocked = RuntimeTestEnvironment().let { env ->
+            check(env.accept())
+            env.owner.disconnected()
+            WearSurfaceMapper.map(env.owner.snapshot.value)
+        }
+        check(blocked.kind == WearSurfaceKind.DISCONNECTED && !blocked.completeEnabled)
+        var model by mutableStateOf(blocked)
         var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var scale by mutableStateOf(1f)
         val actions = mutableListOf<ControllerAction>()
@@ -51,7 +59,7 @@ internal class WearDisabledPressGateTest {
             screen = current
             listOf(1f, LARGEST_WEAR_FONT_SCALE).forEach { fontScale ->
                 scale = fontScale
-                model = active.copy(completeEnabled = false)
+                model = blocked
                 waitForIdle()
                 val disabledImage = onNodeWithTag("complete_set").captureToImage()
                 val disabledDelta = heldPixelDelta("$current-$fontScale-disabled")

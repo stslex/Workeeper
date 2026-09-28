@@ -30,7 +30,7 @@ Actual fingerprints:
 - API 30: `google/sdk_gwear_arm64/emulator_arm64:11/RWDA.230114.008.S4/10486519:userdebug/dev-keys`
 - API 36: `google/sdk_gwear_arm64/emu64a:16/BP2A.250605.006.E4/13659021:user/release-keys`
 
-[System-image provenance](system-image-provenance.json) retains source-properties, vendor, ramdisk and kernel hashes as well as raw fingerprint references. These are archived measurements, not a fresh multi-gigabyte hash sweep during passive trials.
+[System-image provenance](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/system-image-provenance.json) retains source-properties, vendor, ramdisk and kernel hashes as well as raw fingerprint references. These are archived measurements, not a fresh multi-gigabyte hash sweep during passive trials.
 
 ## Recomputed matrix results
 
@@ -93,7 +93,7 @@ See [minimal reproduction procedures](minimal-reproductions.md) for the frozen d
 
 ### API 30 death timing and restart corroboration
 
-The [six-trial audit summary](api30-term-receipt-summary.json) pins all 12 independent timing/reopen audits. The table gives observed removal intervals relative to the selected absolute deadline; each interval incorporates the conservative 10 ms clock precision. Every interval straddles the deadline, so the exact event side and exact stop latency are unknown. Maximum observed sample-start gap was 340 ms; maximum command duration was 208.524 ms. Each disconnected trial contains one disconnect, not a repeated-disconnect device proof.
+The [six-trial audit summary](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/api30-term-receipt-summary.json) pins all 12 independent timing/reopen audits. The table gives observed removal intervals relative to the selected absolute deadline; each interval incorporates the conservative 10 ms clock precision. Every interval straddles the deadline, so the exact event side and exact stop latency are unknown. Maximum observed sample-start gap was 340 ms; maximum command duration was 208.524 ms. Each disconnected trial contains one disconnect, not a repeated-disconnect device proof.
 
 | Trial | Selected deadline (elapsed ms) | Relative removal interval (ms) | New ordinary-reopen PID |
 | --- | --- | --- | --- |
@@ -196,10 +196,12 @@ Installed StoreRelease API 36: connecting/read-only boundary; synthetic controls
 - [Fresh PR/check snapshot](/private/tmp/wear-pr291-live-before-final-20260925.json)
 - [Archived CI diagnosis](/private/tmp/wear-emulator-acceptance-20260925/pr291-ci-20260925T145538Z/summary.json)
 
-- [Machine-readable attempt mapping](attempt-mapping.json)
-- [Source and gate pins](evidence-manifest.json)
-- [Original image pins](selected-original-images.json)
-- [API 30 TERM receipt summary](api30-term-receipt-summary.json)
+- [Machine-readable attempt mapping](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/attempt-mapping.json)
+- [Source and gate pins](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/evidence-manifest.json)
+- [Original image pins](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/selected-original-images.json)
+- [API 30 TERM receipt summary](https://github.com/stslex/Workeeper/blob/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25/api30-term-receipt-summary.json)
 - [Frozen application boundary proof](/private/tmp/wear-final-production-boundary-20260925.json)
 
 The machine-readable manifest retains exact raw file paths and SHA-256 pins from the local evidence archive. Those absolute paths require the original archive and are not assumed to exist in a fresh repository checkout. The six checked-in figures and summary JSON are a review aid, not a replacement for raw video, instrumented output and command receipts. The repository runner documents how to collect a new independent cohort; no APK reproducibility claim is implied.
+
+Raw receipts (JSON and XML) were removed from the tree in the commit that added this line; the originals remain at [https://github.com/stslex/Workeeper/tree/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25](https://github.com/stslex/Workeeper/tree/1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd/documentation/wear-emulator-acceptance/reports/2026-09-25).

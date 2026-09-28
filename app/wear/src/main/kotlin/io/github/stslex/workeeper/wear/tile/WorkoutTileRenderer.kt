@@ -6,20 +6,29 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.TileBuilders
 import io.github.stslex.workeeper.wear.MainActivity
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.runtime.WatchRuntime
+import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
 import io.github.stslex.workeeper.wear.ui.WearCopy
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import io.github.stslex.workeeper.wear.ui.statusCopy
+import java.util.Locale
 
 internal class WorkoutTileRenderer(private val context: Context) {
 
+    /**
+     * [freshnessIntervalMs] is elapsed time after which the platform may request this Tile
+     * again; 0 means never on its own. The platform may throttle requests to about one a minute.
+     */
     fun render(
         model: WearSurfaceModel,
         screenDiameterDp: Int = minOf(
             context.resources.configuration.screenWidthDp,
             context.resources.configuration.screenHeightDp,
         ),
+        freshnessIntervalMs: Long = 0L,
     ): TileBuilders.Tile {
         val layout = WorkoutTileLayout.build(
             packageName = context.packageName,
@@ -29,6 +38,7 @@ internal class WorkoutTileRenderer(private val context: Context) {
         )
         return TileBuilders.Tile.Builder()
             .setResourcesVersion(RESOURCE_VERSION)
+            .setFreshnessIntervalMillis(freshnessIntervalMs)
             .setTileTimeline(
                 TimelineBuilders.Timeline.Builder()
                     .addTimelineEntry(
@@ -40,6 +50,19 @@ internal class WorkoutTileRenderer(private val context: Context) {
             )
             .build()
     }
+
+    /**
+     * One Tile response: the runtime's [WatchRuntime.tileFrame], rendered exactly as it was read, so
+     * the freshness interval always belongs to the snapshot on screen.
+     */
+    fun renderFrame(runtime: WatchRuntime, locale: Locale, screenDiameterDp: Int): TileBuilders.Tile {
+        val frame = runtime.tileFrame(locale)
+        return render(WearSurfaceMapper.map(frame.snapshot), screenDiameterDp, frame.freshnessIntervalMs)
+    }
+
+    /** The rendered lines and their locale: the coordinator requests an update when this changes. */
+    fun refreshKey(snapshot: WatchRuntimeSnapshot): TileRefreshKey =
+        TileRefreshKey(lines(WearSurfaceMapper.map(snapshot)), snapshot.locale)
 
     private fun lines(model: WearSurfaceModel): List<String> = when (model.kind) {
         WearSurfaceKind.LOADING -> listOf(

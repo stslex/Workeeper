@@ -78,16 +78,32 @@ internal class WatchRuntimeOwner(
         }
     }
 
-    override fun onWake(): WatchRuntimeSnapshot = transition {
+    override fun onWake(): WatchRuntimeSnapshot = transition { wake() }.let { snapshot.value }
+
+    override fun setLocale(locale: Locale) = transition {
+        selectedLocale = locale
+    }
+
+    override fun tileFrame(locale: Locale): WatchTileFrame = synchronized(lock) {
+        // A failed wake latches recovery and is logged; the frame still carries what the owner published.
+        runWearRuntimeUiEvent {
+            transition {
+                selectedLocale = locale
+                wake()
+            }
+        }
+        WatchTileFrame(
+            snapshot = mutableSnapshot.value,
+            freshnessIntervalMs = tileFreshnessIntervalMs(nextBoundaryMs(), clock.nowMs(), recoveryRequired),
+        )
+    }
+
+    private fun wake() {
         // A restored tombstone has no exposed receive time, so its access-time TTL stays at the reader boundary.
         if (tombstone && receivedAtMs == null && cache.read() !is CacheReadResult.NoSession) {
             resetDisplay()
         }
         ongoing.refresh()
-    }.let { snapshot.value }
-
-    override fun setLocale(locale: Locale) = transition {
-        selectedLocale = locale
     }
 
     fun issueHandshake(): RequestToken = transition {
@@ -306,7 +322,12 @@ internal class WatchRuntimeOwner(
     }
 
     private fun scheduleNextBoundary() {
-        val now = clock.nowMs()
+        // A boundary reached during formatting/platform work still needs its one-shot callback.
+        scheduler.replace(nextBoundaryMs()?.coerceAtLeast(clock.nowMs())) { onWake() }
+    }
+
+    /** The one deadline source shared by the scheduler and the Tile freshness interval. */
+    private fun nextBoundaryMs(): Long? {
         val authority = when (val current = reducer.state.authority) {
             is LocalMutationAuthority.Available -> current.effectiveDeadlineMs
             is LocalMutationAuthority.AttemptBound -> current.effectiveDeadlineMs
@@ -314,9 +335,7 @@ internal class WatchRuntimeOwner(
         }
         val ongoingDeadline = (mutableSnapshot.value.ongoing as? OngoingStatus.Scheduled)?.stopAtElapsedRealtimeMs
         val cacheDeadline = receivedAtMs?.let { safeMonotonicAdd(it, WearProtocol.DISPLAY_CACHE_TTL_MS) }
-        // A boundary reached during formatting/platform work still needs its one-shot callback.
-        val deadline = listOfNotNull(authority, ongoingDeadline, cacheDeadline).minOrNull()?.coerceAtLeast(now)
-        scheduler.replace(deadline) { onWake() }
+        return listOfNotNull(authority, ongoingDeadline, cacheDeadline).minOrNull()
     }
 
     private fun newCache() = WatchSnapshotCache(storage, clock, bootCount, OngoingExpiryHandler(notification::cancel))

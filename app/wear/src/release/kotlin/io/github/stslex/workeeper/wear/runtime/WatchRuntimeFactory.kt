@@ -45,6 +45,13 @@ private class ReadOnlyWatchRuntime : WatchRuntime {
 
     override fun onAction(action: ControllerAction): WatchActionResult = WatchActionResult.Rejected
 
+    /** Read-only: there is no boundary, so the Tile never asks the platform for a refresh. */
+    @Synchronized
+    override fun tileFrame(locale: Locale): WatchTileFrame {
+        runWearRuntimeUiEvent { setLocale(locale) }
+        return WatchTileFrame(mutableSnapshot.value, freshnessIntervalMs = 0L)
+    }
+
     @Synchronized
     override fun setLocale(locale: Locale) {
         this.locale = locale

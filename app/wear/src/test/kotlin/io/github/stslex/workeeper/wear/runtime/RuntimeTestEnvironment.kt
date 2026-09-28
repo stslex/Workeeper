@@ -79,9 +79,13 @@ internal class RecordingDeadlineScheduler : RuntimeDeadlineScheduler {
     var deadline: Long? = null
     var callback: (() -> Unit)? = null
 
+    /** Runs after every replacement: publication ends here, so a test can let time pass inside an owner operation. */
+    var afterReplace: () -> Unit = {}
+
     override fun replace(deadlineElapsedRealtimeMs: Long?, callback: () -> Unit) {
         deadline = deadlineElapsedRealtimeMs
         this.callback = if (deadlineElapsedRealtimeMs == null) null else callback
+        afterReplace()
     }
 
     fun fire() = requireNotNull(callback).invoke()

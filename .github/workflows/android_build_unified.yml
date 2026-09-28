@@ -5,6 +5,11 @@ on:
     branches: [ master ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      execute_unit_tests:
+        description: "Run Unit Tests with --no-build-cache, so every test task of that step executes"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       ref:
@@ -141,8 +146,9 @@ jobs:
       # `:app:wear`'s release classpath to having no gate at all — and a `debugImplementation`-only
       # dependency is invisible to every other task here.
       #
-      # Only the shipping flavor is built. `:app:wear` has no flavor-specific source directory, so
-      # devRelease compiles the same sources and would add a second R8 run for no new coverage.
+      # Only the shipping flavor is built. `:app:wear`'s two flavors differ by one file,
+      # `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance logcat meta-data entry), so
+      # devRelease would add a second R8 run of the same Kotlin for no new coverage.
       #
       # `--rerun-tasks --no-build-cache`, unlike the steps above it. This job restores the Gradle
       # build cache and `gradle-ci.properties` sets `org.gradle.caching=true`, so without the flags
@@ -244,15 +250,47 @@ jobs:
         if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
         run: exit 1
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --full-stacktrace
+      # The build steps above leave the Gradle daemon (-Xmx8g) and two Kotlin daemons (-Xmx4g each,
+      # one per compiler version: build-logic's and the project's) holding the heap they grew. In
+      # run 36336137166 they held 73.5-77.1% of used memory while swap was full during the unit-test
+      # step. Stopping them before that step hands the memory to the test JVMs; the step starts a
+      # fresh Gradle daemon, and a Kotlin daemon only if it compiles. Rule and numbers: ci-cd.md, F01.
+      # The `[o]` keeps the pattern from matching a process whose command line contains it.
+      - name: Stop Gradle and Kotlin daemons to free memory for the unit tests
+        run: |
+          ./gradlew --stop
+          pkill -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon' || [ $? -eq 1 ]
+          for _ in $(seq 30); do
+            pgrep -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon' > /dev/null || exit 0
+            sleep 1
+          done
+          echo "::warning::a Kotlin daemon survived SIGTERM for 30 s"
 
-      # The debug suite cannot prove that the synthetic source is absent from release.
+      # The Wear module runs its host tests once per flavor, and its two flavors differ by one
+      # manifest line (see the release-variant comment above). On pull_request the alias runs the
+      # shipping flavor only (`-PwearUnitTestFlavors=store`; the default is `dev,store`); push,
+      # dispatch and workflow_call keep both. The wrapper samples host resources into THIS step's
+      # log every 15 s (`[res]` lines): a runner that dies mid-step cancels every later step and
+      # `failure()` is false on cancellation, so an upload-artifact step could never capture the
+      # failure the samples exist for. Gradle's exit code is the step's exit code.
+      # A dispatch with `execute_unit_tests` adds --no-build-cache (not --rerun-tasks): what the
+      # steps above built stays UP-TO-DATE and every task this step owns executes, the shape of a
+      # PR's first run. Every other trigger restores cached test results as before.
+      - name: Run Unit Tests
+        run: >
+          bash .github/scripts/run_with_resource_samples.sh
+          ./gradlew testDebugUnitTest --full-stacktrace
+          ${{ github.event_name == 'pull_request' && '-PwearUnitTestFlavors=store' || '' }}
+          ${{ github.event_name == 'workflow_dispatch' && inputs.execute_unit_tests && '--no-build-cache' || '' }}
+
+      # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
+      # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
+      # dev manifest above and would prove the same classpath under a different application id.
       - name: Run Wear release source boundary test
         run: >
-          ./gradlew :app:wear:testDevReleaseUnitTest
+          ./gradlew :app:wear:testStoreReleaseUnitTest
           -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false
-          --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass'
+          --tests '*ReleaseRuntimeBoundaryTest*'
           --rerun-tasks --no-build-cache --no-configuration-cache
           --full-stacktrace --console=plain
 

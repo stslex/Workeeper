@@ -63,8 +63,56 @@ python3 documentation/personal_data_gate.py -v     # no real names/emails in tra
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 python3 .github/scripts/assert_mvi_host_identities.py
-./gradlew testDebugUnitTest --full-stacktrace
+./gradlew --stop; pkill -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon'   # frees the build daemons' memory (F01)
+bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --full-stacktrace \
+  -PwearUnitTestFlavors=store   # the property only on pull_request; other triggers run both Wear flavors
+./gradlew :app:wear:testStoreReleaseUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false \
+  --tests '*ReleaseRuntimeBoundaryTest*' \
+  --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 ```
+
+The last line proves the Wear release boundary on **storeRelease**, the variant that ships. The
+two Wear flavors differ only by `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance
+logcat meta-data entry); AGP does not create release unit-test tasks unless
+`android.onlyEnableUnitTestForTheTestedBuildType=false` is passed, which is why the step spells
+the property out.
+
+`testDebugUnitTest` is not pure Gradle on this repository: the Wear module's alias depends on
+`:app:wear:verifyEmulatorAcceptanceRunner`, an `Exec` task that runs
+`python3 documentation/wear-emulator-acceptance/run_parser_tests.py`. The step therefore needs
+`python3` on PATH (ubuntu-latest ships it; the same holds for every local root gate), and the
+runner verifies an exact identity inventory (`EXPECTED_TESTS`, 65 ids): a missing, renamed or
+extra parser test fails the task before any test runs, and every listed id must leave a passing
+testcase in `app/wear/build/test-results/verifyEmulatorAcceptanceRunner/`.
+
+The Wear module runs its host tests once per flavor. Its two flavors differ by one manifest
+meta-data line, and the second run doubled the module's share of the unit-test step, so
+`pull_request` passes `-PwearUnitTestFlavors=store` and runs the shipping flavor only. The
+property defaults to `dev,store`, an unknown value fails the build, and the dev-flavor Wear unit
+tests keep running on `master` pushes, `workflow_dispatch`, `workflow_call` and in every local
+root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
+name and **runs** by execution. The two Wear flavors share test names, so on pull requests
+**tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
+Heap, `forkEvery` and timeouts are unchanged.
+
+For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores that PR's build cache and executes only what changed.
+
+The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
+block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
+`du -sh /tmp` under a 5 s `timeout` (the JVM's default temp dir on Linux; a local root gate wrote
+~7 GiB of transient temp, with Robolectric's native-runtime extraction as the candidate), PSI for
+cpu/memory/io, and the eight largest processes by RSS. A sample whose `du` exceeds 5 s has no
+`/tmp` line. It lives in the step log rather than an artifact because a runner that receives a
+shutdown signal cancels every later step and `failure()` is false on cancellation. The cause of the
+Wear stack's mid-step runner shutdowns is unmeasured; these samples are the instrument for the next
+occurrence.
+
+`:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
+plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
+`mappingFileUploadEnabled` is true, so the Wear module keeps it off by default and reads
+`-PcrashlyticsMappingUpload=true`; the Wear release pipeline that does not exist yet must pass that
+property when it assembles the shipping build. The phone application keeps its unconditional
+upload: no PR workflow assembles a phone release variant.
 
 Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
@@ -382,6 +430,20 @@ CI Gradle property overrides live under `.github/properties/`:
 
 For local development, `keystore.properties` and the `google-services.json` files are not
 checked in; see [README.MD](../README.MD#requirements) for the local setup steps.
+
+## Wear review follow-up registry
+
+Findings of the independent review of the Wear stack (#286–#295) that changed this pipeline. One
+row per finding: the commit, the guard that now holds it, and the negative control that proved the
+guard can fail. Rows are append-only.
+
+| Finding | Commit | Guard | Control |
+|---|---|---|---|
+| F01 — unit-test step 6.4 → 11.6 min; five stack heads needed re-runs; mid-step runner shutdowns (cause unmeasured). The Wear test-JVM settings `maxHeapSize = "2g"` and `forkEvery = 20` came in d2b6288e (#292) with no recorded rationale; #291's head (1af93d0b), the last one without them, has no green run (attempt 1 failed, attempt 2 cancelled at the job timeout). Correlation only; cause UNMEASURED. Memory, measured from the `[res]` samples of run 36336137166 under a fixed rule (a RAM-backed `/tmp` → per-task `java.io.tmpdir`; otherwise Gradle + Kotlin daemons holding ≥ 40% of used memory → stop both before the unit tests; otherwise no change): `/tmp` is disk-backed (`/` used 79G → 85G while `/tmp` grew 3.4G → 9.3G, and back to 77G at 1.2G; `free` shared stayed 33–41 MiB). At the four swap-full samples (17:51:19–17:52:39Z) the Gradle daemon held 50.5–53.1% and the two Kotlin daemons 23.0–24.0% of used memory, 73.5–77.1% together (56.1% at 17:54:33Z). Choice: stop both | `ci: run the Wear store flavor only on pull requests and sample runner resources`; `ci: sample /tmp usage and record where the Wear test-JVM settings came from`; `ci: stop the Gradle and Kotlin daemons before the unit-test step` | `wearUnitTestFlavors` (unknown flavor fails the build) + `run_with_resource_samples.sh` in the step log, each block with `du -sh /tmp` + the daemon-stop step before `Run Unit Tests` | anchors: `-PwearUnitTestFlavors=bogus` → BUILD FAILED; stand-in `sleep 40; exit 1` → 3 sample blocks, exit 1; with the `/tmp` line, the stand-in keeps its exit code; daemon stop: YAML parses, the extracted step run locally stops a live Gradle daemon and both Kotlin daemons and exits 0, and exits 0 again with nothing running |
+| F01 follow-up — executed measurement. Dispatch run 36351649977 (both Wear flavors, 46 test tasks executed, 0 FROM-CACHE): minimum available 6,622 MiB vs 817 in run 36336137166; swap still went 85 → 3,070 of 3,071 MiB in ~30 s (21:52:21–21:52:54Z); PSI memory some/full 30.62/22.22, io some/full 65.58/18.25; `/tmp` 2.6G → 9.7G in the same window; the `:core:data:database` and `:core:data:exercise` Robolectric workers reached 1.8 GB RSS each against a 512m heap, and `/tmp` fell to 0.2G when they exited. Conclusion: the daemon stop removed the idle-daemon baseline, not the pressure event; the event correlates with Robolectric native-runtime extraction in those two modules, which the stack did not change. Cause UNMEASURED; open item for a separate task | `ci: add an executed unit-test dispatch and name java processes in the samples`; `docs(ci): record the executed unit-test measurement under F01` | reproduce with the `execute_unit_tests` dispatch input (`gh workflow run android_build_unified.yml --ref <branch> -f execute_unit_tests=true`); the sampler names each java process's main class, `-Xmx` and Gradle task | a valid measurement shows `--no-build-cache` in the step command and 0 FROM-CACHE test tasks; run 36347898592 (3 executed, 30 FROM-CACHE) is the invalid case |
+| F07 — PR CI uploaded a Crashlytics mapping file for every `:app:wear:assembleStoreRelease` | `build(wear): make the Crashlytics mapping upload opt-in` | `uploadCrashlyticsMappingFileStoreRelease` leaves the `assembleStoreRelease` graph unless `-PcrashlyticsMappingUpload=true` (dry-run pair, no test guard) | anchor: with the property the task is scheduled |
+| F10 — `python3` inside the unit-test gate undocumented; parser suite accepted “≥ 20 tests” | `test(wear): pin the acceptance parser suite to an exact identity inventory` | `run_parser_tests.py` `EXPECTED_TESTS` (65 ids) via `:app:wear:verifyEmulatorAcceptanceRunner` | `f10-parser-test-renamed`: one renamed test id → RED |
+| F08 — release boundary proven on `devRelease`, not the shipping `storeRelease` | `ci: prove the Wear release boundary on storeRelease` | `ReleaseRuntimeBoundaryTest` on `:app:wear:testStoreReleaseUnitTest` | `f08-release-driver-accepts-scenario`: release `handleDebugScenario` returning `true` → RED |
 
 ## Check-name reference
 

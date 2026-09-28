@@ -469,3 +469,21 @@ flags and Robolectric timeout fields do not establish those physical results.
 Real transport, phone confirmation, disclosure/route decisions and final Phase 1 acceptance
 remain blocked by the existing privacy and paired-device gates. Public privacy files, phone
 schema and mutation-authority rules are unchanged by this stage.
+
+Open items from the independent review of the Wear stack (2026-09-27), deferred without code:
+
+- F05: `WatchRuntimeOwner.transition` performs notification and storage calls on the main thread under its lock (measured on the host: one Activity refresh is seven `status()` lookups plus one notify, one ambient update four plus one); timing and ANR impact are UNMEASURED, so the next acceptance run adds an ANR/crash probe with a known-positive anchor, which also attributes the open ANR from the #284 regression run; `status()` is not memoized because it must observe a post or cancel made inside the same transition.
+- F11: the exported debug `MainActivity` forwards any `wear_surface_fixture` extra to the debug driver (including `expire`, `stop_ongoing`, `no_session`), while the DUMP-guarded receiver allows three scenarios; kept as is, and the fixtures move to the receiver the next time the acceptance runner changes (restricting to the dev flavor would drop the storeDebug acceptance subset).
+- F13: the debug deadline scheduler delays on the coroutine clock against elapsed-realtime deadlines and runs in its own scope; every wake re-checks expiry synchronously, so it stays as is.
+- Energy (deferred): the Tile recovery retry is a fixed 60 s (`RECOVERY_RETRY_FRESHNESS_MS`) with no backoff; revisit it with the physical-watch energy acceptance.
+
+## 8. Review follow-up registry
+
+Findings of the independent review of the Wear stack (#286-#295) that changed this runtime. One
+row per finding: the commit, the guard that now holds it, and the negative control that proved the
+guard can fail. Rows are append-only.
+
+| Finding | Commit | Guard | Control |
+|---|---|---|---|
+| F04 - `Absent(IO_FAILURE)` on restore cancelled the surviving ongoing notification before the owner latched recovery | `fix(wear): keep the ongoing notification through a failed cache read` | `WatchRuntimeIoFailureTest` (restart and in-process recovery; a later successful read restores min(cache, system)) | `f04-io-failure-treated-as-empty`: the early return removed, RED |
+| F12 - `AtomicFile.finishWrite` only logs a failed rename, so persist-before-publish could silently not hold | `fix(wear): fail a cache replacement whose atomic publication did not complete` | `AtomicRecordStoragePublicationApi28Test` / `Api33Test` (non-empty directory at the target path; other rename causes are host-uninjectable and stay UNMEASURED) | `f12-publication-check-removed`: the leftover check disabled, RED |
