@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.wear.ui
+package io.github.stslex.workeeper.wear.state
 
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 
@@ -23,6 +23,24 @@ internal object WearDraftPolicy {
         value == 0 -> WeightChange(null)
         value >= WEIGHT_STEP_HUNDREDTHS_KG -> WeightChange(value - WEIGHT_STEP_HUNDREDTHS_KG)
         else -> null
+    }
+
+    fun adjustReps(value: Int, steps: Int): Int =
+        (value.toLong() + steps).coerceIn(0L, WearProtocol.MAX_WEAR_REPS.toLong()).toInt()
+
+    fun adjustWeight(value: Int?, steps: Int): Int? {
+        var current = value
+        var remaining = steps.toLong()
+        while (remaining != 0L) {
+            current = if (remaining > 0) {
+                incrementWeight(current) ?: return current
+            } else {
+                val change = decrementWeight(current) ?: return current
+                change.value
+            }
+            remaining += if (remaining > 0) -1 else 1
+        }
+        return current
     }
 }
 

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
+import io.github.stslex.workeeper.wear.runtime.ControllerAction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -71,7 +72,7 @@ internal abstract class WearOngoingNoticeContract {
         assertTrue(actions.isEmpty(), "Notification settings must not dispatch a workout action")
         onNodeWithTag("reps_card").performScrollTo().performClick()
         onNodeWithTag("editor_increase").performClick()
-        assertTrue(actions.single() is ControllerAction.SetReps, "Ordinary editing must remain usable")
+        assertTrue(actions.single() is ControllerAction.AdjustDraft, "Ordinary editing must remain usable")
         runOnIdle { back.onBackPressed() }
         waitForIdle()
         actions.clear()

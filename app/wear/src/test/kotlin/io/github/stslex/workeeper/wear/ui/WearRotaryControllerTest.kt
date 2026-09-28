@@ -19,6 +19,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.core.wear.protocol.NumericField
+import io.github.stslex.workeeper.wear.runtime.ControllerAction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
@@ -60,7 +62,7 @@ internal class WearRotaryControllerTest {
 
         openEditor("reps_card")
         rotateAtRoot(ONE_EDITOR_STEP_PX)
-        assertEquals(listOf<ControllerAction>(ControllerAction.SetReps(9)), actions)
+        assertEquals(listOf<ControllerAction>(ControllerAction.AdjustDraft(NumericField.REPS, 1)), actions)
         actions.clear()
         runOnIdle { backDispatcher.onBackPressed() }
         waitForIdle()
@@ -70,7 +72,7 @@ internal class WearRotaryControllerTest {
 
         openEditor("weight_card")
         rotateAtRoot(ONE_EDITOR_STEP_PX)
-        assertEquals(listOf<ControllerAction>(ControllerAction.SetWeight(10_250)), actions)
+        assertEquals(listOf<ControllerAction>(ControllerAction.AdjustDraft(NumericField.WEIGHT, 1)), actions)
         actions.clear()
         onNodeWithTag("editor").performTouchInput { swipeRight() }
         waitForIdle()

@@ -3,19 +3,14 @@ package io.github.stslex.workeeper.wear.runtime
 
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
-import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.state.RequestToken
-import io.github.stslex.workeeper.wear.ui.ControllerAction
-import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import kotlinx.coroutines.flow.StateFlow
 import java.util.Locale
 
 internal interface WatchRuntime {
-    val surface: StateFlow<WearSurfaceModel>
-    val ongoingStatus: StateFlow<OngoingStatus>
+    val snapshot: StateFlow<WatchRuntimeSnapshot>
 
-    fun currentSurface(): WearSurfaceModel
-    fun onWake(): WearSurfaceModel
+    fun onWake(): WatchRuntimeSnapshot
     fun onAction(action: ControllerAction): WatchActionResult
     fun setLocale(locale: Locale)
 }

@@ -25,8 +25,10 @@ import androidx.compose.ui.test.performRotaryScrollInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.ambient.WearAmbientController
+import io.github.stslex.workeeper.wear.runtime.ControllerAction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -76,6 +78,7 @@ internal class WearAmbientControllerIntegrationTest {
                 WearControllerScreen(state = model, ambient = ambient) { action ->
                     actions += action
                     model = when (action) {
+                        is ControllerAction.AdjustDraft -> model.withRelativeDraft(action)
                         is ControllerAction.SetReps -> model.copy(reps = action.value, hasUnsubmittedDraft = true)
                         is ControllerAction.SetWeight -> model.copy(
                             weightHundredthsKg = action.value,
@@ -120,9 +123,9 @@ internal class WearAmbientControllerIntegrationTest {
             onRoot().performRotaryScrollInput { rotateToScrollVertically(49f) }
             waitForIdle()
             val expected = if (card == "reps_card") {
-                ControllerAction.SetReps(requireNotNull(draft.reps) + 1)
+                ControllerAction.AdjustDraft(NumericField.REPS, 1)
             } else {
-                ControllerAction.SetWeight(requireNotNull(draft.weightHundredthsKg) + 250)
+                ControllerAction.AdjustDraft(NumericField.WEIGHT, 1)
             }
             assertEquals(listOf(expected), actions, "$card must regain rotary focus on its retained draft")
             actions.clear()

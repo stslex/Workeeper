@@ -20,6 +20,228 @@
     "xml_root": "app/wear/build"
   },
   {
+    "name": "ROTARY_BATCH_COLLAPSED_REPS",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "                    onAdjust(steps)",
+    "replace": "                    onAdjust(steps.coerceIn(-1, 1))",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRotaryDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearRotaryDraftTest",
+    "expected_method": "oneRotaryEventAppliesEveryStepToTheCurrentDraft()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "ROTARY_BATCH_COLLAPSED_WEIGHT",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "                    onAdjust(steps)",
+    "replace": "                    onAdjust(steps.coerceIn(-1, 1))",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearWeightRotaryDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearWeightRotaryDraftTest",
+    "expected_method": "oneWeightRotaryEventAppliesEveryStepToTheCurrentDraft()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "REPS_BATCH_USES_CANONICAL",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/runtime/WatchRuntimeOwner.kt",
+    "find": "WearDraftPolicy.adjustReps(draft.reps, action.steps)",
+    "replace": "WearDraftPolicy.adjustReps(target.reps, action.steps)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "successiveBatchesReadTheCurrentRepsDraft()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "REPS_BATCH_OVERFLOWS",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/state/WearDraftPolicy.kt",
+    "find": "(value.toLong() + steps).coerceIn(0L, WearProtocol.MAX_WEAR_REPS.toLong()).toInt()",
+    "replace": "(value + steps).coerceIn(0, WearProtocol.MAX_WEAR_REPS)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "extremeRepsBatchesStopAtTheExistingBoundsWithoutOverflow()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "WEIGHT_BATCH_COLLAPSED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/state/WearDraftPolicy.kt",
+    "find": "var remaining = steps.toLong()",
+    "replace": "var remaining = steps.toLong().coerceIn(-1L, 1L)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "weightBatchesKeepEveryPositiveAndNegativeStep()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "WEIGHT_ZERO_LOSES_NULL",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/state/WearDraftPolicy.kt",
+    "find": "value == 0 -> WeightChange(null)",
+    "replace": "value == 0 -> WeightChange(0)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "nullWeightAndZeroRemainDistinctSteps()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "WEIGHT_BOUNDARY_CLAMP_INVENTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/state/WearDraftPolicy.kt",
+    "find": "value > WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG - WEIGHT_STEP_HUNDREDTHS_KG -> null",
+    "replace": "value > WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG - WEIGHT_STEP_HUNDREDTHS_KG -> WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "crossingTheWeightBoundaryKeepsTheValidPrefixWithoutInventingAClampedStep()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "EXPIRED_BATCH_ADMITTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/runtime/WatchRuntimeOwner.kt",
+    "find": "if (!enabled || reducer.state.authority !is LocalMutationAuthority.Available) return WatchActionResult.Rejected",
+    "replace": "if (false && (!enabled || reducer.state.authority !is LocalMutationAuthority.Available)) return WatchActionResult.Rejected",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRelativeDraftTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest",
+    "expected_method": "expiredAuthorityRejectsTheEntireBatch()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_AMBIENT_EDITOR_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/CommonHandler.kt",
+    "find": "presentation.ambient.isAmbient || presentation.model.controlsEnabled",
+    "replace": "false || presentation.model.controlsEnabled",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "ambientKeepsTheEditorUntilInteractiveEligibilityCanBeDecided()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_EXPIRED_EDITOR_RETAINED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/CommonHandler.kt",
+    "find": "presentation.ambient.isAmbient || presentation.model.controlsEnabled",
+    "replace": "presentation.ambient.isAmbient || true",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "platformExitClosesTheEditorUsingTheSynchronousExpiryResult()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_WEIGHTLESS_EDITOR_ALLOWED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/ClickHandler.kt",
+    "find": "(action.field == NumericField.REPS || presentation.model.weighted)",
+    "replace": "true",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "openingAWeightEditorRequiresAWeightedModel()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_RELATIVE_INPUT_STALE",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/InputHandler.kt",
+    "find": "ControllerAction.AdjustDraft(action.field, action.steps)",
+    "replace": "ControllerAction.SetReps(requireNotNull(presentation.model.reps) + action.steps)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "draftInputAppliesEveryRelativeStepToTheCurrentRuntimeDraft()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_PREVIEW_MUTATES",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/InputHandler.kt",
+    "find": "presentation.ambient.isAmbient || presentation.preview ||",
+    "replace": "presentation.ambient.isAmbient || false ||",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "aStaticPreviewCannotEditTheProcessDraft()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_PREVIEW_COMPLETES",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/ClickHandler.kt",
+    "find": "Action.Click.Complete -> if (!presentation.preview && presentation.model.completeEnabled)",
+    "replace": "Action.Click.Complete -> if (presentation.model.completeEnabled)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "aStaticPreviewCannotIssueACompletion()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_CLOSED_EDITOR_ACCEPTS_INPUT",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/InputHandler.kt",
+    "find": "if (state.editor == action.field)",
+    "replace": "if (true)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "lateInputCannotEditAClosedOrDifferentEditor()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_NOTIFICATION_EFFECT_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/ClickHandler.kt",
+    "find": "store.sendEvent(Event.EnableNotificationsRequested)",
+    "replace": "Unit",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "notificationClickRequestsAPlatformEffect()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_BACK_RETAINS_EDITOR",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/NavigationHandler.kt",
+    "find": "it.copy(editor = null)",
+    "replace": "it.copy(editor = it.editor)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "editorBackClearsOnlyTheScreenEditor()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_PAYLOAD_TELEMETRY_LEAK",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/store/WearStore.kt",
+    "find": "override fun toString(): String = \"PresentationChanged\"",
+    "replace": "override fun toString(): String = value.toString()",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearHandlerTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearHandlerTest",
+    "expected_method": "loggedActionsDoNotSerializeWorkoutOrDraftValues()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_MODEL_REFORMAT_ON_TICK",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/mapper/WearPresentationMapper.kt",
+    "find": "snapshot.copy(ongoing = OngoingStatus.Inactive) to previewId",
+    "replace": "snapshot to previewId",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearPresentationMapperTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearPresentationMapperTest",
+    "expected_method": "ambientTicksAndNotificationChangesReuseTheFormattedModel()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_LOCALE_CACHE_STALE",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/mapper/WearPresentationMapper.kt",
+    "find": "snapshot.copy(ongoing = OngoingStatus.Inactive) to previewId",
+    "replace": "snapshot.copy(ongoing = OngoingStatus.Inactive, locale = java.util.Locale.US) to previewId",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearPresentationMapperTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearPresentationMapperTest",
+    "expected_method": "localeChangeFormatsTheCurrentDraftOnceIntoANewModel()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_RETAINED_STORE_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerRoute.kt",
+    "find": "rememberMetroStoreProcessor(factory)",
+    "replace": "io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor { androidx.compose.runtime.remember { factory() } }",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearStoreLifecycleTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearStoreLifecycleTest",
+    "expected_method": "metroRetainsTheEditorAndProcessDraftButClosesExpiredEditingOnWake()",
+    "expected_assertion": "same ViewModelStore",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "MVI_RUNTIME_OBSERVATION_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/mvi/handler/CommonHandler.kt",
+    "find": ") { consume(Action.Common.RuntimeChanged) }",
+    "replace": ") { Unit }",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearStoreLifecycleTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.mvi.WearStoreLifecycleTest",
+    "expected_method": "metroRetainsTheEditorAndProcessDraftButClosesExpiredEditingOnWake()",
+    "expected_assertion": "Text",
+    "xml_root": "app/wear/build"
+  },
+  {
     "name": "SOURCE_STRING_WALK_EXCLUDES_DECLARATIONS",
     "file": "app/wear/src/test/kotlin/io/github/stslex/workeeper/wear/ui/WearStringCoverageGateTest.kt",
     "find": "it in declared || it !in FIREBASE_CONFIGURATION_IDS",

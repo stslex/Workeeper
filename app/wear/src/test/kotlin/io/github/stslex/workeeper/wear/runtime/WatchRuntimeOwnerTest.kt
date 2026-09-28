@@ -16,8 +16,10 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.ongoing.WriteFailure
 import io.github.stslex.workeeper.wear.state.ReducerTestFixtures
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
-import io.github.stslex.workeeper.wear.ui.ControllerAction
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
+import io.github.stslex.workeeper.wear.ui.ongoingStatus
+import io.github.stslex.workeeper.wear.ui.surface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
@@ -221,7 +223,7 @@ internal class WatchRuntimeOwnerTest {
         val restored = env.newOwner()
         assertEquals(WearSurfaceKind.NO_SESSION, restored.surface.value.kind)
         env.now += WearProtocol.DISPLAY_CACHE_TTL_MS
-        assertEquals(WearSurfaceKind.LOADING, restored.onWake().kind)
+        assertEquals(WearSurfaceKind.LOADING, WearSurfaceMapper.map(restored.onWake()).kind)
         assertNull(env.storage.bytes)
     }
 
@@ -257,7 +259,7 @@ internal class WatchRuntimeOwnerTest {
             assertEquals(oldSurface.reps, env.owner.surface.value.reps)
             assertFalse(env.owner.surface.value.completeEnabled)
             env.storage.failure = null
-            val recovered = env.owner.onWake()
+            val recovered = WearSurfaceMapper.map(env.owner.onWake())
             val target = (successor.payload as SnapshotPayload.ActiveWithTarget).target
             assertEquals(target.setOrdinal, recovered.setOrdinal)
             assertEquals(target.reps, recovered.reps, "Recovery must reconcile with the durable canonical values")
@@ -289,7 +291,7 @@ internal class WatchRuntimeOwnerTest {
         assertThrows(IOException::class.java) { env.accept() }
         assertEquals(WearSurfaceKind.LOADING, env.owner.surface.value.kind)
         fail = false
-        assertEquals(WearSurfaceKind.REFRESH_REQUIRED, env.owner.onWake().kind)
+        assertEquals(WearSurfaceKind.REFRESH_REQUIRED, WearSurfaceMapper.map(env.owner.onWake()).kind)
         assertFalse(env.owner.surface.value.completeEnabled)
         assertEquals(1, env.notification.posts.size)
         env.accept(ReducerTestFixtures.active(leaseGeneration = 2))
@@ -298,7 +300,7 @@ internal class WatchRuntimeOwnerTest {
         assertThrows(IOException::class.java) { env.owner.onAction(ControllerAction.SetWeight(5_000)) }
         assertNull(env.owner.surface.value.weightHundredthsKg)
         permissionReadsBeforeFailure = null
-        val recovered = env.owner.onWake()
+        val recovered = WearSurfaceMapper.map(env.owner.onWake())
         assertNull(recovered.weightHundredthsKg, "Recovery must not publish an edit from a failed action")
         assertTrue(recovered.hasUnsubmittedDraft)
         assertFalse(recovered.controlsEnabled)
@@ -325,7 +327,7 @@ internal class WatchRuntimeOwnerTest {
         env.accept()
         env.owner.onAction(ControllerAction.SetWeight(null))
         env.now = 1_000L + WearProtocol.DISPLAY_CACHE_TTL_MS
-        val model = env.owner.onWake()
+        val model = WearSurfaceMapper.map(env.owner.onWake())
         assertEquals(WearSurfaceKind.LOADING, model.kind)
         assertNull(model.reps)
         assertFalse(model.hasUnsubmittedDraft)
@@ -388,7 +390,7 @@ internal class WatchRuntimeOwnerTest {
         env.now = 120_999L
         // Wake refresh plus two expiry passes precede the final platform-status lookup.
         readsUntilCrossing = 4
-        val returned = env.owner.onWake()
+        val returned = WearSurfaceMapper.map(env.owner.onWake())
         assertNull(readsUntilCrossing, "The platform status lookup must cross the lease deadline")
         assertEquals(121_000L, env.now)
         assertFalse(returned.controlsEnabled, "Wake must expire editing synchronously before returning")
@@ -451,7 +453,7 @@ internal class WatchRuntimeOwnerTest {
             assertNull(env.scheduler.deadline)
             assertEquals(7_000L, env.notification.deadline)
             env.storage.failure = null
-            val recovered = env.owner.onWake()
+            val recovered = WearSurfaceMapper.map(env.owner.onWake())
             assertFalse(recovered.controlsEnabled)
             assertEquals(12, recovered.reps, "Same-process recovery must retain the compatible published draft")
             assertTrue(recovered.hasUnsubmittedDraft)
@@ -490,7 +492,7 @@ internal class WatchRuntimeOwnerTest {
         assertTrue(env.owner.surface.value.hasUnsubmittedDraft)
         assertFalse(env.owner.surface.value.controlsEnabled)
         val readsBeforeRecovery = env.reads
-        val recovered = env.owner.onWake()
+        val recovered = WearSurfaceMapper.map(env.owner.onWake())
         assertEquals(readsBeforeRecovery + 1, env.reads, "The next wake must retry the guarded cache read")
         assertEquals(WearSurfaceKind.REFRESH_REQUIRED, recovered.kind)
         assertFalse(recovered.completeEnabled)
@@ -517,7 +519,7 @@ internal class WatchRuntimeOwnerTest {
         assertEquals(OngoingStatus.Inactive, restored.ongoingStatus.value)
         assertNull(env.scheduler.deadline)
         failStatus = false
-        assertEquals(WearSurfaceKind.REFRESH_REQUIRED, restored.onWake().kind)
+        assertEquals(WearSurfaceKind.REFRESH_REQUIRED, WearSurfaceMapper.map(restored.onWake()).kind)
         assertEquals(8, restored.surface.value.reps)
         assertFalse(restored.surface.value.completeEnabled)
         assertEquals(1, env.notification.posts.size)

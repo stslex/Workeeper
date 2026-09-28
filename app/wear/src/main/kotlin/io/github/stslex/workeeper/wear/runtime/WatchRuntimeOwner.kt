@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.wear.runtime
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
+import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
@@ -25,16 +26,13 @@ import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.RequestToken
 import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
+import io.github.stslex.workeeper.wear.state.WatchInteractionEligibility
 import io.github.stslex.workeeper.wear.state.WatchWorkoutReducer
+import io.github.stslex.workeeper.wear.state.WearDraftPolicy
 import io.github.stslex.workeeper.wear.state.WorkoutSourceVersion
 import io.github.stslex.workeeper.wear.state.safeMonotonicAdd
 import io.github.stslex.workeeper.wear.state.sourceVersion
 import io.github.stslex.workeeper.wear.state.targetKeyOrNull
-import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
-import io.github.stslex.workeeper.wear.ui.ControllerAction
-import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
-import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
-import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,13 +58,8 @@ internal class WatchRuntimeOwner(
     private var receivedAtMs: Long? = null
     private var tombstone = false
     private var recoveryRequired = false
-    private val mutableSurface = MutableStateFlow(
-        WearSurfaceModel(WearSurfaceKind.LOADING, selectedLocale = selectedLocale),
-    )
-    private val mutableOngoing = MutableStateFlow<OngoingStatus>(OngoingStatus.Inactive)
-
-    override val surface: StateFlow<WearSurfaceModel> = mutableSurface.asStateFlow()
-    override val ongoingStatus: StateFlow<OngoingStatus> = mutableOngoing.asStateFlow()
+    private val mutableSnapshot = MutableStateFlow(WatchRuntimeSnapshot(locale = selectedLocale))
+    override val snapshot: StateFlow<WatchRuntimeSnapshot> = mutableSnapshot.asStateFlow()
 
     init {
         restoreOnCreate()
@@ -85,15 +78,13 @@ internal class WatchRuntimeOwner(
         }
     }
 
-    override fun currentSurface(): WearSurfaceModel = onWake()
-
-    override fun onWake(): WearSurfaceModel = transition {
+    override fun onWake(): WatchRuntimeSnapshot = transition {
         // A restored tombstone has no exposed receive time, so its access-time TTL stays at the reader boundary.
         if (tombstone && receivedAtMs == null && cache.read() !is CacheReadResult.NoSession) {
             resetDisplay()
         }
         ongoing.refresh()
-    }.let { surface.value }
+    }.let { snapshot.value }
 
     override fun setLocale(locale: Locale) = transition {
         selectedLocale = locale
@@ -125,12 +116,25 @@ internal class WatchRuntimeOwner(
     }
 
     override fun onAction(action: ControllerAction): WatchActionResult = transition {
-        val model = model()
+        val eligibility = if (tombstone) WatchInteractionEligibility() else {
+            WatchInteractionEligibility.from(reducer.state.copy(draft = pendingDraft?.values))
+        }
         when (action) {
-            is ControllerAction.SetReps -> editDraft(model.controlsEnabled) { draft, _ ->
+            is ControllerAction.AdjustDraft -> editDraft(eligibility.editing) { draft, target ->
+                when {
+                    action.steps == 0 -> null
+                    action.field == NumericField.REPS ->
+                        draft.copy(reps = WearDraftPolicy.adjustReps(draft.reps, action.steps))
+                    target.exerciseType == ExerciseTypeWire.WEIGHTED -> draft.copy(
+                        weightHundredthsKg = WearDraftPolicy.adjustWeight(draft.weightHundredthsKg, action.steps),
+                    )
+                    else -> null
+                }
+            }
+            is ControllerAction.SetReps -> editDraft(eligibility.editing) { draft, _ ->
                 if (action.value in 0..WearProtocol.MAX_WEAR_REPS) draft.copy(reps = action.value) else null
             }
-            is ControllerAction.SetWeight -> editDraft(model.controlsEnabled) { draft, target ->
+            is ControllerAction.SetWeight -> editDraft(eligibility.editing) { draft, target ->
                 val valid = action.value == null || action.value in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG
                 if (valid && target.exerciseType == ExerciseTypeWire.WEIGHTED) {
                     draft.copy(weightHundredthsKg = action.value)
@@ -138,8 +142,8 @@ internal class WatchRuntimeOwner(
                     null
                 }
             }
-            ControllerAction.CompleteSet -> if (model.completeEnabled) issueCommand() else WatchActionResult.Rejected
-            ControllerAction.Retry -> if (model.retryEnabled) {
+            ControllerAction.CompleteSet -> if (eligibility.completion) issueCommand() else WatchActionResult.Rejected
+            ControllerAction.Retry -> if (eligibility.retry) {
                 WatchActionResult.RefreshRequested
             } else {
                 WatchActionResult.Rejected
@@ -171,19 +175,10 @@ internal class WatchRuntimeOwner(
     }
 
     private fun publishFailure() {
-        val previous = mutableSurface.value
-        mutableSurface.value = previous.copy(
-            kind = if (previous.controlsVisible) WearSurfaceKind.REFRESH_REQUIRED else previous.kind,
-            controlsEnabled = false,
-            completeEnabled = false,
-            retryEnabled = false,
-            completionUnavailableReason = if (previous.controlsVisible) {
-                CompletionUnavailableReason.REFRESH_REQUIRED
-            } else {
-                null
-            },
+        mutableSnapshot.value = mutableSnapshot.value.copy(
+            recoveryRequired = true,
+            ongoing = OngoingStatus.Inactive,
         )
-        mutableOngoing.value = OngoingStatus.Inactive
     }
 
     private fun restoreLocked() {
@@ -221,7 +216,7 @@ internal class WatchRuntimeOwner(
         }
         reducer.expireAuthority(clock.nowMs())
         val status = ongoing.status()
-        val published = mutableOngoing.value as? OngoingStatus.Scheduled
+        val published = mutableSnapshot.value.ongoing as? OngoingStatus.Scheduled
         val scheduledDeadlineReached = published?.let { clock.nowMs() >= it.stopAtElapsedRealtimeMs } == true
         if (status == OngoingStatus.PermissionDenied || scheduledDeadlineReached) {
             ongoing.refresh()
@@ -239,24 +234,15 @@ internal class WatchRuntimeOwner(
     private fun publish() {
         // Atomic cache writes and platform calls can consume the remaining mutation window.
         checkExpiry()
-        mutableOngoing.value = ongoing.status()
-        val before = reducer.state
-        var next = model()
+        val status = ongoing.status()
         reducer.expireAuthority(clock.nowMs())
-        if (reducer.state != before) next = model()
-        mutableSurface.value = next
+        mutableSnapshot.value = WatchRuntimeSnapshot(
+            workout = reducer.state.copy(draft = pendingDraft?.values),
+            ongoing = status,
+            noSession = tombstone,
+            locale = selectedLocale,
+        )
         scheduleNextBoundary()
-    }
-
-    private fun model(): WearSurfaceModel {
-        val state = reducer.state.copy(draft = pendingDraft?.values)
-        return if (tombstone) {
-            WearSurfaceModel(WearSurfaceKind.NO_SESSION, selectedLocale = selectedLocale)
-        } else {
-            WearSurfaceMapper.map(state).copy(
-                selectedLocale = selectedLocale,
-            )
-        }
     }
 
     private fun editDraft(
@@ -326,7 +312,7 @@ internal class WatchRuntimeOwner(
             is LocalMutationAuthority.AttemptBound -> current.effectiveDeadlineMs
             LocalMutationAuthority.Retired -> null
         }
-        val ongoingDeadline = (mutableOngoing.value as? OngoingStatus.Scheduled)?.stopAtElapsedRealtimeMs
+        val ongoingDeadline = (mutableSnapshot.value.ongoing as? OngoingStatus.Scheduled)?.stopAtElapsedRealtimeMs
         val cacheDeadline = receivedAtMs?.let { safeMonotonicAdd(it, WearProtocol.DISPLAY_CACHE_TTL_MS) }
         // A boundary reached during formatting/platform work still needs its one-shot callback.
         val deadline = listOfNotNull(authority, ongoingDeadline, cacheDeadline).minOrNull()?.coerceAtLeast(now)

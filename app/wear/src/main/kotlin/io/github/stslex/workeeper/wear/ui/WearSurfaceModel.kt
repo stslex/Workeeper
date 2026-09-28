@@ -2,17 +2,17 @@
 package io.github.stslex.workeeper.wear.ui
 
 import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
-import io.github.stslex.workeeper.core.wear.protocol.CommandValidation
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.PhoneActionReason
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.state.ActiveFreshness
-import io.github.stslex.workeeper.wear.state.CommandStatus
-import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.ReducerEvent
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
+import io.github.stslex.workeeper.wear.state.WatchInteractionEligibility
 import io.github.stslex.workeeper.wear.state.WatchReducerState
+import io.github.stslex.workeeper.wear.state.WearDraftPolicy
 import io.github.stslex.workeeper.wear.state.sourceVersion
 import io.github.stslex.workeeper.wear.state.targetKeyOrNull
 import java.util.Locale
@@ -61,62 +61,73 @@ internal data class WearSurfaceModel(
 ) {
     // A body property is recomputed by copy; a constructor default would retain stale labels.
     val formattedValues: WearFormattedValues = WearValueFormatter.format(reps, weightHundredthsKg, selectedLocale)
+    val incrementRepsEnabled: Boolean = controlsEnabled && reps?.let(WearDraftPolicy::incrementReps) != null
+    val decrementRepsEnabled: Boolean = controlsEnabled && reps?.let(WearDraftPolicy::decrementReps) != null
+    val incrementWeightEnabled: Boolean = controlsEnabled && weighted &&
+        WearDraftPolicy.incrementWeight(weightHundredthsKg) != null
+    val decrementWeightEnabled: Boolean = controlsEnabled && weighted &&
+        WearDraftPolicy.decrementWeight(weightHundredthsKg) != null
+    val setScaleSlots: List<WearSetScaleSlot> = if (setOrdinal != null && totalSets != null) {
+        wearSetScaleSlots(setOrdinal, totalSets)
+    } else {
+        emptyList()
+    }
 }
 
 internal typealias WearSurfaceState = WearSurfaceModel
 
 internal object WearSurfaceMapper {
 
-    fun map(state: WatchReducerState): WearSurfaceModel {
+    fun map(state: WatchReducerState): WearSurfaceModel = map(WatchRuntimeSnapshot(workout = state))
+
+    fun map(snapshot: WatchRuntimeSnapshot): WearSurfaceModel {
+        val state = snapshot.workout
+        val locale = snapshot.locale
+        if (snapshot.noSession) return WearSurfaceModel(WearSurfaceKind.NO_SESSION, selectedLocale = locale)
         if (state.display is WatchDisplayState.ProtocolMismatch) {
-            return WearSurfaceModel(kind = WearSurfaceKind.PROTOCOL_MISMATCH)
+            return WearSurfaceModel(kind = WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale)
         }
-        if (state.command?.status in RETRYABLE_STATUSES) {
+        val eligibility = WatchInteractionEligibility.from(state)
+        if (eligibility.retry) {
             return WearSurfaceModel(
                 kind = WearSurfaceKind.RETRYABLE_ERROR,
-                retryEnabled = true,
+                retryEnabled = !snapshot.recoveryRequired && !snapshot.readOnly,
+                selectedLocale = locale,
             )
         }
         return when (val display = state.display) {
-            is WatchDisplayState.Loading -> WearSurfaceModel(WearSurfaceKind.LOADING)
-            is WatchDisplayState.NoSession -> WearSurfaceModel(WearSurfaceKind.NO_SESSION)
-            is WatchDisplayState.ProtocolMismatch -> WearSurfaceModel(WearSurfaceKind.PROTOCOL_MISMATCH)
-            is WatchDisplayState.Active -> active(display, state)
-            is WatchDisplayState.PhoneActionRequired -> phoneAction(display)
-            is WatchDisplayState.WorkoutComplete -> complete(display)
+            is WatchDisplayState.Loading -> WearSurfaceModel(WearSurfaceKind.LOADING, selectedLocale = locale)
+            is WatchDisplayState.NoSession -> WearSurfaceModel(WearSurfaceKind.NO_SESSION, selectedLocale = locale)
+            is WatchDisplayState.ProtocolMismatch ->
+                WearSurfaceModel(WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale)
+            is WatchDisplayState.Active -> active(display, snapshot, eligibility)
+            is WatchDisplayState.PhoneActionRequired -> phoneAction(display, locale)
+            is WatchDisplayState.WorkoutComplete -> complete(display, locale)
         }
     }
 
     private fun active(
         display: WatchDisplayState.Active,
-        state: WatchReducerState,
+        snapshot: WatchRuntimeSnapshot,
+        eligibility: WatchInteractionEligibility,
     ): WearSurfaceModel {
+        val state = snapshot.workout
+        val blocked = snapshot.recoveryRequired || snapshot.readOnly
         val payload = display.snapshot.payload as SnapshotPayload.ActiveWithTarget
         val draft = state.draft
         val reps = draft?.reps ?: payload.target.reps
         // A present draft may explicitly clear the weight; only an absent draft uses the snapshot.
         val weight = if (draft != null) draft.weightHundredthsKg else payload.target.weightHundredthsKg
-        val available = state.authority is LocalMutationAuthority.Available
-        val commandIdle = state.command == null || state.command.status in TERMINAL_STATUSES
+        val available = eligibility.authorityAvailable
+        val commandIdle = eligibility.commandIdle
         val submittedDraft = state.command?.takeUnless { commandIdle }?.let { command ->
             command.draft == draft &&
                 command.source == display.snapshot.sourceVersion() &&
                 command.target == display.snapshot.targetKeyOrNull()
         } == true
-        val invalidField = CommandValidation.validate(
-            reps = reps,
-            weightHundredthsKg = weight,
-            exerciseType = payload.target.exerciseType,
-        )?.field
-        val completeEnabled = available && commandIdle && !state.refreshRequired && invalidField == null
+        val completeEnabled = !blocked && eligibility.completion
         return WearSurfaceModel(
-            kind = when (display.freshness) {
-                ActiveFreshness.FRESH -> WearSurfaceKind.ACTIVE
-                ActiveFreshness.DISCONNECTED -> WearSurfaceKind.DISCONNECTED
-                ActiveFreshness.REFRESH_REQUIRED,
-                ActiveFreshness.STALE,
-                -> WearSurfaceKind.REFRESH_REQUIRED
-            },
+            kind = activeKind(display.freshness, snapshot),
             trainingName = payload.trainingName.valueOrNull(),
             exerciseName = payload.target.exerciseName.valueOrNull(),
             completedExercises = payload.completedExercises,
@@ -125,24 +136,35 @@ internal object WearSurfaceMapper {
             totalSets = payload.target.totalSets,
             reps = reps,
             weightHundredthsKg = weight,
-            hasUnsubmittedDraft = draft != null && !submittedDraft,
+            hasUnsubmittedDraft = !snapshot.readOnly && draft != null && !submittedDraft,
             weighted = payload.target.exerciseType == ExerciseTypeWire.WEIGHTED,
             controlsVisible = true,
-            controlsEnabled = available && commandIdle,
+            controlsEnabled = !blocked && eligibility.editing,
             completeEnabled = completeEnabled,
             completionUnavailableReason = if (completeEnabled) {
                 null
+            } else if (blocked) {
+                CompletionUnavailableReason.REFRESH_REQUIRED
             } else {
                 completionUnavailableReason(
                     display.freshness,
                     state.refreshRequired,
                     commandIdle,
                     available,
-                    invalidField,
+                    eligibility.invalidField,
                 )
             },
             fieldError = state.events.filterIsInstance<ReducerEvent.FieldError>().lastOrNull()?.field,
+            selectedLocale = snapshot.locale,
         )
+    }
+
+    private fun activeKind(freshness: ActiveFreshness, snapshot: WatchRuntimeSnapshot): WearSurfaceKind = when {
+        snapshot.recoveryRequired || snapshot.readOnly && freshness == ActiveFreshness.FRESH ->
+            WearSurfaceKind.REFRESH_REQUIRED
+        freshness == ActiveFreshness.FRESH -> WearSurfaceKind.ACTIVE
+        freshness == ActiveFreshness.DISCONNECTED -> WearSurfaceKind.DISCONNECTED
+        else -> WearSurfaceKind.REFRESH_REQUIRED
     }
 
     private fun completionUnavailableReason(
@@ -161,44 +183,38 @@ internal object WearSurfaceMapper {
         else -> error("A blocked active completion must have an unavailable reason")
     }
 
-    private fun phoneAction(display: WatchDisplayState.PhoneActionRequired): WearSurfaceModel {
+    private fun phoneAction(display: WatchDisplayState.PhoneActionRequired, locale: Locale): WearSurfaceModel {
         val payload = display.snapshot.payload as SnapshotPayload.PhoneActionRequired
         return when (val reason = payload.reason) {
             is PhoneActionReason.NoSetRows -> WearSurfaceModel(
                 kind = WearSurfaceKind.PHONE_ACTION_NO_SETS,
                 exerciseName = reason.exerciseName.valueOrNull(),
+                selectedLocale = locale,
             )
             is PhoneActionReason.UnsupportedNumericValues -> WearSurfaceModel(
                 kind = WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
                 exerciseName = reason.exerciseName.valueOrNull(),
                 fieldError = reason.field,
+                selectedLocale = locale,
             )
             is PhoneActionReason.PayloadTooLarge -> WearSurfaceModel(
                 kind = WearSurfaceKind.PAYLOAD_TOO_LARGE,
+                selectedLocale = locale,
             )
         }
     }
 
-    private fun complete(display: WatchDisplayState.WorkoutComplete): WearSurfaceModel {
+    private fun complete(display: WatchDisplayState.WorkoutComplete, locale: Locale): WearSurfaceModel {
         val payload = display.snapshot.payload as SnapshotPayload.WorkoutComplete
         return WearSurfaceModel(
             kind = WearSurfaceKind.WORKOUT_COMPLETE,
             trainingName = payload.trainingName.valueOrNull(),
             completedExercises = payload.completedExercises,
             totalExercises = payload.totalExercises,
+            selectedLocale = locale,
         )
     }
 
     private fun BoundedDisplayName.valueOrNull(): String? =
         (this as? BoundedDisplayName.Value)?.value
-
-    private val RETRYABLE_STATUSES = setOf(
-        CommandStatus.TIMED_OUT_RETRYABLE,
-        CommandStatus.RETRY_READY,
-    )
-    private val TERMINAL_STATUSES = setOf(
-        CommandStatus.SOURCE_INVALIDATED,
-        CommandStatus.TERMINAL,
-        CommandStatus.ABANDONED,
-    )
 }

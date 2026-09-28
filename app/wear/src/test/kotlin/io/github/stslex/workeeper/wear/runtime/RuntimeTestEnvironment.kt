@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingPolicy
 import io.github.stslex.workeeper.wear.ongoing.RecordingNotification
 import io.github.stslex.workeeper.wear.ongoing.RecordingStorage
 import io.github.stslex.workeeper.wear.state.ReducerTestFixtures
+import io.github.stslex.workeeper.wear.ui.surface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

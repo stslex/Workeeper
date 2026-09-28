@@ -60,3 +60,8 @@ Crashlytics platform key before application graph work. The remaining stacked ch
 presentation MVI/relative input, adapted Wear typography/geometry, and Tile refresh/acceptance.
 The real-phone-payload privacy gate remains closed. Physical watches, reconnect, energy use and
 hardware ambient behavior remain separate acceptance.
+
+2026-09-26 presentation: the existing retained project Store and typed handlers now own
+screen/editor decisions. Runtime snapshots keep process cache, authority and ongoing ownership
+outside the Store. The mapper prepares locale-aware values once; relative rotary batches apply
+to the latest draft. The following PR adapts Wear font roles and round geometry.

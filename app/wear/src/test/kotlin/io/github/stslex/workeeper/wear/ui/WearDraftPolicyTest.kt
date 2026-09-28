@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.wear.ui
 
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
+import io.github.stslex.workeeper.wear.state.WearDraftPolicy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
