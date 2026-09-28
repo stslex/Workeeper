@@ -4,7 +4,7 @@ import io.github.stslex.workeeper.configureWearApplication
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
-/** Firebase-free application convention for the separately installed Wear OS artifact. */
+/** Base application convention; the Wear module declares its Firebase and platform dependencies. */
 class WearApplicationConventionPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {

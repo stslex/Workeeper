@@ -1,0 +1,65 @@
+[
+  {
+    "name": "acceptance-receiver-allows-clock-offset",
+    "file": "app/wear/src/debug/kotlin/io/github/stslex/workeeper/wear/runtime/AcceptanceScenarioReceiver.kt",
+    "find": "            scenario !in ALLOWED_SCENARIOS -> \"invalid_scenario\"",
+    "replace": "            scenario == null -> \"invalid_scenario\"",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.unexpectedScenariosAndActionsCannotReachDriver --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest",
+    "expected_method": "unexpectedScenariosAndActionsCannotReachDriver()"
+  },
+  {
+    "name": "acceptance-receiver-ignores-action",
+    "file": "app/wear/src/debug/kotlin/io/github/stslex/workeeper/wear/runtime/AcceptanceScenarioReceiver.kt",
+    "find": "            intent.action != ACTION -> \"invalid_action\"",
+    "replace": "            intent.action == null -> \"invalid_action\"",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.unexpectedScenariosAndActionsCannotReachDriver --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest",
+    "expected_method": "unexpectedScenariosAndActionsCannotReachDriver()"
+  },
+  {
+    "name": "acceptance-receiver-accepts-unordered",
+    "file": "app/wear/src/debug/kotlin/io/github/stslex/workeeper/wear/runtime/AcceptanceScenarioReceiver.kt",
+    "find": "        if (!isOrderedBroadcast) return",
+    "replace": "        if (!isOrderedBroadcast && false) return",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.unorderedCommandCannotMutateRuntime --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest",
+    "expected_method": "unorderedCommandCannotMutateRuntime()"
+  },
+  {
+    "name": "acceptance-receiver-acknowledges-rejected-driver",
+    "file": "app/wear/src/debug/kotlin/io/github/stslex/workeeper/wear/runtime/AcceptanceScenarioReceiver.kt",
+    "find": "            if (accepted) Activity.RESULT_OK else Activity.RESULT_CANCELED,",
+    "replace": "            Activity.RESULT_OK,",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.orderedCommandsUseExistingDriverAndDoNotLaunchAnActivity --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest",
+    "expected_method": "orderedCommandsUseExistingDriverAndDoNotLaunchAnActivity()"
+  },
+  {
+    "name": "acceptance-receiver-launches-activity",
+    "file": "app/wear/src/debug/kotlin/io/github/stslex/workeeper/wear/runtime/AcceptanceScenarioReceiver.kt",
+    "find": "        val accepted = runWearRuntimeUiEvent {",
+    "replace": "        context.startActivity(\n            Intent(context, io.github.stslex.workeeper.wear.MainActivity::class.java)\n                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),\n        )\n        val accepted = runWearRuntimeUiEvent {",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.orderedCommandsUseExistingDriverAndDoNotLaunchAnActivity --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest",
+    "expected_method": "orderedCommandsUseExistingDriverAndDoNotLaunchAnActivity()"
+  },
+  {
+    "name": "acceptance-receiver-drops-shell-permission",
+    "file": "app/wear/src/debug/AndroidManifest.xml",
+    "find": "            android:permission=\"android.permission.DUMP\"",
+    "replace": "            android:permission=\"android.permission.INTERNET\"",
+    "task": ":app:wear:testDevDebugUnitTest --tests io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioBoundaryTest.receiverExistsOnlyInDebugAndRequiresShellPermission --no-configuration-cache --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioBoundaryTest",
+    "expected_method": "receiverExistsOnlyInDebugAndRequiresShellPermission()"
+  },
+  {
+    "name": "acceptance-receiver-leaks-release-manifest",
+    "file": "app/wear/src/main/AndroidManifest.xml",
+    "find": "        <activity\n            android:name=\".MainActivity\"",
+    "replace": "        <receiver\n            android:name=\".runtime.AcceptanceScenarioReceiver\"\n            android:exported=\"true\"\n            android:permission=\"android.permission.DUMP\" />\n\n        <activity\n            android:name=\".MainActivity\"",
+    "task": ":app:wear:testDevReleaseUnitTest --tests io.github.stslex.workeeper.wear.runtime.ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass --no-configuration-cache --console=plain -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.ReleaseRuntimeBoundaryTest",
+    "expected_method": "releaseRejectsSyntheticEventsAndExcludesTheirSourceClass()"
+  }
+]

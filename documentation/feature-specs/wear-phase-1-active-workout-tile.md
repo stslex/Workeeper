@@ -1006,6 +1006,10 @@ app/wear                 Wear OS application, Tile, activity, cache, transport
 
 Constraints:
 
+The presentation and dependency constraints below describe Phase 1. The current
+[shared-style and MVI contract](wear-style-mvi.md#contract) supersedes its UI-sharing and
+Firebase exclusions; protocol, privacy and authority constraints remain in force.
+
 - `app/wear` uses Wear Compose/Material and Tiles ProtoLayout directly. It does
   not depend on `app/common`, phone navigation, `core/ui/kit`, or a shared KMP UI
   module.

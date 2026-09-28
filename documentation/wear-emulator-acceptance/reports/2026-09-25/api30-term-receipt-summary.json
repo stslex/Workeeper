@@ -1,0 +1,296 @@
+{
+  "status": "SIX_TIMED_TRIALS_AND_SIX_ORDINARY_REOPENS_CORROBORATED",
+  "profile": {
+    "path": "/private/tmp/wear-emulator-acceptance-20260925/final-lifecycle-api30-term-85ae/manifest.json",
+    "bytes": 536713,
+    "sha256": "f56f514c0e8bd3dc349898dc7a4d638b295e7ee6b9162993a6487ae302683924"
+  },
+  "source": "85ae0cfee2e0ca198caf70c2e4dec6b89a5a691c",
+  "signal": "Explicit default-disposition SIGTERM15 after original SIGKILL instrument failure, not silent fallback.",
+  "rows": [
+    {
+      "case_id": "lifecycle/api30/death-fresh/1",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-fresh/1/receipt.json",
+        "bytes": 408441,
+        "sha256": "f491c1b603b34b2b2d34e80d8ff30d6155e6e4d823935a06ff598ff872cd737b"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 8710897,
+      "selected_deadline_ms": 8710897,
+      "removal_interval_ms": [
+        8710880,
+        8711160
+      ],
+      "relative_interval_ms": [
+        -17,
+        263
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 28252,
+      "prekill_birth": 835045,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-1/timing/audit.json",
+        "bytes": 4071,
+        "sha256": "7e6b0a7b6f6f656ee0bbeae60bef2ca2a48870ff4040fa2eed5ba77038fbf8dc"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-1/reopen/audit.json",
+        "bytes": 6594,
+        "sha256": "8c88e9a600f4966520140f806da2b84f95c8564810bb1fcc4c6340e0a7a273b5"
+      },
+      "samples": 1400,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 340,
+      "max_command_ms": 160.02416700939648,
+      "new_pid": 20760,
+      "new_birth": 871456,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    },
+    {
+      "case_id": "lifecycle/api30/death-fresh/2",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-fresh/2/receipt.json",
+        "bytes": 408165,
+        "sha256": "b0982637d2847720febc9f48eb6aa532ad2c94cc3103c399383129481a2c82d5"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 9087985,
+      "selected_deadline_ms": 9087985,
+      "removal_interval_ms": [
+        9087770,
+        9088120
+      ],
+      "relative_interval_ms": [
+        -215,
+        135
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 21141,
+      "prekill_birth": 872753,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-2/timing/audit.json",
+        "bytes": 4071,
+        "sha256": "8714b0608b8a2a0bf30e3d7f444f5a32250489be404c449847fd2238524b1563"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-2/reopen/audit.json",
+        "bytes": 6594,
+        "sha256": "55370d288ba52284fd80aa1dde305e125897465eba20c31e6267ddd7acb2b3a7"
+      },
+      "samples": 1398,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 330,
+      "max_command_ms": 141.7805410164874,
+      "new_pid": 12967,
+      "new_birth": 909175,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    },
+    {
+      "case_id": "lifecycle/api30/death-fresh/3",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-fresh/3/receipt.json",
+        "bytes": 408163,
+        "sha256": "b20d307c99e49be4790a9b50fc4401fdc5c5d63b5a36d929d21a89f699319ec6"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 9465165,
+      "selected_deadline_ms": 9465165,
+      "removal_interval_ms": [
+        9464900,
+        9465300
+      ],
+      "relative_interval_ms": [
+        -265,
+        135
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 13351,
+      "prekill_birth": 910471,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-3/timing/audit.json",
+        "bytes": 4072,
+        "sha256": "7efd277a7a9258212595c072bf419b9559db4b562f2ea5c768e5bd9cd7e934f3"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-3/reopen/audit.json",
+        "bytes": 6593,
+        "sha256": "ee12d76bf1c7694e5e5e8482de16e61b1c07a97b54cc9b56376347dce5012bf6"
+      },
+      "samples": 1399,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 320,
+      "max_command_ms": 208.5234580154065,
+      "new_pid": 6020,
+      "new_birth": 946926,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    },
+    {
+      "case_id": "lifecycle/api30/death-disconnect/1",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-disconnect/1/receipt.json",
+        "bytes": 278894,
+        "sha256": "7f637a322a26ee2fb63ce75ca27fcb8c80f2388e59f1e9d69bef43f3f4fd2fee"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 9842969,
+      "selected_deadline_ms": 9723497,
+      "removal_interval_ms": [
+        9723270,
+        9723610
+      ],
+      "relative_interval_ms": [
+        -227,
+        113
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 6395,
+      "prekill_birth": 948253,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-1/timing/audit.json",
+        "bytes": 4076,
+        "sha256": "16b549cbbf89f6afd93d8bed72545f27869fc442bb97b3253f568e1e85403504"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-1/reopen/audit.json",
+        "bytes": 6594,
+        "sha256": "cb70a73497f40ce60f3a66e622204b73ce4e5eccd0cf7d4c2cac1aac0619c5e9"
+      },
+      "samples": 932,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 300,
+      "max_command_ms": 128.72300000162795,
+      "new_pid": 23428,
+      "new_birth": 972665,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    },
+    {
+      "case_id": "lifecycle/api30/death-disconnect/2",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-disconnect/2/receipt.json",
+        "bytes": 278899,
+        "sha256": "163ebeb76a35eee490aa2201c573ce950aab7fda7c45365b4f671746e70db64f"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 10098382,
+      "selected_deadline_ms": 9978871,
+      "removal_interval_ms": [
+        9978700,
+        9979010
+      ],
+      "relative_interval_ms": [
+        -171,
+        139
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 23806,
+      "prekill_birth": 973796,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-2/timing/audit.json",
+        "bytes": 4080,
+        "sha256": "3f17de3a043643cbc90f2331c6be79e7a50cea6013d9203a3d5413f878727d58"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-2/reopen/audit.json",
+        "bytes": 6594,
+        "sha256": "094a130ed87737ba6fa0a69ca58c9085bcd951d7c24997f333c6cdd1018f8056"
+      },
+      "samples": 932,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 300,
+      "max_command_ms": 96.99862499837764,
+      "new_pid": 7607,
+      "new_birth": 998232,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    },
+    {
+      "case_id": "lifecycle/api30/death-disconnect/3",
+      "receipt": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/cases/lifecycle/api30/death-disconnect/3/receipt.json",
+        "bytes": 279178,
+        "sha256": "909278090943baa9a68eeecfc5e941f1f622c61623bd9a0a5e2cccd512a36881"
+      },
+      "raw_status": "PASS",
+      "initial_deadline_ms": 10355984,
+      "selected_deadline_ms": 10236500,
+      "removal_interval_ms": [
+        10236360,
+        10236640
+      ],
+      "relative_interval_ms": [
+        -140,
+        140
+      ],
+      "backend": "API30_RUN_AS_SIGTERM_DEFAULT_DISPOSITION",
+      "signal": 15,
+      "prekill_pid": 7989,
+      "prekill_birth": 999559,
+      "postkill_pid_at_endpoint_absent": true,
+      "scope": "Independent timing journals and ordinary-reopen text/cache/XML audit verified against original pins; emulator synthetic scope.",
+      "timing_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-3/timing/audit.json",
+        "bytes": 4079,
+        "sha256": "da282b88777c2f873f71300ea795b731fa9fc47f48a438a0f6d1d6ff18276932"
+      },
+      "reopen_audit": {
+        "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-3/reopen/audit.json",
+        "bytes": 6600,
+        "sha256": "7bc3c2d99448bdd504d66064bad68754f6a8aab3a68974cd5a32893d223ae502"
+      },
+      "samples": 934,
+      "clock_precision_ms": 10,
+      "max_start_gap_upper_ms": 300,
+      "max_command_ms": 107.2769159800373,
+      "new_pid": 25094,
+      "new_birth": 1023984,
+      "canonical_payload_unchanged": true,
+      "expired_deadline_cleared_not_renewed": true,
+      "disabled_clickable_controls": 3
+    }
+  ],
+  "detailed_independent_audit": {
+    "report": {
+      "path": "/private/tmp/wear-api30-process-restoration-review/report.json",
+      "bytes": 17724,
+      "sha256": "234bab0fd59165def00c241065bfdc8a09c20717f9938f9c736b818de7889394"
+    },
+    "historical_report_status": "RECOMMEND_MANUAL_PASS_PENDING_PARENT_REGISTRATION",
+    "subsequent_registered_manual_receipt": {
+      "path": "/private/tmp/wear-acceptance-85ae0cfe-dev/cases/manual/api30/process-death-restoration/receipt.json",
+      "bytes": 3961,
+      "sha256": "2b8737179d6aea8930e40ed9619fd894d6a4bbf7a6240f2f32d9e15d32ad0a2e"
+    },
+    "scope": "Original recommendation remains immutable; subsequent canonical receipt establishes registration."
+  },
+  "physical_claim": false,
+  "unsent_audit": {
+    "path": "/private/tmp/wear-api30-process-restoration-review/unsent-audit.json",
+    "bytes": 6870,
+    "sha256": "9411f7fbc27bcfc4948d033d65cd3ef0ef1ba2eee32b5d5f01537df758fc4104"
+  }
+}

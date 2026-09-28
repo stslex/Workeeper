@@ -1,0 +1,785 @@
+[
+  {
+    "name": "parser-omits-old-os",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "APIS = (30, 36)",
+    "replace": "APIS = (36,)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_matrix_has_exact_sixteen_unique_cells"
+  },
+  {
+    "name": "parser-credits-incomplete-matrix",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "else \"BLOCKED\" if missing or counts[\"BLOCKED\"] else \"PASS\"",
+    "replace": "else \"BLOCKED\" if counts[\"BLOCKED\"] else \"PASS\"",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_all_required_lifecycle_and_manual_rows_remain_required"
+  },
+  {
+    "name": "parser-credits-required-na",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if status == \"N/A\":",
+    "replace": "if status == \"N/A\" and False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_unknown_na_or_skipped_rows_cannot_turn_into_green"
+  },
+  {
+    "name": "parser-ignores-actual-locale",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if config.get(key) != expected:",
+    "replace": "if key != \"locale\" and config.get(key) != expected:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_config_uses_actual_resources_and_rejects_matrix_drift"
+  },
+  {
+    "name": "parser-accepts-stale-receipt-token",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "receipt.get(\"acceptanceCellId\") != token",
+    "replace": "False",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_ui_receipt_rejects_stale_token_wrong_method_or_preview_claim"
+  },
+  {
+    "name": "parser-accepts-other-package-notification",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "fields[1] == package and ",
+    "replace": "",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.NotificationEvidenceTest",
+    "expected_method": "test_selects_exact_user_package_id_and_null_tag"
+  },
+  {
+    "name": "parser-treats-notification-error-as-absence",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "    no_shell_error(text)\n    matches = []",
+    "replace": "    if text.lstrip().lower().startswith((\"error\", \"unknown\", \"permission\")):\n        return None\n    no_shell_error(text)\n    matches = []",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.NotificationEvidenceTest",
+    "expected_method": "test_empty_success_differs_from_malformed_or_failed_list"
+  },
+  {
+    "name": "parser-accepts-other-notification-deadline",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "    if not re.search(rf\"(?m)^NotificationRecord\\([^\\r\\n]*\\bkey={re.escape(key)}(?:\\s|\\)|: Notification\\()\", text):",
+    "replace": "    if False and not re.search(rf\"(?m)^NotificationRecord\\([^\\r\\n]*\\bkey={re.escape(key)}(?:\\s|\\)|: Notification\\()\", text):",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.NotificationEvidenceTest",
+    "expected_method": "test_reads_actual_long_dump_format_and_rejects_missing_duplicate_or_wrong_key"
+  },
+  {
+    "name": "parser-ignores-elapsed-calibration",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if type(value) is not int or after_ms < before_ms or not before_ms <= value < after_ms + 10:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_calibration_rejects_missing_stale_or_incompatible_clock"
+  },
+  {
+    "name": "parser-allows-retention-observation-stall",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if current.before_ms - previous.before_ms > 500:",
+    "replace": "if current.before_ms - previous.before_ms > 20000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_retention_cannot_catch_up_after_stall_or_late_refresh"
+  },
+  {
+    "name": "parser-misreads-uptime-units",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "return int(Decimal(match[1]) * 1000)",
+    "replace": "return int(Decimal(match[1]) * 100)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_elapsed_clock_requires_raw_centisecond_pair"
+  },
+  {
+    "name": "parser-misreads-process-birth",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "return int(fields[19])",
+    "replace": "return int(fields[18])",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_pid_starttime_parser_handles_spaces_and_parentheses"
+  },
+  {
+    "name": "parser-ignores-boot-change",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if previous.boot != current.boot:",
+    "replace": "if False and previous.boot != current.boot:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_reboot_stale_time_and_partial_process_identity_are_inconclusive"
+  },
+  {
+    "name": "parser-accepts-live-process-death-trial",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if sample.pid is not None:",
+    "replace": "if False and sample.pid is not None:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_removal_has_a_real_bracket_and_no_live_app"
+  },
+  {
+    "name": "parser-allows-removal-poll-gaps",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if previous and sample.before_ms - previous.before_ms > 500:",
+    "replace": "if previous and sample.before_ms - previous.before_ms > 5000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_poll_gaps_and_slow_commands_cannot_hide_removal_latency"
+  },
+  {
+    "name": "parser-credits-present-notification-after-watchdog",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "raise ObservedFailure(\"Notification still present at deadline + 5 seconds\")",
+    "replace": "return {\"invalid_mutant\": True}",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_watchdog_distinguishes_present_failure_from_unresolved_late_absence"
+  },
+  {
+    "name": "parser-ignores-instrumentation-final-code",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if final_codes != [-1] or set(finished) != expected or started != expected:",
+    "replace": "if set(finished) != expected or started != expected:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_requires_exact_started_and_completed_method_and_final_code"
+  },
+  {
+    "name": "parser-credits-skipped-instrumentation",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "raise InvalidEvidence(\"Skipped/assumption-failed test is not acceptance\")",
+    "replace": "return list(finished.values())",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_skips_missing_methods_duplicate_completions_are_not_pass"
+  },
+  {
+    "name": "parser-credits-named-instrumentation-failure",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if any(row[\"code\"] != 0 for row in finished.values()):",
+    "replace": "if False and any(row[\"code\"] != 0 for row in finished.values()):",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_actual_named_assertion_failure_is_fail"
+  },
+  {
+    "name": "parser-misses-actual-resumed-equals",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "(?:mResumedActivity|topResumedActivity)\\s*[:=]\\s*",
+    "replace": "(?:mResumedActivity|topResumedActivity)\\s*:\\s*",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ArtifactEvidenceTest",
+    "expected_method": "test_activity_observer_accepts_actual_equals_and_colon_but_not_empty_dump"
+  },
+  {
+    "name": "parser-overwrites-duplicate-json-key",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "raise InvalidEvidence(f\"Duplicate JSON key: {key}\")",
+    "replace": "pass",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ArtifactEvidenceTest",
+    "expected_method": "test_duplicate_json_keys_rejected"
+  },
+  {
+    "name": "parser-accepts-stale-observation-prefix",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "or text[:matches[0].start()].strip():",
+    "replace": "or False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ArtifactEvidenceTest",
+    "expected_method": "test_missing_reordered_or_repeated_timed_sections_rejected"
+  },
+  {
+    "name": "parser-omits-nested-receipt-hash",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "path != directory / \"receipt.json\"",
+    "replace": "path.name != \"receipt.json\"",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ArtifactEvidenceTest",
+    "expected_method": "test_nested_receipts_are_hashed_and_changed_bytes_detectable"
+  },
+  {
+    "name": "parser-accepts-unsafe-artifact-archive",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "raise InvalidEvidence(\"Unsafe/non-file artifact archive member\")",
+    "replace": "return",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ArtifactEvidenceTest",
+    "expected_method": "test_archive_never_extracts_parent_paths_links_or_duplicate_files"
+  },
+  {
+    "name": "parser-stops-ui-cell-after-first-failure",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "for selection in UI_INVOCATIONS:",
+    "replace": "for selection in UI_INVOCATIONS[:1]:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.IndependentInvocationTest",
+    "expected_method": "test_failed_first_invocation_does_not_skip_remaining_fixtures_or_journeys"
+  },
+  {
+    "name": "parser-overwrites-invocation-failure",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if failures:",
+    "replace": "if failures and False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.IndependentInvocationTest",
+    "expected_method": "test_failed_first_invocation_does_not_skip_remaining_fixtures_or_journeys"
+  },
+  {
+    "name": "parser-credits-partial-ui-cell",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if detail.get(\"complete\") is False:",
+    "replace": "if detail.get(\"complete\") is False and False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.IndependentInvocationTest",
+    "expected_method": "test_partial_or_inconclusive_cell_cannot_be_overwritten_with_pass"
+  },
+  {
+    "name": "parser-overwrites-inconclusive-invocation",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if blocked:",
+    "replace": "if blocked and False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.IndependentInvocationTest",
+    "expected_method": "test_partial_or_inconclusive_cell_cannot_be_overwritten_with_pass"
+  },
+  {
+    "name": "parser-rejects-agp-assertion-body",
+    "file": "documentation/wear-emulator-acceptance/run_mutations.py",
+    "find": "return reported_type in ASSERTION_TYPES",
+    "replace": "return False",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MutationEvidenceTest",
+    "expected_method": "test_only_top_level_assertion_or_comparison_failures_credit_named_red"
+  },
+  {
+    "name": "parser-credits-runtime-exception-as-assertion",
+    "file": "documentation/wear-emulator-acceptance/run_mutations.py",
+    "find": "return reported_type in ASSERTION_TYPES",
+    "replace": "return bool(reported_type)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MutationEvidenceTest",
+    "expected_method": "test_only_top_level_assertion_or_comparison_failures_credit_named_red"
+  },
+  {
+    "name": "parser-rejects-grouped-assertion-subtests",
+    "file": "documentation/wear-emulator-acceptance/run_mutations.py",
+    "find": "if not failures or test.find(\"error\") is not None or test.find(\"skipped\") is not None:",
+    "replace": "if len(failures) != 1 or test.find(\"error\") is not None or test.find(\"skipped\") is not None:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MutationEvidenceTest",
+    "expected_method": "test_only_top_level_assertion_or_comparison_failures_credit_named_red"
+  },
+  {
+    "name": "parser-credits-mixed-assertion-runtime-group",
+    "file": "documentation/wear-emulator-acceptance/run_mutations.py",
+    "find": "return all(is_assertion_failure(failure) for failure in failures)",
+    "replace": "return any(is_assertion_failure(failure) for failure in failures)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MutationEvidenceTest",
+    "expected_method": "test_only_top_level_assertion_or_comparison_failures_credit_named_red"
+  },
+  {
+    "name": "parser-allows-slow-retention-observation",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if current.after_ms - current.before_ms > 500:",
+    "replace": "if current.after_ms - current.before_ms > 5000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_retention_observer_rejects_more_than_500ms_but_keeps_refresh_budget"
+  },
+  {
+    "name": "parser-accepts-nonhome-background",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if (user, home) not in resumed or any(owner == user and value.startswith(package + \"/\") for owner, value in resumed):",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_background_dump_requires_home_and_target_stopped_nonvisible"
+  },
+  {
+    "name": "parser-accepts-paused-kill-target",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if re.findall(r\"(?m)^\\s*state=(\\w+)(?:\\s|$)\", block) != [\"STOPPED\"]:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_background_dump_requires_home_and_target_stopped_nonvisible"
+  },
+  {
+    "name": "parser-accepts-visible-kill-target",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if re.findall(r\"\\b\" + flag + r\"=(true|false)\\b\", block) != [\"false\"]:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_background_dump_requires_home_and_target_stopped_nonvisible"
+  },
+  {
+    "name": "parser-background-ignores-process-or-key-change",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if current.pid is None or current.key is None or (current.pid, current.birth, current.key) != (previous.pid, previous.birth, previous.key):",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_background_transition_cannot_change_process_notification_or_deadline"
+  },
+  {
+    "name": "parser-background-allows-deadline-change",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if current_deadline != previous_deadline or current.after_ms >= current_deadline:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_background_transition_cannot_change_process_notification_or_deadline"
+  },
+  {
+    "name": "parser-death-skips-background-precondition",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "background = background_for_death(adb, plan)",
+    "replace": "background = {}",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathPreparationTest",
+    "expected_method": "test_death_trial_backgrounds_before_signalling_the_verified_process"
+  },
+  {
+    "name": "parser-allows-case-parent-symlink",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    require_local_path(cohort, destination)\n    destination.mkdir(parents=True, exist_ok=False)",
+    "replace": "    destination.mkdir(parents=True, exist_ok=False)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.OutputContainmentTest",
+    "expected_method": "test_case_parent_link_refuses_manual_and_automated_writes"
+  },
+  {
+    "name": "parser-hashes-linked-artifacts",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    for path in directory.rglob(\"*\"):\n        require_local_path(directory, path)",
+    "replace": "    for path in ():\n        require_local_path(directory, path)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.OutputContainmentTest",
+    "expected_method": "test_inventory_rejects_file_and_directory_links_before_hashing"
+  },
+  {
+    "name": "parser-overwrites-linked-json-temporary",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "with temporary.open(\"x\", encoding=\"utf-8\") as stream:",
+    "replace": "with temporary.open(\"w\", encoding=\"utf-8\") as stream:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.OutputContainmentTest",
+    "expected_method": "test_existing_json_temporary_link_cannot_overwrite_external_file"
+  },
+  {
+    "name": "parser-rejects-api30-user-all-notification",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "not (fields[0].isdigit() or fields[0] == \"-1\")",
+    "replace": "not fields[0].isdigit()",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.NotificationEvidenceTest",
+    "expected_method": "test_api30_user_all_list_and_colon_record_preserve_exact_target_identity"
+  },
+  {
+    "name": "parser-rejects-api30-colon-notification-record",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "(?:\\s|\\)|: Notification\\()",
+    "replace": "(?:\\s|\\))",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.NotificationEvidenceTest",
+    "expected_method": "test_api30_user_all_list_and_colon_record_preserve_exact_target_identity"
+  },
+  {
+    "name": "parser-credits-premature-notification-removal",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if absent_upper_ms <= deadline_ms:",
+    "replace": "if False and absent_upper_ms <= deadline_ms:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_removal_before_deadline_is_failure_with_centisecond_precision"
+  },
+  {
+    "name": "parser-ignores-watchdog-clock-quantization",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if absent_upper_ms > deadline_ms + tolerance_ms:",
+    "replace": "if sample.after_ms > deadline_ms + tolerance_ms:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_removal_watchdog_requires_quantized_upper_bound"
+  },
+  {
+    "name": "parser-classifies-instrumentation-error-as-app-failure",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if row[\"code\"] not in (0, -2):",
+    "replace": "if row[\"code\"] not in (0, -1, -2):",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_execution_errors_are_inconclusive_even_with_assertion_stack"
+  },
+  {
+    "name": "parser-classifies-nonassertion-stack-as-app-failure",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if failure_type not in assertion_types:",
+    "replace": "if False and failure_type not in assertion_types:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_failure_code_requires_top_level_assertion_stack"
+  },
+  {
+    "name": "parser-accepts-wrong-passive-screen-timeout",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if type(value) is not int or value != 15000:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_passive_trials_require_measured_integer_fifteen_second_timeout"
+  },
+  {
+    "name": "locale-uses-property-without-user-or-effective-state",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "return setting.strip() != tag or prop.strip() != tag or not locale_configuration_matches(effective, tag)",
+    "replace": "return prop.strip() != tag",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_user_locale_is_corrected_even_when_property_matches"
+  },
+  {
+    "name": "locale-stops-before-requested-value-is-persisted",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if persisted_locale(raw) == tag:",
+    "replace": "if True:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_framework_restart_waits_for_committed_settings_locale"
+  },
+  {
+    "name": "locale-credits-uncommitted-setting-after-timeout",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "raise RuntimeError(\"Requested locale was not committed; framework was not stopped\")",
+    "replace": "return",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_uncommitted_locale_never_stops_the_framework"
+  },
+  {
+    "name": "locale-credits-wrong-effective-setting-after-timeout",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "raise RuntimeError(\"Requested framework locale did not appear after restart\")",
+    "replace": "return",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_wrong_effective_locale_after_restart_cannot_be_configured"
+  },
+  {
+    "name": "locale-mutates-nonzero-user",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if adb(\"shell\", \"am\", \"get-current-user\") != \"0\":",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_nonzero_user_is_rejected_before_locale_mutations"
+  },
+  {
+    "name": "locale-restarts-already-matching-framework",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "reload = locale_needs_reload(setting, prop, effective, tag)",
+    "replace": "reload = True",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_matching_user_property_and_effective_locale_do_not_restart"
+  },
+  {
+    "name": "locale-rejects-valid-settings-without-namespace-root",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if [node.tag for node in children] not in ([\"settings\"], [\"settings\", \"namespaceHashes\"]):",
+    "replace": "if [node.tag for node in children] != [\"settings\", \"namespaceHashes\"]:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_persisted_locale_accepts_observed_fragment_and_optional_namespace"
+  },
+  {
+    "name": "locale-accepts-duplicate-persisted-value",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if len(locales) != 1 or \"value\" not in locales[0].attrib or \"valueBase64\" in locales[0].attrib:",
+    "replace": "if not locales or \"value\" not in locales[0].attrib or \"valueBase64\" in locales[0].attrib:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_persisted_locale_rejects_ambiguous_or_nonplain_values"
+  },
+  {
+    "name": "locale-accepts-duplicate-persisted-roots",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if [node.tag for node in children] not in ([\"settings\"], [\"settings\", \"namespaceHashes\"]):",
+    "replace": "if not children:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_persisted_locale_rejects_ambiguous_or_nonplain_values"
+  },
+  {
+    "name": "locale-accepts-conflicting-base64-value",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "if len(locales) != 1 or \"value\" not in locales[0].attrib or \"valueBase64\" in locales[0].attrib:",
+    "replace": "if len(locales) != 1 or \"value\" not in locales[0].attrib:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_persisted_locale_rejects_ambiguous_or_nonplain_values"
+  },
+  {
+    "name": "locale-credits-malformed-persisted-xml",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "raise RuntimeError(\"Malformed persisted settings fragments\") from error",
+    "replace": "return \"ru-RU\"",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_persisted_locale_rejects_ambiguous_or_nonplain_values"
+  },
+  {
+    "name": "locale-accepts-wrong-effective-language",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "return bool(match and match[1] == {\"en-US\": \"en-rUS\", \"ru-RU\": \"ru-rRU\"}[tag])",
+    "replace": "return bool(match)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_effective_locale_requires_one_exact_matching_config"
+  },
+  {
+    "name": "locale-ignores-final-user-setting-drift",
+    "file": "documentation/wear-emulator-acceptance/configure_cell.py",
+    "find": "return setting.strip() != tag or prop.strip() != tag or not locale_configuration_matches(effective, tag)",
+    "replace": "return prop.strip() != tag or not locale_configuration_matches(effective, tag)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.LocaleSetupTest",
+    "expected_method": "test_final_setting_drift_is_not_reported_as_configured"
+  },
+  {
+    "name": "manual-creates-case-before-attachment-preflight",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n        destination = create_manual_staging_directory(args.cohort, args.case)\n",
+    "replace": "        destination = create_manual_staging_directory(args.cohort, args.case)\n        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_invalid_later_attachment_leaves_no_partial_case"
+  },
+  {
+    "name": "manual-credits-attachment-emptied-during-preflight",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")",
+    "replace": "            if False:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_invalid_later_attachment_leaves_no_partial_case"
+  },
+  {
+    "name": "manual-discards-copied-evidence-bytes",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "(destination / f\"operator-{index:02d}-{path.name}\").write_bytes(content)",
+    "replace": "(destination / f\"operator-{index:02d}-{path.name}\").write_bytes(b\"\")",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_valid_manual_artifacts_preserve_bytes_and_existing_case"
+  },
+  {
+    "name": "manual-credits-attachment-changed-after-preflight",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if len(content) != size or hashlib.sha256(content).hexdigest() != expected_hash:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_changed_attachment_after_preflight_cannot_publish_a_receipt"
+  },
+  {
+    "name": "term-cli-defaults-to-term",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "command.add_argument(\"--death-signal\", choices=(\"kill\", \"term-default\"), default=\"kill\",",
+    "replace": "command.add_argument(\"--death-signal\", choices=(\"kill\", \"term-default\"), default=\"term-default\",",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_cli_defaults_to_kill_and_forwards_explicit_term"
+  },
+  {
+    "name": "term-cli-drops-explicit-selection",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "death_trial(adb, plan, args.api, args.scenario == \"death-disconnect\", args.death_signal)",
+    "replace": "death_trial(adb, plan, args.api, args.scenario == \"death-disconnect\", \"kill\")",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_cli_defaults_to_kill_and_forwards_explicit_term"
+  },
+  {
+    "name": "term-allows-wrong-api",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "api != 30 or scenario_name == \"retention\"",
+    "replace": "False or scenario_name == \"retention\"",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_term_is_rejected_for_wrong_api_or_retention_before_case_creation"
+  },
+  {
+    "name": "term-allows-retention",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "api != 30 or scenario_name == \"retention\"",
+    "replace": "api != 30 or False",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_term_is_rejected_for_wrong_api_or_retention_before_case_creation"
+  },
+  {
+    "name": "term-allows-unknown-backend",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if death_signal not in (\"kill\", \"term-default\"):",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_term_is_rejected_for_wrong_api_or_retention_before_case_creation"
+  },
+  {
+    "name": "term-rejects-valid-default-disposition",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if int(fields[name], 16) & 0x4000:",
+    "replace": "if True:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_default_disposition_is_preserved_as_explicit_backend_evidence"
+  },
+  {
+    "name": "term-accepts-caught-signal",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if int(fields[name], 16) & 0x4000:",
+    "replace": "if name != \"SigCgt\" and int(fields[name], 16) & 0x4000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_caught_ignored_or_blocked_term_never_reaches_signal"
+  },
+  {
+    "name": "term-accepts-ignored-signal",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if int(fields[name], 16) & 0x4000:",
+    "replace": "if name != \"SigIgn\" and int(fields[name], 16) & 0x4000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_caught_ignored_or_blocked_term_never_reaches_signal"
+  },
+  {
+    "name": "term-accepts-blocked-signal",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if int(fields[name], 16) & 0x4000:",
+    "replace": "if name != \"SigBlk\" and int(fields[name], 16) & 0x4000:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_caught_ignored_or_blocked_term_never_reaches_signal"
+  },
+  {
+    "name": "term-accepts-wrong-process-identity",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "int(fields[name]) != expected_pid",
+    "replace": "False",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_wrong_identity_or_corrupt_status_is_inconclusive"
+  },
+  {
+    "name": "term-accepts-duplicate-status-field",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if len(values) != 1:",
+    "replace": "if not values:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_wrong_identity_or_corrupt_status_is_inconclusive"
+  },
+  {
+    "name": "term-accepts-truncated-status",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "or not text.endswith(\"\\n\")",
+    "replace": "or False",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_wrong_identity_or_corrupt_status_is_inconclusive"
+  },
+  {
+    "name": "term-accepts-short-mask",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "r\"[0-9a-fA-F]{16}\", fields[name]",
+    "replace": "r\"[0-9a-fA-F]{1,16}\", fields[name]",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_wrong_identity_or_corrupt_status_is_inconclusive"
+  },
+  {
+    "name": "term-signals-reused-pid",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "if process_birth(stat, before.pid) != before.birth:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_birth_reuse_prevents_either_signal_backend"
+  },
+  {
+    "name": "term-falls-back-after-signal-error",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    no_shell_error(adb.shell(\"run-as\", plan[\"package\"], \"kill\", signal, str(before.pid)))",
+    "replace": "    try:\n        no_shell_error(adb.shell(\"run-as\", plan[\"package\"], \"kill\", signal, str(before.pid)))\n    except InvalidEvidence:\n        adb.shell(\"run-as\", plan[\"package\"], \"kill\", \"-9\", str(before.pid))",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_signal_error_has_no_second_signal_or_fallback"
+  },
+  {
+    "name": "term-replaces-default-sigkill",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "signal = \"-15\" if death_signal == \"term-default\" else \"-9\"",
+    "replace": "signal = \"-15\" if death_signal == \"term-default\" else \"-15\"",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_sigkill_remains_default_without_term_disposition_reads"
+  },
+  {
+    "name": "term-trial-ignores-selected-backend",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "signal_backend = signal_process_death(adb, plan, before, api, death_signal)",
+    "replace": "signal_backend = signal_process_death(adb, plan, before, api, \"kill\")",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.DeathSignalTest",
+    "expected_method": "test_explicit_term_trial_keeps_background_and_removal_oracles"
+  },
+  {
+    "name": "manual-publishes-directory-before-copy",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "def create_manual_staging_directory(cohort: Path, case_id: str) -> Path:\n    staging = cohort / \"manual-attempts\" / f\"{case_id.replace('/', '--')}-{uuid.uuid4().hex}\"\n    require_local_path(cohort, staging)\n    staging.mkdir(parents=True, exist_ok=False)\n    return staging\n\n\ndef publish_manual_directory(cohort: Path, case_id: str, staging: Path) -> None:\n    destination = cohort / \"cases\" / case_id\n    require_local_path(cohort, destination)\n    destination.parent.mkdir(parents=True, exist_ok=True)\n    # rename can replace an empty directory; recorded and incomplete cases both stay immutable.\n    if destination.exists():\n        raise FileExistsError(destination)\n    staging.rename(destination)\n\n\n",
+    "replace": "def create_manual_staging_directory(cohort: Path, case_id: str) -> Path:\n    return create_case_directory(cohort, case_id)\n\n\ndef publish_manual_directory(cohort: Path, case_id: str, staging: Path) -> None:\n    pass\n\n\n",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_late_manual_io_failures_preserve_attempt_and_allow_retry"
+  },
+  {
+    "name": "manual-replaces-existing-empty-case",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    if destination.exists():\n        raise FileExistsError(destination)",
+    "replace": "    if False:\n        raise FileExistsError(destination)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_manual_publication_refuses_a_new_empty_case"
+  },
+  {
+    "name": "manual-deletes-prior-unpublished-attempts",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    staging.mkdir(parents=True, exist_ok=False)",
+    "replace": "    for old_attempt in (cohort / \"manual-attempts\").glob(\"*\"):\n        __import__(\"shutil\").rmtree(old_attempt)\n    staging.mkdir(parents=True, exist_ok=False)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_late_manual_io_failures_preserve_attempt_and_allow_retry"
+  },
+  {
+    "name": "manual-hides-unpublished-attempt-history",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "\"unpublished_manual_attempts\": unpublished",
+    "replace": "\"unpublished_manual_attempts\": []",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_report_keeps_unpublished_manual_attempts_visible"
+  }
+]

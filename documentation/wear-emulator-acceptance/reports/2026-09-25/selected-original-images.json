@@ -1,0 +1,95 @@
+{
+  "status": "ORIGINAL_PNG_COPIES_FOR_REPORT_PUBLICATION",
+  "images": [
+    {
+      "relative_path": "images/active-controller.png",
+      "original": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-dev/cases/ui/api36-192-en-1.00/api36-192-en-1.00-active_boundary-fixtureRendersThroughRealActivity-21f63cbcf17d4754b07ecce09e026108/first-view-system.png",
+        "bytes": 16390,
+        "sha256": "a1282c7c27491fba365b42d2d9710f86d97ce5ca200ab80b1683d18d7c191f50"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/active-controller.png",
+        "bytes": 16390,
+        "sha256": "a1282c7c27491fba365b42d2d9710f86d97ce5ca200ab80b1683d18d7c191f50"
+      },
+      "caption": "DevDebug API36/192 EN1.0: initial values and action fit.",
+      "byte_identical": true
+    },
+    {
+      "relative_path": "images/api36-ru-completion.png",
+      "original": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-dev/cases/ui/api36-192-ru-1.24/api36-192-ru-1.24-complete-fixtureRendersThroughRealActivity-b8c3716e076443db840fc6bb4b15db88/first-view-system.png",
+        "bytes": 29397,
+        "sha256": "c1ffed207cd97c2ea9999bd56a9619598273ca4e41397e75af04e059e5e76001"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api36-ru-completion.png",
+        "bytes": 29397,
+        "sha256": "c1ffed207cd97c2ea9999bd56a9619598273ca4e41397e75af04e059e5e76001"
+      },
+      "caption": "DevDebug API36/192 RU1.24: missing finish-instruction text at initial view; maximum-scroll evidence is linked in the geometry report.",
+      "byte_identical": true
+    },
+    {
+      "relative_path": "images/api30-en-completion.png",
+      "original": {
+        "path": "/private/tmp/wear-acceptance-85ae0cfe-dev/cases/ui/api30-192-en-1.24/api30-192-en-1.24-complete-fixtureRendersThroughRealActivity-a2ee5995939240559ef4c8bd158d0294/first-view-system.png",
+        "bytes": 23528,
+        "sha256": "d9679760a2569e0c4fdab7fa0a3c37434867b8de3c676fd81d420790eddd2285"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api30-en-completion.png",
+        "bytes": 23528,
+        "sha256": "d9679760a2569e0c4fdab7fa0a3c37434867b8de3c676fd81d420790eddd2285"
+      },
+      "caption": "DevDebug API30/192 EN1.24: completion clipping; raw assertion retained.",
+      "byte_identical": true
+    },
+    {
+      "relative_path": "images/api30-system-tile.png",
+      "original": {
+        "path": "/private/tmp/wear-manual-api30-dev-85ae/steps/20260925T191801.185435Z-tile-reentry-fresh-cache-cd51c912/screen.png",
+        "bytes": 19967,
+        "sha256": "666ed6e255d5ca155f5b62a1ef77315fb5b6975b8ca7307f833988eb4298dd0e"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api30-system-tile.png",
+        "bytes": 19967,
+        "sha256": "666ed6e255d5ca155f5b62a1ef77315fb5b6975b8ca7307f833988eb4298dd0e"
+      },
+      "caption": "DevDebug actualAPI30 system Tile after fresh-cache reentry: stale and incomplete status.",
+      "byte_identical": true
+    },
+    {
+      "relative_path": "images/store-debug-restored.png",
+      "original": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/final-store-unsent-api36-guarded-v2/after-reopen.png",
+        "bytes": 22452,
+        "sha256": "83f75e328069a200899e7c85cd02d7b6edf6da1940aa3f3bc116b52728370058"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/store-debug-restored.png",
+        "bytes": 22452,
+        "sha256": "83f75e328069a200899e7c85cd02d7b6edf6da1940aa3f3bc116b52728370058"
+      },
+      "caption": "StoreDebug API36: ordinary restart restores canonical999, not prior unsent998; readonly.",
+      "byte_identical": true
+    },
+    {
+      "relative_path": "images/store-release-readonly.png",
+      "original": {
+        "path": "/private/tmp/wear-manual-api36-release-85ae/steps/20260925T165806.168603Z-release-ordinary-screen-7088effa/screen.png",
+        "bytes": 6624,
+        "sha256": "94df6e19ac31a9ffb4a3ca03b64ae2b25a3e473c0ffb885452256f5b492895da"
+      },
+      "copy": {
+        "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/store-release-readonly.png",
+        "bytes": 6624,
+        "sha256": "94df6e19ac31a9ffb4a3ca03b64ae2b25a3e473c0ffb885452256f5b492895da"
+      },
+      "caption": "Installed StoreRelease API36: connecting/read-only boundary; synthetic controls unavailable.",
+      "byte_identical": true
+    }
+  ]
+}

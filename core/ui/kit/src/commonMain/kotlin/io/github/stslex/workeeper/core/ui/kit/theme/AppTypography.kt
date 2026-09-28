@@ -9,15 +9,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import io.github.stslex.workeeper.core.ui.kit.resources.Res
-import io.github.stslex.workeeper.core.ui.kit.resources.archivo_bold_wdth116
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_mono_medium
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_mono_regular
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_mono_semibold
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_sans_medium
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_sans_regular
-import io.github.stslex.workeeper.core.ui.kit.resources.ibm_plex_sans_semibold
-import org.jetbrains.compose.resources.Font
+import io.github.stslex.workeeper.core.ui.design.workeeperMonoFontFamily
+import io.github.stslex.workeeper.core.ui.design.workeeperNumericFontFamily
+import io.github.stslex.workeeper.core.ui.design.workeeperTextFontFamily
 
 /**
  * One rung of the v3 type scale, in one family. Six steps and nothing between them — a seventh
@@ -119,38 +113,6 @@ data class AppTypography(
     val dataValue: TextStyle = numeric.title
 }
 
-/**
- * Text family for every worded slot. Bundled rather than fetched, so the first frame is never
- * set in a fallback face; 400/500/600 ship and Bold still resolves by synthesis off the 600.
- * Composable because Compose-resource `Font(...)` is composable — see [rememberAppTypography].
- */
-@Composable
-private fun plexSansFontFamily(): FontFamily = FontFamily(
-    Font(Res.font.ibm_plex_sans_regular, FontWeight.Normal),
-    Font(Res.font.ibm_plex_sans_medium, FontWeight.Medium),
-    Font(Res.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
-)
-
-/**
- * Display family for numerals only — Archivo `wdth 116 / wght 700`; `licenses/README.md` has
- * its provenance. GUARD: zero Cyrillic coverage — digits and `: . , - + / %`, never a string.
- */
-@Composable
-private fun archivoFontFamily(): FontFamily = FontFamily(
-    Font(Res.font.archivo_bold_wdth116, FontWeight.Bold),
-)
-
-/**
- * Monospace family for units and meta text. Shares vertical metrics with [plexSansFontFamily]
- * so it co-baselines inline; tabular by default and covers Cyrillic in full.
- */
-@Composable
-private fun plexMonoFontFamily(): FontFamily = FontFamily(
-    Font(Res.font.ibm_plex_mono_regular, FontWeight.Normal),
-    Font(Res.font.ibm_plex_mono_medium, FontWeight.Medium),
-    Font(Res.font.ibm_plex_mono_semibold, FontWeight.SemiBold),
-)
-
 /** The six steps. Sizes are the v3 scale; line heights are ~1.3x, rounded to whole sp. */
 private const val SIZE_DISPLAY_SP = 34.0f
 private const val SIZE_TITLE_SP = 26.0f
@@ -240,9 +202,9 @@ private fun buildStyles(
  */
 @Composable
 fun rememberAppTypography(): AppTypography {
-    val textFontFamily = plexSansFontFamily()
-    val numericFontFamily = archivoFontFamily()
-    val monoFontFamily = plexMonoFontFamily()
+    val textFontFamily = workeeperTextFontFamily()
+    val numericFontFamily = workeeperNumericFontFamily()
+    val monoFontFamily = workeeperMonoFontFamily()
     return remember(textFontFamily, numericFontFamily, monoFontFamily) {
         provideAppTypography(
             textFontFamily = textFontFamily,

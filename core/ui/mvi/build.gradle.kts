@@ -38,9 +38,6 @@ kotlin {
             // points are @Composable — the convention adds these as `implementation` only.
             api(libs.cmp.runtime)
 
-            // Scope stability only: the measured production import count is zero. Removing it
-            // is a separately reviewed cleanup with its own graph proof, not incidental here.
-            implementation(project(":core:ui:kit"))
         }
 
         androidMain.dependencies {

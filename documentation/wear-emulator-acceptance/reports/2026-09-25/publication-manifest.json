@@ -1,0 +1,82 @@
+{
+  "status": "OBSERVATIONS_COMPLETE_APPLICATION_READINESS_FAIL",
+  "created_at": "2026-09-25T20:43:53.723912+00:00",
+  "previous_candidate": {
+    "path": "/private/tmp/wear-final-report-20260925/final-candidate-1/publication-manifest.json",
+    "bytes": 3483,
+    "sha256": "63872070bf235e9978c889db52b7037609c8e16611c34c3c983c62dbeecde128"
+  },
+  "files": [
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/README.md",
+      "bytes": 24543,
+      "sha256": "fbd4ca3739ffbe71f4e1e9f8e3449cd40d047550ed7c79ddeabe5454c157820d"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/api30-term-receipt-summary.json",
+      "bytes": 11606,
+      "sha256": "8034fdf846e36d752db2184cec0bb7d82929aab9030099ce29566adb3ea5d591"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/attempt-mapping.json",
+      "bytes": 201919,
+      "sha256": "bdc17bff8ca1a239cd9d007741db232ba5ce0382203bad706bac752fca25f55e"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/candidate-status.json",
+      "bytes": 545,
+      "sha256": "b99f09385cff5bfac8421df31230610a0b66aac98d49eb3f69a9854aa39e811e"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/evidence-manifest.json",
+      "bytes": 15322,
+      "sha256": "aa8c132dbad03fb46de6bed5387b087d46e629d935ce4b69601c2c05d89dfc64"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/active-controller.png",
+      "bytes": 16390,
+      "sha256": "a1282c7c27491fba365b42d2d9710f86d97ce5ca200ab80b1683d18d7c191f50"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api30-en-completion.png",
+      "bytes": 23528,
+      "sha256": "d9679760a2569e0c4fdab7fa0a3c37434867b8de3c676fd81d420790eddd2285"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api30-system-tile.png",
+      "bytes": 19967,
+      "sha256": "666ed6e255d5ca155f5b62a1ef77315fb5b6975b8ca7307f833988eb4298dd0e"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/api36-ru-completion.png",
+      "bytes": 29397,
+      "sha256": "c1ffed207cd97c2ea9999bd56a9619598273ca4e41397e75af04e059e5e76001"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/store-debug-restored.png",
+      "bytes": 22452,
+      "sha256": "83f75e328069a200899e7c85cd02d7b6edf6da1940aa3f3bc116b52728370058"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/images/store-release-readonly.png",
+      "bytes": 6624,
+      "sha256": "94df6e19ac31a9ffb4a3ca03b64ae2b25a3e473c0ffb885452256f5b492895da"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/minimal-reproductions.md",
+      "bytes": 4512,
+      "sha256": "dbc77053226ce929354dd80900284f28e86b4a243473dd928839243f2f10be16"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/selected-original-images.json",
+      "bytes": 4614,
+      "sha256": "d302e8efb06d87b61a7dc59a923971be54d59b70e3d59feb849d5f5eb3f826f6"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-candidate-2/system-image-provenance.json",
+      "bytes": 2819,
+      "sha256": "01a72a9f6a56fc893515f8209c3c5dc7a2017c542923cb74210e87eddd268f0f"
+    }
+  ],
+  "source_or_cohort_mutation": false
+}

@@ -1,0 +1,386 @@
+{
+  "scope": "Final observation comparison with immutable raw/source/gate pins; application FAIL, no canonical cohort merge.",
+  "sources": [
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-build-review/apk-inventory.json",
+      "bytes": 1920,
+      "sha256": "ba34246df9d927445148f4278d9bf26d0ff7e23846f78536cd9dd4c96deb2fbd"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-build-review/commit-binding.json",
+      "bytes": 439846,
+      "sha256": "bd27ee34ffff050de1033e073c429cc1989334d0cf78762cdc83e805036d4bad"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/pr291-ci-20260925T145538Z/summary.json",
+      "bytes": 5679,
+      "sha256": "05b21d649d7d38654f812c9c5b0bb3c9458a4628b1f050a5f01a1289413f975c"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/source-neutral-report-limitations/limitations.json",
+      "bytes": 7866,
+      "sha256": "63594db2f374226e2bdd42441780ecc9e03b31ca7d56178a3d46a5fbbb807607"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/api36-geometry-defect-ledger.md",
+      "bytes": 10463,
+      "sha256": "08b95106535c628d364cceefe8b8b7dcc112f5fe118b8ff8e6f0d548c646e242"
+    },
+    {
+      "path": "/private/tmp/wear-api30-192-ru-visual-review/final-summary.json",
+      "bytes": 2005,
+      "sha256": "f779298a6301844633e0e3c94806a2fdc91374fde46f369e0761829ed307c938"
+    },
+    {
+      "path": "/private/tmp/wear-api30-240-ru-retry-visual-review/summary.json",
+      "bytes": 2198,
+      "sha256": "ff0c720467fd8976d01db2c7fd7f5b461d87de02e6088fa0c124caab53a98740"
+    },
+    {
+      "path": "/private/tmp/wear-api30-system-tile-review/report.json",
+      "bytes": 5172,
+      "sha256": "a1e8a685cb9fd7ca5377dd00001a1bdd0c5da117a6e389beef47d98cfc5fe6f5"
+    },
+    {
+      "path": "/private/tmp/wear-api36-system-tile-final-audit/report.json",
+      "bytes": 39345,
+      "sha256": "8cf9df26c9ce77da387d6cf5d51ed770701fc11e89a2193fb52b918a7aa49066"
+    },
+    {
+      "path": "/private/tmp/wear-api36-lifecycle-consolidated-audit/summary.json",
+      "bytes": 31424,
+      "sha256": "4bcf419e15ea5e9b6bb68af675c2fe14ec25d64dc7f5d953fd254d5c125a5242"
+    },
+    {
+      "path": "/private/tmp/wear-api30-lifecycle-stopped-audit/report.md",
+      "bytes": 3606,
+      "sha256": "a3c7b02173271b630bde8edfcde74784471d17dd24b462b08328574ce2822a43"
+    },
+    {
+      "path": "/private/tmp/wear-api30-events-baseline-review/baseline-audit.json",
+      "bytes": 3224,
+      "sha256": "c053f9e3cf551f5aa67b8d542116d8ed0674c9b805781e947320e0ed79262830"
+    },
+    {
+      "path": "/private/tmp/wear-api36-manual-ambient-review/visual-review.md",
+      "bytes": 4347,
+      "sha256": "e0f5b9bea59da72eeb9c11a21588175fa3664520cf4daccf8c649893a0df480d"
+    },
+    {
+      "path": "/private/tmp/wear-api30-manual-ambient-review/report.md",
+      "bytes": 2949,
+      "sha256": "dbd018683a87ccd2de70efb7c3fe92de0e6154d587be121c0889ea9cfeecebd2"
+    },
+    {
+      "path": "/private/tmp/wear-api36-expiry-visual-review/visual-review.md",
+      "bytes": 4593,
+      "sha256": "aad2f4a49151da85d74c4b63db8bf6f54db8a47cac124238ea1b44dff6f02a9d"
+    },
+    {
+      "path": "/private/tmp/wear-api30-en192-registration-recovery/recovery.json",
+      "bytes": 4134,
+      "sha256": "b698fb69d52c540ba5c350798f4218c14a0ad9f0f084c7a98899b598263750be"
+    },
+    {
+      "path": "/private/tmp/wear-ru-ci-evidence-36107849096/README.md",
+      "bytes": 7142,
+      "sha256": "c3505485dde3c89c109a1a28aa276b14d93d93d4cef53c2ce4493ac464c97d4a"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/attempt-bcb8466-analysis.md",
+      "bytes": 13418,
+      "sha256": "03bd071f592b688797e52ae7d5d5d0aac2cc4e9b69438c8a25907157d908c9b1"
+    },
+    {
+      "path": "/private/tmp/wear-api30-locale-profile-v2-preparation.json",
+      "bytes": 3476,
+      "sha256": "124e54e10f1007b234e9d1dc8c35f66c63752ed4cab1a9e6bc533f157fa51c51"
+    },
+    {
+      "path": "/private/tmp/wear-infra-followup-evidence/implementation.json",
+      "bytes": 1875,
+      "sha256": "2da0bee279e81da9a09691597baa7967125ced707e8af578ca6e941388a91c52"
+    },
+    {
+      "path": "/private/tmp/wear-portable-term-proof/implementation.json",
+      "bytes": 1367,
+      "sha256": "f5e1c5a4f8ce9e89b13a02870629c5da9f9d4a7a37b0b1541cf843e183b64b78"
+    },
+    {
+      "path": "/private/tmp/wear-pr291-live-before-final-20260925.json",
+      "bytes": 5736,
+      "sha256": "9591e319ae74837a12a850b42c731ee12ef09b9a6ac0ea1fb613f8ec55891a8d"
+    },
+    {
+      "path": "/private/tmp/wear-remote-before-final-20260925.txt",
+      "bytes": 163,
+      "sha256": "6740753e4480c7afbf72ff3297ef19df0e4e535e768c0dc453b622272bc5476d"
+    },
+    {
+      "path": "/private/tmp/wear-acceptance-85ae0cfe-api30-term-retry/plan.json",
+      "bytes": 450096,
+      "sha256": "4e88a8ed4801416e010931c6f7bc600de0ba7ed0eb19deecd2e5b9c37ecc27fb"
+    },
+    {
+      "path": "/private/tmp/wear-infra-followup-canonical-v3/receipt.json",
+      "bytes": 6405,
+      "sha256": "9b36fc24d619195633f310e463a4de7b8b6a574f6c53192ca71d4f162a0f8bc4"
+    },
+    {
+      "path": "/private/tmp/wear-api30-notification-video-replay-review/report.json",
+      "bytes": 26606,
+      "sha256": "f20ebb5694f27b7b1263f50a8d2fc98cbc2284b66e2b8aaab3b27b92f800a04c"
+    },
+    {
+      "path": "/private/tmp/wear-api30-notification-video-retry-registration-independent-review.json",
+      "bytes": 1223,
+      "sha256": "1a3d8efb02dfce287523965c57f8741f26a54b7c069a8f80d3551f1cfd8aebf4"
+    },
+    {
+      "path": "/private/tmp/wear-api30-store-release-registration-independent-review.json",
+      "bytes": 1698,
+      "sha256": "45aa4f31832d6bb18d88926386aeaa9f1c146b9f70bcc43454ae8bb1c62d6474"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-package-and-image-identity/images-reverified.json",
+      "bytes": 1667,
+      "sha256": "23d5490b1553d72e691a0247dfded2a36cc19857d67a1b6f23296619aa7eda36"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-lifecycle-api30-term-85ae/manifest.json",
+      "bytes": 536713,
+      "sha256": "f56f514c0e8bd3dc349898dc7a4d638b295e7ee6b9162993a6487ae302683924"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/final-revision-preparation.json",
+      "bytes": 4722,
+      "sha256": "048ddf2b17666b4b0d93a2568d51814d2f434d52a3f3c10e430f26f255872665"
+    },
+    {
+      "path": "/private/tmp/wear-final-report-20260925/tile-contract-final-paragraph.md",
+      "bytes": 1060,
+      "sha256": "1147ba8073d361eecde72699d3665d33d9180d8c17d018c4568cd84984266953"
+    },
+    {
+      "path": "/private/tmp/wear-final-production-boundary-20260925.json",
+      "bytes": 2381,
+      "sha256": "a5b068ffbbfb7bee2303b25364ef9e5298d8d40663b9dc9adfb19d2405c19068"
+    },
+    {
+      "path": "/private/tmp/wear-api30-process-restoration-review/report.json",
+      "bytes": 17724,
+      "sha256": "234bab0fd59165def00c241065bfdc8a09c20717f9938f9c736b818de7889394"
+    },
+    {
+      "path": "/private/tmp/wear-acceptance-85ae0cfe-dev/cases/manual/api30/process-death-restoration/receipt.json",
+      "bytes": 3961,
+      "sha256": "2b8737179d6aea8930e40ed9619fd894d6a4bbf7a6240f2f32d9e15d32ad0a2e"
+    },
+    {
+      "path": "/private/tmp/wear-api30-process-restoration-review/unsent-audit.json",
+      "bytes": 6870,
+      "sha256": "9411f7fbc27bcfc4948d033d65cd3ef0ef1ba2eee32b5d5f01537df758fc4104"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/native-pixel-check-and-erratum.json",
+      "bytes": 3462,
+      "sha256": "ec696572c44e941f6ecf982cb93f5babfa424a34e29c41c03ec3f8a595c6a6c4"
+    },
+    {
+      "path": "/private/tmp/wear-api30-root-six-postscreens-review.json",
+      "bytes": 2749,
+      "sha256": "e4b18d87e945db2cafe43892dd1791bac48c6cddd4b42f75f4ec9d2c8c78e1e5"
+    },
+    {
+      "path": "/private/tmp/wear-api30-process-restoration-registration-independent-review.json",
+      "bytes": 1204,
+      "sha256": "52eefff02a92f394f9c9729ff25f514630fb38193eacd03200ca28c3a53eb02a"
+    },
+    {
+      "path": "/private/tmp/wear-acceptance-attempt-index-final-20260925/index.json",
+      "bytes": 619064,
+      "sha256": "a73c6876036f679913ae242f9f8f46071028a448e2aa82a8e4cfde16d089171c"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-canonical-report-renders/main-receipt.json",
+      "bytes": 685,
+      "sha256": "72bf964f39328be04c3a4a81fb5746a4b5663f5753497f4eceb5bd321e93679a"
+    },
+    {
+      "path": "/private/tmp/wear-emulator-acceptance-20260925/final-canonical-report-renders/receipts.json",
+      "bytes": 2877,
+      "sha256": "b30eb5e5b92fd3dc5de86ea7e4cb078569b521af48efafc3f246bf41636d8aee"
+    },
+    {
+      "path": "/private/tmp/wear-final-precommit-infra-audit.json",
+      "bytes": 1824,
+      "sha256": "2fff8520e6b82b061ce84815ef06b72813981d7cbbe27a6fae04b3f8c9f815d2"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-1/timing/audit.json",
+      "bytes": 4071,
+      "sha256": "7e6b0a7b6f6f656ee0bbeae60bef2ca2a48870ff4040fa2eed5ba77038fbf8dc"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-1/reopen/audit.json",
+      "bytes": 6594,
+      "sha256": "8c88e9a600f4966520140f806da2b84f95c8564810bb1fcc4c6340e0a7a273b5"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-2/timing/audit.json",
+      "bytes": 4071,
+      "sha256": "8714b0608b8a2a0bf30e3d7f444f5a32250489be404c449847fd2238524b1563"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-2/reopen/audit.json",
+      "bytes": 6594,
+      "sha256": "55370d288ba52284fd80aa1dde305e125897465eba20c31e6267ddd7acb2b3a7"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-3/timing/audit.json",
+      "bytes": 4072,
+      "sha256": "7efd277a7a9258212595c072bf419b9559db4b562f2ea5c768e5bd9cd7e934f3"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-fresh-3/reopen/audit.json",
+      "bytes": 6593,
+      "sha256": "ee12d76bf1c7694e5e5e8482de16e61b1c07a97b54cc9b56376347dce5012bf6"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-1/timing/audit.json",
+      "bytes": 4076,
+      "sha256": "16b549cbbf89f6afd93d8bed72545f27869fc442bb97b3253f568e1e85403504"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-1/reopen/audit.json",
+      "bytes": 6594,
+      "sha256": "cb70a73497f40ce60f3a66e622204b73ce4e5eccd0cf7d4c2cac1aac0619c5e9"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-2/timing/audit.json",
+      "bytes": 4080,
+      "sha256": "3f17de3a043643cbc90f2331c6be79e7a50cea6013d9203a3d5413f878727d58"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-2/reopen/audit.json",
+      "bytes": 6594,
+      "sha256": "094a130ed87737ba6fa0a69ca58c9085bcd951d7c24997f333c6cdd1018f8056"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-3/timing/audit.json",
+      "bytes": 4079,
+      "sha256": "da282b88777c2f873f71300ea795b731fa9fc47f48a438a0f6d1d6ff18276932"
+    },
+    {
+      "path": "/private/tmp/wear-api30-term-six-audit/death-disconnect-3/reopen/audit.json",
+      "bytes": 6600,
+      "sha256": "7bc3c2d99448bdd504d66064bad68754f6a8aab3a68974cd5a32893d223ae502"
+    }
+  ],
+  "gates": [
+    {
+      "name": "build-lint-tests",
+      "summary": "2278 actionable tasks: 2278 executed",
+      "xml_totals": {
+        "tests": 2809,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suite_count": 372,
+      "log": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/build-lint-tests.log",
+        "bytes": 558023,
+        "sha256": "948b3ecfe33d93e8225234a656b29eba1f962c4818623d4227ea972ede5d2289"
+      },
+      "command": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/build-lint-tests-command.json",
+        "bytes": 325,
+        "sha256": "0a9abefa7ea596d949a3bebb87972e0120a98057ecb7f20b8c9bac7660a10cc6"
+      },
+      "xml_inventory": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/build-lint-tests-xml.json",
+        "bytes": 162054,
+        "sha256": "e4b0585485e872972b73a66af4e2d9a3a643d891dc0966952848788dbb10141f"
+      }
+    },
+    {
+      "name": "detekt",
+      "summary": "62 actionable tasks: 62 executed",
+      "xml_totals": {
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suite_count": 0,
+      "log": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/detekt.log",
+        "bytes": 22292,
+        "sha256": "b9ea5ba279afbcb6fef953b9614ab5bf666fc0393dbc9d856e7639eb692aef9a"
+      },
+      "command": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/detekt-command.json",
+        "bytes": 280,
+        "sha256": "8a407778f0717f01b7075d9b32a42b2eebf14cec3fa3f7956e8d4220f672ab90"
+      },
+      "xml_inventory": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/detekt-xml.json",
+        "bytes": 2,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "name": "phase-exit",
+      "summary": "2162 actionable tasks: 2162 executed",
+      "xml_totals": {
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suite_count": 0,
+      "log": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/phase-exit.log",
+        "bytes": 197967,
+        "sha256": "9f16c6da781380bd6476699280b6480ef8836caba92895bcfe492cd8de036fb7"
+      },
+      "command": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/phase-exit-command.json",
+        "bytes": 334,
+        "sha256": "7256857215b919567974e35ed1fdbf1f38ee0213d9d4c90b202b7619e9caa1dd"
+      },
+      "xml_inventory": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/phase-exit-xml.json",
+        "bytes": 2,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "name": "release-boundary",
+      "summary": "38 actionable tasks: 38 executed",
+      "xml_totals": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suite_count": 2,
+      "log": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/release-boundary.log",
+        "bytes": 6558,
+        "sha256": "3464115fc1911eb9c81537096640195063c93bcc50dee48455804ce4dc8cac40"
+      },
+      "command": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/release-boundary-command.json",
+        "bytes": 447,
+        "sha256": "f54dd6cec9b38828c707cc60b14b8fd14b293f3846f6d62a5f1e455f552de826"
+      },
+      "xml_inventory": {
+        "path": "/private/tmp/wear-emulator-acceptance-20260925/root-gates-review/release-boundary-xml.json",
+        "bytes": 851,
+        "sha256": "e342d9e5156352f028211368b4ae7c2b385635697401504cb05fd767a91ae5b0"
+      }
+    }
+  ]
+}

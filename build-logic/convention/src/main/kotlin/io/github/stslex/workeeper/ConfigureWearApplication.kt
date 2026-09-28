@@ -16,9 +16,8 @@ private const val DISTRIBUTION_DIMENSION = "distribution"
 /**
  * Configures the single Wear application module with phone-compatible dev/store identities.
  *
- * This convention intentionally omits Google Services, Firebase, Crashlytics, performance, and
- * KSP. Data Layer is a runtime library dependency, not a Gradle plugin, and is declared by the
- * module so the privacy-gated transport surface stays visible in one place.
+ * Firebase plugins and Data Layer dependencies are declared by the Wear module. Its dev/store
+ * variants reuse the matching phone Firebase configuration and application identity.
  */
 internal fun Project.configureWearApplication() {
     extensions.configure<ApplicationExtension> {
