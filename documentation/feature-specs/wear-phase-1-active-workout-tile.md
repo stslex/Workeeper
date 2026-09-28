@@ -1,8 +1,12 @@
 # Wear OS Phase 1 — active-workout Tile and current-set controller
 
-**Status:** specification only — implementation is not authorized by this
-document. A separate explicit GO is required after the transport decision and
-entry gates below are closed.
+**Status:** protocol/cache/reducer foundations and controller UI are implemented.
+The owner authorized the remaining Wear UI and synthetic lifecycle work on
+2026-09-22; see [Wear UI completion](wear-ui-completion.md) for the sequence and
+[Wear lifecycle UI](wear-lifecycle-ui.md) for the implementation and evidence boundary.
+This authorization permits test/debug synthetic sources only. Privacy and real-payload
+transport remain blocked until their decisions and entry gates are closed; physical-device
+acceptance and final Phase 1 acceptance remain open.
 
 - **Decision date:** 2026-09-01
 - **Specification base:** `dev` at
@@ -1066,13 +1070,17 @@ workout engine.
   extend it. Only a fresh correlated `ActiveWithTarget` response carrying
   `MutationAuthority.Granted` cancels the grace state and installs a new
   lifecycle window.
-- Crash ordering is fail-closed. A fresh lifecycle persists its new deadline
-  before exposing the notification. Deadline shortening updates the system
-  notification to the earlier timeout before publishing the matching cache
-  header. Entering a read-only stop state cancels the notification before that
-  state is exposed. At every process-death cut the notification is therefore
-  absent or has a timeout no later than the last reducer decision; the cache
-  reader never recreates it or extends it.
+- Crash ordering is fail-closed. A new or extended fresh lifecycle persists its
+  complete new record/deadline before posting. If a newly accepted fresh grant has
+  an earlier effective deadline than a surviving notification, shorten that system
+  notification first, then publish the new cache record, then perform the fresh post.
+  The same platform-first shortening order applies to earlier disconnect. Restore
+  uses the minimum of the valid cache deadline and surviving notification deadline,
+  so a cache-write failure cannot undo a successful platform shortening. Entering
+  a read-only stop state cancels before that state is exposed; NoSession requires
+  its durable tombstone before publication. The cache reader never deliberately
+  recreates a missing notification or extends its deadline. See the implementation's
+  [crash cuts and platform race limit](wear-lifecycle-ui.md#4-ongoing-deadline-and-crash-ordering).
 - When the reconnect window elapses without freshness, stop the ongoing surface
   and leave the stale Tile even if the node still reports connected.
 - Stop immediately when the reducer accepts `WorkoutComplete`,
@@ -1082,16 +1090,29 @@ workout engine.
   the ongoing surface does not finish the phone session.
 - Never hold a wake lock solely to keep the Tile or controller fresh.
 
-The exact reconnect window is fixed at implementation entry after measuring the
-platform reconnect behavior on the target physical watch; it must be at least
+Synthetic lifecycle development may inject an explicitly uncalibrated reconnect
+policy in tests/debug while the privacy gate remains closed. Such a value is not
+a production default, a measured constant, or evidence of physical acceptance.
+
+Before production lifecycle acceptance, the exact reconnect window is fixed by
+measuring platform reconnect behavior on the target physical watch; it must be at least
 the documented four-minute reconnection interval plus a small deterministic
 margin, and must have a testable constant rather than an unbounded timer. The
 same probe fixes a maximum `ONGOING_TIMEOUT_TOLERANCE_MS` for system notification
 removal on that device. The same constants and state machine cover explicit
 disconnect, connected-but-silent freshness loss, and process eviction. If
 `timeoutAfter` does not cancel the notification after process death within the
-declared tolerance, implementation is a STOP; it must not silently weaken the
-bounded-stop guarantee or add an exact-alarm permission without a new decision.
+declared tolerance, production lifecycle acceptance is a STOP; it must not
+silently weaken the bounded-stop guarantee or add an exact-alarm permission
+without a new decision. Unmeasured synthetic development cannot close this STOP.
+
+### 8.1 Synthetic implementation and host evidence
+
+[Wear lifecycle UI](wear-lifecycle-ui.md) records the single process owner, pristine
+cache restoration, ambient state retention, notification denial behavior, Android
+adapter ordering and the executed host ledger. Release remains read-only. Wear OS 5+
+foreground retention and older supported versions have separate physical acceptance
+rows; no host test or debug policy closes the device timing/return requirements.
 
 ## 9. Protocol surface
 

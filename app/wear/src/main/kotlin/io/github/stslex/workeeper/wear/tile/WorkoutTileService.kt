@@ -6,7 +6,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import io.github.stslex.workeeper.wear.state.WatchProcessState
+import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
+import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
 
 /** Cache-first glance surface. Privacy-gated transport wiring is intentionally absent. */
 class WorkoutTileService : TileService() {
@@ -21,7 +22,12 @@ class WorkoutTileService : TileService() {
     override fun onTileRequest(
         requestParams: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> = CallbackToFutureAdapter.getFuture { completer ->
-        completer.set(WorkoutTileRenderer(this).render(WatchProcessState.currentSurface()))
+        val runtime = WatchRuntimeFactory.get(applicationContext)
+        runWearRuntimeUiEvent {
+            runtime.setLocale(resources.configuration.locales[0])
+            runtime.onWake()
+        }
+        completer.set(WorkoutTileRenderer(this).render(runtime.surface.value))
         FUTURE_TAG
     }
 

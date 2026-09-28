@@ -22,6 +22,12 @@ dependencies {
     implementation(libs.coroutines.play.services)
     implementation(libs.androidx.wear.ambient)
 
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Wear's transitive Fragment must support the Activity Result permission API.")
+        }
+    }
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(kotlin("test"))

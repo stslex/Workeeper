@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ongoing_channel_name">Тренировки</string>
+    <string name="ongoing_title">Тренировка продолжается</string>
+    <string name="ongoing_return_to_workout">Вернуться к тренировке</string>
+</resources>

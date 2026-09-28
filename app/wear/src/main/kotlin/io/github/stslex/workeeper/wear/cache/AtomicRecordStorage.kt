@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.wear.cache
 
 import android.util.AtomicFile
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
+import java.nio.file.Files
 
 internal interface AtomicRecordStorage {
     fun read(): ByteArray?
@@ -15,10 +17,16 @@ internal interface AtomicRecordStorage {
 internal class AtomicFileRecordStorage(file: File) : AtomicRecordStorage {
 
     private val atomicFile = AtomicFile(file)
+    private val backupFile = File("${file.path}.bak")
 
-    override fun read(): ByteArray? = when {
-        !atomicFile.baseFile.exists() -> null
-        else -> atomicFile.readFully()
+    // AtomicFile must attempt backup recovery before the record can be classified as absent.
+    override fun read(): ByteArray? = try {
+        atomicFile.readFully()
+    } catch (error: FileNotFoundException) {
+        val baseAbsent = Files.notExists(atomicFile.baseFile.toPath())
+        val backupAbsent = Files.notExists(backupFile.toPath())
+        if (!baseAbsent || !backupAbsent) throw error
+        null
     }
 
     override fun replace(bytes: ByteArray) {

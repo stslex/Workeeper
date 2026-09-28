@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
+import android.Manifest
 import android.app.Application
+import android.app.Notification
+import android.app.NotificationManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,10 +20,17 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.ambient.WearAmbientState
+import io.github.stslex.workeeper.wear.cache.ElapsedRealtimeClock
+import io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotification
+import io.github.stslex.workeeper.wear.ongoing.OngoingNotificationRequest
+import io.github.stslex.workeeper.wear.ongoing.OngoingPostResult
+import io.github.stslex.workeeper.wear.state.ReducerTestFixtures
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
@@ -121,14 +131,18 @@ internal class WearStringCoverageGateTest {
 
         val rendered = renderEveryFixture()
         assertTrue(
-            rendered.controller.isNotEmpty() && rendered.ambient.isNotEmpty(),
+            rendered.controller.isNotEmpty() && rendered.ambient.isNotEmpty() && rendered.ongoing.isNotEmpty(),
             "No semantics were collected at all; the corpus must not be empty.",
         )
 
         val checked = ids.filterKeys { it !in UNREACHABLE_BY_DESIGN }
         val unreached = checked.filterNot { (name, id) ->
             // Ambient reuse must not hide a missing controller renderer.
-            val corpus = if (name.startsWith("ambient_")) rendered.ambient else rendered.controller
+            val corpus = when {
+                name.startsWith("ambient_") -> rendered.ambient
+                name.startsWith("ongoing_") -> rendered.ongoing
+                else -> rendered.controller
+            }
             literalSegments(resources.getString(id)).all { segment ->
                 corpus.any { it.contains(segment) }
             }
@@ -173,6 +187,7 @@ internal class WearStringCoverageGateTest {
         var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var model by mutableStateOf(fixtures.first())
         var ambientMode by mutableStateOf(false)
+        var notice by mutableStateOf<WearOngoingNotice?>(null)
         setContent {
             WearGateHost(screen) {
                 if (ambientMode) {
@@ -182,7 +197,12 @@ internal class WearStringCoverageGateTest {
                         hasUnsubmittedValues = true,
                     )
                 } else {
-                    WearControllerScreen(state = model, onAction = {})
+                    WearControllerScreen(
+                        state = model,
+                        ongoingNotice = notice,
+                        onEnableNotifications = {},
+                        onAction = {},
+                    )
                 }
             }
         }
@@ -220,7 +240,41 @@ internal class WearStringCoverageGateTest {
                 ambientCorpus += collectSemantics()
             }
         }
-        return RenderedStrings(controller = corpus, ambient = ambientCorpus)
+        val ongoingCorpus = renderNotificationCorpus().toMutableSet()
+        ambientMode = false
+        model = weighted
+        WearOngoingNotice.entries.forEach { current ->
+            notice = current
+            waitForIdle()
+            onNodeWithTag("ongoing_notice_text").performScrollTo()
+            ongoingCorpus += collectSemantics()
+        }
+        return RenderedStrings(controller = corpus, ambient = ambientCorpus, ongoing = ongoingCorpus)
+    }
+
+    private fun renderNotificationCorpus(): Set<String> {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val manager = requireNotNull(application.getSystemService(NotificationManager::class.java))
+        shadowOf(application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        shadowOf(manager).setNotificationsEnabled(true)
+        val adapter = AndroidOngoingNotification(application, ElapsedRealtimeClock { 1_000L })
+        val result = adapter.post(
+            OngoingNotificationRequest(
+                snapshot = ReducerTestFixtures.active(),
+                stopAtElapsedRealtimeMs = 11_000L,
+                timeoutAfterMs = 10_000L,
+            ),
+        )
+        assertEquals(OngoingPostResult.Posted(11_000L), result)
+        val notification = manager.activeNotifications.single {
+            it.id == AndroidOngoingNotification.NOTIFICATION_ID
+        }.notification
+        val channel = requireNotNull(manager.getNotificationChannel(notification.channelId))
+        return setOf(
+            requireNotNull(notification.extras.getCharSequence(Notification.EXTRA_TITLE)).toString(),
+            requireNotNull(notification.extras.getCharSequence(Notification.EXTRA_TEXT)).toString(),
+            channel.name.toString(),
+        ).also { adapter.cancel() }
     }
 
     private fun ComposeUiTest.collectSemantics(): Set<String> =
@@ -263,7 +317,11 @@ internal class WearStringCoverageGateTest {
     private fun fixture(id: String): WearSurfaceModel =
         requireNotNull(SyntheticSurfaceFixtures.find(id))
 
-    private data class RenderedStrings(val controller: Set<String>, val ambient: Set<String>)
+    private data class RenderedStrings(
+        val controller: Set<String>,
+        val ambient: Set<String>,
+        val ongoing: Set<String>,
+    )
 
     private companion object {
 

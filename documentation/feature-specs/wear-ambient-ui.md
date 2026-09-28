@@ -63,23 +63,18 @@ scroll position remains the one held before entry. Host integration tests supply
 models/actions and cover both editor paths, genuine overflowing content and authority loss.
 They do not establish process-surviving draft storage or physical Activity recreation.
 
-## 4. Transitional Activity source in this increment
+## 4. Activity source at the ambient-only boundary
 
-MainActivity still consumes `WatchProcessState.surface/currentSurface`, and ambient events
-call `WatchProcessState.expireAuthority()`. After that synchronous callback, the flow
-transform samples the current surface rather than replaying an earlier combine emission.
-`WatchProcessState` has no admitted production workout source here and starts read-only.
+The ambient-only PR consumed WatchProcessState and called its expiry method before
+sampling the current surface. It had no admitted production workout source. Explicit
+debug intents selected static previews; release ignored fixture IDs and controller
+actions were no-ops. The unchanged §5 ledger records that earlier source boundary.
 
-Explicit debug fixture intents select static preview models; release does not interpret
-those fixture IDs. The Activity controller action callback is still a no-op at this stage.
-Thus an ambient editor/summary host test with injected model updates is not evidence that
-an installed preview submits edits, stores a draft, confirms a set or talks to a phone.
-A static debug preview is not a lifecycle-authority owner.
-
-The next sequential PR replaces this temporary wiring with the single runtime/cache/ongoing
-owner and notification permission UI. Its coordinator, cache restoration, command-in-flight,
-notification deadline and release-boundary claims must be reviewed and proven there. This
-ambient PR does not add ongoing retention or establish foreground persistence on Wear OS 5+.
+The subsequent [runtime/ongoing increment](wear-lifecycle-ui.md) supersedes the temporary
+wiring with one serialized owner and notification-access integration. Its host evidence
+has a separate ledger. This does not turn the ambient-only injected-model results into
+proof of durable drafts, phone acknowledgement, installed Activity reuse or physical
+retention. No source change extends what the earlier evidence actually measured.
 
 ## 5. Executed host evidence and physical boundary
 
