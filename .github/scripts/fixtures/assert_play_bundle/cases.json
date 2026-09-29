@@ -113,18 +113,42 @@
     "expect": {"G6": "N/A", "G7": "FAIL"}
   },
   {
+    "name": "phone bundle declaring the advertising ID permission (M-L4)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "wear bundle declaring the advertising ID permission (M-L4)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "advertising ID permission through uses-permission-sdk-23",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
     "name": "no file at the path",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "missing",
-    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP"}
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
   },
   {
     "name": "empty file at the path",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "empty",
-    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP"}
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
   },
   {
     "name": "glob matching two bundles",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear", "bundle": "two",
-    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP"}
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
   }
 ]
