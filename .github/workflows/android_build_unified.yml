@@ -352,6 +352,130 @@ jobs:
         with:
           report-path: "**/build/reports/lint-results-*.xml"
 
+  # The pull-request half of the bundle identity gate (wear-release-pipeline.md §6; ci-cd.md
+  # § "Bundle identity gate"): both release bundles are built and the gate the deploy lanes run
+  # before any Play call is run on the real AABs. A job of its own because the phone release bundle
+  # compiles every module's release variant, which the build job's worst green run (47 of its 60
+  # minutes) has no room for.
+  #
+  # GUARD: no Gradle caching here, neither `setup-java`'s nor the build cache. The repository's
+  # Actions cache is near its limit, and on a key change this job would race the build job to save
+  # `setup-java`'s entry with a dependency set that lacks every test library. So every run is a
+  # clean, executed build; `--no-build-cache` keeps it that way if a cache is ever added back.
+  release-bundles:
+    name: Release bundle identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # GUARD: the phone release variant uploads its Crashlytics mapping unconditionally (the deploy
+      # lane ships it), so without the exclusion every PR uploads a mapping for a bundle that never
+      # ships. The Wear variant uploads only with -PcrashlyticsMappingUpload=true, never passed here.
+      # The dry-run step proves both on every run.
+      BUNDLE_TASKS: >-
+        :bundletoolClasspath :app:store:bundleRelease :app:wear:bundleStoreRelease
+        -x :app:store:uploadCrashlyticsMappingFileRelease
+      PHONE_AAB: app/store/build/outputs/bundle/release/store-release.aab
+      WEAR_AAB: app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Decrypt keystore
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          echo "$KEYSTORE" > keystore.jks.asc
+          gpg -d --passphrase "$KEYSTORE_PASSPHRASE" --batch keystore.jks.asc > keystore.jks
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Configure Keystore
+        env:
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+        run: |
+          {
+            echo "storeFile=keystore.jks"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } >> keystore.properties
+
+      # Both store bundles read this file: the Wear store flavor reuses the phone's (spec §3 F4).
+      - name: Create Google Services Config file
+        env:
+          GOOGLE_SERVICES_JSON_STORE: ${{ secrets.GOOGLE_SERVICES_JSON_STORE }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_STORE" > app/store/google-services.json.b64
+          base64 -d -i app/store/google-services.json.b64 > app/store/google-services.json
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      - name: Assert the bundle step schedules no Crashlytics mapping upload
+        run: |
+          read -r -a tasks <<< "$BUNDLE_TASKS"
+          ./gradlew "${tasks[@]}" --dry-run --console=plain > bundle-dry-run.txt
+          scheduled="$(grep -c ' SKIPPED$' bundle-dry-run.txt || true)"
+          echo "dry run scheduled $scheduled tasks"
+          if [[ "$scheduled" -eq 0 ]]; then
+            echo "::error::the dry run scheduled no tasks, so it proves nothing"
+            exit 1
+          fi
+          for task in :app:store:bundleRelease :app:wear:bundleStoreRelease; do
+            grep -qx "$task SKIPPED" bundle-dry-run.txt || { echo "::error::$task is not scheduled"; exit 1; }
+          done
+          if grep 'uploadCrashlyticsMappingFile' bundle-dry-run.txt; then
+            echo "::error::the release bundle step would upload a Crashlytics mapping file"
+            exit 1
+          fi
+          echo "0 uploadCrashlyticsMappingFile* tasks scheduled"
+
+      - name: Build both release bundles
+        run: |
+          read -r -a tasks <<< "$BUNDLE_TASKS"
+          ./gradlew "${tasks[@]}" --no-build-cache --full-stacktrace
+
+      - name: Self-test the bundle identity gate
+        run: python3 .github/scripts/assert_play_bundle.py --self-test
+
+      - name: Assert the phone bundle identity
+        run: python3 .github/scripts/assert_play_bundle.py --aab "$PHONE_AAB" --role phone
+
+      - name: Assert the Wear bundle identity
+        run: python3 .github/scripts/assert_play_bundle.py --aab "$WEAR_AAB" --role wear
+
+      # The known negative, run every time: a gate that never fails on a real bundle is not shown to
+      # discriminate. Exit 1 exactly (2 means the gate could not run) and G5, the structural check,
+      # among the failures, so the control cannot pass on an identity mismatch alone.
+      - name: Swap control, the Wear bundle checked as phone must fail
+        run: |
+          set +e
+          python3 .github/scripts/assert_play_bundle.py --aab "$WEAR_AAB" --role phone | tee swap-control.txt
+          status="${PIPESTATUS[0]}"
+          set -e
+          if [[ "$status" -ne 1 ]]; then
+            echo "::error::swap control exited $status, expected 1"
+            exit 1
+          fi
+          grep -q '^G5 FAIL' swap-control.txt || { echo "::error::swap control failed without G5"; exit 1; }
+          echo "swap control failed as required"
+
   # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
   # Gradle invocation executes the kit, navigation, MVI, start-mode, plan-editor and image-viewer
   # Phase-7 Native tests on the iOS simulator, then a checked-in script requires every exact

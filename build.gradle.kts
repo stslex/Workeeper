@@ -40,5 +40,29 @@ tasks.register(name = "type", type = Delete::class) {
     delete(rootProject.projectDir.resolve("build"))
 }
 
+// The catalog-pinned bundletool that `.github/scripts/assert_play_bundle.py` dumps AAB manifests
+// with. The script reads the classpath this task writes (ci-cd.md § "Bundle identity gate").
+val bundletool: Configuration = configurations.create("bundletool") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    bundletool(libs.bundletool)
+}
+
+tasks.register("bundletoolClasspath") {
+    description = "Writes the resolved bundletool classpath for the Play bundle identity gate."
+    val classpath: FileCollection = bundletool
+    val output = layout.buildDirectory.file("bundletool/classpath.txt")
+    inputs.files(classpath)
+    outputs.file(output)
+    // GUARD: the file holds absolute paths into this machine's Gradle cache, so it is never reused.
+    outputs.upToDateWhen { false }
+    doLast {
+        output.get().asFile.writeText(classpath.files.joinToString(separator = "\n", postfix = "\n"))
+    }
+}
+
 // Categorized UI tests: run connectedDebugAndroidTest with --continue and
 // -Pandroid.testInstrumentationRunnerArguments.annotation=<Smoke|Regression>. See testing.md.

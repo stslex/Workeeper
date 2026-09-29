@@ -1,5 +1,18 @@
 default_platform(:android)
 
+# Evaluated while fastlane parses this file from fastlane/; actions later run from the root.
+REPO_ROOT = File.expand_path("..", __dir__)
+PHONE_AAB = File.join(REPO_ROOT, "app/store/build/outputs/bundle/release/store-release.aab")
+
+# The bundle identity gate (wear-release-pipeline.md §6). `sh` raises on a non-zero exit, so a
+# wrong bundle stops the lane before anything talks to Play.
+def assert_play_bundle(aab:, role:)
+  sh(
+    "python3", File.join(REPO_ROOT, ".github/scripts/assert_play_bundle.py"),
+    "--aab", aab, "--role", role, "--toml", File.join(REPO_ROOT, "gradle/libs.versions.toml")
+  )
+end
+
 platform :android do
   desc "Runs all the tests"
   lane :test do
@@ -20,8 +33,11 @@ platform :android do
 
   desc "Deploy a new version to the Google Play"
   lane :deploy do
-    gradle(task: "clean :app:store:bundle")
-    upload_to_play_store
+    gradle(task: "clean :app:store:bundleRelease :bundletoolClasspath")
+    assert_play_bundle(aab: PHONE_AAB, role: "phone")
+    # GUARD: always the explicit path. Without `aab:` supply falls back to the newest AAB by mtime
+    # anywhere under the project (spec §3 F2).
+    upload_to_play_store(aab: PHONE_AAB)
   end
 
   desc "Build new version"

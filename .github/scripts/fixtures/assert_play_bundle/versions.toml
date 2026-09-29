@@ -1,0 +1,4 @@
+# Fixture for assert_play_bundle.py --self-test: only the keys the gate reads.
+[versions]
+versionName = "1.51.0"
+versionCode = "52"

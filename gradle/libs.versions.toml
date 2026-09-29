@@ -6,6 +6,9 @@ kotlin = "2.4.10"
 ksp = "2.3.9"
 androidGradlePlugin = "9.3.0"
 androidTools = "32.3.0"
+# Manifest dumper of the bundle identity gate (.github/scripts/assert_play_bundle.py). The same
+# version AGP 9.3.0 packages bundles with; bump it with AGP (ci-cd.md § "Bundle identity gate").
+bundletool = "1.18.3"
 
 minSdk = "28"
 targetSdk = "37"
@@ -97,6 +100,7 @@ metro = "1.3.2"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
+bundletool = { module = "com.android.tools.build:bundletool", version.ref = "bundletool" }
 
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-serialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }

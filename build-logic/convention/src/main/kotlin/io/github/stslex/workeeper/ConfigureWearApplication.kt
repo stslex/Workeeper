@@ -14,6 +14,13 @@ import org.gradle.kotlin.dsl.configure
 private const val DISTRIBUTION_DIMENSION = "distribution"
 
 /**
+ * The Wear versionCode is this offset plus the TOML versionCode, so the watch never reuses a phone
+ * code on Play. GUARD: irreversible from the first Wear upload, whose code becomes the floor.
+ * See documentation/feature-specs/wear-release-pipeline.md §5 (D2).
+ */
+private const val WEAR_VERSION_CODE_OFFSET = 1_000_000
+
+/**
  * Configures the single Wear application module with phone-compatible dev/store identities.
  *
  * Firebase plugins and Data Layer dependencies are declared by the Wear module. Its dev/store
@@ -28,8 +35,9 @@ internal fun Project.configureWearApplication() {
         defaultConfig {
             applicationId = APP_PREFIX
             targetSdk = libs.findVersionInt("targetSdk")
-            versionName = libs.findVersionString("versionName")
-            versionCode = libs.findVersionInt("versionCode")
+            // The dev flavor's versionNameSuffix appends to this: X.Y.Z-wear-dev.
+            versionName = "${libs.findVersionString("versionName")}-wear"
+            versionCode = wearVersionCode(libs.findVersionInt("versionCode"))
         }
 
         flavorDimensions += DISTRIBUTION_DIMENSION
@@ -76,4 +84,13 @@ internal fun Project.configureWearApplication() {
         "androidx-wear-ongoing",
     )
     debugImplementation("androidx-compose-tooling", "androidx-wear-tiles-renderer")
+}
+
+private fun wearVersionCode(tomlVersionCode: Int): Int {
+    check(tomlVersionCode < WEAR_VERSION_CODE_OFFSET) {
+        "TOML versionCode $tomlVersionCode must be below $WEAR_VERSION_CODE_OFFSET: the Wear versionCode " +
+            "is $WEAR_VERSION_CODE_OFFSET + versionCode and would collide with the phone's range. " +
+            "See documentation/feature-specs/wear-release-pipeline.md §5 (D2)."
+    }
+    return WEAR_VERSION_CODE_OFFSET + tomlVersionCode
 }

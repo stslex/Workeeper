@@ -86,7 +86,7 @@ versionCode = "N"        # string containing a positive integer; AGP parses to i
 
 `versionName` is a string with exactly three numeric components. No `v` prefix. Examples: `"1.5.0"`, `"2.0.0"`, `"1.5.3"`.
 
-`versionCode` is a positive monotonic integer. Each Play upload requires a strictly larger value than any previously uploaded.
+`versionCode` is a positive monotonic integer below `1_000_000`. Play accepts a versionCode only once across all form factors of the app: the phone uses the TOML value, strictly larger at every release, and the Wear bundle uses its own range derived from it (§4.5).
 
 ### 4.2 Bump rules
 
@@ -118,6 +118,24 @@ This eliminates the class of bugs where someone hand-edits TOML on a release bra
 **Invariant 2: release versionCode > master versionCode.** Every accepted Play upload requires a strictly larger `versionCode` than any previously uploaded one. Enforced at deploy time: the guard step fetches master's `gradle/libs.versions.toml` and fails if the release branch's `versionCode` is not greater. The error message tells the developer to rebase on master and re-run `bump_version.sh`.
 
 This catches the concurrent-release-and-hotfix collision (see §6.4) before fastlane, where the failure would otherwise occur after a successful build and UI test pass.
+
+### 4.5 Wear identity
+
+The Wear app is the same application as the phone app: same `applicationId`, same signing (a Data Layer requirement). Its version is therefore derived from the same TOML, never bumped on its own ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §5):
+
+| Bundle | versionCode | versionName |
+|---|---|---|
+| Phone, `:app:store` | TOML `versionCode` | TOML `versionName` |
+| Wear, `:app:wear` store flavor | `1_000_000` + TOML `versionCode` | TOML `versionName` + `-wear` |
+| Wear, dev flavor | as the store flavor | `X.Y.Z-wear-dev` (the flavor's `-dev` suffix) |
+
+Example: release 1.52.0 with code 53 gives phone `1.52.0 (53)` and watch `1.52.0-wear (1000053)`.
+
+- `ConfigureWearApplication.kt` fails configuration, naming the spec, when the TOML `versionCode` is `>= 1_000_000`: the two ranges would otherwise overlap.
+- The offset is constant, so the Wear codes rise exactly when the phone's do, and invariant 2 of §4.4 covers both. `cut_release.yml` stays the only place that bumps.
+- Irreversible from the first Wear upload: that code becomes the floor of the Wear range, and a smaller offset could never be uploaded after it.
+- The versionName suffix is what separates the watch in Analytics (App version) and, with the versionCode, in Crashlytics.
+- The [bundle identity gate](ci-cd.md#bundle-identity-gate) asserts both identities on the real AABs before any Play upload.
 
 ---
 
@@ -168,7 +186,7 @@ Triggered when there are merged features in `dev` ready to ship.
    2. Calls `android_build_unified.yml` (workflow_call) on the pinned SHA.
    3. Calls `ui_tests.yml` with `test_suite: smoke` (skippable via `skip_ui_tests` input) on the pinned SHA.
    4. Stops at the `production` GitHub Environment for manual approval (required reviewer = developer).
-   5. After approval: signs and uploads to Play via fastlane.
+   5. After approval: builds and signs the phone release bundle, asserts its identity with the [bundle identity gate](ci-cd.md#bundle-identity-gate), and uploads that exact AAB to Play via fastlane.
    6. Generates Play changelog from previous release tag to HEAD.
    7. Creates annotated tag `release-v.1.6.0` on the pinned SHA.
    8. Pushes the tag.

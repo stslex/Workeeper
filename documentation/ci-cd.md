@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, and the plan-editor feature Native tests plus exact identities on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, and the plan-editor feature Native tests plus exact identities on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -112,7 +112,9 @@ plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whene
 `mappingFileUploadEnabled` is true, so the Wear module keeps it off by default and reads
 `-PcrashlyticsMappingUpload=true`; the Wear release pipeline that does not exist yet must pass that
 property when it assembles the shipping build. The phone application keeps its unconditional
-upload: no PR workflow assembles a phone release variant.
+upload, so the one PR job that builds a phone release variant, `Release bundle identity`, excludes
+`uploadCrashlyticsMappingFileRelease` and proves the exclusion with a dry run on every run
+([Bundle identity gate](#bundle-identity-gate)).
 
 Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
@@ -149,6 +151,80 @@ per-task `test*/` output directories; the first is flat-file belt-and-braces).
 - `detekt-reports` — every `**/build/reports/detekt/` plus `detekt.yml` (kept 30 days).
 - `lint-reports` — `**/build/reports/lint-results-*.{html,xml}` plus `lint.xml` (kept 30 days).
 - PR annotations on lint findings via `yutailang0119/action-android-lint@v4`.
+
+## Bundle identity gate
+
+`.github/scripts/assert_play_bundle.py` proves that an AAB is the bundle its role claims before
+anything talks to Play ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §6). One
+bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml`.
+
+| Check | Rule |
+|---|---|
+| G1 | Exactly one existing, non-empty file at the path (a glob must match exactly one). Prints size and sha256. |
+| G2 | The package is `io.github.stslex.workeeper`. |
+| G3 | versionCode is the TOML value (phone) or `1_000_000 +` the TOML value (wear). |
+| G4 | versionName is the TOML value (phone) or the TOML value plus `-wear` (wear). |
+| G5 | Phone: no `uses-feature android.hardware.type.watch`. Wear: exactly one, not `required="false"`. |
+| G6 | Wear: the application meta-data `com.google.android.wearable.standalone` is `false`. Not applicable to phone. |
+| G7 | Every `lib/armeabi-v7a/*.so` has the same file under `lib/arm64-v8a/` of the same module. Counts per ABI and module are printed; zero native libraries is a valid, reported result. |
+
+Every check prints what it read, and the last line is `RESULT PASS` or `RESULT FAIL <checks>` with
+the number of checks that ran. Exit 0: every check passed. Exit 1: a check failed. Exit 2: the gate
+could not run (unreadable TOML, bundletool missing or failing), which a swap control must not
+mistake for the failure it expects.
+
+**bundletool.** The manifest dump comes from bundletool pinned in the version catalog
+(`bundletool = "1.18.3"`, library `libs.bundletool`): the version AGP 9.3.0 itself resolves
+(`./gradlew buildEnvironment`), so bump it with AGP. The root task `./gradlew :bundletoolClasspath`
+resolves `libs.bundletool` through the `settings.gradle.kts` repositories like any other dependency
+and writes the resolved jars, one absolute path per line, to `build/bundletool/classpath.txt`. The
+script runs `java -cp <those jars> com.android.tools.build.bundletool.BundleToolMain dump manifest
+--bundle <aab>`, with Java from `JAVA_HOME`, else from `PATH`. Nothing is downloaded outside Gradle's
+dependency resolution, and the script exits 2 when the classpath file or any jar in it is missing.
+G7 reads the AAB's zip entries directly.
+
+`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 20 cases over two
+manifests trimmed from real `bundletool dump manifest` output, each case applying exact-once text
+replacements. It fails on any mismatch and unless every check is shown both PASS and FAIL.
+
+**Where it runs.**
+
+- `fastlane deploy`: `gradle clean :app:store:bundleRelease :bundletoolClasspath`, the gate with
+  `--role phone`, then `upload_to_play_store(aab:)` with the same explicit path. `sh` raises on a
+  non-zero exit, so a wrong bundle never reaches the upload, and the upload never falls back to
+  supply's newest-AAB-by-mtime selection.
+- Pull requests: the `Release bundle identity` job of `android_build_unified.yml`.
+
+**The pull-request job** builds `:app:store:bundleRelease` and `:app:wear:bundleStoreRelease`, runs
+the self-test, runs the gate on both real AABs, and runs the swap control: the Wear AAB checked with
+`--role phone` must exit 1 with G5 among the failures, so the control cannot pass on an identity
+mismatch alone. It is a job of its own because the phone release bundle compiles every module's
+release variant and the build job's worst green run took 47.1 of its 60 minutes. It uses no Gradle
+caching, neither `setup-java`'s nor the build cache: the repository's Actions cache is near its
+10 GB limit, and on a key change this job would race the build job to save `setup-java`'s entry with
+a dependency set that lacks every test library. Every run is therefore a clean, executed build, and
+`--no-build-cache` keeps it so if a cache is ever added back.
+
+PR CI must not upload mapping files (F07 above). The phone release variant uploads its mapping
+unconditionally, so the job's task list carries `-x :app:store:uploadCrashlyticsMappingFileRelease`,
+and a dry run of that exact list runs first: it fails when it schedules zero tasks, when either
+bundle task is missing, or when any `uploadCrashlyticsMappingFile*` task is scheduled. The Wear
+variant schedules its upload only with `-PcrashlyticsMappingUpload=true`, which the job never passes.
+
+To reproduce locally. Keep the `-x`: without it a local phone release build uploads its mapping to
+Crashlytics.
+
+```bash
+./gradlew :bundletoolClasspath :app:store:bundleRelease :app:wear:bundleStoreRelease \
+  -x :app:store:uploadCrashlyticsMappingFileRelease
+python3 .github/scripts/assert_play_bundle.py --self-test
+python3 .github/scripts/assert_play_bundle.py --role phone \
+  --aab app/store/build/outputs/bundle/release/store-release.aab
+python3 .github/scripts/assert_play_bundle.py --role wear \
+  --aab app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab
+python3 .github/scripts/assert_play_bundle.py --role phone \
+  --aab app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab   # must exit 1
+```
 
 ## Mockup appearance gate
 
@@ -336,8 +412,9 @@ toolchain comes from the root `Gemfile` (which only declares the `fastlane` gem)
 - `fastlane crashlytics` — `gradle clean :app:store:assembleRelease` then a `crashlytics` step.
 - `fastlane beta` — `gradle clean :app:store:bundle`, then
   `upload_to_play_store(track: 'beta')`.
-- `fastlane deploy` — `gradle clean :app:store:bundle`, then `upload_to_play_store` (the
-  default production track).
+- `fastlane deploy` — `gradle clean :app:store:bundleRelease :bundletoolClasspath`, the
+  [bundle identity gate](#bundle-identity-gate) on the phone AAB, then
+  `upload_to_play_store(aab: <that AAB>)` (the default production track).
 - `fastlane build` — `gradle clean :app:store:bundle`.
 
 `Appfile` reads the Play Console service-account JSON from `./play_config.json` and pins the
@@ -454,6 +531,7 @@ without overwriting each other.
 |---|---|---|
 | `android_build_unified.yml` | `EnricoMi/publish-unit-test-result-action@v2` | `Unit Test Results` |
 | `android_build_unified.yml` | job check run (no reporting action) | `KMP iOS kit smoke` |
+| `android_build_unified.yml` | job check run (no reporting action) | `Release bundle identity` |
 | `android_build_unified.yml` | `mikepenz/action-junit-report@v4` | `Detailed Unit Test Report` |
 | `ui_tests.yml` (smoke job) | EnricoMi | `Smoke UI Test Results (API 34)` |
 | `ui_tests.yml` (smoke job) | mikepenz | `Detailed Smoke Test Report (API 34)` |
