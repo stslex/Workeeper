@@ -163,8 +163,13 @@ Lane `deploy_wear`, plus a stdlib Python decision helper with `--self-test`.
    fastlane 2.228.0 `client.rb:143,152,448,475`). Print every track id and the version codes on the
    configured Wear track.
 2. Decide:
-    - configured track absent: FAIL and print all track ids, because a wrong id must never pass
-      silently (F12);
+    - the configured id (the constant, or a recovery dispatch's `wear_track`) is not a non-public
+      Wear track, that is, it does not start with `wear:` or it is `wear:production` or
+      `wear:beta`: FAIL, before any Play-based decision;
+    - configured track not listed: probe it with `edits.tracks.get` in the same read-only edit. A
+      404 `trackEmpty` is an empty track: UPLOAD, since supply creates its release (fastlane
+      2.228.0 `uploader.rb:445-458`). A 404 `Track not found`: FAIL and print all track ids,
+      because a wrong id must never pass silently (F12). Any other answer fails the read;
     - expected versionCode already on the configured track: SKIP (success, no upload);
     - otherwise: UPLOAD.
 3. Run the listing drift check for Wear-owned metadata (§8).
@@ -323,6 +328,7 @@ Append-only. One row per PR and one per acceptance item.
 | 2026-09-29 | PR-A #297: Wear version identity, bundle identity gate | 5eb75272..5babc694; runs 36548190230, 36553275323 | Wear `1000052` / `1.51.0-wear` and phone `52` / `1.51.0`, gate PASS on both real AABs of an executed build (`1256 actionable tasks: 1256 executed`); the Wear AAB as phone fails G3, G4, G5; M-A1 to M-A6 RED then GREEN. PR CI job `Release bundle identity` 11.0 min in parallel (the build job took 45.7 of 60; inside it the work would reach about 56.5). Codex: no findings. |
 | 2026-09-29 | PR-B #298: Wear delivery | 35bd7dc6..020e2ce0; run 36553389129 | `android_deploy_wear.yml`, the `deploy_wear` lane and its decision helper, exercised by a probe with a fake Play client (14/14; no Play access); four synthetic Wear screenshots (480x480 RGB, validator 4/4); M-B1 to M-B8 RED then GREEN. Added a one-run `wear_track` dispatch override: a re-run replays the pinned commit's Fastfile, so §7.2's "correct the id and re-run" could not work otherwise. Codex: no findings. |
 | 2026-09-29 | PR-C #299: listing drift guard | 556c0a3a..head of #299; run 36556206312 (b2752dc1; later commits change only deploy-workflow YAML, checked by actionlint, the Fastfile, checked by lane probes, and docs) | Compared set phone 13 items, Wear 1; self-test 19 checks; lane probe 12/12; M-C1 to M-C6 and the two review-driven rules RED then GREEN (a first M-C1 that changed only a label was INVALID and retaken). Codex: artifact name per run attempt, working-tree inventory, deletions via `adopt`, the artifact rooted at its role directory, and a `skip_listing` Wear recovery that keeps an adopted Console listing fixed; beta lane already decided (§12); a claimed `sh` exit-code defect did not reproduce (measured). |
+| 2026-09-29 | Owner review of the Phase 5 report | owner decision; 2460cd6c, 76ff7abd on #299 | Kept the `wear_track` dispatch input (constrained by FIX 2), `skip_listing`, and the separate `Release bundle identity` job. FIX 1: an unlisted configured track is probed with `edits.tracks.get` in the same read-only edit; `trackEmpty` is UPLOAD, `Track not found` is FAIL with every track id, any other answer fails the read. FIX 2: the track id must start with `wear:` and must not be `wear:production` or `wear:beta`. §7.2 step 2 reworded to match. |
 
 ## Appendix A. Wear listing text (apply with the Wear production decision)
 
