@@ -417,6 +417,33 @@ Record elapsed time immediately before and after the acknowledgment. Use genuine
 time for expiry and notification-removal measurements. Synthetic clock-offset events
 cannot establish those measurements.
 
+## Store screenshots
+
+`store_screenshots.py` captures the Wear store listing screenshots
+([wear-release-pipeline.md](../feature-specs/wear-release-pipeline.md) §7.4). They are store assets,
+not acceptance evidence: a capture says nothing about a matrix cell. Prepare an API 36 240dp AVD
+with `prepare_avd.py` in an isolated AVD home, boot it, install the store-flavored debug APK
+(`app/wear/build/outputs/apk/store/debug/wear-store-debug.apk`, package `io.github.stslex.workeeper`),
+run `configure_cell.py --locale en --scale 1.0 --package io.github.stslex.workeeper` and grant
+POST_NOTIFICATIONS. Then, with the target directory empty:
+
+```bash
+python3 documentation/wear-emulator-acceptance/store_screenshots.py \
+  --adb "$ANDROID_SDK_ROOT/platform-tools/adb" --serial "$SERIAL" \
+  --output fastlane/metadata-wear/android/en-US/images/wearScreenshots
+python3 .github/scripts/assert_store_screenshots.py \
+  fastlane/metadata-wear/android/en-US/images/wearScreenshots
+```
+
+It writes four files from synthetic data only: the active controller (`refresh_required`, then the
+acknowledged headless `refresh`), the reps editor opened from it, the system Tile for that session
+(added with the Wear `DEBUG_SURFACE` add-tile broadcast, not the preview Activity), and the
+`complete` fixture. Before each capture it wakes the display and checks it is awake, since a dozing
+watch shows the ambient screen. screencap returns RGBA; the script requires every pixel opaque and
+drops the alpha channel, so the files are RGB PNGs of the same pixels. It prints a JSON record of
+the device, the installed package and each file's sha256; keep it with the change that commits the
+files. Run `documentation/personal_data_gate.py` before committing.
+
 ## Lifecycle observations and limits
 
 The default death instrument is `run-as ... kill -9`. On the tested API 30 userdebug image,
