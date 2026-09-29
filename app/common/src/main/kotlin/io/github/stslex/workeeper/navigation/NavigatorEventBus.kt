@@ -95,10 +95,10 @@ class NavigatorEventBus(
     }
 
     private fun consume(command: NavCommand) {
-        log.d { "Processing navigation command: $command" }
+        log.d { "Processing navigation command: ${command.logLabel()}" }
         _commands.tryEmit(command).also { emitted ->
             if (emitted.not()) {
-                log.w { "Failed to emit navigation command: $command" }
+                log.w { "Failed to emit navigation command: ${command.logLabel()}" }
             }
         }
     }

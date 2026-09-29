@@ -19,6 +19,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
+import io.github.stslex.workeeper.core.ui.mvi.holders.storeTypeName
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -120,10 +121,11 @@ open class BaseStore<S : State, A : Action, E : Event>(
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
         if (allowConsumeAction.not()) {
-            logger.i("consume skipped for $action")
+            logger.i("consume skipped for ${storeTypeName(action)}")
             return
         }
-        logger.i("consume: $action")
+        // Type names only: the Store logger also writes the Crashlytics log (storeTypeName).
+        logger.i("consume: ${storeTypeName(action)}")
         analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
             _lastAction = action
@@ -151,7 +153,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     override fun sendEvent(event: E) {
-        logger.i("sendEvent: $event")
+        logger.i("sendEvent: ${storeTypeName(event)}")
         analytics.logEvent(event)
         sendEventWithAwait(event)
     }
@@ -160,7 +162,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
         val emitted = _event.tryEmit(event)
         if (emitted.not()) {
             logger.w(
-                "Event $event was try emitted: $emitted with buffer capacity ${_event.subscriptionCount.value} " +
+                "Event ${storeTypeName(event)} was try emitted: $emitted with buffer capacity " +
+                    "${_event.subscriptionCount.value} " +
                     "and buffer size ${_event.replayCache.size}",
             )
             scope.launch {

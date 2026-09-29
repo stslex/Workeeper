@@ -21,8 +21,9 @@ open class BaseDataStore(
         prefs[longPreferencesKey(key)]
     }
 
+    // Keys only: a value can be a date the user picked (wear-paired-transport.md §9.2).
     suspend fun updateLong(key: String, value: Long) {
-        logger.i("Update key: $key with value: $value")
+        logger.i("Update key: $key")
         storeProvider.dataStore.edit { prefs ->
             prefs[longPreferencesKey(key)] = value
         }
@@ -34,7 +35,7 @@ open class BaseDataStore(
         }
 
     suspend fun updateString(key: String, value: String) {
-        logger.i("Update key: $key with value: $value")
+        logger.i("Update key: $key")
         storeProvider.dataStore.edit { prefs ->
             prefs[stringPreferencesKey(key)] = value
         }

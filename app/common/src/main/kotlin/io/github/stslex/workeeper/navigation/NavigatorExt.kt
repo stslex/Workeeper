@@ -46,7 +46,7 @@ object NavigatorExt {
         results: NavResultsSource,
         context: Context,
     ) {
-        logger.i { "Processing navigation command: $command" }
+        logger.i { "Processing navigation command: ${command.logLabel()}" }
         when (command) {
             is NavCommand.NavTo -> navTo(holder, command.screen)
             is NavCommand.PopBack -> popBack(holder)
@@ -70,7 +70,7 @@ object NavigatorExt {
         holder: NavigatorHolder,
         screen: Screen,
     ) {
-        logger.d("navTo $screen")
+        logger.d("navTo ${screen.logLabel()}")
         try {
             PerformanceMetricsRecorder.process(RecordAction.Navigation.NavTo(screen::class))
             val stack = holder.backStack
@@ -80,7 +80,7 @@ object NavigatorExt {
                 stack.add(screen)
             }
         } catch (ignore: Exception) {
-            logger.e(ignore, "screen: $screen")
+            logger.e(ignore, "screen: ${screen.logLabel()}")
         }
     }
 
@@ -108,7 +108,7 @@ object NavigatorExt {
         key: String,
         result: Any,
     ) {
-        logger.d { "popBackWithResult($key=$result)" }
+        logger.d { "popBackWithResult($key)" }
 
         results.setResult(key, result)
         popBack(holder)
@@ -118,13 +118,13 @@ object NavigatorExt {
         holder: NavigatorHolder,
         screen: Screen,
     ) {
-        logger.d("replaceTo $screen")
+        logger.d("replaceTo ${screen.logLabel()}")
         try {
             PerformanceMetricsRecorder.process(RecordAction.Navigation.ReplaceTo(screen::class))
             val stack = holder.backStack
             stack[stack.lastIndex] = screen
         } catch (ignore: Exception) {
-            logger.e(ignore, "screen: $screen")
+            logger.e(ignore, "screen: ${screen.logLabel()}")
         }
     }
 

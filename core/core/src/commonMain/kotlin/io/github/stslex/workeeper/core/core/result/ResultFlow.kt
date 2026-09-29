@@ -34,7 +34,8 @@ class ResultFlow<T : Any>(
         scope = scope,
         onError = { onError?.invoke(it) ?: logger.e(it, it.message) },
         onLoading = { onLoading?.invoke() ?: logger.i("Loading...") },
-        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success: $it") },
+        // A fixed label: the payload can be anything a caller loads (wear-paired-transport.md §9.2).
+        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success") },
     )
 
     companion object {

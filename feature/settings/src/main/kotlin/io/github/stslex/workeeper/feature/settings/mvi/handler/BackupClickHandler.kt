@@ -223,7 +223,8 @@ internal class BackupClickHandler @Inject constructor(
                 }
                 when (result) {
                     is BackupResult.Success -> {
-                        logger.i { "Sign-in successful for account: ${result.data}" }
+                        // Never the account: its email and name would reach the Crashlytics log.
+                        logger.i { "Sign-in successful" }
                         if (wasAiExportGrant) reconcileAiExportGrant()
                         launchDefault { bootstrapOrRehydrate() }
                     }

@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.core.ui.mvi
+
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
+import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.handler.BaseHandlerStore
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+
+/**
+ * wear-paired-transport.md §9.2 item 5: a Store action and event that carry what a user entered
+ * (a name, a weight, reps) reach Analytics and the Crashlytics log as their type names only.
+ *
+ * Every telemetry sink is captured, not just the two call sites under test: the Analytics
+ * parameters, every Crashlytics log line, and the tag and message of every recorded exception.
+ * Each breadcrumb path is proven to have run by its type-name line, so an absent sentinel cannot
+ * come from a path that never executed.
+ */
+internal class StoreTelemetryRedactionTest {
+
+    private val analytics = mutableListOf<FirebaseEvent>()
+    private val breadcrumbs = mutableListOf<String>()
+    private lateinit var dispatcher: TestDispatcher
+    private var wasLogging = true
+
+    @BeforeEach
+    fun setUp() {
+        wasLogging = Log.isLogging
+        Log.isLogging = false
+        dispatcher = StandardTestDispatcher()
+        Dispatchers.setMain(dispatcher)
+        mockkObject(FirebaseAnalyticsHolder, FirebaseCrashlyticsHolder)
+        every { FirebaseAnalyticsHolder.log(any()) } answers { analytics += firstArg<FirebaseEvent>() }
+        every { FirebaseCrashlyticsHolder.log(any()) } answers { breadcrumbs += firstArg<String>() }
+        every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
+            breadcrumbs += "${secondArg<String>()} ${firstArg<Throwable>().message}"
+        }
+    }
+
+    @AfterEach
+    fun tearDown() {
+        unmockkObject(FirebaseAnalyticsHolder, FirebaseCrashlyticsHolder)
+        Dispatchers.resetMain()
+        Log.isLogging = wasLogging
+    }
+
+    @Test
+    fun `entered values never reach analytics parameters or breadcrumbs`() = runTest {
+        val lifetime = AppScopeLifetime()
+        val store = RedactionStore(StoreDispatchers(dispatcher, dispatcher), lifetime)
+        val action = RedactionAction.Recorded(SENTINEL_NAME, SENTINEL_WEIGHT, SENTINEL_REPS)
+
+        // Before init: the "consume skipped" breadcrumb.
+        store.consume(action)
+        store.init(RedactionLifecycleOwner())
+        // After init: the "consume" breadcrumb and the action parameter.
+        store.consume(action)
+
+        // Park one collector so the 33rd event overflows the 32-slot buffer: the event-buffer
+        // warning is a breadcrumb too.
+        val gate = CompletableDeferred<Unit>()
+        val collector = launch { store.event.collect { gate.await() } }
+        advanceUntilIdle()
+        repeat(EVENTS_TO_OVERFLOW) { index ->
+            store.sendEvent(RedactionEvent.SetShown(index, SENTINEL_NAME, SENTINEL_WEIGHT, SENTINEL_REPS))
+        }
+        gate.complete(Unit)
+        advanceUntilIdle()
+        collector.cancel()
+
+        val parameters = analytics.flatMap { event -> event.params.values }
+        assertEquals(
+            listOf("Recorded"),
+            analytics.filterIsInstance<FirebaseEvent.Store.Action>().map { it.params.getValue("action") },
+        )
+        assertTrue(
+            analytics.filterIsInstance<FirebaseEvent.Store.Event>().map { it.params.getValue("event") }
+                .let { names -> names.isNotEmpty() && names.all { it == "SetShown" } },
+            "every event parameter is the type name: $parameters",
+        )
+        assertRan("consume skipped for Recorded")
+        assertRan("consume: Recorded")
+        assertRan("sendEvent: SetShown")
+        assertRan("Event SetShown was try emitted: false")
+
+        val sinks = parameters + breadcrumbs
+        SENTINELS.forEach { sentinel ->
+            val leaks = sinks.filter { sentinel in it }
+            assertTrue(leaks.isEmpty(), "'$sentinel' reached telemetry ${leaks.size} times: $leaks")
+        }
+        println(
+            "telemetry checked: ${analytics.size} analytics events (${parameters.size} parameters), " +
+                "${breadcrumbs.size} breadcrumbs, ${SENTINELS.size} sentinels, 0 leaks",
+        )
+
+        store.dispose()
+        lifetime.cancelAndJoin()
+    }
+
+    private fun assertRan(line: String) {
+        assertTrue(breadcrumbs.any { line in it }, "no breadcrumb contains '$line': $breadcrumbs")
+    }
+
+    private companion object {
+        const val SENTINEL_NAME = "Sentinel-Bench-7f3a"
+        const val SENTINEL_WEIGHT = 987.25
+        const val SENTINEL_REPS = 4321
+        val SENTINELS = listOf(SENTINEL_NAME, SENTINEL_WEIGHT.toString(), SENTINEL_REPS.toString())
+
+        /** One past `BaseStore.EVENTS_BUFFER_CAPACITY` (32). */
+        const val EVENTS_TO_OVERFLOW = 33
+    }
+}
+
+private class RedactionLifecycleOwner : LifecycleOwner {
+
+    private val registry = LifecycleRegistry.createUnsafe(this)
+
+    override val lifecycle: Lifecycle get() = registry
+}
+
+private data object RedactionState : Store.State
+
+private sealed interface RedactionAction : Store.Action {
+
+    data class Recorded(val name: String, val weight: Double, val reps: Int) : RedactionAction
+}
+
+private sealed interface RedactionEvent : Store.Event {
+
+    data class SetShown(val index: Int, val name: String, val weight: Double, val reps: Int) : RedactionEvent
+}
+
+private class RedactionStore(
+    storeDispatchers: StoreDispatchers,
+    appScopeLifetime: AppScopeLifetime,
+) : BaseStore<RedactionState, RedactionAction, RedactionEvent>(
+    name = "RedactionStore",
+    initialState = RedactionState,
+    storeEmitter = BaseHandlerStore(),
+    handlerCreator = HandlerCreator<RedactionAction> { Handler<RedactionAction> { } },
+    storeDispatchers = storeDispatchers,
+    analyticsHolder = AnalyticsHolder(),
+    loggerHolder = LoggerHolder(),
+    appScopeLifetime = appScopeLifetime,
+)

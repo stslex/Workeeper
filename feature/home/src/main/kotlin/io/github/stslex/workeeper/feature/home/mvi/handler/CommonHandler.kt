@@ -39,7 +39,9 @@ internal class CommonHandler @Inject constructor(
         observeStartCard()
         interactor.observeActiveSession().launch { row ->
             logger.i {
-                "Received update for active session: ${row ?: "null"}. Updating state with new active session data."
+                // Presence only: the row carries the training name (wear-paired-transport.md §9.2).
+                "Received update for active session: ${if (row == null) "none" else "present"}. " +
+                    "Updating state with new active session data."
             }
             updateStateImmediate { current ->
                 val now = if (current.nowMillis == 0L) {

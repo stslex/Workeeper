@@ -13,7 +13,7 @@ class StoreAnalytics<A : Store.Action, E : Store.Event>(
         FirebaseAnalyticsHolder.log(
             FirebaseEvent.Store.Action(
                 storeName = name,
-                action = action.toString(),
+                action = storeTypeName(action),
             ),
         )
     }
@@ -22,7 +22,7 @@ class StoreAnalytics<A : Store.Action, E : Store.Event>(
         FirebaseAnalyticsHolder.log(
             FirebaseEvent.Store.Event(
                 storeName = name,
-                event = event.toString(),
+                event = storeTypeName(event),
             ),
         )
     }
@@ -37,3 +37,15 @@ class StoreAnalytics<A : Store.Action, E : Store.Event>(
         )
     }
 }
+
+/**
+ * The telemetry label of a Store action or event: its type name, never its content.
+ *
+ * GUARD: never `toString()`. Actions and events carry what the user entered (names, weights,
+ * reps), and a data class prints every field into Analytics and the Crashlytics log
+ * (wear-paired-transport.md §9.2). The names survive R8 through the `-keepnames` rules in
+ * proguard/firebase-crashlytics.pro.
+ */
+internal fun storeTypeName(value: Any): String = value::class.simpleName ?: UNNAMED_STORE_TYPE
+
+private const val UNNAMED_STORE_TYPE = "Unnamed"

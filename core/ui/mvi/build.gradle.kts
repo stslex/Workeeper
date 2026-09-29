@@ -74,6 +74,9 @@ dependencies {
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
+    // The telemetry redaction test captures the Firebase holder objects (mockkObject).
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
 
     "androidDeviceTestImplementation"(libs.bundles.android.test)
     "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)
