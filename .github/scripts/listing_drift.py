@@ -98,15 +98,16 @@ def compared_items(paths, with_text):
                 if f"{field}.txt" in own:
                     items[f"{language}/text/{field}"] = [f"{language}/{field}.txt"]
             for image_type in IMAGE_TYPES:
-                # Dir.glob("images/<type>.{png,jpg,jpeg}", FNM_CASEFOLD).last
-                found = [f"images/{image_type}.{ext}" for ext in EXTENSIONS
+                # Dir.glob("images/<type>.{png,jpg,jpeg}", FNM_CASEFOLD).last. GUARD: keep the matched
+                # name; a re-cased canonical path does not exist for `git show`.
+                found = [name for ext in EXTENSIONS
                          for name in own if name.lower() == f"images/{image_type}.{ext}".lower()]
                 if found:
                     items[f"{language}/image/{image_type}"] = [f"{language}/{found[-1]}"]
         for shot_type in SCREENSHOT_TYPES:
             # Dir.glob("images/<type>/*.{png,jpg,jpeg}", FNM_CASEFOLD).sort
             found = sorted(name for name in own
-                           if PurePosixPath(name).parent == PurePosixPath("images", shot_type)
+                           if str(PurePosixPath(name).parent).lower() == f"images/{shot_type}".lower()
                            and PurePosixPath(name).suffix.lower().lstrip(".") in EXTENSIONS)
             if found:
                 items[f"{language}/screenshots/{shot_type}"] = [f"{language}/{name}" for name in found]
@@ -390,7 +391,11 @@ def self_test():
         print(f"  {'ok' if ok else 'MISMATCH':8} {name}: {detail}")
         if not ok:
             failures.append(name)
-    total = len(cases) + 9
+    ok, detail = _casing_case()
+    print(f"  {'ok' if ok else 'MISMATCH':8} case-variant names (images/Icon.PNG, images/PhoneScreenshots/), OK: {detail}")
+    if not ok:
+        failures.append("case-variant names")
+    total = len(cases) + 10
     if failures:
         print(f"self-test FAIL: {len(failures)} of {total} checks: {failures}")
         return 1
@@ -425,6 +430,21 @@ def _adopt_round_trip(remote_shots):
         _commit(repo, {}, "adopt Play's listing", allow_empty=True)
         second, output = _run_decide(repo, "phone", remote, repo / "out2", False)
         return first == 1 and second == 0, f"exit {first} before, {second} after adopting"
+
+
+def _casing_case():
+    """supply globs with FNM_CASEFOLD: case-variant names are compared, from the names committed."""
+    phone = "fastlane/metadata/android/en-US"
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        git(repo, "init", "-q")
+        _commit(repo, {"gradle/libs.versions.toml": '[versions]\nversionName = "1.1.0"\n', f"{phone}/title.txt": "T\n",
+                       f"{phone}/images/Icon.PNG": b"icon", f"{phone}/images/PhoneScreenshots/1_en-US.png": b"shot"},
+                "deployed")
+        remote = _remote({"title": "T"}, {"icon": [_image(b"icon")], "phoneScreenshots": [_image(b"shot")]})
+        code, output = _run_decide(repo, "phone", remote, repo / "out", False)
+        compared = "en-US/image/icon" in output and "en-US/screenshots/phoneScreenshots" in output
+        return code == 0 and compared, f"exit {code}, both items compared: {compared}"
 
 
 def _run_decide(repo, role, remote, out, allow):

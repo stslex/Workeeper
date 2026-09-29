@@ -560,8 +560,9 @@ covers OK, DRIFT, override and FAIL: a Console edit, a repository change, a matc
 reordered screenshot set, the override, a normalisation-only difference, the exclusion of the tag
 being deployed, a Wear path absent at base, a reader gap, an edited compared file, untracked
 eligible files (a screenshot, a new language) against untracked files supply never uploads, and
-zero compared items, and two adopt round trips (an emptied and a reordered screenshot type) that
-end OK against the same Play state.
+zero compared items, two adopt round trips (an emptied and a reordered screenshot type) that end
+OK against the same Play state, and case-variant names (`images/Icon.PNG`, `images/PhoneScreenshots/`)
+compared from the names committed, as supply's case-insensitive glob uploads them.
 
 ### GitHub APK release
 
