@@ -434,6 +434,10 @@ jobs:
           python3 .github/scripts/assert_store_screenshots.py --self-test
           python3 .github/scripts/assert_store_screenshots.py fastlane/metadata-wear/android/en-US/images/wearScreenshots
 
+      # The deploy lanes' Play decisions run only during a release; their self-tests run here.
+      - name: Self-test the release decision helpers
+        run: python3 .github/scripts/wear_track_decision.py --self-test
+
       - name: Assert the bundle step schedules no Crashlytics mapping upload
         run: |
           read -r -a tasks <<< "$BUNDLE_TASKS"
