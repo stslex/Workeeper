@@ -532,10 +532,11 @@ anything the repository also holds ([wear-release-pipeline.md](feature-specs/wea
 
 `allow_listing_overwrite`, a dispatch input of both deploy workflows passed to the lanes as
 `ALLOW_LISTING_OVERWRITE`, turns a DRIFT into a logged warning for that run. It is never the default,
-and a reader error always fails. Both workflows upload `build/listing-drift/` in their last step,
-under `if: always()`, as `listing-drift-phone-attempt-<n>` / `listing-drift-wear-attempt-<n>`. The
-upload is never between the phone's Play upload and its tag and merge, where the step's own failure
-would strand a live release. The name carries the run attempt because `upload-artifact@v4` fails on
+and a reader error always fails. Each workflow uploads its `build/listing-drift/<role>/` directory,
+the root that `adopt --out` reads, in its last step under `if: always()`, as
+`listing-drift-phone-attempt-<n>` / `listing-drift-wear-attempt-<n>`. The upload is never between
+the phone's Play upload and its tag and merge, where the step's own failure would strand a live
+release. The name carries the run attempt because `upload-artifact@v4` fails on
 a name the run already holds, and a "Re-run failed jobs" attempt keeps the earlier attempt's
 artifacts: a fixed name would turn a successful re-run red at its last step, and a red phone
 `deploy` skips `deploy_wear`. Recovery is in [release-flow.md](release-flow.md) §8.10.
