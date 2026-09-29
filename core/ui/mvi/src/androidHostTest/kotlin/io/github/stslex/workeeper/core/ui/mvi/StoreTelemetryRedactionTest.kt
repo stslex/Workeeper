@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.mockk.MockKAnswerScope
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
@@ -38,7 +39,8 @@ import org.junit.jupiter.api.Test
  * (a name, a weight, reps) reach Analytics and the Crashlytics log as their type names only.
  *
  * Every telemetry sink is captured, not just the two call sites under test: the Analytics
- * parameters, every Crashlytics log line, and the tag and message of every recorded exception.
+ * parameters, every Crashlytics log line, the tag and message of every recorded exception, and
+ * every custom key.
  * Each breadcrumb path is proven to have run by its type-name line, so an absent sentinel cannot
  * come from a path that never executed.
  */
@@ -61,6 +63,10 @@ internal class StoreTelemetryRedactionTest {
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
             breadcrumbs += "${secondArg<String>()} ${firstArg<Throwable>().message}"
         }
+        every { FirebaseCrashlyticsHolder.setCustomKey(any(), any<String>()) } answers { customKey() }
+        every { FirebaseCrashlyticsHolder.setCustomKey(any(), any<Int>()) } answers { customKey() }
+        every { FirebaseCrashlyticsHolder.setCustomKey(any(), any<Long>()) } answers { customKey() }
+        every { FirebaseCrashlyticsHolder.setCustomKey(any(), any<Boolean>()) } answers { customKey() }
     }
 
     @AfterEach
@@ -121,6 +127,11 @@ internal class StoreTelemetryRedactionTest {
 
         store.dispose()
         lifetime.cancelAndJoin()
+    }
+
+    /** A custom key is a sink too: key and value are checked like a log line. */
+    private fun MockKAnswerScope<Unit, Unit>.customKey() {
+        breadcrumbs += "${firstArg<String>()}=${secondArg<Any>()}"
     }
 
     /** A breadcrumb holding every fragment proves its path ran; what else it holds is the leak check's. */

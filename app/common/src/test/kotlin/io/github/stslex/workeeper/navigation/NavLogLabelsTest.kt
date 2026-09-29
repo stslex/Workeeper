@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /** wear-paired-transport.md §9.2: navigation log lines name types, never what a screen carries. */
@@ -19,6 +26,30 @@ internal class NavLogLabelsTest {
         assertEquals("PopBack", NavCommand.PopBack.logLabel())
         assertEquals("OpenRecovery", NavCommand.OpenRecovery.logLabel())
         assertEquals("ExerciseImage", image.logLabel())
+    }
+
+    @Test
+    fun `the navigator bus logs labels, never the picked image or a result`() {
+        val lines = mutableListOf<String>()
+        val logger = mockk<Logger>(relaxed = true)
+        every { logger.d(any<() -> String>()) } answers { lines += firstArg<() -> String>()() }
+        every { logger.w(any<() -> String>()) } answers { lines += firstArg<() -> String>()() }
+        mockkObject(Log)
+        try {
+            every { Log.tag(any()) } returns logger
+            val bus = NavigatorEventBus(mockk(relaxed = true))
+
+            bus.navTo(Screen.ExerciseImage(model = SENTINEL_URI, editable = true))
+            bus.replaceTo(Screen.ExerciseImage(model = SENTINEL_URI))
+            bus.popBackWithResult(Screen.ExerciseImage::class, SENTINEL_URI)
+        } finally {
+            unmockkObject(Log)
+        }
+
+        assertTrue(lines.any { "NavTo(ExerciseImage)" in it }, "the navTo path ran: $lines")
+        assertTrue(lines.any { "PopBackWithResult(" in it }, "the result path ran: $lines")
+        val leaks = lines.filter { "Sentinel" in it }
+        assertTrue(leaks.isEmpty(), "a navigation log line carries the picked image: $leaks")
     }
 
     private companion object {

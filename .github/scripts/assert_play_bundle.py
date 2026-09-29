@@ -15,8 +15,10 @@ G4 versionName is the TOML value (phone) or the TOML value + "-wear" (wear).
 G5 phone: no uses-feature android.hardware.type.watch; wear: present and not required="false".
 G6 wear: meta-data com.google.android.wearable.standalone is "false" (not applicable to phone).
 G7 every lib/armeabi-v7a/*.so has the same file under lib/arm64-v8a/, in every module.
-G8 no com.google.android.gms.permission.AD_ID in the base manifest (uses-permission or
-   uses-permission-sdk-23), for both roles: the apps show no ads and remove it with tools:node.
+G8 advertising ID off, for both roles: no com.google.android.gms.permission.AD_ID in the base
+   manifest (uses-permission or uses-permission-sdk-23), and the application meta-data
+   google_analytics_adid_collection_enabled is exactly "false" (below Android 13 the ID is
+   readable without the permission). The apps show no ads.
 
 The manifest comes from the catalog-pinned bundletool: `./gradlew :bundletoolClasspath` writes the
 classpath this script reads (ci-cd.md § "Bundle identity gate"). G7 reads the zip directly. Every
@@ -48,6 +50,7 @@ WEAR_VERSION_NAME_SUFFIX = "-wear"
 WATCH_FEATURE = "android.hardware.type.watch"
 STANDALONE_META = "com.google.android.wearable.standalone"
 AD_ID_PERMISSION = "com.google.android.gms.permission.AD_ID"
+ADID_COLLECTION_META = "google_analytics_adid_collection_enabled"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
 ROLES = ("phone", "wear")
@@ -145,6 +148,11 @@ def parse_manifest(xml_text):
             for tag in ("uses-permission", "uses-permission-sdk-23")
             for permission in root.findall(tag)
         ],
+        "adid_collection": [
+            meta.get(ANDROID + "value")
+            for meta in (application.findall("meta-data") if application is not None else [])
+            if meta.get(ANDROID + "name") == ADID_COLLECTION_META
+        ],
     }
 
 
@@ -187,9 +195,11 @@ def check_manifest(manifest, role, code, name):
 
     permissions = manifest["permissions"]
     declared = permissions.count(AD_ID_PERMISSION)
+    collection = manifest["adid_collection"]
     results["G8"] = (
-        PASS if declared == 0 else FAIL,
-        f"{len(permissions)} permissions declared, {AD_ID_PERMISSION} {declared} times, expected 0",
+        PASS if declared == 0 and collection == ["false"] else FAIL,
+        f"{len(permissions)} permissions declared, {AD_ID_PERMISSION} {declared} times, expected 0; "
+        f"meta-data {ADID_COLLECTION_META}: {collection}, expected exactly ['false']",
     )
     return results
 
