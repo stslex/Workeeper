@@ -4,9 +4,10 @@
 The owner authorized the remaining Wear UI and synthetic lifecycle work on
 2026-09-22; see [Wear UI completion](wear-ui-completion.md) for the sequence and
 [Wear lifecycle UI](wear-lifecycle-ui.md) for the implementation and evidence boundary.
-This authorization permits test/debug synthetic sources only. Privacy and real-payload
-transport remain blocked until their decisions and entry gates are closed; physical-device
-acceptance and final Phase 1 acceptance remain open.
+This authorization permits test/debug synthetic sources only. Both privacy gates closed on
+2026-09-29 (§6.1), and real-payload transport is specified in
+[Wear paired transport](wear-paired-transport.md). Physical-device acceptance and final Phase 1
+acceptance remain open.
 
 - **Decision date:** 2026-09-01
 - **Specification base:** `dev` at
@@ -993,6 +994,25 @@ semantics over `DataClient`: messages are non-persistent and have no automatic
 retry, while data items persist and may be backed up. The application must add
 its own acknowledgement and safe retry semantics described above. Phone and
 watch artifacts must use matching application IDs and signatures.
+
+### 6.1 Gate closure record
+
+Both gates closed on 2026-09-29 by owner decision, recorded in
+[Wear paired transport](wear-paired-transport.md) §2:
+
+- Gate 1: the owner approved the public privacy policy in
+  [Wear paired transport](wear-paired-transport.md) Appendix A. It replaces
+  `docs/index.md` through an owner-authorized, text-exact exception to the
+  repository lock, and the release that enables transport is accepted only
+  after the live privacy page carries it.
+- Gate 2: the owner selected **Permit end-to-end encrypted Data Layer relay**.
+  The transport uses `MessageClient` only, never `DataClient`.
+
+Workout payloads may cross the device boundary only through the two files that
+[Wear paired transport](wear-paired-transport.md) §8 allowlists; every other
+source file stays under the three-layer ban. This record closes neither
+physical-device acceptance, nor the reconnect-window calibration of §8, nor
+final Phase 1 acceptance.
 
 ## 7. Android-only module boundary
 
