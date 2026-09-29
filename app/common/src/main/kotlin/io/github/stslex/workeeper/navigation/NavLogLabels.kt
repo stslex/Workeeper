@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
+import io.github.stslex.workeeper.core.core.logger.telemetryTypeName
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
@@ -18,4 +19,4 @@ internal fun NavCommand.logLabel(): String = when (this) {
     NavCommand.OpenRecovery -> "OpenRecovery"
 }
 
-internal fun Screen.logLabel(): String = this::class.simpleName ?: "Screen"
+internal fun Screen.logLabel(): String = telemetryTypeName(this)

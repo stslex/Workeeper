@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScopeImpl
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.core.logger.telemetryTypeName
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
@@ -19,7 +20,6 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
-import io.github.stslex.workeeper.core.ui.mvi.holders.storeTypeName
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -121,11 +121,11 @@ open class BaseStore<S : State, A : Action, E : Event>(
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
         if (allowConsumeAction.not()) {
-            logger.i("consume skipped for ${storeTypeName(action)}")
+            logger.i("consume skipped for ${telemetryTypeName(action)}")
             return
         }
-        // Type names only: the Store logger also writes the Crashlytics log (storeTypeName).
-        logger.i("consume: ${storeTypeName(action)}")
+        // Type names only: the Store logger also writes the Crashlytics log (telemetryTypeName).
+        logger.i("consume: ${telemetryTypeName(action)}")
         analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
             _lastAction = action
@@ -153,7 +153,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     override fun sendEvent(event: E) {
-        logger.i("sendEvent: ${storeTypeName(event)}")
+        logger.i("sendEvent: ${telemetryTypeName(event)}")
         analytics.logEvent(event)
         sendEventWithAwait(event)
     }
@@ -162,7 +162,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
         val emitted = _event.tryEmit(event)
         if (emitted.not()) {
             logger.w(
-                "Event ${storeTypeName(event)} was try emitted: $emitted with buffer capacity " +
+                "Event ${telemetryTypeName(event)} was try emitted: $emitted with buffer capacity " +
                     "${_event.subscriptionCount.value} " +
                     "and buffer size ${_event.replayCache.size}",
             )
