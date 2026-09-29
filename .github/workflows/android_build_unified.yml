@@ -436,7 +436,9 @@ jobs:
 
       # The deploy lanes' Play decisions run only during a release; their self-tests run here.
       - name: Self-test the release decision helpers
-        run: python3 .github/scripts/wear_track_decision.py --self-test
+        run: |
+          python3 .github/scripts/wear_track_decision.py --self-test
+          python3 .github/scripts/listing_drift.py --self-test
 
       - name: Assert the bundle step schedules no Crashlytics mapping upload
         run: |
