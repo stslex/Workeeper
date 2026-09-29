@@ -107,7 +107,7 @@ internal class StoreTelemetryRedactionTest {
         assertRan("consume skipped for Recorded")
         assertRan("consume: Recorded")
         assertRan("sendEvent: SetShown")
-        assertRan("Event SetShown was try emitted: false")
+        assertRan("Event SetShown", "was try emitted: false")
 
         val sinks = parameters + breadcrumbs
         SENTINELS.forEach { sentinel ->
@@ -123,8 +123,12 @@ internal class StoreTelemetryRedactionTest {
         lifetime.cancelAndJoin()
     }
 
-    private fun assertRan(line: String) {
-        assertTrue(breadcrumbs.any { line in it }, "no breadcrumb contains '$line': $breadcrumbs")
+    /** A breadcrumb holding every fragment proves its path ran; what else it holds is the leak check's. */
+    private fun assertRan(vararg fragments: String) {
+        assertTrue(
+            breadcrumbs.any { crumb -> fragments.all { it in crumb } },
+            "no breadcrumb contains ${fragments.toList()}: $breadcrumbs",
+        )
     }
 
     private companion object {
