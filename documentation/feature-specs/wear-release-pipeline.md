@@ -319,6 +319,7 @@ Append-only. One row per PR and one per acceptance item.
 
 | Date | Item | Commit or run | Evidence |
 |---|---|---|---|
+| 2026-09-29 | Spec contract | e7e66244 | The implementation contract is this file at e7e66244, sha256 `755b5b3346f71b5008cd7b729e0c604fab7ddce865055070b76d32ba6f65c48f`. The copy embedded in the implementation prompt hashed `d8277fdbe0778467380e1b5250f0bd771d878943f86a16493dad26b3d44218e4`. Whitespace-only difference: the §7.2 step 2 sub-bullets are indented 4 spaces here and 3 there, and this file has no final newline. The owner ruled this file is the spec. |
 
 ## Appendix A. Wear listing text (apply with the Wear production decision)
 
