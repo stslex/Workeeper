@@ -11,6 +11,10 @@ on:
         type: boolean
         default: false
         description: "Skip build checks. Use only on retries when build passed in a prior run."
+      allow_listing_overwrite:
+        type: boolean
+        default: false
+        description: "Turn a store-listing DRIFT into a logged warning (wear-release-pipeline.md §8). Never the default."
 
 permissions:
   contents: write
@@ -255,3 +259,19 @@ jobs:
           PR_NUMBER: ${{ needs.guard.outputs.pr_number }}
           PINNED_SHA: ${{ needs.guard.outputs.sha }}
         run: gh pr merge "$PR_NUMBER" --merge --delete-branch --match-head-commit "$PINNED_SHA"
+
+  # The Wear bundle of the same pinned SHA, to the Wear OS internal testing track
+  # (wear-release-pipeline.md §7). It starts after `deploy` has uploaded, tagged and merged, so a
+  # Wear failure leaves the phone release complete; recovery is "Re-run failed jobs" here, or a
+  # dispatch of android_deploy_wear.yml on the tag (release-flow.md §8.7).
+  # `always()` for the same reason as `deploy`: a skipped build or ui_tests must not skip this job.
+  deploy_wear:
+    needs: [ guard, deploy ]
+    if: ${{ always() && needs.deploy.result == 'success' }}
+    uses: ./.github/workflows/android_deploy_wear.yml
+    with:
+      ref: ${{ needs.guard.outputs.sha }}
+      version_name: ${{ needs.guard.outputs.version_name }}
+      version_code: ${{ needs.guard.outputs.version_code }}
+      allow_listing_overwrite: ${{ inputs.allow_listing_overwrite }}
+    secrets: inherit

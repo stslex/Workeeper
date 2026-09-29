@@ -17,7 +17,7 @@ The flow is designed for a single-developer project where reliability and recove
 
 **Non-goals (explicitly out of scope)**
 - Beta channel restructuring. The existing `android_deploy_beta.yml` is not in scope here. A TODO and GitHub Issue track this for later.
-- Multi-track or staged rollouts (internal/closed/open testing tracks).
+- Multi-track or staged rollouts (internal/closed/open testing tracks) for the phone. The one exception is the Wear bundle, which every release ships to the Wear OS internal testing track (§6.1 step 3.10). Wear production, closed testing and listing text are out of scope ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §12).
 - Hotfixes from arbitrary historical tags. Hotfixes always cut from current `master`.
 
 ---
@@ -146,7 +146,8 @@ Example: release 1.52.0 with code 53 gives phone `1.52.0 (53)` and watch `1.52.0
 | `android_build_unified.yml` | push:master, pull_request, dispatch, **workflow_call** | Build + unit tests + detekt + lint. Reusable. |
 | `ui_tests.yml` | dispatch, **workflow_call** | Smoke / regression UI tests. Reusable. |
 | `cut_release.yml` | dispatch (mode: release \| hotfix) | Creates release branch, bumps version, opens PR to master. |
-| `deploy_prod.yml` | dispatch (must be on release/* branch) | Build + UI tests + Play upload + tag + merge PR. Orchestrates the others. |
+| `deploy_prod.yml` | dispatch (must be on release/* branch) | Build + UI tests + Play upload + tag + merge PR, then the Wear delivery. Orchestrates the others. |
+| `android_deploy_wear.yml` | **workflow_call** from `deploy_prod.yml`; dispatch on a `release-v.X.Y.Z` tag | Wear bundle of the same release to the Wear OS internal testing track. Dispatch is the recovery path and works only once the file is on `master`. |
 | `sync_master_to_dev.yml` | push:master | Opens PR `master → dev` to propagate version bumps and hotfix changes. |
 | `pr_guard.yml` | pull_request:master | Required check; fails if PR source is not a release branch. |
 | `github_release_apk.yml` | push:tags `release-*`, dispatch | Builds signed APK and creates GitHub Release. Auto-triggered by tag push from deploy_prod. |
@@ -191,8 +192,9 @@ Triggered when there are merged features in `dev` ready to ship.
    7. Creates annotated tag `release-v.1.6.0` on the pinned SHA.
    8. Pushes the tag.
    9. Merges the PR `release/release-v.1.6.0 → master` via `gh pr merge --merge --delete-branch --match-head-commit <pinned-sha>`. `--match-head-commit` aborts the merge if the PR head moved since guard ran — those untested commits would otherwise reach master through the merge.
+   10. The `deploy_wear` job calls `android_deploy_wear.yml` on the same pinned SHA ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §7). It verifies that the TOML at that SHA is the version the phone shipped, builds `:app:wear:bundleStoreRelease` with the Crashlytics mapping upload, runs the bundle identity gate with role wear, reads the Play tracks in a read-only edit that is always deleted, and then fails (configured track absent, or no tracks), skips (the Wear versionCode is already on the track) or uploads the bundle and the Wear screenshots to `wear:internal` in an edit of its own. The approval of step 4 is the go for this upload too; there is no second approval.
 
-   The order matters: tag and merge happen *after* Play accepts. If Play fails, no tag, no merge — the system stays in a clean retryable state.
+   The order matters: tag and merge happen *after* Play accepts. If Play fails, no tag, no merge — the system stays in a clean retryable state. The Wear job runs after the merge, so its failure never undoes or blocks the phone release (§8.7).
 
 4. **Side effects of tag push.** `github_release_apk.yml` auto-triggers on the new `release-*` tag and builds + publishes a signed APK to GitHub Releases.
 
@@ -284,6 +286,9 @@ on:
         type: boolean
         default: false
         description: "Skip UI tests (use only when retrying after a known-good UI run)"
+      allow_listing_overwrite:
+        type: boolean
+        default: false   # never the default; see wear-release-pipeline.md §8
 
 concurrency:
   group: deploy-prod-${{ github.ref }}
@@ -316,7 +321,20 @@ jobs:
     if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     environment: production    # required reviewer gate
     # ... fastlane deploy + tag + gh pr merge --match-head-commit <pinned-sha>
+
+  deploy_wear:
+    needs: [guard, deploy]
+    if: ${{ always() && needs.deploy.result == 'success' }}
+    uses: ./.github/workflows/android_deploy_wear.yml
+    with:
+      ref: ${{ needs.guard.outputs.sha }}
+      version_name: ${{ needs.guard.outputs.version_name }}
+      version_code: ${{ needs.guard.outputs.version_code }}
+      allow_listing_overwrite: ${{ inputs.allow_listing_overwrite }}
+    secrets: inherit
 ```
+
+`android_deploy_wear.yml` has two jobs. `resolve` checks the pinned SHA (a call) or the tag (a dispatch) against the TOML at that commit. `deploy` holds `concurrency: deploy-wear-release-v.<version>` with `cancel-in-progress: false`, so a call and a recovery dispatch of the same version never run at once. It has no `environment:`: every secret it reads is repository-scoped, and it asserts each provisioned file is non-empty, because a secret a job cannot see arrives as an empty string.
 
 ### 7.3 Skip semantics
 
@@ -404,6 +422,26 @@ Nothing has been uploaded to Play, no tag exists, no merge happened — the fix 
 
 If the rebase changes the branch's intended `versionName` (e.g. a hotfix branch `release/release-v.1.6.1` rebased onto a master at `1.6.1` would re-bump to `1.6.2`, mismatching the branch name and tripping invariant 1), abandon the branch per §8.4 and re-cut instead.
 
+### 8.7 Phone live, Wear job failed
+
+Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a transient Play or network error.
+
+**State:** the phone release is complete: uploaded, tagged, merged. Only the Wear upload is missing.
+
+**Recovery:** fix the cause, then use "Re-run failed jobs" in the same `deploy_prod.yml` run. After the release PR has merged, dispatching `android_deploy_wear.yml` with the tag `release-v.X.Y.Z` also works. Both are idempotent: a Wear versionCode already on the track ends in SKIP, with nothing uploaded.
+
+A wrong track id is the exception: a re-run and a tag dispatch both replay the Fastfile of the pinned release commit, so correcting `WEAR_TRACK` on `dev` cannot reach them. Dispatch `android_deploy_wear.yml` on the tag with `wear_track` set to the right id from the printed list; it overrides the constant for that run only, and the decision step still fails unless Play lists that id. Then correct `WEAR_TRACK` in `fastlane/Fastfile` on `dev` for the next release. The dispatch is available here because the Wear job starts only after the release PR has merged, which puts the workflow on `master`.
+
+A re-run rebuilds the Wear bundle, so its Crashlytics mapping is uploaded again for a build that a SKIP then does not ship. That is harmless.
+
+### 8.8 403 on the Wear upload
+
+The Play service account lacks permission to release to testing tracks. The owner grants it in Play Console (Users and permissions → the service account → release to testing tracks), then re-runs the Wear job (§8.7).
+
+### 8.9 Wear upload rejected: version code already used, but not on the configured track
+
+Stop and inspect the App bundle explorer in Play Console to find where `1_000_000 + versionCode` went. **Never bump the TOML to get around it**: the Wear code is derived from the phone's (§4.5), and a bump would desynchronize both. The decision step already warns when the code sits on another listed track.
+
 ---
 
 ## 9. Setup checklist
@@ -425,6 +463,11 @@ One-time configuration after the migration code lands.
 **Secrets (Settings → Secrets):**
 - `PUSH_TOKEN` — PAT with `repo` and `workflow` scopes. Used for: pushing branches, pushing tags, opening PRs, merging PRs. Must have bypass rights on `master` branch protection.
 - All existing secrets (`KEYSTORE`, `KEYSTORE_PASSPHRASE`, etc.) remain in use.
+
+**Play Console, for the Wear delivery ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §4, §11):**
+- The Wear OS form factor: added by the owner on 2026-09-28.
+- Wear internal testers: add each tester account to the Wear OS internal testing track in the Console. Email lists are Console-only; the API manages testers only as Google Groups.
+- Service account: needs permission to release to testing tracks, or the Wear upload fails with 403 (§8.8).
 
 **Actions permissions (Settings → Actions → General):**
 - Workflow permissions: "Read and write permissions".
