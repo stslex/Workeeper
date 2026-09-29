@@ -1,8 +1,21 @@
+require "fileutils"
+require "json"
+require_relative "play_state"
+
 default_platform(:android)
 
 # Evaluated while fastlane parses this file from fastlane/; actions later run from the root.
 REPO_ROOT = File.expand_path("..", __dir__)
+PACKAGE_NAME = "io.github.stslex.workeeper"
+PLAY_JSON_KEY = File.join(REPO_ROOT, "play_config.json")
 PHONE_AAB = File.join(REPO_ROOT, "app/store/build/outputs/bundle/release/store-release.aab")
+WEAR_AAB = File.join(REPO_ROOT, "app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab")
+WEAR_METADATA = File.join(REPO_ROOT, "fastlane/metadata-wear/android")
+# GUARD: the one place the Wear track id is configured (wear-release-pipeline.md §7.2). The API
+# reference names the Wear internal track `wear:qa`; practitioners report `wear:internal`. A wrong id
+# FAILs before any upload and the lane prints every track id Play returned; correct it from that
+# list. WEAR_TRACK_OVERRIDE is the recovery dispatch's one-run correction (release-flow.md §8.7).
+WEAR_TRACK = ENV.fetch("WEAR_TRACK_OVERRIDE", "").strip.then { |id| id.empty? ? "wear:internal" : id }
 
 # The bundle identity gate (wear-release-pipeline.md §6). `sh` raises on a non-zero exit, so a
 # wrong bundle stops the lane before anything talks to Play.
@@ -11,6 +24,21 @@ def assert_play_bundle(aab:, role:)
     "python3", File.join(REPO_ROOT, ".github/scripts/assert_play_bundle.py"),
     "--aab", aab, "--role", role, "--toml", File.join(REPO_ROOT, "gradle/libs.versions.toml")
   )
+end
+
+# FAIL, SKIP or UPLOAD for the Wear bundle (§7.2 step 2), decided by the Python helper from the
+# state the read-only edit returned. FAIL exits non-zero, so `sh` raises and nothing is uploaded.
+def wear_track_decision(state)
+  path = File.join(REPO_ROOT, "build/wear-release/play-tracks.json")
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, JSON.pretty_generate(state))
+  output = sh(
+    "python3", File.join(REPO_ROOT, ".github/scripts/wear_track_decision.py"),
+    "--state", path, "--track", WEAR_TRACK, "--toml", File.join(REPO_ROOT, "gradle/libs.versions.toml")
+  )
+  decision = output.lines.map(&:strip).grep(/\ADECISION /).last.to_s.delete_prefix("DECISION ")
+  UI.user_error!("wear_track_decision.py printed no decision: #{output}") unless %w[UPLOAD SKIP].include?(decision)
+  decision
 end
 
 platform :android do
@@ -38,6 +66,35 @@ platform :android do
     # GUARD: always the explicit path. Without `aab:` supply falls back to the newest AAB by mtime
     # anywhere under the project (spec §3 F2).
     upload_to_play_store(aab: PHONE_AAB)
+  end
+
+  desc "Deploy the Wear bundle to the Wear OS internal testing track"
+  lane :deploy_wear do
+    gradle(
+      task: "clean :app:wear:bundleStoreRelease :bundletoolClasspath",
+      properties: { "crashlyticsMappingUpload" => "true" }
+    )
+    assert_play_bundle(aab: WEAR_AAB, role: "wear")
+    state = PlayState.read_only(json_key: PLAY_JSON_KEY, package_name: PACKAGE_NAME) do |client|
+      PlayState.tracks(client, WEAR_TRACK)
+    end
+    if wear_track_decision(state) == "SKIP"
+      UI.success("The Wear bundle is already on #{WEAR_TRACK}; nothing to upload.")
+    else
+      # Its own edit, never shared with the phone lane. Only the Wear screenshots are uploaded:
+      # the listing text and images belong to the phone metadata tree. skip_upload_apk keeps supply
+      # from adding an APK out of the lane context.
+      upload_to_play_store(
+        track: WEAR_TRACK,
+        aab: WEAR_AAB,
+        skip_upload_apk: true,
+        metadata_path: WEAR_METADATA,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_changelogs: true,
+        skip_upload_screenshots: false
+      )
+    end
   end
 
   desc "Build new version"
