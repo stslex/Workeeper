@@ -427,6 +427,13 @@ jobs:
       - name: Use CI-optimized Convention Gradle properties
         run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
 
+      # Play's Wear screenshot rules (spec §7.4): RGB without alpha, square, at least 384 px, named in
+      # upload order. The deploy_wear lane uploads this directory; zero files fails.
+      - name: Validate the Wear store screenshots
+        run: |
+          python3 .github/scripts/assert_store_screenshots.py --self-test
+          python3 .github/scripts/assert_store_screenshots.py fastlane/metadata-wear/android/en-US/images/wearScreenshots
+
       - name: Assert the bundle step schedules no Crashlytics mapping upload
         run: |
           read -r -a tasks <<< "$BUNDLE_TASKS"
