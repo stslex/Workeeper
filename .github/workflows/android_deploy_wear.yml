@@ -224,4 +224,16 @@ jobs:
       - name: Distribute the Wear bundle to the Wear internal track
         env:
           WEAR_TRACK_OVERRIDE: ${{ inputs.wear_track }}
+          ALLOW_LISTING_OVERWRITE: ${{ inputs.allow_listing_overwrite }}
         run: bundle exec fastlane deploy_wear
+
+      # On a DRIFT, Play's state of the drifted screenshots laid out like the metadata tree
+      # (release-flow.md §8.10).
+      - name: Upload the store listing drift state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: listing-drift-wear
+          path: build/listing-drift/
+          if-no-files-found: ignore
+          retention-days: 30
