@@ -15,6 +15,7 @@ WEAR_METADATA = File.join(REPO_ROOT, "fastlane/metadata-wear/android")
 # reference names the Wear internal track `wear:qa`; practitioners report `wear:internal`. A wrong id
 # FAILs before any upload and the lane prints every track id Play returned; correct it from that
 # list. WEAR_TRACK_OVERRIDE is the recovery dispatch's one-run correction (release-flow.md §8.7).
+# Either way wear_track_decision.py FAILs any id that is not a non-public `wear:` track.
 WEAR_TRACK = ENV.fetch("WEAR_TRACK_OVERRIDE", "").strip.then { |id| id.empty? ? "wear:internal" : id }
 
 # The bundle identity gate (wear-release-pipeline.md §6). `sh` raises on a non-zero exit, so a
@@ -41,6 +42,39 @@ def wear_track_decision(state)
   decision
 end
 
+# The listing drift guard (wear-release-pipeline.md §8), before any upload. listing_drift.py plans the
+# compared items, play_state.rb reads them in a read-only edit, listing_drift.py decides. A DRIFT
+# stops the lane unless ALLOW_LISTING_OVERWRITE is "true"; either way Play's state of the drifted
+# items lands in build/listing-drift/<role>, laid out like the metadata tree.
+def assert_no_listing_drift(role:)
+  script = File.join(REPO_ROOT, ".github/scripts/listing_drift.py")
+  out = File.join(REPO_ROOT, "build/listing-drift", role)
+  FileUtils.rm_rf(out)
+  FileUtils.mkdir_p(out)
+  plan_path = File.join(out, "plan.json")
+  remote_path = File.join(out, "remote.json")
+  sh("python3", script, "plan", "--role", role, "--plan-out", plan_path)
+  plan = JSON.parse(File.read(plan_path))
+  remote = PlayState.read_only(json_key: PLAY_JSON_KEY, package_name: PACKAGE_NAME) do |client|
+    PlayState.listing(client, plan)
+  end
+  File.write(remote_path, JSON.pretty_generate(remote))
+  command = ["python3", script, "decide", "--role", role, "--plan", plan_path, "--remote", remote_path, "--out", out]
+  command << "--allow-overwrite" if ENV["ALLOW_LISTING_OVERWRITE"] == "true"
+  status = sh(*command) { |process, _output, _command| process.exitstatus }
+  UI.user_error!("listing_drift.py could not decide (exit #{status}); nothing was uploaded") unless [0, 1].include?(status)
+  fetch_path = File.join(out, "fetch.json")
+  if File.exist?(fetch_path)
+    fetched = PlayState.download(JSON.parse(File.read(fetch_path)), into: out)
+    File.write(File.join(out, "fetched.json"), JSON.pretty_generate(fetched))
+  end
+  return if status.zero?
+
+  UI.user_error!("Store listing DRIFT for #{role}: Play Console changes would be overwritten. Adopt " \
+                 "build/listing-drift/#{role} into the repository, or re-run with allow_listing_overwrite " \
+                 "(release-flow.md §8.10). Nothing was uploaded.")
+end
+
 platform :android do
   desc "Runs all the tests"
   lane :test do
@@ -63,6 +97,7 @@ platform :android do
   lane :deploy do
     gradle(task: "clean :app:store:bundleRelease :bundletoolClasspath")
     assert_play_bundle(aab: PHONE_AAB, role: "phone")
+    assert_no_listing_drift(role: "phone")
     # GUARD: always the explicit path. Without `aab:` supply falls back to the newest AAB by mtime
     # anywhere under the project (spec §3 F2).
     upload_to_play_store(aab: PHONE_AAB)
@@ -81,6 +116,11 @@ platform :android do
     if wear_track_decision(state) == "SKIP"
       UI.success("The Wear bundle is already on #{WEAR_TRACK}; nothing to upload.")
     else
+      # WEAR_SKIP_LISTING: a recovery dispatch after a Wear DRIFT that was adopted for the next
+      # release. A retry replays the pinned commit, whose screenshots would overwrite the adopted
+      # ones, so it ships the bundle alone and leaves the listing as it is (release-flow.md §8.10).
+      skip_listing = ENV["WEAR_SKIP_LISTING"] == "true"
+      assert_no_listing_drift(role: "wear") unless skip_listing
       # Its own edit, never shared with the phone lane. Only the Wear screenshots are uploaded:
       # the listing text and images belong to the phone metadata tree. skip_upload_apk keeps supply
       # from adding an APK out of the lane context.
@@ -92,7 +132,7 @@ platform :android do
         skip_upload_metadata: true,
         skip_upload_images: true,
         skip_upload_changelogs: true,
-        skip_upload_screenshots: false
+        skip_upload_screenshots: skip_listing
       )
     end
   end

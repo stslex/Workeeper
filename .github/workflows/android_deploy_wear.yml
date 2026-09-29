@@ -35,6 +35,10 @@ on:
         description: "This run only: the Wear track id, after a run printed Play's real ids (release-flow.md §8.7)"
         type: string
         default: ""
+      skip_listing:
+        description: "This run only: upload the bundle and leave the Play listing as it is (release-flow.md §8.10)"
+        type: boolean
+        default: false
       allow_listing_overwrite:
         description: "Turn a store-listing DRIFT into a logged warning (spec §8). Never the default."
         type: boolean
@@ -224,4 +228,22 @@ jobs:
       - name: Distribute the Wear bundle to the Wear internal track
         env:
           WEAR_TRACK_OVERRIDE: ${{ inputs.wear_track }}
+          ALLOW_LISTING_OVERWRITE: ${{ inputs.allow_listing_overwrite }}
+          WEAR_SKIP_LISTING: ${{ inputs.skip_listing }}
         run: bundle exec fastlane deploy_wear
+
+      # On a DRIFT, Play's state of the drifted screenshots laid out like the metadata tree
+      # (release-flow.md §8.10). continue-on-error: a failed diagnostic upload must not mark a
+      # completed Wear delivery red.
+      - name: Upload the store listing drift state
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a
+          # "Re-run failed jobs" attempt keeps the earlier attempt's artifacts.
+          name: listing-drift-wear-attempt-${{ github.run_attempt }}
+          # The role directory itself, so the artifact root is what `listing_drift.py adopt --out` reads.
+          path: build/listing-drift/wear/
+          if-no-files-found: ignore
+          retention-days: 30
