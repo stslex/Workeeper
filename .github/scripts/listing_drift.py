@@ -7,7 +7,8 @@ also holds is reverted by the next deploy. Three-way rule, per compared item:
 
 - base: the metadata at the latest release-v.* tag reachable from the deployed commit, excluding the
   tag of the version being deployed. A path absent at base is empty.
-- local: the metadata at the deployed commit (the working tree must match it for these paths).
+- local: the metadata at the deployed commit. supply uploads the working tree, so it must hold exactly
+  the commit's compared files: no edits, and no untracked or ignored file supply would upload.
 - remote: Play, read by fastlane/play_state.rb in a read-only edit.
 
 remote == base → OK (a repository change, or none); remote == local → OK; anything else → DRIFT.
@@ -83,7 +84,9 @@ def tree(repo, ref, root):
 def compared_items(paths, with_text):
     """Mirror supply's uploader: which items it uploads for these metadata paths, and from which files."""
     items = {}
-    for language in sorted({path.split("/")[0] for path in paths if "/" in path and not path.startswith(".")}):
+    # Dir.glob's `*` never matches a dotfile, and supply skips dot directories.
+    paths = [path for path in paths if not any(part.startswith(".") for part in path.split("/"))]
+    for language in sorted({path.split("/")[0] for path in paths if "/" in path}):
         own = [path.split("/", 1)[1] for path in paths if path.startswith(language + "/")]
         if with_text:
             for field in TEXT_FIELDS:
@@ -135,12 +138,22 @@ def plan(repo, role, ref="HEAD"):
     return {"role": role, "root": root, "ref": git(repo, "rev-parse", ref).strip(), "languages": languages}, items
 
 
-def assert_clean(repo, root, items):
-    """supply uploads the working tree, so for the compared files it must be the deployed commit."""
+def working_tree(repo, root):
+    """Every file under root on disk, untracked and ignored included, relative to root."""
+    base = Path(repo) / root
+    return sorted(path.relative_to(base).as_posix() for path in base.rglob("*") if path.is_file()) \
+        if base.is_dir() else []
+
+
+def assert_clean(repo, root, items, with_text):
+    """supply uploads the working tree, so it must hold exactly the deployed commit's compared files."""
+    uploaded = compared_items(working_tree(repo, root), with_text)
+    if uploaded != items:
+        differing = sorted(key for key in uploaded.keys() | items.keys() if uploaded.get(key) != items.get(key))
+        raise DriftError("the working tree would upload files the deployed commit does not have, or lacks "
+                         f"some it has: {[(key, items.get(key), uploaded.get(key)) for key in differing]}")
     paths = [f"{root}/{name}" for files in items.values() for name in files]
-    if not paths:
-        return
-    dirty = git(repo, "status", "--porcelain", "--", *paths).strip()
+    dirty = git(repo, "status", "--porcelain", "--", *paths).strip() if paths else ""
     if dirty:
         raise DriftError(f"the working tree differs from the deployed commit for compared files:\n{dirty}")
 
@@ -165,7 +178,7 @@ def decide(repo, role, plan_file, remote, out, allow_overwrite, ref="HEAD"):
         raise DriftError("the plan the reader used is not this commit's plan")
     if not items:
         raise DriftError(f"zero compared items under {root}: nothing proves the listing is unchanged")
-    assert_clean(repo, root, items)
+    assert_clean(repo, root, items, ROLES[role][1])
     base, current = base_tag(repo, ref)
     base_paths = compared_items(tree(repo, base, root), ROLES[role][1]) if base else {}
     print(f"{role} listing: {len(items)} compared items under {root}; base {base or '(none)'}, "
@@ -316,12 +329,29 @@ def self_test():
         if actual != 2 or "working tree differs" not in output:
             failures.append("dirty tree")
         git(repo, "checkout", "-q", "--", f"{phone}/title.txt")
+        untracked = [
+            ("untracked screenshot in a planned directory, exit 2", f"{phone}/images/phoneScreenshots/3_en-US.png", 2),
+            ("untracked new language, exit 2", "fastlane/metadata/android/de-DE/title.txt", 2),
+            ("untracked files supply never uploads, OK", f"{phone}/images/phoneScreenshots/.DS_Store", 0),
+            ("untracked notes beside the metadata, OK", f"{phone}/notes.md", 0),
+        ]
+        for name, path, expected in untracked:
+            extra = repo / path
+            extra.parent.mkdir(parents=True, exist_ok=True)
+            extra.write_bytes(b"new")
+            actual, output = _run_decide(repo, "phone", _remote(texts_base, images_base), repo / "out" / "wt", False)
+            ok = actual == expected and (expected == 0 or "the working tree would upload" in output)
+            print(f"  {'ok' if ok else 'MISMATCH':8} {name}: exit {actual}")
+            if not ok:
+                print(output, end="")
+                failures.append(name)
+            extra.unlink()
         _commit(repo, {f"{wear}/1_en-US.png": None, f"{wear}/2_en-US.png": None}, "no wear metadata")
         actual, output = _run_decide(repo, "wear", _remote(images={}), repo / "out" / "zero", False)
         print(f"  {'ok' if actual == 2 else 'MISMATCH':8} zero compared items, FAIL (M-C6): exit {actual}")
         if actual != 2 or "zero compared items" not in output:
             failures.append("zero items (M-C6)")
-    total = len(cases) + 3
+    total = len(cases) + 7
     if failures:
         print(f"self-test FAIL: {len(failures)} of {total} checks: {failures}")
         return 1

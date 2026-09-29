@@ -516,10 +516,11 @@ anything the repository also holds ([wear-release-pipeline.md](feature-specs/wea
 3. `listing_drift.py decide` compares each item three ways. Base is the metadata at the latest
    `release-v.*` tag reachable from the deployed commit, excluding the tag of the version being
    deployed (the Wear job runs after that tag exists); a path absent there is empty. Local is the
-   deployed commit, and the working tree must match it for the compared files. Remote equal to base
-   is OK (a repository change, or none); remote equal to local is OK; anything else is DRIFT. Text
-   is compared after CRLF → LF, trailing whitespace stripped per line and trailing empty lines
-   dropped. Exit 0: no drift. Exit 1: DRIFT. Exit 2: the check could not run.
+   deployed commit; since supply uploads the working tree, the working tree must hold exactly the
+   commit's compared files, with no edits and no untracked or ignored file supply would upload.
+   Remote equal to base is OK (a repository change, or none); remote equal to local is OK; anything
+   else is DRIFT. Text is compared after CRLF → LF, trailing whitespace stripped per line and
+   trailing empty lines dropped. Exit 0: no drift. Exit 1: DRIFT. Exit 2: the check could not run.
 4. On DRIFT the lane stops before any upload, printing text diffs and hash lists. Under
    `build/listing-drift/<role>/` it leaves Play's state of the drifted items laid out like the
    metadata tree: text written by `listing_drift.py`, images downloaded by `play_state.rb`, which
@@ -540,7 +541,9 @@ artifacts: a fixed name would turn a successful re-run red at its last step, and
 `listing_drift.py --self-test` builds a throwaway git repository with two tagged releases and
 covers OK, DRIFT, override and FAIL: a Console edit, a repository change, a match with local, a
 reordered screenshot set, the override, a normalisation-only difference, the exclusion of the tag
-being deployed, a Wear path absent at base, a reader gap, a dirty tree and zero compared items.
+being deployed, a Wear path absent at base, a reader gap, an edited compared file, untracked
+eligible files (a screenshot, a new language) against untracked files supply never uploads, and
+zero compared items.
 
 ### GitHub APK release
 
