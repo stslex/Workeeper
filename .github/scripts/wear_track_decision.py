@@ -8,6 +8,10 @@ read-only edit (fastlane/play_state.rb) and writes the JSON this script decides 
         --toml gradle/libs.versions.toml
     python3 .github/scripts/wear_track_decision.py --self-test
 
+- the track id (WEAR_TRACK, or a dispatch's wear_track) is not a non-public Wear track: FAIL before
+  anything Play returned is looked at. It must start with `wear:` and must not be `wear:production`
+  or `wear:beta`: a phone track would ship the watch bundle to phones' tracks, and a public Wear
+  track would release it beyond internal or closed testing (spec §7.2, §12).
 - no tracks at all: FAIL. An empty list proves nothing about the configured track.
 - the configured track not listed: the reader probed it with edits.tracks.get. An empty track
   (404 trackEmpty) is UPLOAD, since supply creates its release; a nonexistent one (404 Track not
@@ -34,12 +38,28 @@ from assert_play_bundle import GateError, expected_identity, read_toml_identity 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+WEAR_TRACK_PREFIX = "wear:"
+PUBLIC_WEAR_TRACKS = ("wear:production", "wear:beta")
+
+
 class StateError(Exception):
     """The state file is not what the lane's reader writes."""
 
 
+def track_rule(track):
+    """None when the id names a non-public Wear track, else the rule it breaks."""
+    if not track.startswith(WEAR_TRACK_PREFIX):
+        return f"track id {track!r} is not a Wear track: it must start with {WEAR_TRACK_PREFIX!r}"
+    if track in PUBLIC_WEAR_TRACKS:
+        return f"track id {track!r} is a public Wear track; only internal or closed Wear tracks are allowed"
+    return None
+
+
 def decide(state, track, expected_code):
     """Return (decision, reason). Raises StateError on a malformed state."""
+    broken = track_rule(track)
+    if broken:
+        return "FAIL", broken
     if not isinstance(state, dict) or not isinstance(state.get("tracks"), list):
         raise StateError("state has no 'tracks' list")
     if state.get("configuredTrack") != track:
@@ -113,8 +133,9 @@ SELF_TEST_CASES = [
      "['production', 'wear:qa']"),
     ("code present, SKIP (M-B2)", INTERNAL,
      [PRODUCTION, {"id": INTERNAL, "releases": [release(1000052)]}], "listed", [1000052], 0, "DECISION SKIP"),
-    ("code absent, UPLOAD (M-B3)", INTERNAL,
-     [PRODUCTION, {"id": INTERNAL, "releases": [release(1000051)]}], "listed", [1000051], 0, "DECISION UPLOAD"),
+    ("code absent, UPLOAD (M-B3); id 'wear:internal' reaches the Play decision", INTERNAL,
+     [PRODUCTION, {"id": INTERNAL, "releases": [release(1000051)]}], "listed", [1000051], 0,
+     ("expected versionCode 1000052; on wear:internal", "DECISION UPLOAD")),
     ("empty track list, FAIL (M-B4)", INTERNAL, [], "empty", [], 1, "DECISION FAIL: Play returned no tracks"),
     ("not listed, trackEmpty: UPLOAD", INTERNAL, [PRODUCTION], "empty", [], 0,
      ("edits.tracks.get answers trackEmpty", "DECISION UPLOAD")),
@@ -129,6 +150,17 @@ SELF_TEST_CASES = [
      "is listed, but the reader recorded probe 'absent'"),
     ("listed track without read codes: exit 2", INTERNAL, [{"id": INTERNAL, "releases": []}], "listed", None, 2,
      "no version codes were read"),
+    ("id 'production': FAIL, not a Wear track", "production", [PRODUCTION], "listed", [52], 1,
+     "DECISION FAIL: track id 'production' is not a Wear track"),
+    ("id 'internal': FAIL, not a Wear track", "internal", [PRODUCTION, {"id": "internal", "releases": []}],
+     "listed", [], 1, "DECISION FAIL: track id 'internal' is not a Wear track"),
+    ("id 'wear:production': FAIL, public", "wear:production", [PRODUCTION, {"id": "wear:production", "releases": []}],
+     "listed", [], 1, "DECISION FAIL: track id 'wear:production' is a public Wear track"),
+    ("id 'wear:beta': FAIL, public", "wear:beta", [PRODUCTION, {"id": "wear:beta", "releases": []}],
+     "listed", [], 1, "DECISION FAIL: track id 'wear:beta' is a public Wear track"),
+    ("id 'wear:owner-test' (closed): reaches the Play decision, UPLOAD", "wear:owner-test",
+     [PRODUCTION, {"id": "wear:owner-test", "releases": []}], "listed", [], 0,
+     ("expected versionCode 1000052; on wear:owner-test", "DECISION UPLOAD")),
 ]
 
 
