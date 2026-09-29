@@ -476,15 +476,16 @@ default branch's copy of the file, so that path exists once the file is on `mast
    read-only edit that is always deleted, including on error. The configured track's codes are
    read only when Play lists the track, because supply answers `[]` for a missing one. A track the
    list omits is probed with `edits.tracks.get` in the same edit and recorded as
-   `configuredTrackProbe`: `empty` (404 `trackEmpty`: it exists without releases, and supply
-   uploads into it) or `absent` (404 `Track not found`). Any other answer raises.
+   `configuredTrackProbe`: `found` (the track is returned, with its releases' codes), `empty` (404
+   `trackEmpty`: it exists without releases, and supply uploads into it) or `absent` (404 `Track
+   not found`). Any other error raises.
 3. `.github/scripts/wear_track_decision.py` first requires a non-public Wear track id: it must start
    with `wear:` and must not be `wear:production` or `wear:beta`, whether it comes from
    `WEAR_TRACK` or a dispatch's `wear_track`. Then it prints every track with its codes and
    decides: no tracks, or an `absent` track → FAIL, printing every id; `1_000_000 +` the TOML
-   versionCode already on a listed track → SKIP; otherwise, an `empty` track included, UPLOAD. It
-   also warns when that code sits on another track. `--self-test` (17 cases) covers every outcome,
-   the id rule and the malformed states.
+   versionCode already on a listed or `found` track → SKIP; otherwise, an `empty` track included,
+   UPLOAD. It also warns when that code sits on another track. `--self-test` (20 cases) covers every
+   outcome, the id rule and the malformed states.
 4. On UPLOAD, the [listing drift guard](#store-listing-drift-guard) for the Wear screenshots, then
    `upload_to_play_store` to `WEAR_TRACK` in an edit of its own, with the explicit AAB,
    `skip_upload_apk`, the metadata path `fastlane/metadata-wear/android`, and only screenshots not

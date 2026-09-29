@@ -167,9 +167,10 @@ Lane `deploy_wear`, plus a stdlib Python decision helper with `--self-test`.
       Wear track, that is, it does not start with `wear:` or it is `wear:production` or
       `wear:beta`: FAIL, before any Play-based decision;
     - configured track not listed: probe it with `edits.tracks.get` in the same read-only edit. A
-      404 `trackEmpty` is an empty track: UPLOAD, since supply creates its release (fastlane
-      2.228.0 `uploader.rb:445-458`). A 404 `Track not found`: FAIL and print all track ids,
-      because a wrong id must never pass silently (F12). Any other answer fails the read;
+      returned track exists: decide it like a listed track, with its releases' codes. A 404
+      `trackEmpty` is an empty track: UPLOAD, since supply creates its release (fastlane 2.228.0
+      `uploader.rb:445-458`). A 404 `Track not found`: FAIL and print all track ids, because a
+      wrong id must never pass silently (F12). Any other error fails the read;
     - expected versionCode already on the configured track: SKIP (success, no upload);
     - otherwise: UPLOAD.
 3. Run the listing drift check for Wear-owned metadata (§8).
@@ -178,9 +179,15 @@ Lane `deploy_wear`, plus a stdlib Python decision helper with `--self-test`.
    skip_upload_screenshots: false)`. This opens its own edit. The Wear lane never shares an edit
    with the phone lane.
 
-The configured track id lives in one place in the repository, with the initial value
-`wear:internal`. If step 2 fails on the first run, correct the id from the printed list and re-run
-the Wear job.
+The configured track id lives in one place in the repository (`WEAR_TRACK` in `fastlane/Fastfile`),
+with the initial value `wear:internal`. A retry of the Wear job, whether "Re-run failed jobs" or a
+dispatch on the tag, replays the pinned release commit, so a fix committed afterwards never reaches
+it. Recovery by cause, with [release-flow.md](../release-flow.md) §8.7 and §8.10 as the authority:
+a permission granted or a transient error → "Re-run failed jobs"; a wrong track id → dispatch
+`android_deploy_wear.yml` on the tag with `wear_track` set from the printed list, then correct
+`WEAR_TRACK` on `dev` for the next release; a Wear DRIFT → adopt Play's screenshots on `dev` for the
+next release, then dispatch on the tag with `skip_listing`, or with `allow_listing_overwrite` to
+overwrite the Console.
 
 Named mutations for the helper: M-B1 track absent → FAIL with the list; M-B2 code present → SKIP;
 M-B3 code absent → UPLOAD; M-B4 empty track list → FAIL.
@@ -262,8 +269,8 @@ override → warning, exit 0; M-C6 zero compared items → FAIL.
 
 | State | Recovery |
 |---|---|
-| Phone live, Wear job failed (track id, permission, drift, transient error) | Fix the cause, then use "Re-run failed jobs" in the same run. After the release PR has merged, dispatching `android_deploy_wear.yml` with the tag also works. Idempotent: a Wear code already on the track is skipped. |
-| Phone deploy stopped on DRIFT (nothing uploaded) | Commit the artifact's content to the release branch and to `dev`, then re-run; or re-dispatch with `allow_listing_overwrite: true`. |
+| Phone live, Wear job failed (track id, permission, drift, transient error) | By cause; [release-flow.md](../release-flow.md) §8.7 and §8.10 are the authority. A retry, re-run or tag dispatch, replays the pinned release commit. Permission granted or transient error: "Re-run failed jobs" in the same run. Wrong track id: dispatch `android_deploy_wear.yml` on the tag with `wear_track`. Wear DRIFT: adopt Play's screenshots on `dev` for the next release, then dispatch on the tag with `skip_listing`, or with `allow_listing_overwrite` to overwrite the Console. Idempotent: a Wear code already on the track is skipped. |
+| Phone deploy stopped on DRIFT (nothing uploaded) | Adopt the artifact on the release branch and on `dev`, then start a new `android_deploy_prod.yml` dispatch, which pins the new head ("Re-run failed jobs" would replay the old commit); or dispatch with `allow_listing_overwrite: true`. [release-flow.md](../release-flow.md) §8.10 is the authority. |
 | 403 on the Wear upload | The service account lacks permission to release to testing tracks. The owner grants it, then re-runs the Wear job. |
 | Wear upload rejected because the version code is already used, but not on the configured track | Stop and inspect the App bundle explorer. Never bump the TOML to get around it. |
 
@@ -329,6 +336,7 @@ Append-only. One row per PR and one per acceptance item.
 | 2026-09-29 | PR-B #298: Wear delivery | 35bd7dc6..020e2ce0; run 36553389129 | `android_deploy_wear.yml`, the `deploy_wear` lane and its decision helper, exercised by a probe with a fake Play client (14/14; no Play access); four synthetic Wear screenshots (480x480 RGB, validator 4/4); M-B1 to M-B8 RED then GREEN. Added a one-run `wear_track` dispatch override: a re-run replays the pinned commit's Fastfile, so §7.2's "correct the id and re-run" could not work otherwise. Codex: no findings. |
 | 2026-09-29 | PR-C #299: listing drift guard | 556c0a3a..head of #299; run 36556206312 (b2752dc1; later commits change only deploy-workflow YAML, checked by actionlint, the Fastfile, checked by lane probes, and docs) | Compared set phone 13 items, Wear 1; self-test 19 checks; lane probe 12/12; M-C1 to M-C6 and the two review-driven rules RED then GREEN (a first M-C1 that changed only a label was INVALID and retaken). Codex: artifact name per run attempt, working-tree inventory, deletions via `adopt`, the artifact rooted at its role directory, a `skip_listing` Wear recovery that keeps an adopted Console listing, and a non-blocking drift artifact upload fixed; beta lane already decided (§12); a claimed `sh` exit-code defect did not reproduce (measured). |
 | 2026-09-29 | Owner review of the Phase 5 report | owner decision; 2460cd6c, 76ff7abd on #299 | Kept the `wear_track` dispatch input (constrained by FIX 2), `skip_listing`, and the separate `Release bundle identity` job. FIX 1: an unlisted configured track is probed with `edits.tracks.get` in the same read-only edit; `trackEmpty` is UPLOAD, `Track not found` is FAIL with every track id, any other answer fails the read. FIX 2: the track id must start with `wear:` and must not be `wear:production` or `wear:beta`. §7.2 step 2 reworded to match. |
+| 2026-09-29 | Owner addendum 2: recovery text, found tracks | a72559bf and this docs commit on #299 | §7.2 (step 2 and the paragraph after step 4) and §10 rows 1 and 2 state the working recovery paths, with release-flow.md §8.7 and §8.10 as the authority: a retry replays the pinned release commit, so only a permission or transient cause is re-run; a wrong track id is dispatched with `wear_track`; a Wear DRIFT is adopted for the next release, then dispatched with `skip_listing` (or `allow_listing_overwrite`); a phone DRIFT is adopted and dispatched anew. A successful `edits.tracks.get` on an unlisted track is probe `found` with its codes, decided like a listed track. |
 
 ## Appendix A. Wear listing text (apply with the Wear production decision)
 

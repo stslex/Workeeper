@@ -424,7 +424,7 @@ If the rebase changes the branch's intended `versionName` (e.g. a hotfix branch 
 
 ### 8.7 Phone live, Wear job failed
 
-Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a Wear store listing DRIFT (§8.10), a transient Play or network error. A configured track that Play does not list but that exists without releases is not a failure: the job asks `edits.tracks.get`, reads `trackEmpty`, and uploads into it. Only `Track not found` fails.
+Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a Wear store listing DRIFT (§8.10), a transient Play or network error. A configured track that Play does not list is not a failure while it exists: the job asks `edits.tracks.get`, and a returned track (decided like a listed one) or `trackEmpty` (an empty track, which the upload fills) lets it proceed. Only `Track not found` fails.
 
 **State:** the phone release is complete: uploaded, tagged, merged. Only the Wear upload is missing.
 
