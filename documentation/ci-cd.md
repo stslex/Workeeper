@@ -416,7 +416,8 @@ toolchain comes from the root `Gemfile` (which only declares the `fastlane` gem)
 - `fastlane beta` — `gradle clean :app:store:bundle`, then
   `upload_to_play_store(track: 'beta')`.
 - `fastlane deploy` — `gradle clean :app:store:bundleRelease :bundletoolClasspath`, the
-  [bundle identity gate](#bundle-identity-gate) on the phone AAB, then
+  [bundle identity gate](#bundle-identity-gate) on the phone AAB, the
+  [listing drift guard](#store-listing-drift-guard) for the phone metadata, then
   `upload_to_play_store(aab: <that AAB>)` (the default production track).
 - `fastlane deploy_wear` — `gradle clean :app:wear:bundleStoreRelease :bundletoolClasspath
   -PcrashlyticsMappingUpload=true`, the bundle identity gate with role wear, a read-only Play edit,
@@ -478,7 +479,8 @@ default branch's copy of the file, so that path exists once the file is on `mast
    or the configured track absent → FAIL, `1_000_000 +` the TOML versionCode already on it → SKIP,
    otherwise UPLOAD. It also warns when that code sits on another track. `--self-test` covers all
    three outcomes and the malformed states.
-4. On UPLOAD, `upload_to_play_store` to `WEAR_TRACK` in an edit of its own, with the explicit AAB,
+4. On UPLOAD, the [listing drift guard](#store-listing-drift-guard) for the Wear screenshots, then
+   `upload_to_play_store` to `WEAR_TRACK` in an edit of its own, with the explicit AAB,
    `skip_upload_apk`, the metadata path `fastlane/metadata-wear/android`, and only screenshots not
    skipped. The phone lane's listing text and images are never touched from here.
 
@@ -494,6 +496,48 @@ README). `.github/scripts/assert_store_screenshots.py` checks each PNG's chunks:
 no alpha), no `tRNS`, square, at least 384 px, and names `N_<language>.png` numbered in supply's
 lexical upload order. The `Release bundle identity` job runs its `--self-test` and then the
 directory, printing the file count; zero files fails.
+
+### Store listing drift guard
+
+supply overwrites every listing text and replaces every image and screenshot type present locally,
+inside the same edit as the bundle, so every deploy would silently revert a Play Console edit to
+anything the repository also holds ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md)
+§8). Both deploy lanes therefore check the listing before they upload, through
+`assert_no_listing_drift` in `fastlane/Fastfile`:
+
+1. `.github/scripts/listing_drift.py plan` lists the compared items: exactly what the lane uploads,
+   mirroring supply's own selection. Phone: per language, every text field and every image and
+   screenshot type present, so today en-US has 4 text fields, the icon, the feature graphic and
+   3 screenshot types, and ru-RU has its 4 text fields (its loose images are never uploaded). Wear:
+   the `wearScreenshots` of `fastlane/metadata-wear`. Zero items fails.
+2. `fastlane/play_state.rb` reads Play's value of exactly those items in a read-only edit that is
+   always deleted: text through `listing_for_language`, images as ordered sha256 lists through
+   `fetch_images`.
+3. `listing_drift.py decide` compares each item three ways. Base is the metadata at the latest
+   `release-v.*` tag reachable from the deployed commit, excluding the tag of the version being
+   deployed (the Wear job runs after that tag exists); a path absent there is empty. Local is the
+   deployed commit, and the working tree must match it for the compared files. Remote equal to base
+   is OK (a repository change, or none); remote equal to local is OK; anything else is DRIFT. Text
+   is compared after CRLF → LF, trailing whitespace stripped per line and trailing empty lines
+   dropped. Exit 0: no drift. Exit 1: DRIFT. Exit 2: the check could not run.
+4. On DRIFT the lane stops before any upload, printing text diffs and hash lists. Under
+   `build/listing-drift/<role>/` it leaves Play's state of the drifted items laid out like the
+   metadata tree: text written by `listing_drift.py`, images downloaded by `play_state.rb`, which
+   also records each file's sha256 next to the API's in `fetched.json` (evidence for the spec's
+   ASM-1). Only drifted items are included, so copying the artifact cannot undo a repository change
+   to another item.
+
+`allow_listing_overwrite`, a dispatch input of both deploy workflows passed to the lanes as
+`ALLOW_LISTING_OVERWRITE`, turns a DRIFT into a logged warning for that run. It is never the default,
+and a reader error always fails. Both workflows upload `build/listing-drift/` as the
+`listing-drift-phone` / `listing-drift-wear` artifact in their last step, under `if: always()`: never
+between the phone's Play upload and its tag and merge, where the step's own failure would strand a
+live release. Recovery is in [release-flow.md](release-flow.md) §8.10.
+
+`listing_drift.py --self-test` builds a throwaway git repository with two tagged releases and
+covers OK, DRIFT, override and FAIL: a Console edit, a repository change, a match with local, a
+reordered screenshot set, the override, a normalisation-only difference, the exclusion of the tag
+being deployed, a Wear path absent at base, a reader gap, a dirty tree and zero compared items.
 
 ### GitHub APK release
 

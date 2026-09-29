@@ -187,12 +187,12 @@ Triggered when there are merged features in `dev` ready to ship.
    2. Calls `android_build_unified.yml` (workflow_call) on the pinned SHA.
    3. Calls `ui_tests.yml` with `test_suite: smoke` (skippable via `skip_ui_tests` input) on the pinned SHA.
    4. Stops at the `production` GitHub Environment for manual approval (required reviewer = developer).
-   5. After approval: builds and signs the phone release bundle, asserts its identity with the [bundle identity gate](ci-cd.md#bundle-identity-gate), and uploads that exact AAB to Play via fastlane.
+   5. After approval: builds and signs the phone release bundle, asserts its identity with the [bundle identity gate](ci-cd.md#bundle-identity-gate), checks the store listing for Play Console edits (§8.10), and uploads that exact AAB to Play via fastlane.
    6. Generates Play changelog from previous release tag to HEAD.
    7. Creates annotated tag `release-v.1.6.0` on the pinned SHA.
    8. Pushes the tag.
    9. Merges the PR `release/release-v.1.6.0 → master` via `gh pr merge --merge --delete-branch --match-head-commit <pinned-sha>`. `--match-head-commit` aborts the merge if the PR head moved since guard ran — those untested commits would otherwise reach master through the merge.
-   10. The `deploy_wear` job calls `android_deploy_wear.yml` on the same pinned SHA ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §7). It verifies that the TOML at that SHA is the version the phone shipped, builds `:app:wear:bundleStoreRelease` with the Crashlytics mapping upload, runs the bundle identity gate with role wear, reads the Play tracks in a read-only edit that is always deleted, and then fails (configured track absent, or no tracks), skips (the Wear versionCode is already on the track) or uploads the bundle and the Wear screenshots to `wear:internal` in an edit of its own. The approval of step 4 is the go for this upload too; there is no second approval.
+   10. The `deploy_wear` job calls `android_deploy_wear.yml` on the same pinned SHA ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §7). It verifies that the TOML at that SHA is the version the phone shipped, builds `:app:wear:bundleStoreRelease` with the Crashlytics mapping upload, runs the bundle identity gate with role wear, reads the Play tracks in a read-only edit that is always deleted, and then fails (configured track absent, or no tracks), skips (the Wear versionCode is already on the track) or, after checking the Wear screenshots for Play Console edits (§8.10), uploads the bundle and the Wear screenshots to `wear:internal` in an edit of its own. The approval of step 4 is the go for this upload too; there is no second approval.
 
    The order matters: tag and merge happen *after* Play accepts. If Play fails, no tag, no merge — the system stays in a clean retryable state. The Wear job runs after the merge, so its failure never undoes or blocks the phone release (§8.7).
 
@@ -424,7 +424,7 @@ If the rebase changes the branch's intended `versionName` (e.g. a hotfix branch 
 
 ### 8.7 Phone live, Wear job failed
 
-Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a transient Play or network error.
+Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a Wear store listing DRIFT (§8.10), a transient Play or network error.
 
 **State:** the phone release is complete: uploaded, tagged, merged. Only the Wear upload is missing.
 
@@ -441,6 +441,18 @@ The Play service account lacks permission to release to testing tracks. The owne
 ### 8.9 Wear upload rejected: version code already used, but not on the configured track
 
 Stop and inspect the App bundle explorer in Play Console to find where `1_000_000 + versionCode` went. **Never bump the TOML to get around it**: the Wear code is derived from the phone's (§4.5), and a bump would desynchronize both. The decision step already warns when the code sits on another listed track.
+
+### 8.10 Deploy stopped on a store listing DRIFT
+
+supply overwrites every listing text and replaces every image type the repository holds, so a Play Console edit to any of them would be reverted silently by the next deploy. Before each upload, the lanes compare Play's listing with the metadata at the deployed commit and at the previous release tag ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §8). An item Play holds that matches neither is a DRIFT, and the lane stops before uploading anything.
+
+**State:** phone: nothing was uploaded, tagged or merged (§8.1 applies). Wear: the phone release is complete (§8.7 applies).
+
+**Recovery:** the run's `listing-drift-phone` or `listing-drift-wear` artifact holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. Either:
+- adopt it: copy the drifted files over the repository's (for a screenshot type, replace the whole directory), commit to the release branch and to `dev`, and re-run; or
+- keep the repository's version: re-dispatch with `allow_listing_overwrite: true`, which turns the DRIFT into a logged warning for that run only.
+
+The first combined run (1.52.0) compares against `release-v.1.51.0`, which has no Wear metadata: Wear screenshots uploaded in the Console during the form-factor setup surface there as a Wear DRIFT, after the phone is live. A difference only in whitespace normalisation on the phone listing can also surface once; adopt Play's text.
 
 ---
 
