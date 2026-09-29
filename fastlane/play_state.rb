@@ -30,6 +30,7 @@ module PlayState
 
   # Every track with its releases' version codes, and the configured track's codes. Those are read
   # only when the track is listed: supply's #track_version_codes returns [] for a missing track.
+  # configuredTrackProbe: "listed", or for an unlisted track what edits.tracks.get answers.
   def tracks(client, configured)
     listed = client.tracks.map do |track|
       releases = Array(track.releases).map do |release|
@@ -37,8 +38,27 @@ module PlayState
       end
       { "id" => track.track, "releases" => releases }
     end
-    codes = listed.any? { |track| track["id"] == configured } ? client.track_version_codes(configured).map(&:to_i) : nil
-    { "tracks" => listed, "configuredTrack" => configured, "configuredTrackVersionCodes" => codes }
+    probe, codes = if listed.any? { |track| track["id"] == configured }
+                     ["listed", client.track_version_codes(configured).map(&:to_i)]
+                   else
+                     probe_unlisted(client, configured)
+                   end
+    { "tracks" => listed, "configuredTrack" => configured, "configuredTrackProbe" => probe,
+      "configuredTrackVersionCodes" => codes }
+  end
+
+  # A track edits.tracks.list omits may still exist without releases, and supply uploads into it
+  # (uploader.rb #update_track builds the Track). edits.tracks.get, in the caller's read-only edit,
+  # tells the two 404s apart the way supply does (client.rb #track_version_codes): "empty" for
+  # trackEmpty, "absent" for Track not found. Any other answer raises, so the decision never runs.
+  def probe_unlisted(client, track)
+    client.client.get_edit_track(client.current_package_name, client.current_edit.id, track)
+    raise "edits.tracks.get returned #{track}, which edits.tracks.list did not list"
+  rescue Google::Apis::ClientError => e
+    raise unless e.status_code == 404
+    empty = e.to_s.include?("trackEmpty")
+    raise if empty == e.to_s.include?("Track not found")
+    empty ? ["empty", []] : ["absent", nil]
   end
 
   # The remote values of exactly the items a listing_drift.py plan names (§8): per language its text
