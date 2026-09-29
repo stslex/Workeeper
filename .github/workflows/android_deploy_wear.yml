@@ -233,9 +233,11 @@ jobs:
         run: bundle exec fastlane deploy_wear
 
       # On a DRIFT, Play's state of the drifted screenshots laid out like the metadata tree
-      # (release-flow.md §8.10).
+      # (release-flow.md §8.10). continue-on-error: a failed diagnostic upload must not mark a
+      # completed Wear delivery red.
       - name: Upload the store listing drift state
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a

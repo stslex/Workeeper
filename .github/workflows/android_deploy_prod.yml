@@ -264,10 +264,13 @@ jobs:
         run: gh pr merge "$PR_NUMBER" --merge --delete-branch --match-head-commit "$PINNED_SHA"
 
       # GUARD: last, and never between the Play upload and the tag/merge steps, where its own failure
-      # would leave a live release untagged (release-flow.md §8.2). On a DRIFT this is Play's state of
-      # the drifted items, laid out like the metadata tree (release-flow.md §8.10).
+      # would leave a live release untagged (release-flow.md §8.2). continue-on-error: a diagnostic
+      # upload that fails after upload, tag and merge must not fail this job, which would skip
+      # deploy_wear. On a DRIFT this is Play's state of the drifted items, laid out like the metadata
+      # tree (release-flow.md §8.10).
       - name: Upload the store listing drift state
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a
