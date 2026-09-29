@@ -35,6 +35,10 @@ on:
         description: "This run only: the Wear track id, after a run printed Play's real ids (release-flow.md §8.7)"
         type: string
         default: ""
+      skip_listing:
+        description: "This run only: upload the bundle and leave the Play listing as it is (release-flow.md §8.10)"
+        type: boolean
+        default: false
       allow_listing_overwrite:
         description: "Turn a store-listing DRIFT into a logged warning (spec §8). Never the default."
         type: boolean
@@ -225,6 +229,7 @@ jobs:
         env:
           WEAR_TRACK_OVERRIDE: ${{ inputs.wear_track }}
           ALLOW_LISTING_OVERWRITE: ${{ inputs.allow_listing_overwrite }}
+          WEAR_SKIP_LISTING: ${{ inputs.skip_listing }}
         run: bundle exec fastlane deploy_wear
 
       # On a DRIFT, Play's state of the drifted screenshots laid out like the metadata tree

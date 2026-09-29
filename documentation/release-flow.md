@@ -448,9 +448,16 @@ supply overwrites every listing text and replaces every image type the repositor
 
 **State:** phone: nothing was uploaded, tagged or merged (§8.1 applies). Wear: the phone release is complete (§8.7 applies).
 
-**Recovery:** the run's `listing-drift-phone-attempt-<n>` or `listing-drift-wear-attempt-<n>` artifact (one per run attempt) holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. Either:
-- adopt it: unpack the artifact and run `python3 .github/scripts/listing_drift.py adopt --out <unpacked directory>` from the repository root. It deletes the repository's files of every drifted image item (so an image or screenshot type Play no longer has, or has fewer of, is removed too) and copies Play's files in. Commit to the release branch and to `dev`, and re-run; or
-- keep the repository's version: re-dispatch with `allow_listing_overwrite: true`, which turns the DRIFT into a logged warning for that run only.
+**Recovery:** the run's `listing-drift-phone-attempt-<n>` or `listing-drift-wear-attempt-<n>` artifact (one per run attempt) holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. To adopt it, unpack it and run `python3 .github/scripts/listing_drift.py adopt --out <unpacked directory>` from the repository root. That deletes the repository's files of every drifted image item (so an image or screenshot type Play no longer has, or has fewer of, is removed too) and copies Play's files in.
+
+"Re-run failed jobs" replays the run's pinned commit, so an adoption committed afterwards never reaches it.
+
+- **Phone DRIFT** (nothing is live yet):
+  - Keep Play's version: adopt, commit to the release branch and to `dev`, then start a **new** `deploy_prod.yml` dispatch on the release branch, which pins the new head.
+  - Keep the repository's version: start a new dispatch with `allow_listing_overwrite: true`, which turns the DRIFT into a logged warning for that run only.
+- **Wear DRIFT** (the phone release is complete and merged; a retry, re-run or tag dispatch, always checks out the release commit):
+  - Keep Play's screenshots: adopt them on `dev` so the next release carries them, then dispatch `android_deploy_wear.yml` on the tag with `skip_listing: true`. That run uploads the bundle alone and leaves the Play listing as it is.
+  - Keep the repository's: dispatch on the tag with `allow_listing_overwrite: true`.
 
 The first combined run (1.52.0) compares against `release-v.1.51.0`, which has no Wear metadata: Wear screenshots uploaded in the Console during the form-factor setup surface there as a Wear DRIFT, after the phone is live. A difference only in whitespace normalisation on the phone listing can also surface once; adopt Play's text.
 

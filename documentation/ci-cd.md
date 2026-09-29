@@ -488,6 +488,11 @@ default branch's copy of the file, so that path exists once the file is on `mast
 `wear:internal`). A dispatch's `wear_track` input overrides it for that run only: a re-run replays
 the pinned commit's Fastfile, so this is how a wrong id gets corrected without a new release.
 
+A dispatch's `skip_listing` input makes that run upload the bundle alone and leave the Play
+listing as it is, with no drift check: the recovery after a Wear DRIFT whose Console screenshots
+were adopted on `dev` for the next release, which a retry of the pinned release commit could not
+otherwise ship without overwriting them ([release-flow.md](release-flow.md) §8.10).
+
 **Store screenshots.** `fastlane/metadata-wear/android/en-US/images/wearScreenshots/`, never the
 phone tree, where a rejected image would fail the phone release. They are captured by
 `documentation/wear-emulator-acceptance/store_screenshots.py` from a 240dp API 36 round AVD made by

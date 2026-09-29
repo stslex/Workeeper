@@ -115,7 +115,11 @@ platform :android do
     if wear_track_decision(state) == "SKIP"
       UI.success("The Wear bundle is already on #{WEAR_TRACK}; nothing to upload.")
     else
-      assert_no_listing_drift(role: "wear")
+      # WEAR_SKIP_LISTING: a recovery dispatch after a Wear DRIFT that was adopted for the next
+      # release. A retry replays the pinned commit, whose screenshots would overwrite the adopted
+      # ones, so it ships the bundle alone and leaves the listing as it is (release-flow.md §8.10).
+      skip_listing = ENV["WEAR_SKIP_LISTING"] == "true"
+      assert_no_listing_drift(role: "wear") unless skip_listing
       # Its own edit, never shared with the phone lane. Only the Wear screenshots are uploaded:
       # the listing text and images belong to the phone metadata tree. skip_upload_apk keeps supply
       # from adding an APK out of the lane context.
@@ -127,7 +131,7 @@ platform :android do
         skip_upload_metadata: true,
         skip_upload_images: true,
         skip_upload_changelogs: true,
-        skip_upload_screenshots: false
+        skip_upload_screenshots: skip_listing
       )
     end
   end
