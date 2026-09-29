@@ -17,7 +17,8 @@ All workflow files live under `.github/workflows/`.
 | `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix) | Bumps the version (minor from `dev`, patch from `master`), pushes a `release/release-v.X.Y.Z` branch and opens the release PR. |
 | `sync_master_to_dev.yml` | push to `master` | Opens an automated PR propagating `master` (version bumps, hotfixes) back onto `dev`. |
 | `android_deploy_beta.yml` | `workflow_dispatch` only | Bumps version, generates a Play Store changelog, uploads to the Beta track via Fastlane, tags `beta-v<version>`. |
-| `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`. |
+| `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`, then calls `android_deploy_wear.yml`. |
+| `android_deploy_wear.yml` | `workflow_call` from `android_deploy_prod.yml`; `workflow_dispatch` on a `release-v.X.Y.Z` tag | The release's Wear bundle to the Wear OS internal testing track ([Wear deployment](#wear-deployment)). |
 | `github_release_apk.yml` | push of `release-*` tag, `workflow_dispatch` | Builds the store-release APK and creates a GitHub Release with a generated changelog. |
 | `claude.yml` | issue / PR review / comment events | Runs `anthropics/claude-code-action@v1` when `@claude` is mentioned. |
 | `claude-code-review.yml` | `workflow_dispatch` only | Posts an automated PR review using Claude. |
@@ -193,6 +194,8 @@ replacements. It fails on any mismatch and unless every check is shown both PASS
   `--role phone`, then `upload_to_play_store(aab:)` with the same explicit path. `sh` raises on a
   non-zero exit, so a wrong bundle never reaches the upload, and the upload never falls back to
   supply's newest-AAB-by-mtime selection.
+- `fastlane deploy_wear`: the gate with `--role wear` on the Wear AAB the lane just built, before
+  the lane reads Play.
 - Pull requests: the `Release bundle identity` job of `android_build_unified.yml`.
 
 **The pull-request job** builds `:app:store:bundleRelease` and `:app:wear:bundleStoreRelease`, runs
@@ -415,6 +418,10 @@ toolchain comes from the root `Gemfile` (which only declares the `fastlane` gem)
 - `fastlane deploy` — `gradle clean :app:store:bundleRelease :bundletoolClasspath`, the
   [bundle identity gate](#bundle-identity-gate) on the phone AAB, then
   `upload_to_play_store(aab: <that AAB>)` (the default production track).
+- `fastlane deploy_wear` — `gradle clean :app:wear:bundleStoreRelease :bundletoolClasspath
+  -PcrashlyticsMappingUpload=true`, the bundle identity gate with role wear, a read-only Play edit,
+  the track decision, then `upload_to_play_store` to `WEAR_TRACK` with the Wear screenshots
+  ([Wear deployment](#wear-deployment)).
 - `fastlane build` — `gradle clean :app:store:bundle`.
 
 `Appfile` reads the Play Console service-account JSON from `./play_config.json` and pins the
@@ -441,6 +448,52 @@ this flow:
 9. Commit the version bump and changelog under the `github-actions[bot]` identity.
 10. Create an annotated tag `beta-v<version>` or `release-v<version>` and push using the
     `PUSH_TOKEN` secret.
+
+### Wear deployment
+
+`android_deploy_wear.yml` ships a release's Wear bundle to the Wear OS internal testing track
+([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §7; recovery in
+[release-flow.md](release-flow.md) §8.7–§8.9). `android_deploy_prod.yml` calls it after its `deploy`
+job has uploaded, tagged and merged, with the pinned SHA, versionName and versionCode from `guard`.
+Dispatching it on a `release-v.X.Y.Z` tag is the recovery path; GitHub runs a dispatch only from the
+default branch's copy of the file, so that path exists once the file is on `master`.
+
+- **`resolve`** checks out the pinned SHA (call) or the tag (dispatch) and fails unless the TOML at
+  that commit carries the expected versionName (and, for a call, versionCode).
+- **`deploy`** runs one version at a time (`concurrency: deploy-wear-release-v.<version>`,
+  `cancel-in-progress: false`) and has no `environment:`, since every secret it reads is
+  repository-scoped. It provisions the keystore, `keystore.properties`, `play_config.json` and
+  `app/store/google-services.json`, then asserts each is non-empty, every keystore property has a
+  value and both JSON files parse: a secret a job cannot see arrives as an empty string, and every
+  provisioning step still succeeds. It then runs `fastlane deploy_wear`.
+
+`fastlane deploy_wear`, in one lane run:
+
+1. `clean :app:wear:bundleStoreRelease :bundletoolClasspath -PcrashlyticsMappingUpload=true`, so
+   `uploadCrashlyticsMappingFileStoreRelease` runs; then the bundle identity gate with role wear.
+2. `fastlane/play_state.rb` reads every Play track and the configured track's version codes in a
+   read-only edit that is always deleted, including on error. The configured track's codes are
+   read only when Play lists the track, because supply answers `[]` for a missing one.
+3. `.github/scripts/wear_track_decision.py` prints every track with its codes and decides: no tracks
+   or the configured track absent → FAIL, `1_000_000 +` the TOML versionCode already on it → SKIP,
+   otherwise UPLOAD. It also warns when that code sits on another track. `--self-test` covers all
+   three outcomes and the malformed states.
+4. On UPLOAD, `upload_to_play_store` to `WEAR_TRACK` in an edit of its own, with the explicit AAB,
+   `skip_upload_apk`, the metadata path `fastlane/metadata-wear/android`, and only screenshots not
+   skipped. The phone lane's listing text and images are never touched from here.
+
+`WEAR_TRACK` in `fastlane/Fastfile` is the one place the track id is configured (initially
+`wear:internal`). A dispatch's `wear_track` input overrides it for that run only: a re-run replays
+the pinned commit's Fastfile, so this is how a wrong id gets corrected without a new release.
+
+**Store screenshots.** `fastlane/metadata-wear/android/en-US/images/wearScreenshots/`, never the
+phone tree, where a rejected image would fail the phone release. They are captured by
+`documentation/wear-emulator-acceptance/store_screenshots.py` from a 240dp API 36 round AVD made by
+`prepare_avd.py`, running the store-flavored debug build on synthetic fixtures (see that directory's
+README). `.github/scripts/assert_store_screenshots.py` checks each PNG's chunks: colour type 2 (RGB,
+no alpha), no `tRNS`, square, at least 384 px, and names `N_<language>.png` numbered in supply's
+lexical upload order. The `Release bundle identity` job runs its `--self-test` and then the
+directory, printing the file count; zero files fails.
 
 ### GitHub APK release
 
@@ -489,7 +542,7 @@ Configured under repository secrets in GitHub:
 | `KEYSTORE_PASSPHRASE` | every job that signs | Passphrase for the GPG decrypt. |
 | `KEYSTORE_KEY_ALIAS`, `KEYSTORE_KEY_PASSWORD`, `KEYSTORE_STORE_PASSWORD` | every job that signs | Written into the generated `keystore.properties`. |
 | `GOOGLE_SERVICES_JSON_STORE`, `GOOGLE_SERVICES_JSON_DEV` | build / UI / release | Base64 of the per-variant `google-services.json`. |
-| `PLAY_CONFIG_JSON` | beta / prod deploy | Base64 of the Play Console service-account JSON used by Fastlane. |
+| `PLAY_CONFIG_JSON` | beta / prod / Wear deploy | Base64 of the Play Console service-account JSON used by Fastlane. |
 | `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Token used to push the version-bump commit and the release tag back to the repo. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | `claude.yml`, `claude-code-review.yml` | Auth for `anthropics/claude-code-action`. |
 
