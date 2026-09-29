@@ -270,7 +270,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: listing-drift-phone
+          # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a
+          # "Re-run failed jobs" attempt keeps the earlier attempt's artifacts.
+          name: listing-drift-phone-attempt-${{ github.run_attempt }}
           path: build/listing-drift/
           if-no-files-found: ignore
           retention-days: 30

@@ -448,7 +448,7 @@ supply overwrites every listing text and replaces every image type the repositor
 
 **State:** phone: nothing was uploaded, tagged or merged (§8.1 applies). Wear: the phone release is complete (§8.7 applies).
 
-**Recovery:** the run's `listing-drift-phone` or `listing-drift-wear` artifact holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. Either:
+**Recovery:** the run's `listing-drift-phone-attempt-<n>` or `listing-drift-wear-attempt-<n>` artifact (one per run attempt) holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. Either:
 - adopt it: copy the drifted files over the repository's (for a screenshot type, replace the whole directory), commit to the release branch and to `dev`, and re-run; or
 - keep the repository's version: re-dispatch with `allow_listing_overwrite: true`, which turns the DRIFT into a logged warning for that run only.
 
