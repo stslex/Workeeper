@@ -13,10 +13,11 @@ read-only edit (fastlane/play_state.rb) and writes the JSON this script decides 
   or `wear:beta`: a phone track would ship the watch bundle to phones' tracks, and a public Wear
   track would release it beyond internal or closed testing (spec §7.2, §12).
 - no tracks at all: FAIL. An empty list proves nothing about the configured track.
-- the configured track not listed: the reader probed it with edits.tracks.get. An empty track
-  (404 trackEmpty) is UPLOAD, since supply creates its release; a nonexistent one (404 Track not
-  found) is FAIL, printing every track id, because supply reads a missing track as an empty one
-  (spec §3 F12) and a wrong id must never reach the upload.
+- the configured track not listed: the reader probed it with edits.tracks.get. A returned track
+  ("found") is decided like a listed one with the codes it carries; an empty track (404 trackEmpty)
+  is UPLOAD, since supply creates its release; a nonexistent one (404 Track not found) is FAIL,
+  printing every track id, because supply reads a missing track as an empty one (spec §3 F12) and a
+  wrong id must never reach the upload.
 - the expected Wear versionCode (1_000_000 + the TOML versionCode) already on it: SKIP.
 - otherwise: UPLOAD.
 
@@ -87,9 +88,15 @@ def decide(state, track, expected_code):
         print(f"configured track {track!r} is not listed; edits.tracks.get answers trackEmpty: "
               "an empty track, which the upload fills")
         codes = []
+    elif probe == "found":
+        print(f"configured track {track!r} is not listed; edits.tracks.get returns it: decided like a "
+              "listed track")
+        codes = state.get("configuredTrackVersionCodes")
+        if not isinstance(codes, list):
+            raise StateError(f"no version codes were read for the found track {track!r}")
     else:
         raise StateError(f"configured track {track!r} is not listed and its probe is {probe!r}, "
-                         "not 'empty' or 'absent'")
+                         "not 'found', 'empty' or 'absent'")
     print(f"expected versionCode {expected_code}; on {track}: {sorted(codes)}")
     elsewhere = [entry.get("id") for entry in tracks if entry.get("id") != track and any(
         expected_code in release.get("versionCodes", []) for release in entry.get("releases", []))]
@@ -139,6 +146,12 @@ SELF_TEST_CASES = [
     ("empty track list, FAIL (M-B4)", INTERNAL, [], "empty", [], 1, "DECISION FAIL: Play returned no tracks"),
     ("not listed, trackEmpty: UPLOAD", INTERNAL, [PRODUCTION], "empty", [], 0,
      ("edits.tracks.get answers trackEmpty", "DECISION UPLOAD")),
+    ("not listed, found with the code: SKIP", INTERNAL, [PRODUCTION], "found", [1000052], 0,
+     ("edits.tracks.get returns it", "DECISION SKIP")),
+    ("not listed, found without the code: UPLOAD", INTERNAL, [PRODUCTION], "found", [1000051], 0,
+     ("edits.tracks.get returns it", "DECISION UPLOAD")),
+    ("not listed, found without read codes: exit 2", INTERNAL, [PRODUCTION], "found", None, 2,
+     "no version codes were read for the found track"),
     ("listed with no releases, UPLOAD", INTERNAL, [{"id": INTERNAL, "releases": []}], "listed", [], 0,
      "DECISION UPLOAD"),
     ("code only on another track, UPLOAD with a warning", INTERNAL,

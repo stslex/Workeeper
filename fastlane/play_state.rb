@@ -47,13 +47,14 @@ module PlayState
       "configuredTrackVersionCodes" => codes }
   end
 
-  # A track edits.tracks.list omits may still exist without releases, and supply uploads into it
-  # (uploader.rb #update_track builds the Track). edits.tracks.get, in the caller's read-only edit,
-  # tells the two 404s apart the way supply does (client.rb #track_version_codes): "empty" for
-  # trackEmpty, "absent" for Track not found. Any other answer raises, so the decision never runs.
+  # A track edits.tracks.list omits may still exist, and supply uploads into it (uploader.rb
+  # #update_track builds the Track). edits.tracks.get, in the caller's read-only edit, answers:
+  # a track ("found", with its releases' codes, decided like a listed one), or one of the two 404s
+  # supply tells apart (client.rb #track_version_codes): "empty" for trackEmpty, "absent" for Track
+  # not found. Any other error raises, so the decision never runs.
   def probe_unlisted(client, track)
-    client.client.get_edit_track(client.current_package_name, client.current_edit.id, track)
-    raise "edits.tracks.get returned #{track}, which edits.tracks.list did not list"
+    found = client.client.get_edit_track(client.current_package_name, client.current_edit.id, track)
+    ["found", Array(found.releases).flat_map { |release| Array(release.version_codes) }.map(&:to_i)]
   rescue Google::Apis::ClientError => e
     raise unless e.status_code == 404
     empty = e.to_s.include?("trackEmpty")
