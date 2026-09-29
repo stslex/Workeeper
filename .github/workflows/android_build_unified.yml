@@ -403,10 +403,12 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
         run: |
-          echo "storeFile=keystore.jks" >> keystore.properties
-          echo "keyAlias=$KEYSTORE_KEY_ALIAS" >> keystore.properties
-          echo "storePassword=$KEYSTORE_STORE_PASSWORD" >> keystore.properties
-          echo "keyPassword=$KEYSTORE_KEY_PASSWORD" >> keystore.properties
+          {
+            echo "storeFile=keystore.jks"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } >> keystore.properties
 
       # Both store bundles read this file: the Wear store flavor reuses the phone's (spec §3 F4).
       - name: Create Google Services Config file
@@ -427,7 +429,8 @@ jobs:
 
       - name: Assert the bundle step schedules no Crashlytics mapping upload
         run: |
-          ./gradlew $BUNDLE_TASKS --dry-run --console=plain > bundle-dry-run.txt
+          read -r -a tasks <<< "$BUNDLE_TASKS"
+          ./gradlew "${tasks[@]}" --dry-run --console=plain > bundle-dry-run.txt
           scheduled="$(grep -c ' SKIPPED$' bundle-dry-run.txt || true)"
           echo "dry run scheduled $scheduled tasks"
           if [[ "$scheduled" -eq 0 ]]; then
@@ -444,7 +447,9 @@ jobs:
           echo "0 uploadCrashlyticsMappingFile* tasks scheduled"
 
       - name: Build both release bundles
-        run: ./gradlew $BUNDLE_TASKS --no-build-cache --full-stacktrace
+        run: |
+          read -r -a tasks <<< "$BUNDLE_TASKS"
+          ./gradlew "${tasks[@]}" --no-build-cache --full-stacktrace
 
       - name: Self-test the bundle identity gate
         run: python3 .github/scripts/assert_play_bundle.py --self-test
