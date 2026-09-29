@@ -19,12 +19,16 @@ text field, image and screenshot type present locally, per language; for wear it
     python3 .github/scripts/listing_drift.py plan --role phone|wear --plan-out <plan.json>
     python3 .github/scripts/listing_drift.py decide --role phone|wear --plan <plan.json> \
         --remote <remote.json> --out <dir> [--allow-overwrite]
+    python3 .github/scripts/listing_drift.py adopt --out <downloaded artifact directory>
     python3 .github/scripts/listing_drift.py --self-test
 
 decide exits 0 (no drift, or drift under --allow-overwrite, logged as a warning), 1 (DRIFT) or 2
 (the check could not run: zero compared items, a reader gap, a dirty tree, a git error). On DRIFT it
 writes, under --out, the remote text of every drifted item laid out like the metadata tree,
-fetch.json for the drifted images (fastlane downloads them), and drift.json with every verdict.
+fetch.json for the drifted images (fastlane downloads them), adopt.json with the repository files
+each drifted image item replaces, and drift.json with every verdict. adopt applies such an artifact
+to the repository: it deletes those files, then copies Play's in, so that after a commit the next
+check against the same Play state is OK, including when Play holds fewer images or none.
 """
 
 import argparse
@@ -34,6 +38,7 @@ import hashlib
 import io
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -222,26 +227,54 @@ def decide(repo, role, plan_file, remote, out, allow_overwrite, ref="HEAD"):
 def write_artifact(out, root, remote, drifted, verdicts):
     """Remote state of the drifted items, laid out like the metadata tree."""
     out = Path(out)
-    fetch = []
-    for key, _, _, _, _ in drifted:
+    fetch, delete = [], []
+    for key, files, _, _, _ in drifted:
         language, kind, name = key.split("/")
         if kind == "text":
             target = out / root / language / f"{name}.txt"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(remote["languages"][language]["text"][name] or "", encoding="utf-8")
             continue
+        # A copy alone would keep local images Play no longer has, or has under another extension.
+        delete.extend(f"{root}/{name_}" for name_ in files)
         for index, image in enumerate(remote["languages"][language]["images"][name], start=1):
             stem = f"images/{name}" if kind == "image" else f"images/{name}/{index}_{language}"
-            fetch.append({"url": image["url"], "sha256": image["sha256"],
-                          "path": str(out / root / language / stem)})
+            fetch.append({"url": image["url"], "sha256": image["sha256"], "path": f"{root}/{language}/{stem}"})
     out.mkdir(parents=True, exist_ok=True)
     (out / "fetch.json").write_text(json.dumps(fetch, indent=2), encoding="utf-8")
+    (out / "adopt.json").write_text(json.dumps({"delete": delete}, indent=2), encoding="utf-8")
     (out / "drift.json").write_text(json.dumps(verdicts, indent=2), encoding="utf-8")
+
+
+
+def adopt(repo, out):
+    """Apply a DRIFT artifact: delete each drifted image item's files, then copy Play's files in."""
+    repo, out = Path(repo), Path(out)
+    delete = json.loads((out / "adopt.json").read_text(encoding="utf-8"))["delete"]
+    fetch = json.loads((out / "fetch.json").read_text(encoding="utf-8"))
+    missing = [item["path"] for item in fetch if not list((out / item["path"]).parent.glob(
+        PurePosixPath(item["path"]).name + ".*"))]
+    if missing:
+        raise DriftError(f"the artifact lacks downloaded images for {missing}")
+    roots = [Path(root) for root, _ in ROLES.values()]
+    for path in delete:
+        if not any(Path(path).is_relative_to(root) for root in roots):
+            raise DriftError(f"refusing to delete {path}: outside the metadata trees")
+        (repo / path).unlink(missing_ok=True)
+    copied = []
+    for source in sorted((out / "fastlane").rglob("*")) if (out / "fastlane").is_dir() else []:
+        if source.is_file():
+            target = repo / source.relative_to(out)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            copied.append(str(source.relative_to(out)))
+    print(f"adopted: deleted {len(delete)} files, copied {len(copied)}: {copied}")
+    return 0
 
 
 # --- self-test ---------------------------------------------------------------------------------------
 
-def _commit(repo, files, message, tag=None):
+def _commit(repo, files, message, tag=None, allow_empty=False):
     for path, content in files.items():
         target = repo / path
         if content is None:
@@ -251,7 +284,7 @@ def _commit(repo, files, message, tag=None):
         target.write_bytes(content if isinstance(content, bytes) else content.encode("utf-8"))
     git(repo, "add", "-A")
     git(repo, "-c", "user.name=self-test", "-c", "user.email=self-test@invalid", "-c", "commit.gpgsign=false",
-        "commit", "-q", "-m", message)
+        "commit", "-q", *(["--allow-empty"] if allow_empty else []), "-m", message)
     if tag:
         git(repo, "-c", "tag.gpgsign=false", "tag", tag)
 
@@ -351,12 +384,47 @@ def self_test():
         print(f"  {'ok' if actual == 2 else 'MISMATCH':8} zero compared items, FAIL (M-C6): exit {actual}")
         if actual != 2 or "zero compared items" not in output:
             failures.append("zero items (M-C6)")
-    total = len(cases) + 7
+    for name, remote_shots in (("adopt an emptied screenshot type, then OK", []),
+                               ("adopt a reordered screenshot set, then OK", [shot_b, shot_a])):
+        ok, detail = _adopt_round_trip(remote_shots)
+        print(f"  {'ok' if ok else 'MISMATCH':8} {name}: {detail}")
+        if not ok:
+            failures.append(name)
+    total = len(cases) + 9
     if failures:
         print(f"self-test FAIL: {len(failures)} of {total} checks: {failures}")
         return 1
     print(f"self-test PASS: {total} checks, OK, DRIFT, override and FAIL each shown")
     return 0
+
+
+def _adopt_round_trip(remote_shots):
+    """DRIFT, adopt the artifact (downloads simulated from the known bytes), commit, check again."""
+    phone = "fastlane/metadata/android/en-US"
+    local = [b"shot-a", b"shot-b"]
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        git(repo, "init", "-q")
+        files = {"gradle/libs.versions.toml": '[versions]\nversionName = "1.0.0"\n', f"{phone}/title.txt": "T\n"}
+        files.update({f"{phone}/images/phoneScreenshots/{i}_en-US.png": c for i, c in enumerate(local, start=1)})
+        _commit(repo, files, "base", tag="release-v.1.0.0")
+        _commit(repo, {"gradle/libs.versions.toml": '[versions]\nversionName = "1.1.0"\n'}, "deployed")
+        remote = _remote({"title": "T"}, {"phoneScreenshots": [_image(c) for c in remote_shots]})
+        first, _ = _run_decide(repo, "phone", remote, repo / "out", False)
+        if first != 1:
+            return False, f"exit {first} before adopting, expected a DRIFT (1) to adopt"
+        by_sha = {hashlib.sha256(c).hexdigest(): c for c in local}
+        for item in json.loads((repo / "out" / "fetch.json").read_text()):
+            target = repo / "out" / f"{item['path']}.png"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(by_sha[item["sha256"]])
+        with contextlib.redirect_stdout(io.StringIO()):
+            adopt(repo, repo / "out")
+        shutil.rmtree(repo / "out")
+        # allow_empty: an adopt that changed nothing must reach the second check, which then drifts.
+        _commit(repo, {}, "adopt Play's listing", allow_empty=True)
+        second, output = _run_decide(repo, "phone", remote, repo / "out2", False)
+        return first == 1 and second == 0, f"exit {first} before, {second} after adopting"
 
 
 def _run_decide(repo, role, remote, out, allow):
@@ -373,7 +441,7 @@ def _run_decide(repo, role, remote, out, allow):
 
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", nargs="?", choices=("plan", "decide"))
+    parser.add_argument("command", nargs="?", choices=("plan", "decide", "adopt"))
     parser.add_argument("--role", choices=ROLES)
     parser.add_argument("--plan-out")
     parser.add_argument("--plan")
@@ -384,6 +452,14 @@ def main(argv):
     args = parser.parse_args(argv)
     if args.self_test:
         return self_test()
+    if args.command == "adopt":
+        if not args.out:
+            parser.error("adopt needs --out, the downloaded artifact directory")
+        try:
+            return adopt(REPO_ROOT, args.out)
+        except (DriftError, OSError, json.JSONDecodeError, KeyError) as error:
+            print(f"ADOPT ERROR (exit 2): {error}")
+            return 2
     if not args.command or not args.role:
         parser.error("a command and --role are required unless --self-test")
     try:

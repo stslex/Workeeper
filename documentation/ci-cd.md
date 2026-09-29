@@ -525,8 +525,10 @@ anything the repository also holds ([wear-release-pipeline.md](feature-specs/wea
    `build/listing-drift/<role>/` it leaves Play's state of the drifted items laid out like the
    metadata tree: text written by `listing_drift.py`, images downloaded by `play_state.rb`, which
    also records each file's sha256 next to the API's in `fetched.json` (evidence for the spec's
-   ASM-1). Only drifted items are included, so copying the artifact cannot undo a repository change
-   to another item.
+   ASM-1). `adopt.json` lists the repository files each drifted image item replaces, and
+   `listing_drift.py adopt --out <artifact>` applies the artifact: it deletes those files, then
+   copies Play's files in, so an image type Play emptied or shortened is removed locally too. Only
+   drifted items are included, so adopting cannot undo a repository change to another item.
 
 `allow_listing_overwrite`, a dispatch input of both deploy workflows passed to the lanes as
 `ALLOW_LISTING_OVERWRITE`, turns a DRIFT into a logged warning for that run. It is never the default,
@@ -543,7 +545,8 @@ covers OK, DRIFT, override and FAIL: a Console edit, a repository change, a matc
 reordered screenshot set, the override, a normalisation-only difference, the exclusion of the tag
 being deployed, a Wear path absent at base, a reader gap, an edited compared file, untracked
 eligible files (a screenshot, a new language) against untracked files supply never uploads, and
-zero compared items.
+zero compared items, and two adopt round trips (an emptied and a reordered screenshot type) that
+end OK against the same Play state.
 
 ### GitHub APK release
 

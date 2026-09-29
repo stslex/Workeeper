@@ -64,7 +64,7 @@ def assert_no_listing_drift(role:)
   UI.user_error!("listing_drift.py could not decide (exit #{status}); nothing was uploaded") unless [0, 1].include?(status)
   fetch_path = File.join(out, "fetch.json")
   if File.exist?(fetch_path)
-    fetched = PlayState.download(JSON.parse(File.read(fetch_path)))
+    fetched = PlayState.download(JSON.parse(File.read(fetch_path)), into: out)
     File.write(File.join(out, "fetched.json"), JSON.pretty_generate(fetched))
   end
   return if status.zero?

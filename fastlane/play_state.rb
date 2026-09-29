@@ -60,16 +60,17 @@ module PlayState
     { "languages" => languages }
   end
 
-  # Downloads a DRIFT artifact's images (listing_drift.py fetch.json) so that reconciling is a copy.
+  # Downloads a DRIFT artifact's images (listing_drift.py fetch.json, paths relative to `into`) for
+  # `listing_drift.py adopt`.
   # Records the downloaded bytes' sha256 next to the API's, which is evidence for the spec's ASM-1.
-  def download(fetch_list, fetcher: method(:http_get))
+  def download(fetch_list, into:, fetcher: method(:http_get))
     fetch_list.map do |item|
       body = fetcher.call(item.fetch("url"))
       extension = body.start_with?("\x89PNG".b) ? "png" : body.start_with?("\xFF\xD8".b) ? "jpg" : "bin"
-      path = "#{item.fetch('path')}.#{extension}"
-      FileUtils.mkdir_p(File.dirname(path))
-      File.binwrite(path, body)
-      item.merge("file" => path, "downloadedSha256" => Digest::SHA256.hexdigest(body))
+      file = "#{item.fetch('path')}.#{extension}"
+      FileUtils.mkdir_p(File.dirname(File.join(into, file)))
+      File.binwrite(File.join(into, file), body)
+      item.merge("file" => file, "downloadedSha256" => Digest::SHA256.hexdigest(body))
     end
   end
 
