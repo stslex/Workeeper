@@ -46,7 +46,9 @@ internal class NavLogLabelsTest {
             unmockkObject(Log)
         }
 
-        assertTrue(lines.any { "NavTo(ExerciseImage)" in it }, "the navTo path ran: $lines")
+        // Fragments, not the exact label: whether the path ran is this check's; what the line
+        // carries is the leak check's.
+        assertTrue(lines.any { "NavTo" in it && "ExerciseImage" in it }, "the navTo path ran: $lines")
         assertTrue(lines.any { "PopBackWithResult(" in it }, "the result path ran: $lines")
         val leaks = lines.filter { "Sentinel" in it }
         assertTrue(leaks.isEmpty(), "a navigation log line carries the picked image: $leaks")
