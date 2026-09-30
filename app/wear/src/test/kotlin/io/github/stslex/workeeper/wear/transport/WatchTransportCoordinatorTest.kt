@@ -309,6 +309,10 @@ internal class WatchTransportCoordinatorTest {
         h.link.gate = CompletableDeferred()
 
         h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+        // The owner's view of the command changes while its request is still out, so only the
+        // in-flight slot keeps a user refresh from starting beside it.
+        h.owner.transportTimeout(h.link.commands.single().correlationId)
         h.coordinator.requestUserRefresh()
         h.coordinator.onTileRendered()
         runCurrent()
