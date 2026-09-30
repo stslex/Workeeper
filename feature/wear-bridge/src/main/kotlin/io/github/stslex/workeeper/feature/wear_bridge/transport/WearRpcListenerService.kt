@@ -20,9 +20,10 @@ import kotlinx.coroutines.tasks.asTask
  * allowlist is a privacy decision. Everything here is plumbing: routing, admission and encoding
  * live in [PhoneWearRpcHandler], which is pure Kotlin and host-tested.
  *
- * Google Play services binds this service only for a caller with the same package and signature
- * (the listener stub checks the calling UID), and the manifest filter matches [WearProtocol.RPC_PATH]
- * exactly.
+ * The listener's binder accepts calls from Google Play services only (§3 ASM-2, verified in the
+ * resolved play-services-wearable 20.0.1 bytecode), and Play services delivers only requests from
+ * the same package and signature (§3 P1). The manifest filter matches
+ * [WearProtocol.RPC_PATH] exactly.
  */
 class WearRpcListenerService : WearableListenerService() {
 

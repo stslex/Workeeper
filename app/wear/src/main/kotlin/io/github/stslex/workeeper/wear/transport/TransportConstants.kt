@@ -22,5 +22,5 @@ internal const val TILE_REFRESH_MIN_AGE_MS: Long = 60_000L
  */
 internal const val AUTO_REFRESH_BUDGET: Int = 6
 
-/** PROVISIONAL (§7.8): the rolling window of [AUTO_REFRESH_BUDGET]. */
+/** PROVISIONAL, internal testing only (§7.8): the rolling window of [AUTO_REFRESH_BUDGET]. */
 internal const val AUTO_REFRESH_WINDOW_MS: Long = 60_000L

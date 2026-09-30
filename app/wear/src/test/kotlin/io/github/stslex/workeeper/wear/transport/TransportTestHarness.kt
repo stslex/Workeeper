@@ -26,7 +26,11 @@ internal class FakePhoneLink : WearLink {
     var phones: List<PhoneNode> = listOf(PhoneNode(PHONE_NODE, isNearby = true))
     var localNode: String = WATCH_NODE
     val requests = mutableListOf<WearEnvelope>()
+    val rawRequests = mutableListOf<ByteArray>()
     val sentTo = mutableListOf<String>()
+
+    /** Thrown by the next request instead of answering, as a failed or cancelled Task does. */
+    var failNextRequest: Throwable? = null
     var reachability: ((Boolean) -> Unit)? = null
 
     /** Held requests stay in flight until the test completes this gate. */
@@ -40,6 +44,11 @@ internal class FakePhoneLink : WearLink {
 
     override suspend fun request(nodeId: String, request: ByteArray): ByteArray {
         sentTo += nodeId
+        rawRequests += request
+        failNextRequest?.let { failure ->
+            failNextRequest = null
+            throw failure
+        }
         val decoded = WearProtocolCodec.decodeForPhone(request, WATCH_NODE)
         val envelope = (decoded as PhoneDecodeResult.Success).request
         requests += envelope

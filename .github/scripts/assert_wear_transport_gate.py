@@ -589,7 +589,18 @@ def self_test() -> int:
         if found != expected:
             failures += 1
         print(f"  [{verdict}] {name}: {found} violation(s), expected {expected}")
-    total = len(cases) + len(path_cases)
+    # The list itself is pinned: widening it must also change this literal, reviewed as a privacy
+    # decision (wear-paired-transport.md section 8).
+    pinned = {
+        "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
+        "WearRpcListenerService.kt",
+        "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
+    }
+    verdict = "ok" if TRANSPORT_ALLOWLIST == pinned else "MISMATCH"
+    if TRANSPORT_ALLOWLIST != pinned:
+        failures += 1
+    print(f"  [{verdict}] the transport allowlist is exactly the two section 8 paths")
+    total = len(cases) + len(path_cases) + 1
     if failures:
         print(f"\nself-test FAILED: {failures} of {total} case(s) disagree")
         return 1

@@ -7,6 +7,7 @@ import android.net.Uri
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.feature.wear_bridge.R
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.RuntimeEnvironment
@@ -38,6 +39,14 @@ internal class WearRpcManifestTest {
         assertEquals(listOf(WearProtocol.PHONE_CAPABILITY), capabilities.toList())
     }
 
+    @Test
+    fun `the listener answers no other path`() {
+        val service = WearRpcListenerService()
+
+        assertNull(service.onRequest(NODE, "/workeeper/wear/v1/other", ByteArray(0)))
+        assertNull(service.onRequest(NODE, "${WearProtocol.RPC_PATH}x", ByteArray(0)))
+    }
+
     private fun servicesFor(data: String): List<String> {
         val context = RuntimeEnvironment.getApplication()
         val intent = Intent(WearRpcListenerService.REQUEST_ACTION)
@@ -50,5 +59,6 @@ internal class WearRpcManifestTest {
 
     private companion object {
         val SERVICE: String = WearRpcListenerService::class.java.name
+        const val NODE = "watch-node"
     }
 }

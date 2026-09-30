@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotRespon
 import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
@@ -13,8 +14,11 @@ import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
+import io.github.stslex.workeeper.core.wear.protocol.WearEnvelope
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import io.github.stslex.workeeper.wear.cache.CacheFraming
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.runtime.ControllerAction
 import io.github.stslex.workeeper.wear.runtime.LinkStatus
@@ -171,11 +175,20 @@ internal class WatchTransportCoordinatorTest {
     @Test
     fun `an applied command advances the set from the attached snapshot`() = runTest {
         val h = connected(this)
+        val stopBefore = (h.owner.snapshot.value.ongoing as OngoingStatus.Scheduled).stopAtElapsedRealtimeMs
         val next = ReducerTestFixtures.active(revision = 2, leaseGeneration = 2, targetPosition = 1)
         h.link.answer = phoneAnswers(snapshot = { next }, outcome = { CompleteCommandOutcome.Applied })
+        advanceTimeBy(FIVE_SECONDS_MS)
 
         assertInstanceOf(WatchActionResult.CommandIssued::class.java, h.runtime.onAction(ControllerAction.CompleteSet))
         runCurrent()
+
+        val cached = requireNotNull(CacheFraming.decode(requireNotNull(h.env.storage.read())))
+        val decodedCache = WearProtocolCodec.decodeForWatch(requireNotNull(cached.payload)) as WatchDecodeResult.Success
+        val cachedSnapshot = decodedCache.envelope as ActiveWorkoutSnapshotResponse
+        assertEquals(next, cachedSnapshot.snapshot, "the cache holds the attached snapshot")
+        val stopAfter = (h.owner.snapshot.value.ongoing as OngoingStatus.Scheduled).stopAtElapsedRealtimeMs
+        assertEquals(FIVE_SECONDS_MS, stopAfter - stopBefore, "the ongoing deadline follows the response")
 
         val command = h.link.commands.single()
         assertEquals(0, command.body.setPosition)
@@ -212,7 +225,7 @@ internal class WatchTransportCoordinatorTest {
         assertEquals(CommandStatus.ABANDONED, h.owner.snapshot.value.workout.command?.status)
         assertEquals(2, h.link.handshakes.size, "exactly one follow-up refresh after abandoning")
 
-        h.runtime.onAction(ControllerAction.Retry)
+        assertEquals(WatchActionResult.Rejected, h.runtime.onAction(ControllerAction.Retry))
         runCurrent()
         assertEquals(2, h.link.commands.size, "never a third attempt")
     }
@@ -396,12 +409,32 @@ internal class WatchTransportCoordinatorTest {
         runCurrent()
         assertEquals(1, h.link.handshakes.size, "no O3 while not interactive")
 
+        h.link.phones = emptyList()
         reachability(false)
         h.runtime.onControllerInteractive(true)
         runCurrent()
+        assertEquals(1, h.link.handshakes.size, "O1 found no phone: nothing was sent")
+        h.link.phones = listOf(PhoneNode(FakePhoneLink.PHONE_NODE, isNearby = true))
         reachability(true)
         runCurrent()
-        assertEquals(3, h.link.handshakes.size, "O1, then O3 from none to some while interactive")
+        assertEquals(2, h.link.handshakes.size, "O3: from none to some while interactive")
+    }
+
+    @Test
+    fun `a phone that becomes reachable after an unreachable first request is O3`() = runTest {
+        val h = TransportHarness(this)
+        h.link.phones = emptyList()
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertRetrySurface(h)
+
+        h.link.phones = listOf(PhoneNode(FakePhoneLink.PHONE_NODE, isNearby = true))
+        requireNotNull(h.link.reachability).invoke(true)
+        runCurrent()
+
+        assertEquals(1, h.link.handshakes.size)
+        assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
     }
 
     @Test
@@ -457,8 +490,9 @@ internal class WatchTransportCoordinatorTest {
             FakePhoneLink.WATCH_NODE,
             h.owner.snapshot.value.workout.command?.fingerprintCommand?.sourceNodeId,
         )
-        val sent = h.link.commands.single()
-        assertFalse(FakePhoneLink.WATCH_NODE in sent.toString(), "the node id never travels")
+        val sent = h.link.rawRequests.map { it.decodeToString() }
+        assertTrue(sent.any { "complete_current_set" in it }, "the command was sent: $sent")
+        assertTrue(sent.none { FakePhoneLink.WATCH_NODE in it }, "the node id never travels")
     }
 
     @Test
@@ -486,6 +520,138 @@ internal class WatchTransportCoordinatorTest {
         val uuid = Regex("[0-9a-f]{8}-[0-9a-f]{4}-")
         val leaks = lines.filter { line -> forbidden.any { it in line } || uuid.containsMatchIn(line) }
         assertTrue(leaks.isEmpty(), "a transport log line carries a forbidden field: $leaks")
+    }
+
+    @Test
+    fun `a cancelled Task settles its request and the next one proceeds`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.link.failNextRequest = kotlinx.coroutines.CancellationException("the Play services Task was cancelled")
+
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertEquals(LinkStatus.UNANSWERED, h.owner.snapshot.value.link)
+
+        h.coordinator.requestUserRefresh()
+        runCurrent()
+        assertEquals(2, h.link.rawRequests.size, "the coordinator is not stuck: a second request went out")
+        assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
+    }
+
+    @Test
+    fun `a refresh posted before a command is handed over waits and never retires the attempt`() = runTest {
+        val h = connected(this)
+        advanceTimeBy(TILE_REFRESH_MIN_AGE_MS)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active(revision = 2, leaseGeneration = 2) })
+
+        h.coordinator.onTileRendered()
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+
+        assertEquals(listOf("handshake", "command", "handshake"), h.link.requests.map { it.kind() })
+        assertEquals(ReducerTestFixtures.lease1, h.link.commands.single().mutationLeaseId)
+        assertEquals(CommandStatus.TERMINAL, h.owner.snapshot.value.workout.command?.status, "the command applied")
+    }
+
+    @Test
+    fun `a command whose attempt was retired before sending is never sent`() = runTest {
+        val h = connected(this)
+
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        h.owner.disconnected()
+        runCurrent()
+
+        assertEquals(0, h.link.commands.size)
+        assertEquals(CommandStatus.ABANDONED, h.owner.snapshot.value.workout.command?.status)
+        assertEquals(2, h.link.handshakes.size, "one follow-up refresh shows the truth")
+    }
+
+    @Test
+    fun `an undecodable command response closes the command and stops the ongoing surface`() = runTest {
+        val h = connected(this)
+        h.link.answer = { request ->
+            if (request is GetActiveWorkoutRequest) phoneAnswers({ ReducerTestFixtures.active() })(request)
+            else "not a protocol envelope".toByteArray()
+        }
+
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+
+        assertProtocolMismatch(h)
+        assertEquals(CommandStatus.TERMINAL, h.owner.snapshot.value.workout.command?.status)
+        assertEquals(OngoingStatus.Inactive, h.owner.snapshot.value.ongoing)
+        assertEquals(1, h.link.handshakes.size, "no follow-up while the display is a protocol mismatch")
+    }
+
+    @Test
+    fun `a snapshot answering a command is a protocol failure for that command`() = runTest {
+        val h = connected(this)
+        h.link.answer = { request ->
+            WearProtocolCodec.encode(
+                ActiveWorkoutSnapshotResponse(
+                    WearProtocol.SCHEMA_VERSION,
+                    request.correlationId,
+                    ReducerTestFixtures.active(),
+                ),
+            )
+        }
+
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+
+        assertProtocolMismatch(h)
+        assertEquals(CommandStatus.TERMINAL, h.owner.snapshot.value.workout.command?.status)
+        assertEquals(OngoingStatus.Inactive, h.owner.snapshot.value.ongoing)
+    }
+
+    @Test
+    fun `a command response for another correlation or another command is no response`() = runTest {
+        val h = connected(this)
+        val replacement = ReducerTestFixtures.active(revision = 2, leaseGeneration = 2)
+        h.link.answer = commandAnswer { request ->
+            CompleteCurrentSetResponse(
+                WearProtocol.SCHEMA_VERSION,
+                CanonicalUuid.random(),
+                request.commandId,
+                CompleteCommandOutcome.Applied,
+                replacement,
+            )
+        }
+
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+        assertEquals(CommandStatus.TIMED_OUT_RETRYABLE, h.owner.snapshot.value.workout.command?.status)
+
+        h.link.answer = commandAnswer { request ->
+            CompleteCurrentSetResponse(
+                WearProtocol.SCHEMA_VERSION,
+                request.correlationId,
+                CanonicalUuid.random(),
+                CompleteCommandOutcome.Applied,
+                replacement,
+            )
+        }
+        assertInstanceOf(WatchActionResult.CommandIssued::class.java, h.runtime.onAction(ControllerAction.Retry))
+        runCurrent()
+        assertEquals(
+            CommandStatus.ABANDONED,
+            h.owner.snapshot.value.workout.command?.status,
+            "a response for another command is not admitted either",
+        )
+    }
+
+    @Test
+    fun `an accepted Unavailable replacement starts exactly one follow-up`() = runTest {
+        val h = connected(this)
+        h.link.answer = phoneAnswers(
+            snapshot = { ReducerTestFixtures.active(unavailable = true) },
+            outcome = { CompleteCommandOutcome.AuthorizationExpired },
+        )
+
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+
+        assertEquals(listOf("handshake", "command", "handshake"), h.link.requests.map { it.kind() })
     }
 
     // endregion
@@ -544,7 +710,21 @@ internal class WatchTransportCoordinatorTest {
         ),
     )
 
+    private fun WearEnvelope.kind(): String = if (this is GetActiveWorkoutRequest) "handshake" else "command"
+
+    /** Handshakes get the default snapshot; commands get [build]'s response. */
+    private fun commandAnswer(
+        build: (CompleteCurrentSetRequest) -> CompleteCurrentSetResponse,
+    ): (WearEnvelope) -> ByteArray = { request ->
+        if (request is CompleteCurrentSetRequest) {
+            WearProtocolCodec.encode(build(request))
+        } else {
+            phoneAnswers(snapshot = { ReducerTestFixtures.active() })(request)
+        }
+    }
+
     private companion object {
+        const val FIVE_SECONDS_MS = 5_000L
         const val FIVE_MINUTES_MS = 300_000L
         const val SENTINEL_TRAINING = "Sentinel-Training-7f3a"
         const val SENTINEL_EXERCISE = "Sentinel-Exercise-7f3a"

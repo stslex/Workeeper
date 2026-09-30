@@ -24,6 +24,8 @@ import io.github.stslex.workeeper.wear.state.RequestOperation
 import io.github.stslex.workeeper.wear.state.RequestToken
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
@@ -122,53 +124,100 @@ internal class WatchTransportCoordinator(
         scope.launch { guarded("event") { block() } }
     }
 
-    private fun enqueueRefresh(chain: Chain, followUp: Boolean = false) {
-        if (inFlight is Work.Refresh || queue.any { it is Work.Refresh }) {
+    private fun enqueueRefresh(chain: Chain, followUp: Boolean = false, pump: Boolean = true) {
+        val queued = queue.firstOrNull { it is Work.Refresh } as? Work.Refresh
+        if (inFlight is Work.Refresh || queued != null) {
+            // A user refresh folded into a queued automatic one keeps it unlimited (§7.2).
+            if (chain.origin == RefreshOrigin.USER && !followUp) queued?.userRequested = true
             logger.i { "refresh ${chain.origin} coalesced" }
             return
         }
         queue.addLast(Work.Refresh(chain, followUp))
-        pump()
+        if (pump) pump()
     }
 
     private fun pump() {
         while (inFlight == null) {
-            val next = queue.removeFirstOrNull() ?: return
+            val next = nextWork() ?: return
             val token = start(next) ?: continue
             inFlight = next
             val refreshRequiredAtStart = owner.snapshot.value.workout.refreshRequired
             scope.launch {
                 val startedAt = clock.nowMs()
-                val request = runCatching { encode(next, token) }.getOrNull()
-                val exchange = if (request == null) Exchange.NoAnswer else exchange(request)
                 var acceptedUnavailable = false
-                guarded("completion") {
-                    val result = apply(next, token, exchange)
-                    acceptedUnavailable = result.acceptedUnavailable
-                    // §7.9: operation, result class, byte counts and elapsed time only.
-                    logger.i {
-                        "${token.operation.label()} -> ${result.label}: out ${request?.size ?: 0} B, " +
-                            "in ${(exchange as? Exchange.Answer)?.bytes?.size ?: 0} B, " +
-                            "${clock.nowMs() - startedAt} ms"
+                try {
+                    val request = runCatching { encode(next, token) }.getOrNull()
+                    val exchange = if (request == null) Exchange.Unencodable else exchange(request)
+                    guarded("completion") {
+                        val result = apply(next, token, exchange)
+                        acceptedUnavailable = result.acceptedUnavailable
+                        // §7.9: operation, result class, byte counts and elapsed time only.
+                        logger.i {
+                            "${token.operation.label()} -> ${result.label}: out ${request?.size ?: 0} B, " +
+                                "in ${(exchange as? Exchange.Answer)?.bytes?.size ?: 0} B, " +
+                                "${clock.nowMs() - startedAt} ms"
+                        }
                     }
+                } finally {
+                    if (next is Work.Refresh) lastHandshakeCompletedAtMs = clock.nowMs()
+                    if (next is Work.Command) guarded("settle") { settle(next, token) }
+                    // GUARD: cleared on every path, before the follow-up may start the next request.
+                    inFlight = null
                 }
-                if (next is Work.Refresh) lastHandshakeCompletedAtMs = clock.nowMs()
-                // GUARD: cleared exactly once, before the follow-up may start the next request.
-                inFlight = null
                 guarded("follow-up") { followUp(next, refreshRequiredAtStart, acceptedUnavailable) }
                 pump()
             }
         }
     }
 
-    /** The request's token, or null when an automatic refresh is dropped at the moment it would start. */
+    /**
+     * The next item to start. GUARD: no handshake starts while the owner holds an in-flight command
+     * attempt, because its token would retire that attempt's authority (Phase 1 §3). A queued command
+     * goes first; a command issued but not yet handed over makes the refresh wait for it.
+     */
+    private fun nextWork(): Work? {
+        val head = queue.firstOrNull() ?: return null
+        if (head is Work.Refresh && owner.snapshot.value.workout.command?.status == CommandStatus.IN_FLIGHT) {
+            val command = queue.firstOrNull { it is Work.Command } ?: return null
+            queue.remove(command)
+            return command
+        }
+        return queue.removeFirst()
+    }
+
+    /** The request's token, or null when the item is dropped at the moment it would start. */
     private fun start(work: Work): RequestToken? = when (work) {
-        is Work.Command -> work.token
+        is Work.Command -> if (attemptCurrent(work)) {
+            work.token
+        } else {
+            // Retired or expired authority authorizes no delivery (Phase 1 §3): never sent.
+            logger.i { "${work.token.operation.label()} not sent: attempt retired" }
+            runCatching { owner.transportTimeout(work.token.correlationId) }
+            guarded("follow-up") {
+                followUp(work, refreshRequiredAtStart = false, acceptedUnavailable = false, pump = false)
+            }
+            null
+        }
         is Work.Refresh -> when {
             work.automatic && retryPreserved() -> dropped(work, "retry preserved")
-            work.automatic && !budgetAllows() -> dropped(work, "budget")
+            work.automatic && !budgetAvailable() -> dropped(work, "budget")
             // Late token: issuing it retires the current authority, so it is issued only now.
-            else -> runCatching { owner.issueHandshake() }.getOrNull()
+            else -> runCatching { owner.issueHandshake() }.getOrNull()?.also {
+                if (work.automatic) automaticStartsMs.addLast(clock.nowMs())
+            }
+        }
+    }
+
+    private fun attemptCurrent(work: Work.Command): Boolean {
+        val binding = owner.snapshot.value.workout.authority as? LocalMutationAuthority.AttemptBound ?: return false
+        return binding.commandId == work.fingerprint.commandId && clock.nowMs() < binding.effectiveDeadlineMs
+    }
+
+    /** A command whose exchange ended without reaching the owner (a failure) is a transport timeout. */
+    private fun settle(work: Work.Command, token: RequestToken) {
+        val command = owner.snapshot.value.workout.command ?: return
+        if (command.commandId == work.fingerprint.commandId && command.status == CommandStatus.IN_FLIGHT) {
+            owner.transportTimeout(token.correlationId)
         }
     }
 
@@ -185,14 +234,13 @@ internal class WatchTransportCoordinator(
         return clock.nowMs() < binding.effectiveDeadlineMs
     }
 
-    private fun budgetAllows(): Boolean {
+    /** The slot itself is taken only once a token was issued ([start]). */
+    private fun budgetAvailable(): Boolean {
         val now = clock.nowMs()
         while (automaticStartsMs.firstOrNull()?.let { now - it >= AUTO_REFRESH_WINDOW_MS } == true) {
             automaticStartsMs.removeFirst()
         }
-        if (automaticStartsMs.size >= AUTO_REFRESH_BUDGET) return false
-        automaticStartsMs.addLast(now)
-        return true
+        return automaticStartsMs.size < AUTO_REFRESH_BUDGET
     }
 
     private fun encode(work: Work, token: RequestToken): ByteArray = WearProtocolCodec.encode(
@@ -206,8 +254,12 @@ internal class WatchTransportCoordinator(
     private suspend fun exchange(request: ByteArray): Exchange = withTimeoutOrNull(requestTimeoutMs) {
         val phones = attempt { link.reachablePhones() } ?: return@withTimeoutOrNull Exchange.Unreachable
         observeReachabilityOnce()
+        // What this lookup learned, so a later "reachable" from the listener is O3 (§7.4).
+        reachable = phones.isNotEmpty()
         val phone = phones.preferredPhone() ?: return@withTimeoutOrNull Exchange.Unreachable
         if (localNode.value == null) localNode.value = attempt { link.localNodeId() }
+        // §7.6: no authority without an identity, so a watch that cannot name itself asks nothing.
+        if (localNode.value == null) return@withTimeoutOrNull Exchange.NoAnswer
         val answer = attempt { link.request(phone.id, request) }
         if (answer == null || answer.isEmpty()) Exchange.NoAnswer else Exchange.Answer(answer)
     } ?: Exchange.NoAnswer
@@ -229,6 +281,7 @@ internal class WatchTransportCoordinator(
         val decoded = when (exchange) {
             Exchange.Unreachable -> return Applied("unreachable").also { owner.handshakeUnanswered(false) }
             Exchange.NoAnswer -> return Applied("no_answer").also { owner.handshakeUnanswered(true) }
+            Exchange.Unencodable -> return Applied("unencodable").also { owner.protocolFailure(token.correlationId) }
             is Exchange.Answer -> WearProtocolCodec.decodeForWatch(exchange.bytes)
         }
         val envelope = when (decoded) {
@@ -242,6 +295,8 @@ internal class WatchTransportCoordinator(
                 Applied("other_correlation").also { owner.handshakeUnanswered(true) }
             envelope is ActiveWorkoutSnapshotResponse -> {
                 val accepted = owner.receiveSnapshot(envelope)
+                // An answer the owner did not accept creates no authority; the link shows it.
+                if (!accepted) owner.handshakeUnanswered(true)
                 val payload = envelope.snapshot.payload
                 val authority = (payload as? SnapshotPayload.ActiveWithTarget)?.mutationAuthority
                 Applied(
@@ -258,6 +313,8 @@ internal class WatchTransportCoordinator(
         val decoded = when (exchange) {
             Exchange.Unreachable -> return Applied("unreachable").also { owner.transportTimeout(token.correlationId) }
             Exchange.NoAnswer -> return Applied("no_answer").also { owner.transportTimeout(token.correlationId) }
+            // A local protocol error closes the command without retry (Phase 1 §9).
+            Exchange.Unencodable -> return Applied("unencodable").also { owner.protocolFailure(token.correlationId) }
             is Exchange.Answer -> WearProtocolCodec.decodeForWatch(exchange.bytes)
         }
         val envelope = when (decoded) {
@@ -272,14 +329,23 @@ internal class WatchTransportCoordinator(
                 val admitted = owner.receiveCommandResponse(envelope)
                 // A response the reducer does not admit is no response for this attempt.
                 if (admitted == null) owner.transportTimeout(token.correlationId)
-                Applied("response:${envelope.outcome::class.simpleName}:${admitted.admissionLabel()}")
+                val authority = (envelope.replacement.payload as? SnapshotPayload.ActiveWithTarget)?.mutationAuthority
+                Applied(
+                    label = "response:${envelope.outcome::class.simpleName}:${admitted.admissionLabel()}",
+                    acceptedUnavailable = admitted == true && authority is MutationAuthority.Unavailable,
+                )
             }
             else -> Applied("wrong_shape").also { owner.protocolFailure(token.correlationId) }
         }
     }
 
     /** §7.4: one automatic follow-up per chain, never from a follow-up. */
-    private fun followUp(work: Work, refreshRequiredAtStart: Boolean, acceptedUnavailable: Boolean) {
+    private fun followUp(
+        work: Work,
+        refreshRequiredAtStart: Boolean,
+        acceptedUnavailable: Boolean,
+        pump: Boolean = true,
+    ) {
         if (work.followUp || work.chain.followUpUsed) return
         val workout = owner.snapshot.value.workout
         if (workout.display is WatchDisplayState.ProtocolMismatch) return
@@ -288,7 +354,7 @@ internal class WatchTransportCoordinator(
         val refreshTurnedTrue = !refreshRequiredAtStart && workout.refreshRequired
         if (!refreshTurnedTrue && !acceptedUnavailable) return
         work.chain.followUpUsed = true
-        enqueueRefresh(work.chain, followUp = true)
+        enqueueRefresh(work.chain, followUp = true, pump = pump)
     }
 
     /** Reachability lost is the owner's disconnect; reachability gained is O3 (§7.7). */
@@ -319,8 +385,13 @@ internal class WatchTransportCoordinator(
         }
     }
 
+    /**
+     * A failed call is null. GUARD: a cancelled Play services Task also surfaces as a
+     * CancellationException; only this coroutine's own cancellation (the request deadline) may
+     * propagate, or a cancelled Task would leave the request unsettled.
+     */
     private suspend fun <T> attempt(block: suspend () -> T): T? = runCatching { block() }.getOrElse { failure ->
-        if (failure is CancellationException) throw failure
+        if (failure is CancellationException) currentCoroutineContext().ensureActive()
         null
     }
 
@@ -333,8 +404,11 @@ internal class WatchTransportCoordinator(
         val followUp: Boolean
 
         class Refresh(override val chain: Chain, override val followUp: Boolean) : Work {
-            /** Every refresh but the user's own; a follow-up of a user chain is automatic too. */
-            val automatic: Boolean get() = followUp || chain.origin != RefreshOrigin.USER
+            /** Set when a user refresh was coalesced into this one. */
+            var userRequested: Boolean = chain.origin == RefreshOrigin.USER && !followUp
+
+            /** Every refresh but a user's; a follow-up of a user chain is automatic too. */
+            val automatic: Boolean get() = !userRequested
         }
 
         class Command(
@@ -349,6 +423,7 @@ internal class WatchTransportCoordinator(
     private sealed interface Exchange {
         data object Unreachable : Exchange
         data object NoAnswer : Exchange
+        data object Unencodable : Exchange
         class Answer(val bytes: ByteArray) : Exchange
     }
 

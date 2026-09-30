@@ -25,6 +25,7 @@ import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import io.github.stslex.workeeper.feature.wear_bridge.WearPayloadTransportStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -136,6 +137,20 @@ internal class PhoneWearRpcHandlerTest {
         val answer = handler(holder, this).handle(SOURCE_NODE, request)
 
         assertInstanceOf(WatchDecodeResult.Success::class.java, WearProtocolCodec.decodeForWatch(answer))
+        assertEquals(1, holder.released)
+    }
+
+    @Test
+    fun `a caller cancelled during the bridge call still completes it and releases the lease once`() = runTest {
+        val bridge = FakeBridge(delayMs = 1_000L)
+        val holder = FakeHolder(bridge)
+        val caller = launch { handler(holder, this@runTest).handle(SOURCE_NODE, handshakeBytes()) }
+        advanceTimeBy(500L)
+        caller.cancel()
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals(listOf("get:$SOURCE_NODE"), bridge.calls, "the admitted call ran to completion")
         assertEquals(1, holder.released)
     }
 

@@ -136,8 +136,8 @@ internal class WatchRuntimeOwner(
         if (response.schemaVersion != WearProtocol.SCHEMA_VERSION) return@transition null
         val currentBoot = bootCount.currentBootCount() ?: return@transition null
         val receivedAt = clock.nowMs()
-        val reduction = reducer.receiveCommandResponse(response, receivedAt) ?: return@transition null
-        if (reduction.accepted) {
+        val reduction = reducer.receiveCommandResponse(response, receivedAt)
+        if (reduction?.accepted == true) {
             val attached = ActiveWorkoutSnapshotResponse(
                 schemaVersion = response.schemaVersion,
                 correlationId = response.correlationId,
@@ -145,7 +145,13 @@ internal class WatchRuntimeOwner(
             )
             acceptLocked(attached, reduction, receivedAt, currentBoot)
         }
-        reduction.accepted
+        // A response that closed as a protocol mismatch fails closed like protocolFailure: the
+        // draft goes and the ongoing surface stops (Phase 1 §8, §9).
+        if (reducer.state.display is WatchDisplayState.ProtocolMismatch) {
+            pendingDraft = null
+            ongoing.displayChanged(reducer.state.display)
+        }
+        reduction?.accepted
     }
 
     /** A command attempt got no semantic response in time (§7.3): the reducer's transport timeout. */
