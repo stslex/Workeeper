@@ -10,6 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import io.github.stslex.workeeper.wear.ambient.AndroidWearAmbientProvider
 import io.github.stslex.workeeper.wear.mvi.store.WearPlatformState
 import io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccess
@@ -20,6 +23,9 @@ import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
 import io.github.stslex.workeeper.wear.ui.WearControllerRoute
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var runtime: WatchRuntime
@@ -43,6 +49,19 @@ class MainActivity : ComponentActivity() {
             activity = this,
             expireAuthority = { runWearRuntimeUiEvent { runtime.onWake() } },
         )
+        // The controller is interactive while resumed and not ambient (wear-paired-transport.md
+        // §7.4 O1). A dedicated signal: onWake also runs for ambient updates, deadlines and Tiles.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                try {
+                    ambientProvider.state.map { !it.isAmbient }.distinctUntilChanged().collect { interactive ->
+                        runWearRuntimeUiEvent { runtime.onControllerInteractive(interactive) }
+                    }
+                } finally {
+                    runWearRuntimeUiEvent { runtime.onControllerInteractive(false) }
+                }
+            }
+        }
         setContent {
             val access by platform.collectAsState()
             val ambient by ambientProvider.state.collectAsState()

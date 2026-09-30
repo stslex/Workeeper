@@ -21,6 +21,13 @@ internal interface WatchRuntime {
      * newer snapshot with an older interval.
      */
     fun tileFrame(locale: Locale): WatchTileFrame
+
+    /**
+     * The controller became interactive (resumed and not ambient) or stopped being so. Only the
+     * connected release runtime acts on it (wear-paired-transport.md §7.4 O1); `onWake` is not
+     * an interaction signal.
+     */
+    fun onControllerInteractive(interactive: Boolean) = Unit
 }
 
 /**
@@ -63,7 +70,17 @@ internal fun interface RuntimeIdSource {
     fun nextId(): CanonicalUuid
 }
 
-internal data class RuntimeIdentity(val sourceNodeId: String, val ids: RuntimeIdSource)
+/**
+ * [sourceNodeId] feeds only the local command fingerprint and never travels (Phase 1 F9). In release
+ * it is the watch's own Data Layer node id, resolved by the first request and null until then
+ * (wear-paired-transport.md §7.6).
+ */
+internal class RuntimeIdentity(private val nodeId: () -> String?, val ids: RuntimeIdSource) {
+
+    constructor(sourceNodeId: String, ids: RuntimeIdSource) : this({ sourceNodeId }, ids)
+
+    val sourceNodeId: String? get() = nodeId()
+}
 
 /** Replace one absolute monotonic deadline; an implementation must never poll or hold a wake lock. */
 internal fun interface RuntimeDeadlineScheduler {

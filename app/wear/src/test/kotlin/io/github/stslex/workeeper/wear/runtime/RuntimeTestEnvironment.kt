@@ -23,6 +23,7 @@ import java.util.Locale
 
 internal class RuntimeTestEnvironment(
     transformClock: (ElapsedRealtimeClock) -> ElapsedRealtimeClock = { it },
+    private val nodeId: () -> String? = { "synthetic-test-watch" },
     decorateNotification: (OngoingNotification) -> OngoingNotification = { it },
 ) {
     val trace = mutableListOf<String>()
@@ -58,7 +59,7 @@ internal class RuntimeTestEnvironment(
         bootCount = BootCountProvider { boot },
         notification = adapter,
         policy = OngoingPolicy(reconnectWindowMs = 5_000L),
-        identity = RuntimeIdentity(sourceNodeId = "synthetic-test-watch", ids = ids),
+        identity = RuntimeIdentity(nodeId = nodeId, ids = ids),
         scheduler = scheduler,
         selectedLocale = Locale.US,
     )

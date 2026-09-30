@@ -166,27 +166,32 @@ internal class WatchWorkoutReducer {
         return reduction
     }
 
+    /**
+     * Returns the reduction of the attached replacement snapshot, or null when the response was
+     * not admitted (unknown correlation, consumed outcome, closed command, invalid pairing). The
+     * return value only exposes the existing transition (wear-paired-transport.md §7.5).
+     */
     fun receiveCommandResponse(
         response: CompleteCurrentSetResponse,
         receivedAtElapsedRealtimeMs: Long,
-    ) {
+    ): SnapshotReduction? {
         val token = requests[response.correlationId]
             ?.takeIf { it.operation != RequestOperation.HANDSHAKE }
             ?.takeIf { it.commandId == response.commandId }
-            ?: return
-        val existing = commands[response.commandId] ?: return
+            ?: return null
+        val existing = commands[response.commandId] ?: return null
         requests.remove(response.correlationId)
-        if (response.correlationId in existing.consumedOutcomeCorrelations) return
+        if (response.correlationId in existing.consumedOutcomeCorrelations) return null
         if (existing.status in CLOSED_COMMAND_STATUSES) {
             commands[existing.commandId] = existing.copy(
                 consumedOutcomeCorrelations = existing.consumedOutcomeCorrelations + response.correlationId,
             )
-            return
+            return null
         }
 
         if (!responsePairingIsValid(response, existing)) {
             closeAsProtocolMismatch(existing, response.correlationId, reason = null)
-            return
+            return null
         }
 
         retireMatchingAttempt(existing.commandId)
@@ -223,6 +228,27 @@ internal class WatchWorkoutReducer {
                 refreshRequired = !reduction.accepted,
             )
         }
+        return reduction
+    }
+
+    /**
+     * Fails closed for a response to [correlationId] that could not be decoded or had the other
+     * operation's shape (wear-paired-transport.md §7.3, Phase 1 §9). A pending command with that
+     * correlation closes through the existing protocol-mismatch transition, without retry; a
+     * handshake takes the same display, authority and draft effects.
+     */
+    fun protocolFailure(correlationId: CanonicalUuid) {
+        val command = requests.remove(correlationId)?.commandId?.let(commands::get)
+        if (command != null && command.status !in CLOSED_COMMAND_STATUSES) {
+            return closeAsProtocolMismatch(command, correlationId, reason = null)
+        }
+        state = state.copy(
+            display = WatchDisplayState.ProtocolMismatch(reason = null),
+            authority = LocalMutationAuthority.Retired,
+            draft = null,
+            refreshRequired = true,
+        )
+        emit(ReducerEvent.ProtocolError(reason = null))
     }
 
     fun onTransportTimeout(correlationId: CanonicalUuid, nowElapsedRealtimeMs: Long) {
@@ -544,25 +570,6 @@ internal class WatchWorkoutReducer {
         admittedSnapshot?.sourceVersion() == command.source &&
             admittedSnapshot?.targetKeyOrNull() == command.target
 
-    private fun responsePairingIsValid(
-        response: CompleteCurrentSetResponse,
-        command: LogicalCommand,
-    ): Boolean {
-        if (!ProtocolPairingValidator.isValid(response.outcome, response.replacement.payload)) {
-            return false
-        }
-        val replacementSource = response.replacement.sourceVersion()
-        return when (response.outcome) {
-            is CompleteCommandOutcome.StaleRevision -> replacementSource != command.source
-            is CompleteCommandOutcome.NoActiveSession ->
-                replacementSource.databaseEpoch == command.source.databaseEpoch
-            is CompleteCommandOutcome.TargetChanged ->
-                replacementSource == command.source &&
-                    response.replacement.targetKeyOrNull() != command.target
-            else -> true
-        }
-    }
-
     private fun fingerprintMatchesAuthority(
         fingerprint: FingerprintCommand,
         authority: LocalMutationAuthority.Available,
@@ -664,6 +671,26 @@ internal class WatchWorkoutReducer {
         val TERMINAL_COMMAND_STATUSES = setOf(
             CommandStatus.SOURCE_INVALIDATED,
         ) + CLOSED_COMMAND_STATUSES
+    }
+}
+
+/** Pure pairing check of a command response against its command; reads no reducer state. */
+private fun responsePairingIsValid(
+    response: CompleteCurrentSetResponse,
+    command: LogicalCommand,
+): Boolean {
+    if (!ProtocolPairingValidator.isValid(response.outcome, response.replacement.payload)) {
+        return false
+    }
+    val replacementSource = response.replacement.sourceVersion()
+    return when (response.outcome) {
+        is CompleteCommandOutcome.StaleRevision -> replacementSource != command.source
+        is CompleteCommandOutcome.NoActiveSession ->
+            replacementSource.databaseEpoch == command.source.databaseEpoch
+        is CompleteCommandOutcome.TargetChanged ->
+            replacementSource == command.source &&
+                response.replacement.targetKeyOrNull() != command.target
+        else -> true
     }
 }
 

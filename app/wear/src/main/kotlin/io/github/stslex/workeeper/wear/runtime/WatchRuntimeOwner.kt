@@ -2,6 +2,8 @@
 package io.github.stslex.workeeper.wear.runtime
 
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
+import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
@@ -22,8 +24,10 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.ongoing.WatchOngoingCoordinator
 import io.github.stslex.workeeper.wear.state.CommandDraft
 import io.github.stslex.workeeper.wear.state.CommandIssueResult
+import io.github.stslex.workeeper.wear.state.CommandStatus
 import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.RequestToken
+import io.github.stslex.workeeper.wear.state.SnapshotReduction
 import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchInteractionEligibility
@@ -58,6 +62,7 @@ internal class WatchRuntimeOwner(
     private var receivedAtMs: Long? = null
     private var tombstone = false
     private var recoveryRequired = false
+    private var link = LinkStatus.UNKNOWN
     private val mutableSnapshot = MutableStateFlow(WatchRuntimeSnapshot(locale = selectedLocale))
     override val snapshot: StateFlow<WatchRuntimeSnapshot> = mutableSnapshot.asStateFlow()
 
@@ -116,12 +121,62 @@ internal class WatchRuntimeOwner(
         val receivedAt = clock.nowMs()
         val reduction = reducer.receiveSnapshot(response.correlationId, response.snapshot, receivedAt)
         if (reduction.accepted) {
-            ongoing.acceptSnapshot(response, reduction, reducer.state, receivedAt, currentBoot)
-            receivedAtMs = receivedAt
-            tombstone = response.snapshot.payload is SnapshotPayload.NoSession
-            reconcileDraft(response.snapshot)
+            acceptLocked(response, reduction, receivedAt, currentBoot)
         }
         reduction.accepted
+    }
+
+    /**
+     * The phone's answer to a command attempt (wear-paired-transport.md §7.5). An accepted attached
+     * snapshot takes the same cache, ongoing and tombstone path as an accepted handshake snapshot.
+     * Returns whether that snapshot was accepted, or null when the reducer did not admit the response
+     * at all, which the transport treats as no response.
+     */
+    fun receiveCommandResponse(response: CompleteCurrentSetResponse): Boolean? = transition {
+        if (response.schemaVersion != WearProtocol.SCHEMA_VERSION) return@transition null
+        val currentBoot = bootCount.currentBootCount() ?: return@transition null
+        val receivedAt = clock.nowMs()
+        val reduction = reducer.receiveCommandResponse(response, receivedAt) ?: return@transition null
+        if (reduction.accepted) {
+            val attached = ActiveWorkoutSnapshotResponse(
+                schemaVersion = response.schemaVersion,
+                correlationId = response.correlationId,
+                snapshot = response.replacement,
+            )
+            acceptLocked(attached, reduction, receivedAt, currentBoot)
+        }
+        reduction.accepted
+    }
+
+    /** A command attempt got no semantic response in time (§7.3): the reducer's transport timeout. */
+    fun transportTimeout(correlationId: CanonicalUuid): Unit = transition {
+        reducer.onTransportTimeout(correlationId, clock.nowMs())
+    }
+
+    /**
+     * The in-flight handshake got no semantic response (§7.5). No reachable phone is the existing
+     * disconnect, which retires any attempt binding; a reachable phone that did not answer is a link
+     * status only. Neither creates authority, so the handshake's correlation carries nothing to use.
+     */
+    fun handshakeUnanswered(phoneReachable: Boolean): Unit = transition {
+        link = if (phoneReachable) LinkStatus.UNANSWERED else LinkStatus.UNREACHABLE
+        if (!phoneReachable) {
+            // The existing disconnect, inside this transition.
+            reducer.markDisconnected()
+            ongoing.disconnected(clock.nowMs())
+        }
+    }
+
+    /**
+     * A response for [correlationId] that failed to decode or had the other operation's shape
+     * (§7.5, Phase 1 §9): protocol-mismatch display, authority retired, draft cleared, a pending
+     * command closed without retry, and the ongoing surface stopped (Phase 1 §8).
+     */
+    fun protocolFailure(correlationId: CanonicalUuid): Unit = transition {
+        reducer.protocolFailure(correlationId)
+        pendingDraft = null
+        ongoing.displayChanged(reducer.state.display)
+        link = LinkStatus.REACHABLE
     }
 
     fun disconnected(): Unit = transition {
@@ -129,6 +184,19 @@ internal class WatchRuntimeOwner(
         reducer.markDisconnected()
         ongoing.disconnected(now)
         Unit
+    }
+
+    private fun acceptLocked(
+        response: ActiveWorkoutSnapshotResponse,
+        reduction: SnapshotReduction,
+        receivedAt: Long,
+        currentBoot: Int,
+    ) {
+        ongoing.acceptSnapshot(response, reduction, reducer.state, receivedAt, currentBoot)
+        receivedAtMs = receivedAt
+        tombstone = response.snapshot.payload is SnapshotPayload.NoSession
+        reconcileDraft(response.snapshot)
+        link = LinkStatus.REACHABLE
     }
 
     override fun onAction(action: ControllerAction): WatchActionResult = transition {
@@ -159,10 +227,12 @@ internal class WatchRuntimeOwner(
                 }
             }
             ControllerAction.CompleteSet -> if (eligibility.completion) issueCommand() else WatchActionResult.Rejected
-            ControllerAction.Retry -> if (eligibility.retry) {
-                WatchActionResult.RefreshRequested
-            } else {
-                WatchActionResult.Rejected
+            ControllerAction.Retry -> when {
+                eligibility.retry -> reducer.retryCommand(identity.ids.nextId(), clock.nowMs())
+                // The link-failure surface (§7.5): a Loading display after a failed handshake refreshes.
+                !tombstone && link.failed && reducer.state.display == WatchDisplayState.Loading ->
+                    WatchActionResult.RefreshRequested
+                else -> WatchActionResult.Rejected
             }
         }
     }
@@ -257,6 +327,7 @@ internal class WatchRuntimeOwner(
             ongoing = status,
             noSession = tombstone,
             locale = selectedLocale,
+            link = link,
         )
         scheduleNextBoundary()
     }
@@ -299,8 +370,10 @@ internal class WatchRuntimeOwner(
         val authority = reducer.state.authority as? LocalMutationAuthority.Available
             ?: return WatchActionResult.Rejected
         val draft = pendingDraft?.values ?: CommandDraft(payload.target.reps, payload.target.weightHundredthsKg)
+        // §7.6: a command always follows an accepted handshake, which resolved the node id.
+        val sourceNodeId = identity.sourceNodeId ?: return WatchActionResult.Rejected
         val fingerprint = FingerprintCommand(
-            sourceNodeId = identity.sourceNodeId,
+            sourceNodeId = sourceNodeId,
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             commandId = identity.ids.nextId(),
             databaseEpoch = active.databaseEpoch,
@@ -343,4 +416,22 @@ internal class WatchRuntimeOwner(
     private fun newCoordinator() = WatchOngoingCoordinator(cache, clock, notification, policy)
 
     private data class PendingDraft(val source: WorkoutSourceVersion, val target: TargetKey, val values: CommandDraft)
+}
+
+/**
+ * wear-paired-transport.md §7.5: a retryable command issues its one further attempt with its current
+ * fingerprint and a new correlation id; a rejected retry asks for a refresh, as before.
+ */
+private fun WatchWorkoutReducer.retryCommand(correlationId: CanonicalUuid, nowMs: Long): WatchActionResult {
+    val issued = when (state.command?.status) {
+        CommandStatus.TIMED_OUT_RETRYABLE -> issueTimeoutRetry(correlationId, nowMs)
+        CommandStatus.RETRY_READY -> issueTypedRetry(correlationId, nowMs)
+        else -> CommandIssueResult.Rejected
+    }
+    val command = state.command
+    return if (issued is CommandIssueResult.Issued && command != null) {
+        WatchActionResult.CommandIssued(issued.token, command.fingerprintCommand)
+    } else {
+        WatchActionResult.RefreshRequested
+    }
 }

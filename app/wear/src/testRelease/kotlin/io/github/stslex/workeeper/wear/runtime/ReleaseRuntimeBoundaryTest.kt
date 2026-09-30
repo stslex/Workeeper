@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.tile.WorkoutTileService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -23,6 +24,11 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/**
+ * The release boundary (wear-paired-transport.md §7.7, §10.1): the release runtime is the connected
+ * owner-backed runtime, no synthetic source or acceptance receiver is reachable, and constructing it
+ * calls no Google Play services, so it builds here without them.
+ */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [Build.VERSION_CODES.TIRAMISU])
 internal class ReleaseRuntimeBoundaryTest {
@@ -31,6 +37,7 @@ internal class ReleaseRuntimeBoundaryTest {
         val context = RuntimeEnvironment.getApplication()
         assertFalse(WatchRuntimeFactory.handleDebugScenario(context, "active_boundary"))
         val runtime = WatchRuntimeFactory.get(context)
+        assertInstanceOf(ConnectedWatchRuntime::class.java, runtime, "the release runtime is connected")
         assertFalse(runtime.currentSurface().completeEnabled)
         assertEquals(WatchActionResult.Rejected, runtime.onAction(ControllerAction.CompleteSet))
         assertEquals(OngoingStatus.Inactive, runtime.ongoingStatus.value)
@@ -58,7 +65,7 @@ internal class ReleaseRuntimeBoundaryTest {
         assertEquals(0L, frame.freshnessIntervalMs, "the release runtime reports no boundary")
         val service = Robolectric.setupService(WorkoutTileService::class.java)
         val tile = service.requestTile(RequestBuilders.TileRequest.Builder().build())
-        assertEquals(0L, tile.freshnessIntervalMillis, "the read-only release runtime has no boundary")
+        assertEquals(0L, tile.freshnessIntervalMillis, "with an empty cache the release runtime has no boundary")
     }
 
     /** `TileService.onTileRequest` is protected; the test calls it the way the platform binder would. */
