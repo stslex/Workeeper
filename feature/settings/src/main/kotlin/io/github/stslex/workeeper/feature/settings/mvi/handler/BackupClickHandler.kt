@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.IntentSender
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -223,7 +224,8 @@ internal class BackupClickHandler @Inject constructor(
                 }
                 when (result) {
                     is BackupResult.Success -> {
-                        logger.i { "Sign-in successful for account: ${result.data}" }
+                        // Never the account: its email and name would reach the Crashlytics log.
+                        logger.i("Sign-in successful", telemetryDedupeKey(result.data))
                         if (wasAiExportGrant) reconcileAiExportGrant()
                         launchDefault { bootstrapOrRehydrate() }
                     }

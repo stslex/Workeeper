@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Bundle identity gate: prove an AAB is the one its role claims before anything talks to Play.
 
-Spec: documentation/feature-specs/wear-release-pipeline.md §6. One bundle per run:
+Spec: documentation/feature-specs/wear-release-pipeline.md §6 (G1–G7) and
+documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8). One bundle per run:
 
     python3 .github/scripts/assert_play_bundle.py --aab <path> --role phone|wear \
         --toml gradle/libs.versions.toml
@@ -14,6 +15,10 @@ G4 versionName is the TOML value (phone) or the TOML value + "-wear" (wear).
 G5 phone: no uses-feature android.hardware.type.watch; wear: present and not required="false".
 G6 wear: meta-data com.google.android.wearable.standalone is "false" (not applicable to phone).
 G7 every lib/armeabi-v7a/*.so has the same file under lib/arm64-v8a/, in every module.
+G8 advertising ID off, for both roles: no com.google.android.gms.permission.AD_ID in the base
+   manifest (uses-permission or uses-permission-sdk-23), and the application meta-data
+   google_analytics_adid_collection_enabled is exactly "false" (below Android 13 the ID is
+   readable without the permission). The apps show no ads.
 
 The manifest comes from the catalog-pinned bundletool: `./gradlew :bundletoolClasspath` writes the
 classpath this script reads (ci-cd.md § "Bundle identity gate"). G7 reads the zip directly. Every
@@ -44,10 +49,12 @@ WEAR_VERSION_CODE_OFFSET = 1_000_000
 WEAR_VERSION_NAME_SUFFIX = "-wear"
 WATCH_FEATURE = "android.hardware.type.watch"
 STANDALONE_META = "com.google.android.wearable.standalone"
+AD_ID_PERMISSION = "com.google.android.gms.permission.AD_ID"
+ADID_COLLECTION_META = "google_analytics_adid_collection_enabled"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
 ROLES = ("phone", "wear")
-CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7")
+CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8")
 PASS, FAIL, SKIP, NOT_APPLICABLE = "PASS", "FAIL", "SKIP", "N/A"
 
 
@@ -136,11 +143,21 @@ def parse_manifest(xml_text):
             for meta in (application.findall("meta-data") if application is not None else [])
             if meta.get(ANDROID + "name") == STANDALONE_META
         ],
+        "permissions": [
+            permission.get(ANDROID + "name")
+            for tag in ("uses-permission", "uses-permission-sdk-23")
+            for permission in root.findall(tag)
+        ],
+        "adid_collection": [
+            meta.get(ANDROID + "value")
+            for meta in (application.findall("meta-data") if application is not None else [])
+            if meta.get(ANDROID + "name") == ADID_COLLECTION_META
+        ],
     }
 
 
 def check_manifest(manifest, role, code, name):
-    """G2..G6 over a parsed manifest. Returns {check: (status, detail)}."""
+    """G2..G6 and G8 over a parsed manifest. Returns {check: (status, detail)}."""
     results = {}
     package = manifest["package"]
     results["G2"] = (PASS if package == PACKAGE else FAIL, f"package {package!r}, expected {PACKAGE!r}")
@@ -175,6 +192,15 @@ def check_manifest(manifest, role, code, name):
             PASS if standalone == ["false"] else FAIL,
             f"meta-data {STANDALONE_META}: {standalone}, expected exactly ['false']",
         )
+
+    permissions = manifest["permissions"]
+    declared = permissions.count(AD_ID_PERMISSION)
+    collection = manifest["adid_collection"]
+    results["G8"] = (
+        PASS if declared == 0 and collection == ["false"] else FAIL,
+        f"{len(permissions)} permissions declared, {AD_ID_PERMISSION} {declared} times, expected 0; "
+        f"meta-data {ADID_COLLECTION_META}: {collection}, expected exactly ['false']",
+    )
     return results
 
 
@@ -207,7 +233,7 @@ def check_abi_parity(aab):
 
 
 def evaluate(aab_pattern, role, toml_path, read_manifest):
-    """Run G1..G7 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
+    """Run G1..G8 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
     toml_name, toml_code = read_toml_identity(toml_path)
     code, name = expected_identity(role, toml_name, toml_code)
     print(f"role={role} toml={toml_path} versionName={toml_name!r} versionCode={toml_code}")

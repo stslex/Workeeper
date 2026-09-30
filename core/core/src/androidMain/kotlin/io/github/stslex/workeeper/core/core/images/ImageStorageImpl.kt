@@ -60,19 +60,20 @@ class ImageStorageImpl(
             }
             ImageSaveResult.Success(destFile.absolutePath)
         } catch (cause: FileNotFoundException) {
-            logger.e(cause, "Source not found: $sourceUri")
+            // Fixed labels: the picked URI can carry a file name (wear-paired-transport.md §9.2).
+            logger.e(cause, "Source not found")
             tempFile.delete()
             ImageSaveResult.Failure(ImageSaveError.SourceUnreadable)
         } catch (cause: ImageDecoder.DecodeException) {
-            logger.e(cause, "Failed to decode $sourceUri")
+            logger.e(cause, "Failed to decode the picked image")
             tempFile.delete()
             ImageSaveResult.Failure(ImageSaveError.SourceUnreadable)
         } catch (cause: IOException) {
-            logger.e(cause, "IO failure saving $sourceUri")
+            logger.e(cause, "IO failure saving the picked image")
             tempFile.delete()
             ImageSaveResult.Failure(diagnoseIoError(cause))
         } catch (cause: SecurityException) {
-            logger.e(cause, "Security failure reading $sourceUri")
+            logger.e(cause, "Security failure reading the picked image")
             tempFile.delete()
             ImageSaveResult.Failure(ImageSaveError.SourceUnreadable)
         }

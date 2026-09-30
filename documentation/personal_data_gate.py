@@ -106,6 +106,11 @@ EXCEPTIONS: dict[tuple[str, str], str] = {
         "(CLAUDE.md: 'do not modify'). A privacy policy is required to name a data controller, so "
         "the address is the point here too — and this is the one exception that could not be fixed "
         "even if it were wrong.",
+    ("documentation/feature-specs/wear-paired-transport.md",
+     "fad486d71013d1ab2ac71a5db614949f2f81706c06dcbf36e38b4fda7e703f5f"):
+        "the same published privacy-policy contact address as docs/index.md: the owner-approved "
+        "specification carries the complete new docs/index.md verbatim in its Appendix A, pinned "
+        "by sha256, so the address cannot be replaced without breaking that contract.",
     ("documentation/personal_data_gate.py", "22124678c5287a6e7a73a12d63b2fb38f147f8c57f9eb468050fd6020e5469f1"):
         "this gate's own LITERALS list, which is the one site where a forbidden value must appear "
         "in the clear: a name detector cannot look for a name without naming it. Bound to that "

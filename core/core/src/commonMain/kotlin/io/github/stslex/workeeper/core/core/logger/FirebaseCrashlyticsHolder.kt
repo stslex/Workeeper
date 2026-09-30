@@ -8,6 +8,9 @@ expect object FirebaseCrashlyticsHolder {
 
     fun log(message: String)
 
+    /** [message], debounced on the message and the local-only [dedupeKey], which is never sent. */
+    fun log(message: String, dedupeKey: TelemetryDedupeKey)
+
     fun recordException(throwable: Throwable, tag: String)
 
     fun setCustomKey(key: String, value: String)
