@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.Locale
 
 /**
  * wear-paired-transport.md §10.1, watch side: the coordinator and the real owner against a phone
@@ -65,6 +66,25 @@ internal class WatchTransportCoordinatorTest {
         assertEquals(ActiveFreshness.FRESH, (workout.display as WatchDisplayState.Active).freshness)
         assertInstanceOf(LocalMutationAuthority.Available::class.java, workout.authority)
         assertEquals(LinkStatus.REACHABLE, h.owner.snapshot.value.link)
+    }
+
+    @Test
+    fun `nothing reaches the link before a request origin`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+
+        h.runtime.onWake()
+        h.runtime.setLocale(Locale.US)
+        assertEquals(WatchActionResult.Rejected, h.runtime.onAction(ControllerAction.CompleteSet))
+        h.runtime.onControllerInteractive(false)
+        advanceTimeBy(FIVE_MINUTES_MS)
+        runCurrent()
+        // §7.7: in production every link call is a Play services call.
+        assertEquals(emptyList<String>(), h.link.calls, "no origin, no link call")
+
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertEquals(listOf("reachablePhones", "observeReachability", "localNodeId", "request"), h.link.calls)
     }
 
     @Test

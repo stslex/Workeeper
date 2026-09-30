@@ -26,8 +26,12 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The release boundary (wear-paired-transport.md §7.7, §10.1): the release runtime is the connected
- * owner-backed runtime, no synthetic source or acceptance receiver is reachable, and constructing it
- * calls no Google Play services, so it builds here without them.
+ * owner-backed runtime, and no synthetic source or acceptance receiver is reachable. It builds here,
+ * where Play services are absent: nothing reaches the link before a request origin
+ * (`WatchTransportCoordinatorTest`), and `PlayServicesWearLink` creates its clients lazily, on its
+ * first call (its GUARD; no test outside the two allowlisted files may name the Data Layer).
+ * The Tile request below is an O2 origin, so it starts a request in the background; nothing here
+ * asserts on the link.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [Build.VERSION_CODES.TIRAMISU])

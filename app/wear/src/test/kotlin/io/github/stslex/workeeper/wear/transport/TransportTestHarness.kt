@@ -29,6 +29,9 @@ internal class FakePhoneLink : WearLink {
     val rawRequests = mutableListOf<ByteArray>()
     val sentTo = mutableListOf<String>()
 
+    /** Every call that reached the link, in order: in production each one is a Play services call. */
+    val calls = mutableListOf<String>()
+
     /** Thrown by the next request instead of answering, as a failed or cancelled Task does. */
     var failNextRequest: Throwable? = null
     var reachability: ((Boolean) -> Unit)? = null
@@ -38,11 +41,12 @@ internal class FakePhoneLink : WearLink {
 
     var answer: (WearEnvelope) -> ByteArray = { ByteArray(0) }
 
-    override suspend fun localNodeId(): String = localNode
+    override suspend fun localNodeId(): String = localNode.also { calls += "localNodeId" }
 
-    override suspend fun reachablePhones(): List<PhoneNode> = phones
+    override suspend fun reachablePhones(): List<PhoneNode> = phones.also { calls += "reachablePhones" }
 
     override suspend fun request(nodeId: String, request: ByteArray): ByteArray {
+        calls += "request"
         sentTo += nodeId
         rawRequests += request
         failNextRequest?.let { failure ->
@@ -57,6 +61,7 @@ internal class FakePhoneLink : WearLink {
     }
 
     override fun observeReachability(onChange: (reachable: Boolean) -> Unit) {
+        calls += "observeReachability"
         reachability = onChange
     }
 
