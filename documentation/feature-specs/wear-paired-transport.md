@@ -2,6 +2,9 @@
 
 **Status:** approved by the owner on 2026-09-29, ready for implementation.
 
+**Amended on 2026-09-30** by owner decision after the PR-P review: store listing line 15 (D8, F19,
+Appendix B3/B4) and the Privacy Sandbox advertising permissions (F25, §9.2 item 4, §10.2, §14).
+
 - **Specification base:** `dev` at `e7e662442`. The release-pipeline stack (#297, #298, #299)
   merges before this work starts. It touches no protocol, runtime, bridge or gate source this
   specification relies on, but it shifts line numbers in `gradle/libs.versions.toml` (F2, F20) and
@@ -48,7 +51,7 @@ this increment.
 | D5 | **Scope of release 1.52.0:** transport enabled in both artifacts; phone to production, watch to `wear:internal` only. Wear production, the Wear listing text (Appendix A of the release-pipeline spec) and the reconnect-window calibration of Phase 1 §8 stay out of scope. |
 | D6 | **Provisional constants** (§7.8) ship in 1.52.0 for internal testing. They are labeled PROVISIONAL in code and are not Phase 1 production lifecycle acceptance. |
 | D7 | **Physical testing uses Play installs only.** A sideloaded APK is signed with the upload key, while Play installs carry the Play app-signing key. A mismatched pair cannot talk over the Data Layer, and replacing a Play install with a differently signed APK requires an uninstall, which deletes the phone's workout database. |
-| D8 | **Store listing:** line 14 of the phone `full_description.txt` (en-US, ru-RU) changes per Appendix B. No Wear OS feature text is added to the listing. |
+| D8 | **Store listing:** lines 14 and 15 of the phone `full_description.txt` (en-US, ru-RU) change per Appendix B. No Wear OS feature text is added to the listing. |
 | D9 | **Telemetry hygiene (PR-L).** Store actions and events currently reach Google Analytics and Crashlytics as `toString()`, which includes names, weights and reps the user entered (F21). They are reduced to stable type names, and the audit of §9.2 removes every other entered value the app adds to telemetry. Advertising ID collection is turned off in both apps, which show no ads (F25). Appendix A's telemetry statements depend on this. |
 | D10 | **Product copy follows reality:** `documentation/product.md` is corrected per Appendix C (paired watch, Drive backup, device backup, and the telemetry that exists). |
 
@@ -77,13 +80,13 @@ row before editing (§14); pure line drift is recorded, a contradiction is a STO
 | F16 | The retry surface appears for `TIMED_OUT_RETRYABLE` and `RETRY_READY`. | `app/wear/.../state/WatchInteractionEligibility.kt:18,38` |
 | F17 | The public privacy page says workout data "is stored locally on your device and is never shared with third parties" and carries "Effective date: September 2025". It is served at `https://stslex.github.io/Workeeper/` (fetched 2026-09-29, same content). `CLAUDE.md` and `AGENTS.md` lock the file for agents. | `docs/index.md:15-16,62,85-86,129`; `feature/settings/.../about/AboutLinks.kt:8`; `CLAUDE.md:148`; `AGENTS.md:426` |
 | F18 | Shipped and undisclosed: Google Drive backup (full database copies in the user's Drive `appdata` folder, three kept, email and profile read, no client-side encryption) and the optional AI assistant snapshot (plain JSON of all workouts in a visible `Workeeper/` Drive folder, `drive.file` scope, deleted on toggle-off or sign-out). | `documentation/feature-specs/backup.md:9-13,35-36`; `documentation/feature-specs/drive-ai-export.md:7-16,43-46`; `core/data/backup/.../DriveAuthScopes.kt:12-29`; `BackupConstants.kt:11`; `feature/settings/src/main/res/values/strings.xml:76-77` |
-| F19 | The phone listing says "All data is stored locally on your device." | `fastlane/metadata/android/en-US/full_description.txt:14`; `ru-RU/full_description.txt:14` |
+| F19 | The phone listing says "All data is stored locally on your device." and "No registration required, no personal data collected." | `fastlane/metadata/android/en-US/full_description.txt:14-15`; `ru-RU/full_description.txt:14-15` |
 | F20 | The version is 1.51.0 (code 52) on `dev` and `master`; the release is 1.52.0 (code 53, Wear 1000053). | `gradle/libs.versions.toml:13-14` (16-17 after the stack) |
 | F21 | Every store action and event reaches Google Analytics as the `action`/`event` parameter `toString()`, and every consumed action and sent event becomes a Crashlytics breadcrumb, even with logging off. Actions carry entered values (exercise and training names, weights, reps). Only `WearStore` overrides `toString()`. Class names of store actions are not kept by R8, so a plain `::class` name is obfuscated in release builds. | `core/ui/mvi/.../BaseStore.kt:121-127,153-166`; `core/ui/mvi/.../holders/StoreAnalytics.kt:12-28`; `core/core/.../logger/FirebaseEvent.kt:17-24`; `core/core/src/androidMain/.../FirebaseAnalyticsHolder.kt:19-25`; `core/core/.../logger/Log.kt:28-91`; `app/wear/.../mvi/store/WearStore.kt:25,28,39` |
 | F22 | Both apps ship Firebase Crashlytics, Analytics and Performance; no in-app telemetry switch exists (product.md lists a crash-reporting toggle that is not implemented). | `app/wear/build.gradle.kts:63-66`; `build-logic/.../ConfigureApplication.kt:23-31`; `documentation/product.md:25-26,241,297` |
 | F23 | The phone app allows Android backup and excludes only one preferences file, so the workout database is in device backups; the Wear app disables backup. | `app/app/src/main/AndroidManifest.xml:12-15`; `app/app/src/main/res/xml/data_extraction_rules.xml`; `app/app/src/main/res/xml/backup_rules.xml`; `app/wear/src/main/AndroidManifest.xml` (`allowBackup="false"`); `app/wear/src/main/res/xml/data_extraction_rules.xml` |
 | F24 | Both release builds use the shared R8 rules (`proguard/proguard-rules.pro`, including the generic kotlinx-serialization rules), with no explicit keep for `core.wear.protocol`; the codec has never run in a minified release build. | `build-logic/.../ConfigureWearApplication.kt:48`; `proguard/proguard-rules.pro:1-11` |
-| F25 | `firebase-analytics` collects the advertising ID by default and brings the `com.google.android.gms.permission.AD_ID` permission through its dependencies; no manifest in the repository removes it or sets `google_analytics_adid_collection_enabled`. | `app/wear/build.gradle.kts:64`; `gradle/libs.versions.toml:265`; repository-wide search; Google Analytics help ("collects the Advertising ID by default"); the bundle check is D7 |
+| F25 | `firebase-analytics` collects the advertising ID by default and brings the `com.google.android.gms.permission.AD_ID` permission through its dependencies, together with the Privacy Sandbox permissions `android.permission.ACCESS_ADSERVICES_AD_ID` and `android.permission.ACCESS_ADSERVICES_ATTRIBUTION` (seen in the release bundles, 2026-09-30); no manifest in the repository removes them or sets `google_analytics_adid_collection_enabled`. | `app/wear/build.gradle.kts:64`; `gradle/libs.versions.toml:265`; repository-wide search; Google Analytics help ("collects the Advertising ID by default"); the bundle check is D7 |
 | F26 | The recovery screen lets the user share a raw copy of the data and a diagnostic file through Android's share sheet, and a failed restore offers the diagnostic share in a dialog. | `feature/recovery/.../RecoveryActivity.kt:122-133,166-180,194-195`; `feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/RestoreDialogChoiceObserver.kt:167-180` |
 | F27 | Backups and AI snapshots also carry the app version and device model; snapshot deletion on toggle-off and sign-out is best-effort. The account preferences (email, name) live in the app's files and are not excluded from device backup. | `core/data/backup/api/.../model/BackupManifest.kt:5-10`; `core/data/database/.../export/model/WorkoutExportDto.kt:20-24`; `documentation/feature-specs/drive-ai-export.md:46`; `app/app/src/main/res/xml/data_extraction_rules.xml` |
 
@@ -457,6 +460,10 @@ Every layer keeps its ban for every other file:
    Android 13 the advertising ID is readable without the permission. `assert_play_bundle.py`
    gains a check G8, "no `AD_ID` permission in the base manifest", for both roles, with self-test
    fixtures. G8 sees only the store phone and Wear bundles; `app/dev` is covered by review.
+   Amendment 2026-09-30: the same manifests also remove `android.permission.ACCESS_ADSERVICES_AD_ID`
+   and `android.permission.ACCESS_ADSERVICES_ATTRIBUTION`, and the
+   `android.adservices.AD_SERVICES_CONFIG` property when the merged manifest has one; G8 checks
+   all three permissions. PR-L had already merged, so this ships as a separate commit in PR-T.
 5. Tests: a store action and an event carrying a sentinel string and sentinel numbers; the
    analytics parameters and every breadcrumb contain neither.
 6. No telemetry is added or removed; only its content changes, and the advertising ID stops.
@@ -527,6 +534,7 @@ Each is applied, run RED with the command and exit code recorded, restored, and 
 | M-L2 | the consume breadcrumb interpolates the action again | sentinel breadcrumb test |
 | M-L3 | the `sendEvent` breadcrumb interpolates the event again | sentinel breadcrumb test |
 | M-L4 | the `AD_ID` removal is dropped from `app/store` (and, separately, from `app/wear`) | bundle gate G8 (PR CI) |
+| M-L5 | the `ACCESS_ADSERVICES_AD_ID` removal is dropped from `app/store` | bundle gate G8 |
 | M-T1 | handler ignores `transportStatus` | kill-switch test |
 | M-T2 | handler answers a `Dropped` request with a snapshot | handler branch test |
 | M-T3 | the admission timeout wraps the bridge call | outlives-timeout test |
@@ -651,7 +659,7 @@ Discovery rows, each with command, evidence and verdict:
 - **D5** F1 to F27 re-verified at the current `dev` head.
 - **D6** The base sha256 of each file in Appendices A to C.
 - **D7** F25 on the artifacts: `bundletool dump manifest` of both release bundles (or the merged
-  release manifests) shows whether `AD_ID` is present before PR-L.
+  release manifests) shows which advertising permissions are present before the change.
 
 STOP and report when:
 
@@ -660,11 +668,13 @@ STOP and report when:
 - the new `docs/index.md` differs from Appendix A's result hash; or an OLD block of Appendix B or
   C does not occur exactly once, or its result hash differs while the base hash matched;
 - the work would change a wire model, the codec, a fingerprint, reducer admission, phone
-  validation, the database schema, or a permission (removing `AD_ID` per §9.2 item 4 excepted);
+  validation, the database schema, or a permission (removing the advertising permissions per
+  §9.2 item 4 excepted);
 - a gate can only be opened by a wildcard other than detekt's leading `**/`, by a directory
   prefix, or by a suppression;
 - the telemetry audit of §9.2 finds entered content it cannot remove without a behavior change,
-  or the `AD_ID` permission survives into a release bundle;
+  or an advertising permission (`AD_ID`, `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`)
+  survives into a release bundle;
 - a named mutation cannot be made RED;
 - the phone or Wear bundle identity gate fails;
 - anything would claim physical acceptance or a measured constant.
@@ -956,8 +966,9 @@ Google, как и данные других приложений. Этой ре�
 
 ## Appendix B. Store listing line
 
-Line 14 of each phone `full_description.txt`. Only the text below changes; the two trailing spaces
-of the line stay.
+Lines 14 (B1, B2) and 15 (B3, B4) of each phone `full_description.txt`. Only the text below changes;
+the two trailing spaces of each line stay. B3 and B4 were added on 2026-09-30: "no personal data
+collected" contradicts the Firebase identifiers that Appendix A discloses.
 
 **B1 OLD** (`fastlane/metadata/android/en-US/full_description.txt`)
 
@@ -983,10 +994,34 @@ of the line stay.
 💡 Данные о тренировках хранятся на вашем устройстве; у приложения нет собственного сервера.
 ```
 
+**B3 OLD** (`fastlane/metadata/android/en-US/full_description.txt`)
+
+```text
+No registration required, no personal data collected.
+```
+
+**B3 NEW**
+
+```text
+No registration or account required.
+```
+
+**B4 OLD** (`fastlane/metadata/android/ru-RU/full_description.txt`)
+
+```text
+Приложение не требует регистрации и не собирает личные данные.
+```
+
+**B4 NEW**
+
+```text
+Приложение не требует регистрации и учётной записи.
+```
+
 | File | Base sha256 | Result sha256 |
 |---|---|---|
-| en-US | `935a38157187181937ef4281bfd168f4cae2fc9eb31a192048bc49165f7d3508` | `fc7871667848b7ab140fb3a723ef89e57080496282918f387fc722814e60ac78` |
-| ru-RU | `944919fda8b667a886737785da111664cf083f999515bdaf7eb324aca558b560` | `f429cdee5567cf40dfc96930956212319361ad68d197807076c310d7fd9e376e` |
+| en-US | `935a38157187181937ef4281bfd168f4cae2fc9eb31a192048bc49165f7d3508` | `af46b2fc60370880e5e21e2387f5bec31bc8ebc72bc43796b18bf5029c4e1054` |
+| ru-RU | `944919fda8b667a886737785da111664cf083f999515bdaf7eb324aca558b560` | `e9b9b5668372a56ba9a4a1057bf00a6ea04b43a45d3a47dc33a7da6c2d7d0604` |
 
 ## Appendix C. Product copy (`documentation/product.md`)
 
