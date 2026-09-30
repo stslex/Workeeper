@@ -72,7 +72,14 @@ bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --
   --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 ```
 
-The last line proves the Wear release boundary on **storeRelease**, the variant that ships. The
+The last line proves the Wear release boundary on **storeRelease**, the variant that ships: the
+release runtime is the connected owner-backed runtime of
+[wear-paired-transport.md](feature-specs/wear-paired-transport.md) §7.7, no synthetic source or
+acceptance receiver is reachable, and with an empty cache the Tile declares no freshness interval.
+The `Assert Wear transport privacy gate` step of the same job runs
+`.github/scripts/assert_wear_transport_gate.py` (self-test first): no tracked Kotlin source names
+the Data Layer outside the two allowlisted transport files (§8), matched as whole repository paths,
+and nothing suppresses the gate. The
 two Wear flavors differ only by `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance
 logcat meta-data entry); AGP does not create release unit-test tasks unless
 `android.onlyEnableUnitTestForTheTestedBuildType=false` is passed, which is why the step spells
