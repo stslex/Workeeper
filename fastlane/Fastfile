@@ -11,6 +11,7 @@ PLAY_JSON_KEY = File.join(REPO_ROOT, "play_config.json")
 PHONE_AAB = File.join(REPO_ROOT, "app/store/build/outputs/bundle/release/store-release.aab")
 WEAR_AAB = File.join(REPO_ROOT, "app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab")
 WEAR_METADATA = File.join(REPO_ROOT, "fastlane/metadata-wear/android")
+PHONE_METADATA = File.join(REPO_ROOT, "fastlane/metadata/android")
 # GUARD: the one place the Wear track id is configured (wear-release-pipeline.md §7.2). The API
 # reference names the Wear internal track `wear:qa`; practitioners report `wear:internal`. A wrong id
 # FAILs before any upload and the lane prints every track id Play returned; correct it from that
@@ -100,7 +101,10 @@ platform :android do
     assert_no_listing_drift(role: "phone")
     # GUARD: always the explicit path. Without `aab:` supply falls back to the newest AAB by mtime
     # anywhere under the project (spec §3 F2).
-    upload_to_play_store(aab: PHONE_AAB)
+    # GUARD: metadata_path and json_key are explicit too. PlayState builds supply's options inside
+    # the lane, from fastlane/, and supply keeps their defaults: metadata_path would stay "./metadata",
+    # which does not exist where the action runs.
+    upload_to_play_store(aab: PHONE_AAB, metadata_path: PHONE_METADATA, json_key: PLAY_JSON_KEY)
   end
 
   desc "Deploy the Wear bundle to the Wear OS internal testing track"
@@ -127,6 +131,7 @@ platform :android do
       upload_to_play_store(
         track: WEAR_TRACK,
         aab: WEAR_AAB,
+        json_key: PLAY_JSON_KEY,
         skip_upload_apk: true,
         metadata_path: WEAR_METADATA,
         skip_upload_metadata: true,
