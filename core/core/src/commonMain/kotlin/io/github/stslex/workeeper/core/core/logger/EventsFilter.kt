@@ -5,16 +5,17 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Debounces duplicate log/analytics events by key within a short monotonic window.
+ * Debounces duplicate log/analytics events by key within a short monotonic window. Keys compare
+ * by equality only: a hash would merge two different payloads that collide.
  * GUARD: holds no lock — call it only from the `@Synchronized` platform Firebase holders.
  */
 internal class EventsFilter {
 
     @Volatile
-    private var lastTrackedEvent: Pair<String, TimeSource.Monotonic.ValueTimeMark>? = null
+    private var lastTrackedEvent: Pair<Any, TimeSource.Monotonic.ValueTimeMark>? = null
 
     operator fun invoke(
-        filterKey: String,
+        filterKey: Any,
         block: () -> Unit,
     ) {
         val now = TimeSource.Monotonic.markNow()

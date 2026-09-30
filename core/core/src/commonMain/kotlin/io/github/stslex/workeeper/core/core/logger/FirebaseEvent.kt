@@ -18,7 +18,7 @@ sealed class FirebaseEvent(
         data class Action(
             private val action: String,
             private val storeName: String,
-            private val dedupeKey: Int,
+            private val dedupeKey: TelemetryDedupeKey,
         ) : Store(
             storeName = storeName,
             eventName = "action",
@@ -29,7 +29,7 @@ sealed class FirebaseEvent(
         data class Event(
             private val event: String,
             private val storeName: String,
-            private val dedupeKey: Int,
+            private val dedupeKey: TelemetryDedupeKey,
         ) : Store(
             storeName = storeName,
             eventName = "event",

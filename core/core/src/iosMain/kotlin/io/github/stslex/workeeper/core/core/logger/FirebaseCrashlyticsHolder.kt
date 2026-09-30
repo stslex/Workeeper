@@ -9,7 +9,7 @@ actual object FirebaseCrashlyticsHolder {
 
     actual fun log(message: String) = Unit
 
-    actual fun log(message: String, dedupeKey: Int) = Unit
+    actual fun log(message: String, dedupeKey: TelemetryDedupeKey) = Unit
 
     actual fun recordException(throwable: Throwable, tag: String) = Unit
 

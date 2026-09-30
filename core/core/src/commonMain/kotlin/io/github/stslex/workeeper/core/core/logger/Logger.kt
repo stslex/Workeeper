@@ -35,11 +35,11 @@ interface Logger {
      * [message] with a local-only [dedupeKey] ([telemetryDedupeKey]): the Crashlytics debounce
      * compares the key with the message, and the key never leaves the device.
      */
-    fun d(message: String, dedupeKey: Int) = d(message)
+    fun d(message: String, dedupeKey: TelemetryDedupeKey) = d(message)
 
     /** See [d] with a dedupe key. */
-    fun i(message: String, dedupeKey: Int) = i(message)
+    fun i(message: String, dedupeKey: TelemetryDedupeKey) = i(message)
 
     /** See [d] with a dedupe key. */
-    fun w(message: String, dedupeKey: Int) = w(message)
+    fun w(message: String, dedupeKey: TelemetryDedupeKey) = w(message)
 }

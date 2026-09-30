@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.TelemetryDedupeKey
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.BaseHandlerStore
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -49,7 +50,7 @@ internal class StoreTelemetryRedactionTest {
 
     private val analytics = mutableListOf<FirebaseEvent>()
     private val breadcrumbs = mutableListOf<String>()
-    private val breadcrumbKeys = mutableListOf<Pair<String, Int>>()
+    private val breadcrumbKeys = mutableListOf<Pair<String, TelemetryDedupeKey>>()
     private lateinit var dispatcher: TestDispatcher
     private var wasLogging = true
 
@@ -62,9 +63,9 @@ internal class StoreTelemetryRedactionTest {
         mockkObject(FirebaseAnalyticsHolder, FirebaseCrashlyticsHolder)
         every { FirebaseAnalyticsHolder.log(any()) } answers { analytics += firstArg<FirebaseEvent>() }
         every { FirebaseCrashlyticsHolder.log(any<String>()) } answers { breadcrumbs += firstArg<String>() }
-        every { FirebaseCrashlyticsHolder.log(any<String>(), any<Int>()) } answers {
+        every { FirebaseCrashlyticsHolder.log(any<String>(), any<TelemetryDedupeKey>()) } answers {
             breadcrumbs += firstArg<String>()
-            breadcrumbKeys += firstArg<String>() to secondArg<Int>()
+            breadcrumbKeys += firstArg<String>() to secondArg<TelemetryDedupeKey>()
         }
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
             breadcrumbs += "${secondArg<String>()} ${firstArg<Throwable>().message}"
@@ -140,8 +141,10 @@ internal class StoreTelemetryRedactionTest {
         val lifetime = AppScopeLifetime()
         val store = RedactionStore(StoreDispatchers(dispatcher, dispatcher), lifetime)
         store.init(RedactionLifecycleOwner())
-        val first = RedactionAction.Recorded(SENTINEL_NAME, SENTINEL_WEIGHT, SENTINEL_REPS)
-        val second = RedactionAction.Recorded("$SENTINEL_NAME-b", SENTINEL_WEIGHT, SENTINEL_REPS)
+        // "FB" and "Ea" share a String.hashCode(), so the two payloads differ under one hash.
+        val first = RedactionAction.Recorded("${SENTINEL_NAME}FB", SENTINEL_WEIGHT, SENTINEL_REPS)
+        val second = RedactionAction.Recorded("${SENTINEL_NAME}Ea", SENTINEL_WEIGHT, SENTINEL_REPS)
+        assertEquals(first.toString().hashCode(), second.toString().hashCode())
 
         store.consume(first)
         store.consume(second)
@@ -152,7 +155,7 @@ internal class StoreTelemetryRedactionTest {
         val events = analytics.filterIsInstance<FirebaseEvent.Store.Action>()
         assertEquals(3, events.size)
         assertEquals(1, events.map { it.params }.distinct().size, "the params never carry the payload")
-        assertTrue(events[0] != events[1] && events[0].hashCode() != events[1].hashCode(), "different payloads")
+        assertNotEquals(events[0], events[1], "different payloads")
         assertEquals(events[0], events[2], "the same payload debounces as before")
         // Breadcrumbs: the same line, the key distinct exactly when the payload is.
         val consumed = breadcrumbKeys.filter { (line, _) -> "consume: Recorded" in line }
@@ -160,8 +163,8 @@ internal class StoreTelemetryRedactionTest {
         assertEquals(1, consumed.map { it.first }.distinct().size)
         assertNotEquals(consumed[0].second, consumed[1].second)
         assertEquals(consumed[0].second, consumed[2].second)
-        val keys = consumed.map { it.second.toString() }
-        assertTrue(breadcrumbs.none { line -> keys.any { it in line } }, "the key never enters a line")
+        val printed = consumed.map { it.second.toString() } + events.map { it.toString() }
+        assertTrue(printed.none { SENTINEL_NAME in it }, "a key or an event prints the payload: $printed")
 
         store.dispose()
         lifetime.cancelAndJoin()

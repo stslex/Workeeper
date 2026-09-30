@@ -90,19 +90,19 @@ open class Log private constructor(
         logger.i { message() }
     }
 
-    override fun d(message: String, dedupeKey: Int) {
+    override fun d(message: String, dedupeKey: TelemetryDedupeKey) {
         FirebaseCrashlyticsHolder.log("$tag: $message", dedupeKey)
         if (isLogging.not()) return
         logger.d(message)
     }
 
-    override fun i(message: String, dedupeKey: Int) {
+    override fun i(message: String, dedupeKey: TelemetryDedupeKey) {
         FirebaseCrashlyticsHolder.log("$tag: $message", dedupeKey)
         if (isLogging.not()) return
         logger.i(message)
     }
 
-    override fun w(message: String, dedupeKey: Int) {
+    override fun w(message: String, dedupeKey: TelemetryDedupeKey) {
         FirebaseCrashlyticsHolder.log("$tag: $message", dedupeKey)
         if (isLogging.not()) return
         logger.w(

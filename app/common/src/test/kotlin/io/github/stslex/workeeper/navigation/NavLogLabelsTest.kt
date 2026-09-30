@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.navigation
 
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.core.logger.TelemetryDedupeKey
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.mockk.every
@@ -32,8 +33,8 @@ internal class NavLogLabelsTest {
     fun `the navigator bus logs labels, never the picked image or a result`() {
         val lines = mutableListOf<String>()
         val logger = mockk<Logger>(relaxed = true)
-        every { logger.d(any<String>(), any<Int>()) } answers { lines += firstArg<String>() }
-        every { logger.w(any<String>(), any<Int>()) } answers { lines += firstArg<String>() }
+        every { logger.d(any<String>(), any<TelemetryDedupeKey>()) } answers { lines += firstArg<String>() }
+        every { logger.w(any<String>(), any<TelemetryDedupeKey>()) } answers { lines += firstArg<String>() }
         mockkObject(Log)
         try {
             every { Log.tag(any()) } returns logger

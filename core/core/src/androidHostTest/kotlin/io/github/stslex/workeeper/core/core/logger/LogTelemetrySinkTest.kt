@@ -23,7 +23,7 @@ internal class LogTelemetrySinkTest {
 
     private val sinks = mutableListOf<String>()
     private val recordedTags = mutableListOf<String>()
-    private val keyed = mutableListOf<Pair<String, Int>>()
+    private val keyed = mutableListOf<Pair<String, TelemetryDedupeKey>>()
     private var wasLogging = true
 
     @BeforeEach
@@ -31,9 +31,9 @@ internal class LogTelemetrySinkTest {
         wasLogging = Log.isLogging
         mockkObject(FirebaseCrashlyticsHolder)
         every { FirebaseCrashlyticsHolder.log(any<String>()) } answers { sinks += firstArg<String>() }
-        every { FirebaseCrashlyticsHolder.log(any<String>(), any<Int>()) } answers {
+        every { FirebaseCrashlyticsHolder.log(any<String>(), any<TelemetryDedupeKey>()) } answers {
             sinks += firstArg<String>()
-            keyed += firstArg<String>() to secondArg<Int>()
+            keyed += firstArg<String>() to secondArg<TelemetryDedupeKey>()
         }
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
             recordedTags += secondArg<String>()
@@ -71,16 +71,17 @@ internal class LogTelemetrySinkTest {
         Log.isLogging = false
         val logger = Log.tag(TAG)
 
-        logger.d("label", DEDUPE_KEY)
-        logger.i("label", DEDUPE_KEY)
-        logger.w("label", DEDUPE_KEY)
+        val key = telemetryDedupeKey(SENTINEL)
 
-        assertEquals(List(3) { "$TAG: label" to DEDUPE_KEY }, keyed)
-        assertTrue(sinks.none { DEDUPE_KEY.toString() in it }, "the key never enters a line: $sinks")
+        logger.d("label", key)
+        logger.i("label", key)
+        logger.w("label", key)
+
+        assertEquals(List(3) { "$TAG: label" to key }, keyed)
+        assertTrue(sinks.none { SENTINEL in it }, "the keyed payload never enters a line: $sinks")
     }
 
     private companion object {
-        const val DEDUPE_KEY = 918_273_645
         const val TAG = "SinkProbe"
         const val SENTINEL = "Sentinel-Holiday-7f3a.jpg"
     }
