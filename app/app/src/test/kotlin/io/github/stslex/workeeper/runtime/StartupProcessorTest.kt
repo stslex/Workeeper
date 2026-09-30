@@ -43,6 +43,15 @@ internal class StartupProcessorTest {
             lastDecisionValue = peekDecision
             peekDecision
         }
+        // Recording WRITES the decision, exactly as the real coordinator does — so an assertion
+        // over `lastDecision` fails if the guard catches without recording.
+        coEvery { recordLiveDatabaseOpenFailure(any()) } coAnswers {
+            val recorded = StartupCheck.RouteToRecovery(
+                StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED,
+            )
+            lastDecisionValue = recorded
+            recorded
+        }
         every { lastDecision } answers { lastDecisionValue }
     }
     private val imageStorage = mockk<ImageStorage> {
@@ -60,7 +69,9 @@ internal class StartupProcessorTest {
 
     private var plannerRuns = 0
     private var plannerError: Throwable? = null
+    private var wearStorageError: Throwable? = null
     private var lowRam = false
+    private val wearEpochRotations = mutableListOf<Boolean>()
 
     private var seals = 0
 
@@ -70,6 +81,10 @@ internal class StartupProcessorTest {
         warmPlanner = {
             plannerError?.let { throw it }
             plannerRuns++
+        },
+        prepareWearStorage = { _, rotate ->
+            wearStorageError?.let { throw it }
+            wearEpochRotations += rotate
         },
         // Unconfined so fire-and-forget chores execute inline; production keeps Dispatchers.IO.
         ioDispatcher = Dispatchers.Unconfined,
@@ -104,6 +119,7 @@ internal class StartupProcessorTest {
         // lastDecision is null on this path, so the planner guard passes (spec §2).
         assertEquals(1, plannerRuns)
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(listOf(true), wearEpochRotations)
     }
 
     @Test
@@ -120,6 +136,7 @@ internal class StartupProcessorTest {
         }
         coVerify(exactly = 1) { restoreCoordinator.sweepRecoveryGarbage() }
         coVerify(exactly = 0) { restoreCoordinator.publishPendingTerminalOutbox() }
+        assertEquals(listOf(false), wearEpochRotations)
     }
 
     @Test
@@ -134,6 +151,7 @@ internal class StartupProcessorTest {
         assertEquals(0, plannerRuns)
         coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(emptyList<Boolean>(), wearEpochRotations)
     }
 
     @Test
@@ -266,6 +284,7 @@ internal class StartupProcessorTest {
         assertEquals(StartupOutcome.Proceed, outcome)
         assertEquals(1, peeks, "the scenario-2 peek must run on a RecoveryCompleted launch")
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(listOf(true), wearEpochRotations)
     }
 
     @Test
@@ -278,6 +297,7 @@ internal class StartupProcessorTest {
 
         assertEquals(StartupOutcome.RouteToRecovery, outcome)
         assertEquals(0, plannerRuns, "ANALYZE would open the file the peek just rejected")
+        assertEquals(emptyList<Boolean>(), wearEpochRotations)
     }
 
     @Test
@@ -290,6 +310,7 @@ internal class StartupProcessorTest {
 
             assertEquals(StartupOutcome.Proceed, outcome)
             assertEquals(1, peeks)
+            assertEquals(listOf(true), wearEpochRotations)
         }
 
     @Test
@@ -328,6 +349,45 @@ internal class StartupProcessorTest {
 
             assertEquals(StartupOutcome.RouteToRecovery, outcome)
             assertEquals(0, seals)
+        }
+
+    @Test
+    fun `a throwing first Room open is caught AND recorded where MainActivity reads it`() {
+        // `hasMigrationPath` answers "registered", never "succeeds", so a registered migration
+        // that throws is inside the class of failures the peek returns Proceed for.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        val thrown = IllegalStateException("registered migration threw on first open")
+        wearStorageError = thrown
+
+        val outcome = coldStart()
+
+        // Nothing propagated: reaching this line at all is half the assertion.
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        // The other half. MainActivity routes on lastDecision and on nothing else, so a guard
+        // that only caught would leave a Proceed verdict over an unopenable database.
+        assertEquals(
+            StartupCheck.RouteToRecovery(StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED),
+            migrationCoordinator.lastDecision,
+        )
+        coVerify(exactly = 1) { migrationCoordinator.recordLiveDatabaseOpenFailure(thrown) }
+        assertEquals(0, plannerRuns, "ANALYZE would reopen the file that just threw")
+        assertEquals(1, seals, "an unprovable live file must refuse DB-bound worker admission")
+    }
+
+    @Test
+    fun `a throwing first Room open on the CANDIDATE path routes without sealing`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+            wearStorageError = IllegalStateException("registered migration threw on first open")
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.RouteToRecovery, outcome)
+            assertEquals(
+                StartupCheck.RouteToRecovery(StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED),
+                migrationCoordinator.lastDecision,
+            )
+            assertEquals(0, seals, "generation N keeps serving; its auto-backup must survive")
         }
 
     @Test

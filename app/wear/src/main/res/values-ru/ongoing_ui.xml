@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ongoing_notifications_disabled">Уведомления выключены. Часы могут вернуться к циферблату без быстрого возврата к тренировке. Продолжайте здесь.</string>
+    <string name="ongoing_enable_notifications">Включить уведомления</string>
+    <string name="ongoing_shortcut_inactive">Быстрый возврат к тренировке недоступен. Часы могут вернуться к циферблату. Продолжайте здесь.</string>
+</resources>

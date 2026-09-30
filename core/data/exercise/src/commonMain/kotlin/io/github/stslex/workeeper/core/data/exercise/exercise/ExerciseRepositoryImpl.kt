@@ -102,7 +102,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
 
     override suspend fun saveItem(
         item: ExerciseChangeDataModel,
-    ): SaveResult = transition {
+    ): SaveResult = transition.mutate {
         val entity = item.toEntity()
         try {
             if (item.uuid.toString().isBlank()) {
@@ -117,7 +117,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             }
         } catch (e: SQLiteException) {
             if (!e.isUniqueConstraintViolation()) throw e
-            return@transition SaveResult.DuplicateName
+            return@mutate SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
         // A WEIGHTLESS row may leave no weights behind, here or in any referencing `plan_sets`.
@@ -148,12 +148,12 @@ class ExerciseRepositoryImpl @Inject internal constructor(
 
     override suspend fun createInlineAdhocExercise(
         name: String,
-    ): InlineAdhocResult = transition {
+    ): InlineAdhocResult = transition.mutate {
         val trimmed = name.trim()
         // Case-insensitive lookup before insert so a typed name does not trip UNIQUE(name).
         val existing = dao.findByName(trimmed)
         if (existing != null) {
-            return@transition InlineAdhocResult(
+            return@mutate InlineAdhocResult(
                 exercise = existing.toData(),
                 reusedExisting = true,
             )
@@ -179,29 +179,25 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     override suspend fun setAdhocPlan(
         exerciseUuid: String,
         planSets: List<PlanSetDataModel>?,
-    ) {
-        withContext(bgDispatcher) {
-            dao.updateLastAdhocSets(
-                uuid = Uuid.parse(exerciseUuid),
-                lastAdhocSets = PlanSetsConverter.toJson(planSets),
-            )
-        }
+    ) = transition.mutate {
+        dao.updateLastAdhocSets(
+            uuid = Uuid.parse(exerciseUuid),
+            lastAdhocSets = PlanSetsConverter.toJson(planSets),
+        )
     }
 
     override suspend fun setExerciseType(
         exerciseUuid: String,
         type: ExerciseTypeDataModel,
-    ) {
-        withContext(bgDispatcher) {
-            dao.updateType(
-                uuid = Uuid.parse(exerciseUuid),
-                type = type.toEntity(),
-            )
-        }
+    ) = transition.mutate {
+        dao.updateType(
+            uuid = Uuid.parse(exerciseUuid),
+            type = type.toEntity(),
+        )
     }
 
     override suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String) {
-        transition { clearWeightsForExercise(Uuid.parse(exerciseUuid)) }
+        transition.mutate { clearWeightsForExercise(Uuid.parse(exerciseUuid)) }
     }
 
     /** The cascade body, callable inside an open transaction; already-null rows are skipped. */
@@ -232,7 +228,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     }
 
     override suspend fun deleteItem(uuid: String) {
-        transition {
+        transition.mutate {
             // Read imagePath BEFORE delete — once the row is gone, we lose the path.
             val imagePath = asyncScope { dao.getById(Uuid.parse(uuid))?.imagePath }
             val deleteDeferred = asyncScope { dao.permanentDelete(Uuid.parse(uuid)) }
@@ -260,7 +256,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
-        transition {
+        transition.mutate {
             // Snapshot paths before deleting rows so we can clean image files after.
             val paths = uuids.asyncMap { dao.getById(it)?.imagePath }
                 .filterNotNull()
@@ -273,20 +269,16 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         }
     }
 
-    override suspend fun archive(uuid: String) {
-        withContext(bgDispatcher) {
-            dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
-        }
+    override suspend fun archive(uuid: String) = transition.mutate {
+        dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
     }
 
-    override suspend fun restore(uuid: String) {
-        withContext(bgDispatcher) {
-            dao.restore(Uuid.parse(uuid))
-        }
+    override suspend fun restore(uuid: String) = transition.mutate {
+        dao.restore(Uuid.parse(uuid))
     }
 
     override suspend fun permanentDelete(uuid: String) {
-        transition {
+        transition.mutate {
             val imagePath = dao.getById(Uuid.parse(uuid))?.imagePath
             dao.permanentDelete(Uuid.parse(uuid))
             imagePath?.let { imageStorage.deleteImage(it) }
@@ -421,8 +413,8 @@ class ExerciseRepositoryImpl @Inject internal constructor(
 
     override suspend fun bulkArchive(
         uuids: Set<String>,
-    ): BulkArchiveOutcome = transition {
-        if (uuids.isEmpty()) return@transition BulkArchiveOutcome(0, emptyList())
+    ): BulkArchiveOutcome = transition.mutate {
+        if (uuids.isEmpty()) return@mutate BulkArchiveOutcome(0, emptyList())
         val parsed = uuids.map(Uuid::parse)
         val (allowed, blocked) = parsed.partition { uuid ->
             trainingExerciseDao.countActiveTemplatesUsing(uuid) == 0
@@ -443,7 +435,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     }
 
     override suspend fun bulkPermanentDelete(uuids: Set<String>) {
-        transition {
+        transition.mutate {
             val parsed = uuids.map(Uuid::parse)
             val paths = parsed.asyncMapNotNull { dao.getById(it)?.imagePath }
             parsed.asyncForEach { dao.permanentDelete(it) }

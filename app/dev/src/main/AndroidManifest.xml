@@ -2,6 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The app shows no ads: firebase-analytics brings these permissions (the advertising ID and
+         the Privacy Sandbox pair), the build removes them (wear-paired-transport.md §9.2 item 4).
+         G8 sees only the store bundles; this one is kept by review. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove" />
+
     <application
         android:name=".DevMobileApp"
         android:label="@string/app_name_dev"
@@ -11,5 +24,10 @@
         <meta-data
             android:name="firebase_performance_logcat_enabled"
             android:value="true" />
+
+        <!-- Below Android 13 the advertising ID is readable without the permission. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
     </application>
 </manifest>

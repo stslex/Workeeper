@@ -1,4 +1,80 @@
+require "fileutils"
+require "json"
+require_relative "play_state"
+
 default_platform(:android)
+
+# Evaluated while fastlane parses this file from fastlane/; actions later run from the root.
+REPO_ROOT = File.expand_path("..", __dir__)
+PACKAGE_NAME = "io.github.stslex.workeeper"
+PLAY_JSON_KEY = File.join(REPO_ROOT, "play_config.json")
+PHONE_AAB = File.join(REPO_ROOT, "app/store/build/outputs/bundle/release/store-release.aab")
+WEAR_AAB = File.join(REPO_ROOT, "app/wear/build/outputs/bundle/storeRelease/wear-store-release.aab")
+WEAR_METADATA = File.join(REPO_ROOT, "fastlane/metadata-wear/android")
+PHONE_METADATA = File.join(REPO_ROOT, "fastlane/metadata/android")
+# GUARD: the one place the Wear track id is configured (wear-release-pipeline.md §7.2). The API
+# reference names the Wear internal track `wear:qa`; practitioners report `wear:internal`. A wrong id
+# FAILs before any upload and the lane prints every track id Play returned; correct it from that
+# list. WEAR_TRACK_OVERRIDE is the recovery dispatch's one-run correction (release-flow.md §8.7).
+# Either way wear_track_decision.py FAILs any id that is not a non-public `wear:` track.
+WEAR_TRACK = ENV.fetch("WEAR_TRACK_OVERRIDE", "").strip.then { |id| id.empty? ? "wear:internal" : id }
+
+# The bundle identity gate (wear-release-pipeline.md §6). `sh` raises on a non-zero exit, so a
+# wrong bundle stops the lane before anything talks to Play.
+def assert_play_bundle(aab:, role:)
+  sh(
+    "python3", File.join(REPO_ROOT, ".github/scripts/assert_play_bundle.py"),
+    "--aab", aab, "--role", role, "--toml", File.join(REPO_ROOT, "gradle/libs.versions.toml")
+  )
+end
+
+# FAIL, SKIP or UPLOAD for the Wear bundle (§7.2 step 2), decided by the Python helper from the
+# state the read-only edit returned. FAIL exits non-zero, so `sh` raises and nothing is uploaded.
+def wear_track_decision(state)
+  path = File.join(REPO_ROOT, "build/wear-release/play-tracks.json")
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, JSON.pretty_generate(state))
+  output = sh(
+    "python3", File.join(REPO_ROOT, ".github/scripts/wear_track_decision.py"),
+    "--state", path, "--track", WEAR_TRACK, "--toml", File.join(REPO_ROOT, "gradle/libs.versions.toml")
+  )
+  decision = output.lines.map(&:strip).grep(/\ADECISION /).last.to_s.delete_prefix("DECISION ")
+  UI.user_error!("wear_track_decision.py printed no decision: #{output}") unless %w[UPLOAD SKIP].include?(decision)
+  decision
+end
+
+# The listing drift guard (wear-release-pipeline.md §8), before any upload. listing_drift.py plans the
+# compared items, play_state.rb reads them in a read-only edit, listing_drift.py decides. A DRIFT
+# stops the lane unless ALLOW_LISTING_OVERWRITE is "true"; either way Play's state of the drifted
+# items lands in build/listing-drift/<role>, laid out like the metadata tree.
+def assert_no_listing_drift(role:)
+  script = File.join(REPO_ROOT, ".github/scripts/listing_drift.py")
+  out = File.join(REPO_ROOT, "build/listing-drift", role)
+  FileUtils.rm_rf(out)
+  FileUtils.mkdir_p(out)
+  plan_path = File.join(out, "plan.json")
+  remote_path = File.join(out, "remote.json")
+  sh("python3", script, "plan", "--role", role, "--plan-out", plan_path)
+  plan = JSON.parse(File.read(plan_path))
+  remote = PlayState.read_only(json_key: PLAY_JSON_KEY, package_name: PACKAGE_NAME) do |client|
+    PlayState.listing(client, plan)
+  end
+  File.write(remote_path, JSON.pretty_generate(remote))
+  command = ["python3", script, "decide", "--role", role, "--plan", plan_path, "--remote", remote_path, "--out", out]
+  command << "--allow-overwrite" if ENV["ALLOW_LISTING_OVERWRITE"] == "true"
+  status = sh(*command) { |process, _output, _command| process.exitstatus }
+  UI.user_error!("listing_drift.py could not decide (exit #{status}); nothing was uploaded") unless [0, 1].include?(status)
+  fetch_path = File.join(out, "fetch.json")
+  if File.exist?(fetch_path)
+    fetched = PlayState.download(JSON.parse(File.read(fetch_path)), into: out)
+    File.write(File.join(out, "fetched.json"), JSON.pretty_generate(fetched))
+  end
+  return if status.zero?
+
+  UI.user_error!("Store listing DRIFT for #{role}: Play Console changes would be overwritten. Adopt " \
+                 "build/listing-drift/#{role} into the repository, or re-run with allow_listing_overwrite " \
+                 "(release-flow.md §8.10). Nothing was uploaded.")
+end
 
 platform :android do
   desc "Runs all the tests"
@@ -20,8 +96,50 @@ platform :android do
 
   desc "Deploy a new version to the Google Play"
   lane :deploy do
-    gradle(task: "clean :app:store:bundle")
-    upload_to_play_store
+    gradle(task: "clean :app:store:bundleRelease :bundletoolClasspath")
+    assert_play_bundle(aab: PHONE_AAB, role: "phone")
+    assert_no_listing_drift(role: "phone")
+    # GUARD: always the explicit path. Without `aab:` supply falls back to the newest AAB by mtime
+    # anywhere under the project (spec §3 F2).
+    # GUARD: metadata_path and json_key are explicit too. PlayState builds supply's options inside
+    # the lane, from fastlane/, and supply keeps their defaults: metadata_path would stay "./metadata",
+    # which does not exist where the action runs.
+    upload_to_play_store(aab: PHONE_AAB, metadata_path: PHONE_METADATA, json_key: PLAY_JSON_KEY)
+  end
+
+  desc "Deploy the Wear bundle to the Wear OS internal testing track"
+  lane :deploy_wear do
+    gradle(
+      task: "clean :app:wear:bundleStoreRelease :bundletoolClasspath",
+      properties: { "crashlyticsMappingUpload" => "true" }
+    )
+    assert_play_bundle(aab: WEAR_AAB, role: "wear")
+    state = PlayState.read_only(json_key: PLAY_JSON_KEY, package_name: PACKAGE_NAME) do |client|
+      PlayState.tracks(client, WEAR_TRACK)
+    end
+    if wear_track_decision(state) == "SKIP"
+      UI.success("The Wear bundle is already on #{WEAR_TRACK}; nothing to upload.")
+    else
+      # WEAR_SKIP_LISTING: a recovery dispatch after a Wear DRIFT that was adopted for the next
+      # release. A retry replays the pinned commit, whose screenshots would overwrite the adopted
+      # ones, so it ships the bundle alone and leaves the listing as it is (release-flow.md §8.10).
+      skip_listing = ENV["WEAR_SKIP_LISTING"] == "true"
+      assert_no_listing_drift(role: "wear") unless skip_listing
+      # Its own edit, never shared with the phone lane. Only the Wear screenshots are uploaded:
+      # the listing text and images belong to the phone metadata tree. skip_upload_apk keeps supply
+      # from adding an APK out of the lane context.
+      upload_to_play_store(
+        track: WEAR_TRACK,
+        aab: WEAR_AAB,
+        json_key: PLAY_JSON_KEY,
+        skip_upload_apk: true,
+        metadata_path: WEAR_METADATA,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_changelogs: true,
+        skip_upload_screenshots: skip_listing
+      )
+    end
   end
 
   desc "Build new version"

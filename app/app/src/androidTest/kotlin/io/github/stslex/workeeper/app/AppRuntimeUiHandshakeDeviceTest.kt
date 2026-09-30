@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.harness.MetroTestGraphHolder
 import io.github.stslex.workeeper.runtime.AppRuntime
 import io.github.stslex.workeeper.runtime.ReinitializeOutcome
-import io.github.stslex.workeeper.runtime.StartupProcessor
+import io.github.stslex.workeeper.runtime.launchStartupProcessor
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
@@ -50,7 +50,7 @@ internal class AppRuntimeUiHandshakeDeviceTest {
                 imageStorageFactory = { FakeImageStorage() },
                 graphFactory = ::buildAppGraph,
                 preflight = { generation ->
-                    StartupProcessor(isLowRamDevice = { false }).preflightAndArm(
+                    launchStartupProcessor(context, isLowRamDevice = { false }).preflightAndArm(
                         graph = generation.graph,
                         appDatabase = generation.database,
                         lifetime = generation.lifetime,

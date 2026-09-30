@@ -45,6 +45,9 @@ dependencies {
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
+    // LogTelemetrySinkTest captures the Crashlytics holder object (mockkObject).
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
 }
 
 // GUARD: the robolectric-junit5 bridge needs launcher interceptors on, or every test dies with

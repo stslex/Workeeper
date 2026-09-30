@@ -17,7 +17,7 @@ The flow is designed for a single-developer project where reliability and recove
 
 **Non-goals (explicitly out of scope)**
 - Beta channel restructuring. The existing `android_deploy_beta.yml` is not in scope here. A TODO and GitHub Issue track this for later.
-- Multi-track or staged rollouts (internal/closed/open testing tracks).
+- Multi-track or staged rollouts (internal/closed/open testing tracks) for the phone. The one exception is the Wear bundle, which every release ships to the Wear OS internal testing track (§6.1 step 3.10). Wear production, closed testing and listing text are out of scope ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §12).
 - Hotfixes from arbitrary historical tags. Hotfixes always cut from current `master`.
 
 ---
@@ -86,7 +86,7 @@ versionCode = "N"        # string containing a positive integer; AGP parses to i
 
 `versionName` is a string with exactly three numeric components. No `v` prefix. Examples: `"1.5.0"`, `"2.0.0"`, `"1.5.3"`.
 
-`versionCode` is a positive monotonic integer. Each Play upload requires a strictly larger value than any previously uploaded.
+`versionCode` is a positive monotonic integer below `1_000_000`. Play accepts a versionCode only once across all form factors of the app: the phone uses the TOML value, strictly larger at every release, and the Wear bundle uses its own range derived from it (§4.5).
 
 ### 4.2 Bump rules
 
@@ -119,6 +119,24 @@ This eliminates the class of bugs where someone hand-edits TOML on a release bra
 
 This catches the concurrent-release-and-hotfix collision (see §6.4) before fastlane, where the failure would otherwise occur after a successful build and UI test pass.
 
+### 4.5 Wear identity
+
+The Wear app is the same application as the phone app: same `applicationId`, same signing (a Data Layer requirement). Its version is therefore derived from the same TOML, never bumped on its own ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §5):
+
+| Bundle | versionCode | versionName |
+|---|---|---|
+| Phone, `:app:store` | TOML `versionCode` | TOML `versionName` |
+| Wear, `:app:wear` store flavor | `1_000_000` + TOML `versionCode` | TOML `versionName` + `-wear` |
+| Wear, dev flavor | as the store flavor | `X.Y.Z-wear-dev` (the flavor's `-dev` suffix) |
+
+Example: release 1.52.0 with code 53 gives phone `1.52.0 (53)` and watch `1.52.0-wear (1000053)`.
+
+- `ConfigureWearApplication.kt` fails configuration, naming the spec, when the TOML `versionCode` is `>= 1_000_000`: the two ranges would otherwise overlap.
+- The offset is constant, so the Wear codes rise exactly when the phone's do, and invariant 2 of §4.4 covers both. `cut_release.yml` stays the only place that bumps.
+- Irreversible from the first Wear upload: that code becomes the floor of the Wear range, and a smaller offset could never be uploaded after it.
+- The versionName suffix is what separates the watch in Analytics (App version) and, with the versionCode, in Crashlytics.
+- The [bundle identity gate](ci-cd.md#bundle-identity-gate) asserts both identities on the real AABs before any Play upload.
+
 ---
 
 ## 5. Workflow inventory
@@ -128,7 +146,8 @@ This catches the concurrent-release-and-hotfix collision (see §6.4) before fast
 | `android_build_unified.yml` | push:master, pull_request, dispatch, **workflow_call** | Build + unit tests + detekt + lint. Reusable. |
 | `ui_tests.yml` | dispatch, **workflow_call** | Smoke / regression UI tests. Reusable. |
 | `cut_release.yml` | dispatch (mode: release \| hotfix) | Creates release branch, bumps version, opens PR to master. |
-| `deploy_prod.yml` | dispatch (must be on release/* branch) | Build + UI tests + Play upload + tag + merge PR. Orchestrates the others. |
+| `deploy_prod.yml` | dispatch (must be on release/* branch) | Build + UI tests + Play upload + tag + merge PR, then the Wear delivery. Orchestrates the others. |
+| `android_deploy_wear.yml` | **workflow_call** from `deploy_prod.yml`; dispatch on a `release-v.X.Y.Z` tag | Wear bundle of the same release to the Wear OS internal testing track. Dispatch is the recovery path and works only once the file is on `master`. |
 | `sync_master_to_dev.yml` | push:master | Opens PR `master → dev` to propagate version bumps and hotfix changes. |
 | `pr_guard.yml` | pull_request:master | Required check; fails if PR source is not a release branch. |
 | `github_release_apk.yml` | push:tags `release-*`, dispatch | Builds signed APK and creates GitHub Release. Auto-triggered by tag push from deploy_prod. |
@@ -168,13 +187,14 @@ Triggered when there are merged features in `dev` ready to ship.
    2. Calls `android_build_unified.yml` (workflow_call) on the pinned SHA.
    3. Calls `ui_tests.yml` with `test_suite: smoke` (skippable via `skip_ui_tests` input) on the pinned SHA.
    4. Stops at the `production` GitHub Environment for manual approval (required reviewer = developer).
-   5. After approval: signs and uploads to Play via fastlane.
+   5. After approval: builds and signs the phone release bundle, asserts its identity with the [bundle identity gate](ci-cd.md#bundle-identity-gate), checks the store listing for Play Console edits (§8.10), and uploads that exact AAB to Play via fastlane.
    6. Generates Play changelog from previous release tag to HEAD.
    7. Creates annotated tag `release-v.1.6.0` on the pinned SHA.
    8. Pushes the tag.
    9. Merges the PR `release/release-v.1.6.0 → master` via `gh pr merge --merge --delete-branch --match-head-commit <pinned-sha>`. `--match-head-commit` aborts the merge if the PR head moved since guard ran — those untested commits would otherwise reach master through the merge.
+   10. The `deploy_wear` job calls `android_deploy_wear.yml` on the same pinned SHA ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §7). It verifies that the TOML at that SHA is the version the phone shipped, builds `:app:wear:bundleStoreRelease` with the Crashlytics mapping upload, runs the bundle identity gate with role wear, reads the Play tracks in a read-only edit that is always deleted, and then fails (a track id that is not a non-public Wear track, a configured track that does not exist, or no tracks), skips (the Wear versionCode is already on the track) or, after checking the Wear screenshots for Play Console edits (§8.10), uploads the bundle and the Wear screenshots to `wear:internal` in an edit of its own. The approval of step 4 is the go for this upload too; there is no second approval.
 
-   The order matters: tag and merge happen *after* Play accepts. If Play fails, no tag, no merge — the system stays in a clean retryable state.
+   The order matters: tag and merge happen *after* Play accepts. If Play fails, no tag, no merge — the system stays in a clean retryable state. The Wear job runs after the merge, so its failure never undoes or blocks the phone release (§8.7).
 
 4. **Side effects of tag push.** `github_release_apk.yml` auto-triggers on the new `release-*` tag and builds + publishes a signed APK to GitHub Releases.
 
@@ -266,6 +286,9 @@ on:
         type: boolean
         default: false
         description: "Skip UI tests (use only when retrying after a known-good UI run)"
+      allow_listing_overwrite:
+        type: boolean
+        default: false   # never the default; see wear-release-pipeline.md §8
 
 concurrency:
   group: deploy-prod-${{ github.ref }}
@@ -298,7 +321,20 @@ jobs:
     if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     environment: production    # required reviewer gate
     # ... fastlane deploy + tag + gh pr merge --match-head-commit <pinned-sha>
+
+  deploy_wear:
+    needs: [guard, deploy]
+    if: ${{ always() && needs.deploy.result == 'success' }}
+    uses: ./.github/workflows/android_deploy_wear.yml
+    with:
+      ref: ${{ needs.guard.outputs.sha }}
+      version_name: ${{ needs.guard.outputs.version_name }}
+      version_code: ${{ needs.guard.outputs.version_code }}
+      allow_listing_overwrite: ${{ inputs.allow_listing_overwrite }}
+    secrets: inherit
 ```
+
+`android_deploy_wear.yml` has two jobs. `resolve` checks the pinned SHA (a call) or the tag (a dispatch) against the TOML at that commit. `deploy` holds `concurrency: deploy-wear-release-v.<version>` with `cancel-in-progress: false`, so a call and a recovery dispatch of the same version never run at once. It has no `environment:`: every secret it reads is repository-scoped, and it asserts each provisioned file is non-empty, because a secret a job cannot see arrives as an empty string.
 
 ### 7.3 Skip semantics
 
@@ -386,6 +422,45 @@ Nothing has been uploaded to Play, no tag exists, no merge happened — the fix 
 
 If the rebase changes the branch's intended `versionName` (e.g. a hotfix branch `release/release-v.1.6.1` rebased onto a master at `1.6.1` would re-bump to `1.6.2`, mismatching the branch name and tripping invariant 1), abandon the branch per §8.4 and re-cut instead.
 
+### 8.7 Phone live, Wear job failed
+
+Examples: the configured Wear track id is wrong (the job prints every track id Play returned), the service account lacks permission (§8.8), a Wear store listing DRIFT (§8.10), a transient Play or network error. A configured track that Play does not list is not a failure while it exists: the job asks `edits.tracks.get`, and a returned track (decided like a listed one) or `trackEmpty` (an empty track, which the upload fills) lets it proceed. Only `Track not found` fails.
+
+**State:** the phone release is complete: uploaded, tagged, merged. Only the Wear upload is missing.
+
+**Recovery:** fix the cause, then use "Re-run failed jobs" in the same `deploy_prod.yml` run. After the release PR has merged, dispatching `android_deploy_wear.yml` with the tag `release-v.X.Y.Z` also works. Both are idempotent: a Wear versionCode already on the track ends in SKIP, with nothing uploaded.
+
+A wrong track id is the exception: a re-run and a tag dispatch both replay the Fastfile of the pinned release commit, so correcting `WEAR_TRACK` on `dev` cannot reach them. Dispatch `android_deploy_wear.yml` on the tag with `wear_track` set to the right id from the printed list; it overrides the constant for that run only, and the decision step still fails unless the id exists on Play. Whatever its source, the id must name a non-public Wear track: it starts with `wear:` and is neither `wear:production` nor `wear:beta`, or the decision fails before looking at Play. Then correct `WEAR_TRACK` in `fastlane/Fastfile` on `dev` for the next release. The dispatch is available here because the Wear job starts only after the release PR has merged, which puts the workflow on `master`.
+
+A re-run rebuilds the Wear bundle, so its Crashlytics mapping is uploaded again for a build that a SKIP then does not ship. That is harmless.
+
+### 8.8 403 on the Wear upload
+
+The Play service account lacks permission to release to testing tracks. The owner grants it in Play Console (Users and permissions → the service account → release to testing tracks), then re-runs the Wear job (§8.7).
+
+### 8.9 Wear upload rejected: version code already used, but not on the configured track
+
+Stop and inspect the App bundle explorer in Play Console to find where `1_000_000 + versionCode` went. **Never bump the TOML to get around it**: the Wear code is derived from the phone's (§4.5), and a bump would desynchronize both. The decision step already warns when the code sits on another listed track.
+
+### 8.10 Deploy stopped on a store listing DRIFT
+
+supply overwrites every listing text and replaces every image type the repository holds, so a Play Console edit to any of them would be reverted silently by the next deploy. Before each upload, the lanes compare Play's listing with the metadata at the deployed commit and at the previous release tag ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §8). An item Play holds that matches neither is a DRIFT, and the lane stops before uploading anything.
+
+**State:** phone: nothing was uploaded, tagged or merged (§8.1 applies). Wear: the phone release is complete (§8.7 applies).
+
+**Recovery:** the run's `listing-drift-phone-attempt-<n>` or `listing-drift-wear-attempt-<n>` artifact (one per run attempt) holds Play's state of the drifted items, laid out like the repository (`fastlane/metadata/...`, `fastlane/metadata-wear/...`), plus `drift.json` with every verdict and `fetched.json` with each downloaded image's sha256. To adopt it, unpack it and run `python3 .github/scripts/listing_drift.py adopt --out <unpacked directory>` from the repository root. That deletes the repository's files of every drifted image item (so an image or screenshot type Play no longer has, or has fewer of, is removed too) and copies Play's files in.
+
+"Re-run failed jobs" replays the run's pinned commit, so an adoption committed afterwards never reaches it.
+
+- **Phone DRIFT** (nothing is live yet):
+  - Keep Play's version: adopt, commit to the release branch and to `dev`, then start a **new** `deploy_prod.yml` dispatch on the release branch, which pins the new head.
+  - Keep the repository's version: start a new dispatch with `allow_listing_overwrite: true`, which turns the DRIFT into a logged warning for that run only.
+- **Wear DRIFT** (the phone release is complete and merged; a retry, re-run or tag dispatch, always checks out the release commit):
+  - Keep Play's screenshots: adopt them on `dev` so the next release carries them, then dispatch `android_deploy_wear.yml` on the tag with `skip_listing: true`. That run uploads the bundle alone and leaves the Play listing as it is.
+  - Keep the repository's: dispatch on the tag with `allow_listing_overwrite: true`.
+
+The first combined run (1.52.0) compares against `release-v.1.51.0`, which has no Wear metadata: Wear screenshots uploaded in the Console during the form-factor setup surface there as a Wear DRIFT, after the phone is live. A difference only in whitespace normalisation on the phone listing can also surface once; adopt Play's text.
+
 ---
 
 ## 9. Setup checklist
@@ -407,6 +482,11 @@ One-time configuration after the migration code lands.
 **Secrets (Settings → Secrets):**
 - `PUSH_TOKEN` — PAT with `repo` and `workflow` scopes. Used for: pushing branches, pushing tags, opening PRs, merging PRs. Must have bypass rights on `master` branch protection.
 - All existing secrets (`KEYSTORE`, `KEYSTORE_PASSPHRASE`, etc.) remain in use.
+
+**Play Console, for the Wear delivery ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §4, §11):**
+- The Wear OS form factor: added by the owner on 2026-09-28.
+- Wear internal testers: add each tester account to the Wear OS internal testing track in the Console. Email lists are Console-only; the API manages testers only as Google Groups.
+- Service account: needs permission to release to testing tracks, or the Wear upload fails with 403 (§8.8).
 
 **Actions permissions (Settings → Actions → General):**
 - Workflow permissions: "Read and write permissions".

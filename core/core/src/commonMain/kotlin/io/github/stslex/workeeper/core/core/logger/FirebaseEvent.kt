@@ -14,18 +14,22 @@ sealed class FirebaseEvent(
         params = params,
     ) {
 
+        /** [dedupeKey] ([telemetryDedupeKey]) joins equality, and so the debounce key; never a param. */
         data class Action(
             private val action: String,
             private val storeName: String,
+            private val dedupeKey: TelemetryDedupeKey,
         ) : Store(
             storeName = storeName,
             eventName = "action",
             params = mapOf("action" to action),
         )
 
+        /** [dedupeKey] ([telemetryDedupeKey]) joins equality, and so the debounce key; never a param. */
         data class Event(
             private val event: String,
             private val storeName: String,
+            private val dedupeKey: TelemetryDedupeKey,
         ) : Store(
             storeName = storeName,
             eventName = "event",

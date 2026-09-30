@@ -1,0 +1,249 @@
+name: Android Deploy Wear
+
+# Ships a release's Wear bundle to the Wear OS internal testing track
+# (documentation/feature-specs/wear-release-pipeline.md §7). android_deploy_prod.yml calls it after
+# its deploy job, on the same pinned SHA. Dispatching it on a release tag is the recovery path once
+# the release PR has merged; GitHub runs a workflow_dispatch only from the default branch's copy of
+# this file, so that path exists only after the file reaches master.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "The pinned SHA the phone release shipped from"
+        type: string
+        required: true
+      version_name:
+        description: "TOML versionName at that SHA"
+        type: string
+        required: true
+      version_code:
+        description: "TOML versionCode at that SHA (the Wear code is 1_000_000 + this)"
+        type: string
+        required: true
+      allow_listing_overwrite:
+        description: "Turn a store-listing DRIFT into a logged warning (spec §8). Never the default."
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to ship, release-v.X.Y.Z"
+        type: string
+        required: true
+      wear_track:
+        description: "This run only: the Wear track id, after a run printed Play's real ids (release-flow.md §8.7)"
+        type: string
+        default: ""
+      skip_listing:
+        description: "This run only: upload the bundle and leave the Play listing as it is (release-flow.md §8.10)"
+        type: boolean
+        default: false
+      allow_listing_overwrite:
+        description: "Turn a store-listing DRIFT into a logged warning (spec §8). Never the default."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve the release to ship
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      version_name: ${{ steps.resolve.outputs.version_name }}
+      version_code: ${{ steps.resolve.outputs.version_code }}
+    steps:
+      - name: Checkout with history and tags
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      # A call passes the SHA and version the phone job shipped; a dispatch names a tag. Either way
+      # the TOML at the resolved commit must say the same version, or nothing ships.
+      - name: Resolve and verify the release
+        id: resolve
+        env:
+          IN_REF: ${{ inputs.ref }}
+          IN_TAG: ${{ inputs.tag }}
+          IN_VERSION_NAME: ${{ inputs.version_name }}
+          IN_VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          if [[ -n "$IN_TAG" ]]; then
+            if [[ ! "$IN_TAG" =~ ^release-v\.([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "::error::tag must be release-v.X.Y.Z, got '$IN_TAG'"
+              exit 1
+            fi
+            expected_name="${BASH_REMATCH[1]}"
+            if ! sha="$(git rev-parse --verify --quiet "refs/tags/$IN_TAG^{commit}")"; then
+              echo "::error::tag $IN_TAG does not exist"
+              exit 1
+            fi
+          else
+            expected_name="$IN_VERSION_NAME"
+            sha="$(git rev-parse HEAD)"
+            if [[ "$sha" != "$IN_REF" ]]; then
+              echo "::error::checked out $sha, expected the pinned SHA $IN_REF"
+              exit 1
+            fi
+          fi
+          toml="$(git show "$sha:gradle/libs.versions.toml")"
+          name="$(awk -F'"' '/^versionName = "/ { print $2; exit }' <<< "$toml")"
+          code="$(awk -F'"' '/^versionCode = "/ { print $2; exit }' <<< "$toml")"
+          if [[ "$name" != "$expected_name" ]]; then
+            echo "::error::TOML versionName at $sha is '$name', expected '$expected_name'"
+            exit 1
+          fi
+          if [[ ! "$code" =~ ^[0-9]+$ ]] || { [[ -z "$IN_TAG" ]] && [[ "$code" != "$IN_VERSION_CODE" ]]; }; then
+            echo "::error::TOML versionCode at $sha is '$code', expected '${IN_VERSION_CODE:-a number}'"
+            exit 1
+          fi
+          {
+            echo "sha=$sha"
+            echo "version_name=$name"
+            echo "version_code=$code"
+          } >> "$GITHUB_OUTPUT"
+          echo "Wear release: $name ($code) at $sha, Wear versionCode $((1000000 + code))"
+
+  deploy:
+    name: Deploy Wear to Play
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # One Wear run per version at a time, and never cancel one in progress: a second run waits, then
+    # ends in SKIP once the first has uploaded. The key is the same for a call and a dispatch.
+    concurrency:
+      group: deploy-wear-release-v.${{ needs.resolve.outputs.version_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the release with history and tags
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Ruby 3.3
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Cache Ruby - Bundler
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+
+      - name: Install bundle
+        run: |
+          bundle config path vendor/bundle
+          bundle install --jobs 4 --retry 3
+
+      - name: Decrypt keystore
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          echo "$KEYSTORE" > keystore.jks.asc
+          gpg -d --passphrase "$KEYSTORE_PASSPHRASE" --batch keystore.jks.asc > keystore.jks
+
+      - name: Configure Keystore
+        env:
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+        run: |
+          {
+            echo "storeFile=keystore.jks"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } >> keystore.properties
+
+      - name: Create Google Play Config file
+        env:
+          PLAY_CONFIG_JSON: ${{ secrets.PLAY_CONFIG_JSON }}
+        run: |
+          echo "$PLAY_CONFIG_JSON" > play_config.json.b64
+          base64 -d -i play_config.json.b64 > play_config.json
+
+      # The Wear store flavor reads the phone's file (spec §3 F4).
+      - name: Create Google Services Config file
+        env:
+          GOOGLE_SERVICES_JSON_STORE: ${{ secrets.GOOGLE_SERVICES_JSON_STORE }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_STORE" > app/store/google-services.json.b64
+          base64 -d -i app/store/google-services.json.b64 > app/store/google-services.json
+
+      # GUARD: a secret this job cannot see arrives as an empty string, and every step above still
+      # succeeds (an echoed empty value is a one-byte file). Fail here, by name, before the build.
+      # Prints names and sizes only.
+      - name: Assert the provisioned files are not empty
+        run: |
+          for file in keystore.jks keystore.properties play_config.json app/store/google-services.json; do
+            if [[ ! -s "$file" ]]; then
+              echo "::error::$file is missing or empty: its secret did not reach this job"
+              exit 1
+            fi
+            echo "$file: $(wc -c < "$file") bytes"
+          done
+          for key in storeFile keyAlias storePassword keyPassword; do
+            if ! grep -Eq "^$key=.+" keystore.properties; then
+              echo "::error::keystore.properties has no value for $key"
+              exit 1
+            fi
+          done
+          python3 - play_config.json app/store/google-services.json <<'EOF'
+          import json, sys
+          for path in sys.argv[1:]:
+              with open(path, encoding="utf-8") as handle:
+                  if not json.load(handle):
+                      sys.exit(f"::error::{path} is empty JSON")
+              print(f"{path}: valid JSON")
+          EOF
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      # The lane builds `clean :app:wear:bundleStoreRelease -PcrashlyticsMappingUpload=true` the
+      # way the phone lane builds, runs the bundle identity gate (role wear), reads Play in a
+      # read-only edit, decides FAIL/SKIP/UPLOAD, and uploads in an edit of its own (spec §7.2).
+      # A dispatch can correct the track id for one run: a re-run replays the Fastfile of the pinned
+      # release commit, so a corrected WEAR_TRACK on dev could not reach it. The decision step still
+      # FAILs unless Play lists the id.
+      - name: Distribute the Wear bundle to the Wear internal track
+        env:
+          WEAR_TRACK_OVERRIDE: ${{ inputs.wear_track }}
+          ALLOW_LISTING_OVERWRITE: ${{ inputs.allow_listing_overwrite }}
+          WEAR_SKIP_LISTING: ${{ inputs.skip_listing }}
+        run: bundle exec fastlane deploy_wear
+
+      # On a DRIFT, Play's state of the drifted screenshots laid out like the metadata tree
+      # (release-flow.md §8.10). continue-on-error: a failed diagnostic upload must not mark a
+      # completed Wear delivery red.
+      - name: Upload the store listing drift state
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a
+          # "Re-run failed jobs" attempt keeps the earlier attempt's artifacts.
+          name: listing-drift-wear-attempt-${{ github.run_attempt }}
+          # The role directory itself, so the artifact root is what `listing_drift.py adopt --out` reads.
+          path: build/listing-drift/wear/
+          if-no-files-found: ignore
+          retention-days: 30

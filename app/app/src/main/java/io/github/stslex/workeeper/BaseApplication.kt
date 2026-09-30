@@ -28,12 +28,15 @@ import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkDepsHolder
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import io.github.stslex.workeeper.runtime.AppRuntime
 import io.github.stslex.workeeper.runtime.RuntimeTransitionPolicy
 import io.github.stslex.workeeper.runtime.StartupOutcome
 import io.github.stslex.workeeper.runtime.StartupProcessor
 import io.github.stslex.workeeper.runtime.UiHostLifecycleTracker
 import io.github.stslex.workeeper.runtime.clearStoreOnHostTeardown
+import io.github.stslex.workeeper.runtime.launchStartupProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
@@ -48,6 +51,7 @@ abstract class BaseApplication :
     AppDepsHolder,
     RecoveryDepsHolder,
     BackupWorkerDepsHolder,
+    WearBridgeWorkDepsHolder,
     AppRootDepsHolder,
     AppUiGenerationsHolder {
 
@@ -102,6 +106,9 @@ abstract class BaseApplication :
     override suspend fun awaitBackupWorkLease(): BackupWorkLease? =
         appRuntime.awaitBackupWorkLease()
 
+    override suspend fun awaitWearBridgeWorkLease(): WearBridgeWorkLease? =
+        appRuntime.awaitWearBridgeWorkLease()
+
     // Typed seam: `App()` lives in app:common, below the graph, and cannot name [AppGraph].
     override fun appRootDeps(): AppRootDeps = appGraph
 
@@ -112,6 +119,7 @@ abstract class BaseApplication :
 
     override fun onCreate() {
         super.onCreate()
+        FirebaseCrashlyticsHolder.setCustomKey("platform", "phone")
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
         CommonExt.isTraceExecutionEnabled = isDebugLoggingAllow
@@ -150,11 +158,18 @@ abstract class BaseApplication :
         appRuntime.clearStoreOnHostTeardown()
     }
 
-    /** The startup sequence; the low-RAM seam is wired here because it needs the Context. */
-    private val startupProcessor = StartupProcessor(
-        isLowRamDevice = {
-            getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
-        },
-        sealWorkerAdmission = { appRuntime.sealWorkerAdmission() },
-    )
+    /**
+     * The startup sequence; wired here because it needs the Context — for the low-RAM seam and for
+     * the `noBackupFilesDir` install marker. Lazy: a property initializer runs before
+     * `attachBaseContext`, where this Application has no base context to read either from.
+     */
+    private val startupProcessor: StartupProcessor by lazy {
+        launchStartupProcessor(
+            context = this,
+            isLowRamDevice = {
+                getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
+            },
+            sealWorkerAdmission = { appRuntime.sealWorkerAdmission() },
+        )
+    }
 }

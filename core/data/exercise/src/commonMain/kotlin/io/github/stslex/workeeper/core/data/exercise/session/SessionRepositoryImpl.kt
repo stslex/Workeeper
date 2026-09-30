@@ -293,7 +293,7 @@ class SessionRepositoryImpl @Inject internal constructor(
 
     override suspend fun startSession(
         trainingUuid: String,
-    ): SessionDataModel = withContext(ioDispatcher) {
+    ): SessionDataModel = transition.mutate {
         val entity = SessionEntity(
             trainingUuid = Uuid.parse(trainingUuid),
             state = SessionStateEntity.IN_PROGRESS,
@@ -307,7 +307,7 @@ class SessionRepositoryImpl @Inject internal constructor(
     override suspend fun startSessionWithExercises(
         trainingUuid: String,
         exerciseUuids: List<Pair<String, Int>>,
-    ): SessionDataModel = withContext(ioDispatcher) {
+    ): SessionDataModel = transition.mutate {
         val session = SessionEntity(
             trainingUuid = Uuid.parse(trainingUuid),
             state = SessionStateEntity.IN_PROGRESS,
@@ -333,16 +333,14 @@ class SessionRepositoryImpl @Inject internal constructor(
             ?.toData()
     }
 
-    override suspend fun finishSession(sessionUuid: String, finishedAt: Long) {
-        withContext(ioDispatcher) {
-            val current = dao.getById(Uuid.parse(sessionUuid)) ?: return@withContext
-            dao.update(
-                current.copy(
-                    state = SessionStateEntity.FINISHED,
-                    finishedAt = finishedAt,
-                ),
-            )
-        }
+    override suspend fun finishSession(sessionUuid: String, finishedAt: Long) = transition.mutate {
+        val current = dao.getById(Uuid.parse(sessionUuid)) ?: return@mutate
+        dao.update(
+            current.copy(
+                state = SessionStateEntity.FINISHED,
+                finishedAt = finishedAt,
+            ),
+        )
     }
 
     override suspend fun finishSessionAtomic(
@@ -351,9 +349,9 @@ class SessionRepositoryImpl @Inject internal constructor(
         planUpdates: List<PlanUpdate>,
         newTrainingName: String?,
         discardedSetUuids: List<String>,
-    ): Boolean = transition {
+    ): Boolean = transition.mutate {
         val current = dao.getById(Uuid.parse(sessionUuid))
-            ?: return@transition false
+            ?: return@mutate false
         // GUARD: discard unfilled sets inside this transaction — the caller treats a false or
         // throw as "session still active", so a rollback has to put them back.
         discardedSetUuids.forEach { setUuid -> setDao.delete(Uuid.parse(setUuid)) }
@@ -397,16 +395,14 @@ class SessionRepositoryImpl @Inject internal constructor(
         true
     }
 
-    override suspend fun deleteSession(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.delete(Uuid.parse(uuid))
-        }
+    override suspend fun deleteSession(uuid: String) = transition.mutate {
+        dao.delete(Uuid.parse(uuid))
     }
 
     override suspend fun createAdhocSession(
         name: String,
         exerciseUuids: List<String>,
-    ): SessionRepository.AdhocSessionResult = transition {
+    ): SessionRepository.AdhocSessionResult = transition.mutate {
         val now = Clock.System.now().toEpochMilliseconds()
         val training = TrainingEntity(
             name = name,
@@ -454,7 +450,7 @@ class SessionRepositoryImpl @Inject internal constructor(
         trainingUuid: String,
         exerciseUuid: String,
         attachToPlan: Boolean,
-    ): SessionRepository.AddExerciseResult = transition {
+    ): SessionRepository.AddExerciseResult = transition.mutate {
         val sessionId = Uuid.parse(sessionUuid)
         val trainingId = Uuid.parse(trainingUuid)
         val exerciseId = Uuid.parse(exerciseUuid)
@@ -495,7 +491,7 @@ class SessionRepositoryImpl @Inject internal constructor(
         trainingUuid: String?,
         removeFromPlan: Boolean,
     ) {
-        transition {
+        transition.mutate {
             val performedId = Uuid.parse(performedExerciseUuid)
             val exerciseId = Uuid.parse(exerciseUuid)
             // GUARD: sets → performed row → plan row → orphan check. The orphan predicate reads
@@ -513,7 +509,7 @@ class SessionRepositoryImpl @Inject internal constructor(
     }
 
     override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
-        transition {
+        transition.mutate {
             val trainingId = Uuid.parse(trainingUuid)
             // Rows must be `is_adhoc = 1` AND joined to this session via performed_exercise_table:
             // library picks survive, one-offs with no plan row are still cleaned up.

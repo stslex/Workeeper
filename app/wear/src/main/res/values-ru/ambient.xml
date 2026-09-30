@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ambient_read_only">Фоновый режим, только просмотр</string>
+    <string name="ambient_not_sent">Не отправлено</string>
+    <string name="ambient_reps">%1$s повт.</string>
+    <string name="ambient_weightless">Без веса</string>
+    <string name="ambient_no_workout">Нет тренировки</string>
+    <string name="ambient_add_set">Добавьте подход</string>
+    <string name="ambient_edit_phone">Измените на телефоне</string>
+    <string name="ambient_open_phone">Откройте телефон</string>
+    <string name="ambient_retry_phone">Повторите на телефоне</string>
+    <string name="ambient_update_apps">Обновите приложения</string>
+</resources>

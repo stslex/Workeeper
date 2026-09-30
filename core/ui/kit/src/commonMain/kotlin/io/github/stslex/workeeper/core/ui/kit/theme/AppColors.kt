@@ -2,6 +2,43 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import io.github.stslex.workeeper.core.ui.design.DARK_BASE
+import io.github.stslex.workeeper.core.ui.design.DARK_BODY
+import io.github.stslex.workeeper.core.ui.design.DARK_CONTROL_OUTLINE
+import io.github.stslex.workeeper.core.ui.design.DARK_DONEFILL
+import io.github.stslex.workeeper.core.ui.design.DARK_FIELD
+import io.github.stslex.workeeper.core.ui.design.DARK_GRID
+import io.github.stslex.workeeper.core.ui.design.DARK_HAIR
+import io.github.stslex.workeeper.core.ui.design.DARK_IDLE
+import io.github.stslex.workeeper.core.ui.design.DARK_MAX
+import io.github.stslex.workeeper.core.ui.design.DARK_META
+import io.github.stslex.workeeper.core.ui.design.DARK_MOLTEN
+import io.github.stslex.workeeper.core.ui.design.DARK_MOLTEN_BACKGROUND
+import io.github.stslex.workeeper.core.ui.design.DARK_MOLTEN_BORDER
+import io.github.stslex.workeeper.core.ui.design.DARK_RAISE
+import io.github.stslex.workeeper.core.ui.design.DARK_RUST
+import io.github.stslex.workeeper.core.ui.design.DARK_RUST_WASH
+import io.github.stslex.workeeper.core.ui.design.DARK_SEC
+import io.github.stslex.workeeper.core.ui.design.DARK_SLAB
+import io.github.stslex.workeeper.core.ui.design.LIGHT_BASE
+import io.github.stslex.workeeper.core.ui.design.LIGHT_BODY
+import io.github.stslex.workeeper.core.ui.design.LIGHT_CONTROL_OUTLINE
+import io.github.stslex.workeeper.core.ui.design.LIGHT_DONEFILL
+import io.github.stslex.workeeper.core.ui.design.LIGHT_FIELD
+import io.github.stslex.workeeper.core.ui.design.LIGHT_GRID
+import io.github.stslex.workeeper.core.ui.design.LIGHT_HAIR
+import io.github.stslex.workeeper.core.ui.design.LIGHT_IDLE
+import io.github.stslex.workeeper.core.ui.design.LIGHT_MAX
+import io.github.stslex.workeeper.core.ui.design.LIGHT_META
+import io.github.stslex.workeeper.core.ui.design.LIGHT_MOLTEN
+import io.github.stslex.workeeper.core.ui.design.LIGHT_MOLTEN_BACKGROUND
+import io.github.stslex.workeeper.core.ui.design.LIGHT_MOLTEN_BORDER
+import io.github.stslex.workeeper.core.ui.design.LIGHT_MOLTEN_SOLID
+import io.github.stslex.workeeper.core.ui.design.LIGHT_RAISE
+import io.github.stslex.workeeper.core.ui.design.LIGHT_RUST
+import io.github.stslex.workeeper.core.ui.design.LIGHT_RUST_WASH
+import io.github.stslex.workeeper.core.ui.design.LIGHT_SEC
+import io.github.stslex.workeeper.core.ui.design.LIGHT_SLAB
 
 /*
  * The v3 palette: fifteen tokens onto twenty-three v2-named slots. v3 is achromatic — emphasis
@@ -127,62 +164,6 @@ data class AppColors(
     val record: RecordColors,
     val isDark: Boolean,
 )
-
-private const val DARK_BASE: Long = 0xFF0B0D0F
-private const val DARK_SEC: Long = 0xFF12161A
-private const val DARK_FIELD: Long = 0xFF171C21
-private const val DARK_SLAB: Long = 0xFF1E242A
-private const val DARK_RAISE: Long = 0xFF242B32
-private const val DARK_MAX: Long = 0xFFF1F5F9
-private const val DARK_BODY: Long = 0xFFB7C0CA
-private const val DARK_META: Long = 0xFF8B95A1
-private const val DARK_IDLE: Long = 0xFF8B95A1
-private const val DARK_HAIR: Long = 0x0DFFFFFF
-/** `--grid`, dark: `rgba(255,255,255,.07)` — one alpha step above [DARK_HAIR]'s 5%. */
-private const val DARK_GRID: Long = 0x12FFFFFF
-/** GUARD: equals [DARK_HAIR] by coincidence, not one token — light breaks the tie (6% vs 7%). */
-private const val DARK_DONEFILL: Long = 0x0DFFFFFF
-/** Control outline, dark. See [AppColors.borderStrong] — `hair-s` lifted to clear 3:1. */
-private const val DARK_CONTROL_OUTLINE: Long = 0xFF627587
-private const val DARK_MOLTEN: Long = 0xFFF0A22E
-private const val DARK_MOLTEN_BACKGROUND: Long = 0x17F0A22E
-private const val DARK_MOLTEN_BORDER: Long = 0x6BF0A22E
-
-/**
- * Destructive text in dark: #DF714B, not the spec's #C4574A, which clears 4.5:1 on no dark
- * surface in this palette. Light needs no such adjustment.
- */
-private const val DARK_RUST: Long = 0xFFDF714B
-private const val DARK_RUST_WASH: Long = 0x1FDF714B
-
-private const val LIGHT_BASE: Long = 0xFFF6F7F9
-private const val LIGHT_SEC: Long = 0xFFEFF1F4
-private const val LIGHT_FIELD: Long = 0xFFE9ECF0
-private const val LIGHT_SLAB: Long = 0xFFFFFFFF
-private const val LIGHT_RAISE: Long = 0xFFDFE3E8
-private const val LIGHT_MAX: Long = 0xFF0D1114
-private const val LIGHT_BODY: Long = 0xFF2C333A
-
-/** See [AppColors.textTertiary] — #596169, deliberately not the mockup's #69727C. */
-private const val LIGHT_META: Long = 0xFF596169
-private const val LIGHT_IDLE: Long = 0xFF7C858F
-private const val LIGHT_HAIR: Long = 0x120D1114
-/** `--grid`, light: `rgba(13,17,20,.09)` — one alpha step above [LIGHT_HAIR]'s 7%. */
-private const val LIGHT_GRID: Long = 0x170D1114
-/** `--donefill`, light: `rgba(13,17,20,.06)`. */
-private const val LIGHT_DONEFILL: Long = 0x0F0D1114
-/** Control outline, light. See [AppColors.borderStrong] — `hair-s` darkened to clear 3:1. */
-private const val LIGHT_CONTROL_OUTLINE: Long = 0xFF748396
-/**
- * Molten as text in light: #BE3E0C, nudged off the spec's #C2410C, which measures 4.325:1 on
- * the PR card's real backdrop — the molten wash over the page.
- */
-private const val LIGHT_MOLTEN: Long = 0xFFBE3E0C
-private const val LIGHT_MOLTEN_SOLID: Long = 0xFFF97316
-private const val LIGHT_MOLTEN_BACKGROUND: Long = 0x1CF97316
-private const val LIGHT_MOLTEN_BORDER: Long = 0x57C2410C
-private const val LIGHT_RUST: Long = 0xFFB03B2E
-private const val LIGHT_RUST_WASH: Long = 0x1FB03B2E
 
 fun provideDarkAppColors(): AppColors = AppColors(
     accent = Color(DARK_MAX),

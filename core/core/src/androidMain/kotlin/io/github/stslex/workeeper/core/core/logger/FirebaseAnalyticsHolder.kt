@@ -18,7 +18,9 @@ actual object FirebaseAnalyticsHolder {
     @Synchronized
     actual fun log(event: FirebaseEvent) {
         val sink = analytics ?: return
-        filter(event.hashCode().toString()) {
+        // GUARD: keyed on the event's equality, never its hash, so a local dedupe key keeps two
+        // payloads apart even when their hashes collide.
+        filter(event) {
             sink.logEvent(event.name) {
                 event.params.forEach { (key, value) -> param(key, value) }
             }

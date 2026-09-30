@@ -1,0 +1,32 @@
+[
+  {
+    "name": "NOTIFICATION_SETTINGS_FALLBACK_REMOVED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ongoing/WearNotificationAccess.kt",
+    "find": "activity.startActivity(Intent(Settings.ACTION_SETTINGS))",
+    "replace": "Unit",
+    "task": ":app:wear:testDevDebugUnitTest --tests *AndroidWearNotificationSettings*Test --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test",
+    "expected_method": "missingPerAppSettingsFallsBackToPublicSystemSettings()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "NOTIFICATION_SETTINGS_APP_ROUTE_REPLACED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ongoing/WearNotificationAccess.kt",
+    "find": "activity.startActivity(settingsIntent())",
+    "replace": "activity.startActivity(Intent(Settings.ACTION_SETTINGS))",
+    "task": ":app:wear:testDevDebugUnitTest --tests *AndroidWearNotificationSettings*Test --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test",
+    "expected_method": "supportedPerAppSettingsOpensOnlyTheRequestedPackage()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "NOTIFICATION_SETTINGS_UNAVAILABLE_CRASHES",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ongoing/WearNotificationAccess.kt",
+    "find": "    fun openSettings(): Result<Unit> = runWearRuntimeUiEvent {\n        try {\n            activity.startActivity(settingsIntent())\n        } catch (_: ActivityNotFoundException) {\n            activity.startActivity(Intent(Settings.ACTION_SETTINGS))\n        }\n    }",
+    "replace": "    fun openSettings(): Result<Unit> {\n        try {\n            activity.startActivity(settingsIntent())\n        } catch (_: ActivityNotFoundException) {\n            activity.startActivity(Intent(Settings.ACTION_SETTINGS))\n        }\n        return Result.success(Unit)\n    }",
+    "task": ":app:wear:testDevDebugUnitTest --tests *AndroidWearNotificationSettings*Test --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test",
+    "expected_method": "noSettingsHandlerReturnsFailureAndKeepsNotificationAccessDisabled()",
+    "xml_root": "app/wear/build"
+  }
+]

@@ -28,6 +28,7 @@ internal class PerformedExerciseRepositoryImplDbTest {
         env = RepositoryTestEnv()
         repository = PerformedExerciseRepositoryImpl(
             dao = env.performedExerciseDao,
+            transition = env.transition,
             ioDispatcher = UnconfinedTestDispatcher(),
         )
     }

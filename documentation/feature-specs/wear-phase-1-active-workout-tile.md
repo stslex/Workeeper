@@ -1,8 +1,13 @@
 # Wear OS Phase 1 — active-workout Tile and current-set controller
 
-**Status:** specification only — implementation is not authorized by this
-document. A separate explicit GO is required after the transport decision and
-entry gates below are closed.
+**Status:** protocol/cache/reducer foundations and controller UI are implemented.
+The owner authorized the remaining Wear UI and synthetic lifecycle work on
+2026-09-22; see [Wear UI completion](wear-ui-completion.md) for the sequence and
+[Wear lifecycle UI](wear-lifecycle-ui.md) for the implementation and evidence boundary.
+This authorization permits test/debug synthetic sources only. Both privacy gates closed on
+2026-09-29 (§6.1), and real-payload transport is specified in
+[Wear paired transport](wear-paired-transport.md). Physical-device acceptance and final Phase 1
+acceptance remain open.
 
 - **Decision date:** 2026-09-01
 - **Specification base:** `dev` at
@@ -564,6 +569,22 @@ the existing explicit persistence contract: only a completed set is durable.
 - The Wear application opts out of Android backup/data extraction for this
   cache.
 
+**Trigger installation and repair.** The phone-side `wear_revision` invalidation is carried by
+twelve SQL triggers installed by `prepareWearSyncStorage` before any graph-owned listener is
+admitted. They are installed by comparison, not by `CREATE TRIGGER IF NOT EXISTS`, and the reason is
+measured rather than assumed: executed SQL confirms that `IF NOT EXISTS` does **not** replace a
+same-name trigger whose body differs, so a stale trigger survives preparation and the write it
+should have invalidated leaves `wear_revision` untouched. Room's exported v7 schema declares no
+triggers, so no other layer notices, and any future edit to the canonical bodies would have failed
+silently on every existing installation while looking applied. Preparation therefore reads
+`sqlite_master.sql` for each canonical name and recreates whatever differs, inside the same
+`immediateTransaction`.
+
+The comparison is byte-for-byte, which is what makes the canonical statements' exact text
+load-bearing: SQLite stores a trigger's `CREATE` text verbatim minus its `IF NOT EXISTS` clause and
+its terminating semicolon. An installation already carrying the current bodies therefore matches and
+rewrites nothing.
+
 ### 5.2 Command validation
 
 Every completion command carries at least:
@@ -974,6 +995,25 @@ retry, while data items persist and may be backed up. The application must add
 its own acknowledgement and safe retry semantics described above. Phone and
 watch artifacts must use matching application IDs and signatures.
 
+### 6.1 Gate closure record
+
+Both gates closed on 2026-09-29 by owner decision, recorded in
+[Wear paired transport](wear-paired-transport.md) §2:
+
+- Gate 1: the owner approved the public privacy policy in
+  [Wear paired transport](wear-paired-transport.md) Appendix A. It replaces
+  `docs/index.md` through an owner-authorized, text-exact exception to the
+  repository lock, and the release that enables transport is accepted only
+  after the live privacy page carries it.
+- Gate 2: the owner selected **Permit end-to-end encrypted Data Layer relay**.
+  The transport uses `MessageClient` only, never `DataClient`.
+
+Workout payloads may cross the device boundary only through the two files that
+[Wear paired transport](wear-paired-transport.md) §8 allowlists; every other
+source file stays under the three-layer ban. This record closes neither
+physical-device acceptance, nor the reconnect-window calibration of §8, nor
+final Phase 1 acceptance.
+
 ## 7. Android-only module boundary
 
 Target topology for implementation:
@@ -985,6 +1025,10 @@ app/wear                 Wear OS application, Tile, activity, cache, transport
 ```
 
 Constraints:
+
+The presentation and dependency constraints below describe Phase 1. The current
+[shared-style and MVI contract](wear-style-mvi.md#contract) supersedes its UI-sharing and
+Firebase exclusions; protocol, privacy and authority constraints remain in force.
 
 - `app/wear` uses Wear Compose/Material and Tiles ProtoLayout directly. It does
   not depend on `app/common`, phone navigation, `core/ui/kit`, or a shared KMP UI
@@ -1050,13 +1094,17 @@ workout engine.
   extend it. Only a fresh correlated `ActiveWithTarget` response carrying
   `MutationAuthority.Granted` cancels the grace state and installs a new
   lifecycle window.
-- Crash ordering is fail-closed. A fresh lifecycle persists its new deadline
-  before exposing the notification. Deadline shortening updates the system
-  notification to the earlier timeout before publishing the matching cache
-  header. Entering a read-only stop state cancels the notification before that
-  state is exposed. At every process-death cut the notification is therefore
-  absent or has a timeout no later than the last reducer decision; the cache
-  reader never recreates it or extends it.
+- Crash ordering is fail-closed. A new or extended fresh lifecycle persists its
+  complete new record/deadline before posting. If a newly accepted fresh grant has
+  an earlier effective deadline than a surviving notification, shorten that system
+  notification first, then publish the new cache record, then perform the fresh post.
+  The same platform-first shortening order applies to earlier disconnect. Restore
+  uses the minimum of the valid cache deadline and surviving notification deadline,
+  so a cache-write failure cannot undo a successful platform shortening. Entering
+  a read-only stop state cancels before that state is exposed; NoSession requires
+  its durable tombstone before publication. The cache reader never deliberately
+  recreates a missing notification or extends its deadline. See the implementation's
+  [crash cuts and platform race limit](wear-lifecycle-ui.md#4-ongoing-deadline-and-crash-ordering).
 - When the reconnect window elapses without freshness, stop the ongoing surface
   and leave the stale Tile even if the node still reports connected.
 - Stop immediately when the reducer accepts `WorkoutComplete`,
@@ -1066,16 +1114,30 @@ workout engine.
   the ongoing surface does not finish the phone session.
 - Never hold a wake lock solely to keep the Tile or controller fresh.
 
-The exact reconnect window is fixed at implementation entry after measuring the
-platform reconnect behavior on the target physical watch; it must be at least
+Synthetic lifecycle development may inject an explicitly uncalibrated reconnect
+policy in tests/debug while the privacy gate remains closed. Such a value is not
+a production default, a measured constant, or evidence of physical acceptance.
+
+Before production lifecycle acceptance, the exact reconnect window is fixed by
+measuring platform reconnect behavior on the target physical watch; it must be at least
 the documented four-minute reconnection interval plus a small deterministic
 margin, and must have a testable constant rather than an unbounded timer. The
 same probe fixes a maximum `ONGOING_TIMEOUT_TOLERANCE_MS` for system notification
 removal on that device. The same constants and state machine cover explicit
 disconnect, connected-but-silent freshness loss, and process eviction. If
 `timeoutAfter` does not cancel the notification after process death within the
-declared tolerance, implementation is a STOP; it must not silently weaken the
-bounded-stop guarantee or add an exact-alarm permission without a new decision.
+declared tolerance, production lifecycle acceptance is a STOP; it must not
+silently weaken the bounded-stop guarantee or add an exact-alarm permission
+without a new decision. Unmeasured synthetic development cannot close this STOP.
+
+### 8.1 Synthetic implementation and host evidence
+
+[Wear lifecycle UI](wear-lifecycle-ui.md) records the single process owner, pristine
+cache restoration, ambient state retention, notification denial behavior, Android
+adapter ordering and the executed host ledger. Release was read-only through this stage;
+[Wear paired transport](wear-paired-transport.md) §7.7 connects it. Wear OS 5+
+foreground retention and older supported versions have separate physical acceptance
+rows; no host test or debug policy closes the device timing/return requirements.
 
 ## 9. Protocol surface
 

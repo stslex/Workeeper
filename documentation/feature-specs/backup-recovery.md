@@ -45,7 +45,8 @@ activeUndo, terminalOutbox)` and exact opaque references.
   [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
   after restore-state epoch reconciliation finds no unresolved restore
   attempt. It routes `APP_DOWNGRADE` / `NO_MIGRATION_PATH` /
-  `CANNOT_PEEK_LIVE_DB` to the Room-free `RecoveryActivity`.
+  `CANNOT_PEEK_LIVE_DB` / `LIVE_DB_OPEN_FAILED` to the Room-free
+  `RecoveryActivity`.
 - **Scenario 3** (user-initiated undo) — the Settings "Revert last restore"
   row in
   [`BackupSection`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
@@ -250,10 +251,13 @@ task replaces the current one via `FLAG_ACTIVITY_NEW_TASK`.
 1. **The pre-flight does not trigger Room migration.** It peeks the live
    `PRAGMA user_version` via the Room-free `SQLiteDatabase.openDatabase`
    and consults the registered `hasMigrationPath`. A migration is trusted
-   if it is registered; a registered-but-buggy migration still surfaces
-   as a Room exception on first DAO call (narrower failure mode than
-   missing-migration, which PR-B's `MigrationsRegistryTest` catches
-   pre-merge).
+   if it is registered — `hasMigrationPath` answers *registered*, never
+   *succeeds* — so a registered-but-buggy migration peeks as `Proceed` and
+   throws later, at this process's first Room open. That residual case is
+   caught and routed in step 4 below rather than left to escape; before that
+   guard existed it killed the process inside `Application.onCreate`, where
+   no Activity yet exists to route from. Missing-migration is the separate,
+   wider failure mode that PR-B's `MigrationsRegistryTest` catches pre-merge.
 2. **The pre-Room snapshot is written lazily, only on the
    `RouteToRecovery` branch.** The live db is pristine at that point
    (Room never opened it on this launch), so the snapshot captures the
@@ -271,8 +275,8 @@ Flow:
 2. **Schema peek.** `peekSnapshotSchemaVersion` reads the live db's
    `user_version` via `SQLiteDatabase.openDatabase` — no Room init, no
    migration trigger.
-3. **Decide.** Four branches, exhaustive over
-   `StartupMigrationFailureReason`:
+3. **Decide.** Five branches over the peek's result, covering three of the four
+   `StartupMigrationFailureReason` members; the fourth is decided in step 4:
    - `db == code` → `Proceed`. Delete any stale durable recovery export from
      a previous resolved recovery route.
    - `db > code` → `RouteToRecovery(APP_DOWNGRADE)`. Preserve snapshot,
@@ -283,11 +287,28 @@ Flow:
      Preserve snapshot, record Crashlytics non-fatal.
    - Peek throws → `RouteToRecovery(CANNOT_PEEK_LIVE_DB)`. Preserve
      snapshot best-effort, record Crashlytics non-fatal.
-4. **Preserve the raw export durably.** A recovery route checkpoints the live
+4. **First Room open, guarded.** The peek cannot see a migration that is
+   registered and fails, so `StartupProcessor` wraps this process's first Room
+   open — `prepareWearSyncStorage`, the last synchronous boundary before
+   graph-owned listeners may touch Room — and routes any throw, deliberately
+   unnarrowed, into `StartupMigrationCoordinator.recordLiveDatabaseOpenFailure`.
+   That writes `RouteToRecovery(LIVE_DB_OPEN_FAILED)` into `lastDecision`,
+   preserves the live file for the recovery export, and carries the throwable on
+   the Crashlytics non-fatal.
+
+   Recording is exactly as load-bearing as catching. `MainActivity` routes on
+   `lastDecision` and on nothing else, so a guard that merely caught would leave
+   a `Proceed` verdict over a database this launch had just proved unopenable —
+   a silently broken app rather than a crash. A cold start that routes here also
+   seals DB-bound worker admission, as any recovery route does; the in-process
+   candidate preflight never seals, because its abort leaves a healthy
+   generation serving. `CancellationException` is re-thrown rather than
+   reported: a cancelled candidate transition has proven nothing about the file.
+5. **Preserve the raw export durably.** A recovery route checkpoints the live
    file directly and publishes `recovery_export.db` below the no-backup root
    through `recovery_export.db.creating`. Export failure is visible but does
    not change the recovery decision.
-5. **MainActivity launches the DB-free surface.** `RecoveryActivity` is opened
+6. **MainActivity launches the DB-free surface.** `RecoveryActivity` is opened
    directly by Intent and MainActivity finishes. The Intent's Continue flag
    defaults to false; startup-migration routes never opt in.
 
@@ -825,13 +846,23 @@ filter the Crashlytics dashboard by scenario:
 | `install_source` | `String` | Scenario 2 only — Play vs sideload, from `PackageManager.getInstallSourceInfo(...)`. |
 
 The Scenario 2 pre-flight detects unrecoverable state by pure file inspection,
-so there is no Room exception to forward. `recordStartupMigrationFailure`
-therefore records a synthesized `StartupMigrationFailure(fromSchema, toSchema,
-reason)` when `exception` is null — Crashlytics needs *some* `Throwable` to group
-non-fatals by, and without one the failure mode would not surface on the
-dashboard at all. The class is declared at file scope rather than nested inside
-`StartupMigrationReporter` so Crashlytics groups by a clean class name without
-dashboard noise.
+so its three peek-decided reasons have no Room exception to forward.
+`recordStartupMigrationFailure` therefore records a synthesized
+`StartupMigrationFailure(fromSchema, toSchema, reason)` when `exception` is null
+— Crashlytics needs *some* `Throwable` to group non-fatals by, and without one
+the failure mode would not surface on the dashboard at all. The class is
+declared at file scope rather than nested inside `StartupMigrationReporter` so
+Crashlytics groups by a clean class name without dashboard noise.
+
+`LIVE_DB_OPEN_FAILED` is the exception to that, in both senses: it is decided
+after the peek, at the guarded first Room open (step 4 above), and it is the one
+reason that *does* have a real `Throwable` to forward.
+`recordLiveDatabaseOpenFailure` passes the caught error through as `exception`,
+so Crashlytics groups those by the migration's own failure rather than by the
+synthesized class — which is the point, since the whole reason this route exists
+is that the throw is the diagnosis. `fromSchema` is `-1` on this path: the peek
+succeeded, but what it read describes the file before the failed open and is not
+what went wrong.
 
 `FirebaseCrashlytics.setUserId(...)` is **not** added here — the existing
 project policy is to not pin a user identifier. Filtering by the keys above

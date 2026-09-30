@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import org.jetbrains.annotations.TestOnly
 
 /**
@@ -29,9 +31,29 @@ class RepositoryTestEnv {
         .build()
 
     val transition: DbTransitionRunner = object : DbTransitionRunner {
+        private val afterMutationCommitListeners = MutableStateFlow<List<() -> Unit>>(emptyList())
+
+        override fun addAfterMutationCommitListener(listener: () -> Unit) {
+            afterMutationCommitListeners.update { current -> current + listener }
+        }
+
         // Room 3 equivalent of `withTransaction {}`; `coroutineScope` nests inside so `async {}`
         // children reuse the transaction's connection instead of contending with it.
         override suspend fun <T> invoke(
+            block: suspend CoroutineScope.() -> T,
+        ): T = runTransaction(block)
+
+        override suspend fun <T> mutate(
+            block: suspend CoroutineScope.() -> T,
+        ): T {
+            val result = runTransaction(block)
+            afterMutationCommitListeners.value.forEach { listener ->
+                runCatching { listener() }
+            }
+            return result
+        }
+
+        private suspend fun <T> runTransaction(
             block: suspend CoroutineScope.() -> T,
         ): T = database.useWriterConnection { transactor ->
             transactor.immediateTransaction {

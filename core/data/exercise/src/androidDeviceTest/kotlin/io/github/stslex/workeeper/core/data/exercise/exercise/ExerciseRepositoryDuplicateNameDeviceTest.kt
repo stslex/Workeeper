@@ -40,6 +40,10 @@ internal class ExerciseRepositoryDuplicateNameDeviceTest {
     private lateinit var repository: ExerciseRepositoryImpl
 
     private val transition = object : DbTransitionRunner {
+        override fun addAfterMutationCommitListener(listener: () -> Unit) = Unit
+
+        override suspend fun <T> mutate(block: suspend CoroutineScope.() -> T): T = invoke(block)
+
         override suspend fun <T> invoke(block: suspend CoroutineScope.() -> T): T =
             database.useWriterConnection { transactor ->
                 transactor.immediateTransaction { coroutineScope { block() } }

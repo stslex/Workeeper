@@ -67,7 +67,7 @@ fun Project.configureApplication(
     }
 }
 
-private fun ApplicationExtension.configureProguard(
+internal fun ApplicationExtension.configureProguard(
     rootProject: File
 ) {
     buildTypes {
@@ -92,7 +92,7 @@ private fun ApplicationExtension.configureProguard(
     }
 }
 
-private fun ApplicationExtension.configureSigning(
+internal fun ApplicationExtension.configureSigning(
     project: Project
 ) {
     signingConfigs {

@@ -11,6 +11,10 @@ on:
         type: boolean
         default: false
         description: "Skip build checks. Use only on retries when build passed in a prior run."
+      allow_listing_overwrite:
+        type: boolean
+        default: false
+        description: "Turn a store-listing DRIFT into a logged warning (wear-release-pipeline.md §8). Never the default."
 
 permissions:
   contents: write
@@ -229,7 +233,10 @@ jobs:
           echo "Generating Play changelog from $PREV_TAG to $HEAD_SHA"
           bash ./.github/scripts/generate_changelog.sh "$PREV_TAG" "$HEAD_SHA" play "$VERSION_CODE"
 
+      # The lane checks the store listing for Play Console edits before its upload (spec §8).
       - name: Distribute app to Prod track 🚀
+        env:
+          ALLOW_LISTING_OVERWRITE: ${{ inputs.allow_listing_overwrite }}
         run: bundle exec fastlane deploy
 
       - name: Configure git identity
@@ -255,3 +262,37 @@ jobs:
           PR_NUMBER: ${{ needs.guard.outputs.pr_number }}
           PINNED_SHA: ${{ needs.guard.outputs.sha }}
         run: gh pr merge "$PR_NUMBER" --merge --delete-branch --match-head-commit "$PINNED_SHA"
+
+      # GUARD: last, and never between the Play upload and the tag/merge steps, where its own failure
+      # would leave a live release untagged (release-flow.md §8.2). continue-on-error: a diagnostic
+      # upload that fails after upload, tag and merge must not fail this job, which would skip
+      # deploy_wear. On a DRIFT this is Play's state of the drifted items, laid out like the metadata
+      # tree (release-flow.md §8.10).
+      - name: Upload the store listing drift state
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          # One name per attempt: upload-artifact@v4 fails on a name the run already holds, and a
+          # "Re-run failed jobs" attempt keeps the earlier attempt's artifacts.
+          name: listing-drift-phone-attempt-${{ github.run_attempt }}
+          # The role directory itself, so the artifact root is what `listing_drift.py adopt --out` reads.
+          path: build/listing-drift/phone/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # The Wear bundle of the same pinned SHA, to the Wear OS internal testing track
+  # (wear-release-pipeline.md §7). It starts after `deploy` has uploaded, tagged and merged, so a
+  # Wear failure leaves the phone release complete; recovery is "Re-run failed jobs" here, or a
+  # dispatch of android_deploy_wear.yml on the tag (release-flow.md §8.7).
+  # `always()` for the same reason as `deploy`: a skipped build or ui_tests must not skip this job.
+  deploy_wear:
+    needs: [ guard, deploy ]
+    if: ${{ always() && needs.deploy.result == 'success' }}
+    uses: ./.github/workflows/android_deploy_wear.yml
+    with:
+      ref: ${{ needs.guard.outputs.sha }}
+      version_name: ${{ needs.guard.outputs.version_name }}
+      version_code: ${{ needs.guard.outputs.version_code }}
+      allow_listing_overwrite: ${{ inputs.allow_listing_overwrite }}
+    secrets: inherit

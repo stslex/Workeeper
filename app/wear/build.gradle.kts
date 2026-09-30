@@ -1,0 +1,147 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+import com.google.gms.googleservices.GoogleServicesTask
+
+plugins {
+    alias(libs.plugins.convention.application.wear)
+    alias(libs.plugins.gms)
+    alias(libs.plugins.firebaseCrashlytics)
+    alias(libs.plugins.firebasePerf)
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
+}
+
+android {
+    buildTypes {
+        named("debug") {
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+                nativeSymbolUploadEnabled = false
+            }
+        }
+        named("release") {
+            configure<CrashlyticsExtension> {
+                // GUARD: opt-in only. PR CI assembles storeRelease as a compile gate, and the
+                // Crashlytics plugin wires uploadCrashlyticsMappingFile<Variant> into assemble
+                // whenever this is true, so every PR would upload a mapping file for a build that
+                // never ships. A release pipeline passes -PcrashlyticsMappingUpload=true (ci-cd.md).
+                mappingFileUploadEnabled = providers.gradleProperty("crashlyticsMappingUpload")
+                    .map(String::toBoolean)
+                    .getOrElse(false)
+                nativeSymbolUploadEnabled = false
+            }
+        }
+    }
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+    lint {
+        // Android Lint cannot merge its standalone JVM model with this app while app-only issues
+        // are enabled: it reports CannotEnableHidden before source analysis. The pure-JVM
+        // protocol instead owns an independent, Detekt-backed lintDebug alias in every root gate.
+        checkDependencies = false
+    }
+}
+
+androidComponents.onVariants { variant ->
+    val taskName = "process${variant.name.replaceFirstChar(Char::uppercase)}GoogleServices"
+    tasks.withType<GoogleServicesTask>().matching { it.name == taskName }.configureEach {
+        googleServicesJsonFiles.set(listOf(rootProject.file("app/${variant.flavorName}/google-services.json")))
+    }
+}
+
+dependencies {
+    implementation(project(":core:wear-protocol"))
+    implementation(project(":core:ui:design-tokens"))
+    implementation(project(":core:ui:mvi"))
+    implementation(platform(libs.google.firebase.bom))
+    implementation(libs.google.firebase.analytics)
+    implementation(libs.google.firebase.crashlytics)
+    implementation(libs.google.firebase.perf)
+    implementation(libs.google.play.services.wearable)
+    implementation(libs.coroutines.play.services)
+    implementation(libs.androidx.wear.ambient)
+
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Wear's transitive Fragment must support the Activity Result permission API.")
+        }
+    }
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.androidx.wear.tiles.testing)
+    // `runComposeUiTest` under Robolectric hosts the redesign gates (touch targets, kind
+    // distinction, disabled labels, overflow) in `testDebugUnitTest`, the per-PR gate — the
+    // instrumented workflow is dispatch-only. Robolectric itself and ApplicationProvider come
+    // from the shared `test` bundle; the ComponentActivity the test launches comes from the
+    // existing `debugImplementation(ui-test-manifest)` below.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric.junit5.extension)
+    // Only the repository-owned suite annotations are needed. Pulling the module's phone/KMP UI
+    // runtime into the Wear test APK conflicts with the intentionally narrower Wear lock graph.
+    androidTestImplementation(project(":core:ui:test-utils")) {
+        isTransitive = false
+    }
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    useJUnitPlatform()
+    maxHeapSize = "2g"
+    forkEvery = 20
+    // GUARD: the robolectric-junit5 bridge needs launcher interceptors on, or every test dies
+    // with "No instrumentation registered". See feature-specs/kmp-phase-3-core-collapse.md.
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
+}
+
+// The root verification contract uses unflavoured lifecycle names. AGP creates those aliases for
+// assembleDebug, but not for the remaining tasks once this application adds a flavor dimension.
+// Keep both package-compatible variants in every existing root gate.
+tasks.register("assembleDebugAndroidTest") {
+    dependsOn("assembleDevDebugAndroidTest", "assembleStoreDebugAndroidTest")
+}
+tasks.register("lintDebug") {
+    dependsOn("lintDevDebug", "lintStoreDebug")
+}
+// Which Wear flavors the unflavoured `testDebugUnitTest` alias runs. The two flavors differ by one
+// manifest meta-data line, and running both doubled this module's share of CI's unit-test step, so
+// pull_request CI passes `-PwearUnitTestFlavors=store` (ci-cd.md § "Build and unit-test workflow").
+// Everything else keeps the default. An unknown flavor fails the build rather than testing nothing.
+val wearUnitTestFlavors = providers.gradleProperty("wearUnitTestFlavors").orElse("dev,store").map { raw ->
+    val flavors = raw.split(',').map(String::trim).filter(String::isNotEmpty)
+    val known = listOf("dev", "store")
+    require(flavors.isNotEmpty() && flavors.all { it in known }) {
+        "wearUnitTestFlavors must be a comma-separated subset of $known, got '$raw'"
+    }
+    flavors
+}
+tasks.register("testDebugUnitTest") {
+    dependsOn(
+        wearUnitTestFlavors.map { flavors ->
+            flavors.map { flavor -> "test${flavor.replaceFirstChar(Char::uppercase)}DebugUnitTest" }
+        },
+    )
+    dependsOn("verifyEmulatorAcceptanceRunner")
+}
+
+tasks.register<Exec>("verifyEmulatorAcceptanceRunner") {
+    group = "verification"
+    description = "Check the external Wear emulator evidence parser and result inventory."
+    workingDir(rootDir)
+    environment("PYTHONDONTWRITEBYTECODE", "1")
+    commandLine(
+        "python3", "documentation/wear-emulator-acceptance/run_parser_tests.py",
+        "--output", layout.buildDirectory.file(
+            "test-results/verifyEmulatorAcceptanceRunner/TEST-WearAcceptanceParser.xml",
+        ).get().asFile.absolutePath,
+    )
+}

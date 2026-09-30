@@ -33,6 +33,13 @@ enum class StartupMigrationFailureReason {
 
     /** Reading the live db file failed entirely — corruption, permissions, or not SQLite. */
     CANNOT_PEEK_LIVE_DB,
+
+    /**
+     * The peek said `Proceed` and the first Room open of the process threw anyway. A registered
+     * migration that fails is the canonical case, but this covers the whole class:
+     * [DatabaseSnapshotProvider.hasMigrationPath] answers "registered", never "succeeds".
+     */
+    LIVE_DB_OPEN_FAILED,
 }
 
 /**
@@ -59,6 +66,28 @@ class StartupMigrationCoordinator @Inject internal constructor(
 
     suspend fun checkAndRouteOrProceed(): StartupCheck {
         val decision = computeDecision()
+        lastDecision = decision
+        return decision
+    }
+
+    /**
+     * Records a route-to-recovery verdict for a failure the schema peek cannot see: the first Room
+     * open of this process threw after [checkAndRouteOrProceed] returned [StartupCheck.Proceed].
+     *
+     * Recording is the whole point. Startup routing reads [lastDecision] and nothing else, so a
+     * caller that merely catches the throw leaves `MainActivity` with a `Proceed` verdict over a
+     * database this launch just proved unopenable — a silently broken app rather than a crash.
+     * Treated exactly like a peek failure: the live file is preserved for the recovery export
+     * before anything can mutate it, and the non-fatal carries the throwable.
+     */
+    suspend fun recordLiveDatabaseOpenFailure(error: Throwable): StartupCheck.RouteToRecovery {
+        logger.w { "live database open failed after a Proceed peek: $error" }
+        val decision = routeToRecovery(
+            reason = StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED,
+            fromSchema = UNKNOWN_SCHEMA,
+            liveDb = liveDatabaseLocator.liveDatabaseFile(),
+            error = error,
+        )
         lastDecision = decision
         return decision
     }
@@ -116,6 +145,7 @@ class StartupMigrationCoordinator @Inject internal constructor(
         reason: StartupMigrationFailureReason,
         fromSchema: Int,
         @Suppress("UnusedParameter") liveDb: File,
+        error: Throwable? = null,
     ): StartupCheck.RouteToRecovery {
         // Best-effort preserve of the live db before anything can mutate it (WAL recovery).
         val preserved = runCatching { snapshotProvider.preserveDbBeforeMigration() }
@@ -135,7 +165,7 @@ class StartupMigrationCoordinator @Inject internal constructor(
             }
         }
         reporter.recordStartupMigrationFailure(
-            exception = null,
+            exception = error,
             fromSchema = fromSchema,
             toSchema = APP_DATABASE_VERSION,
             reason = reason,

@@ -969,9 +969,11 @@ TextField identity preservation (per architecture.md → TextField inputs).
 The trailing slot holds the type chip **or** the record tag, never both. The tag opens the PR
 explainer; the chip is display-only deliberately (PF4) — `AppSetTypeChip` is rendered with no
 `onClick`, because `Action.Click.OnSetTypeChange` persists through
-`ClickHandler.processSetTypeChange → persistSet → interactor.updateSet`, the same whole-row write
-path that carries the #178 stale-weight hazard, and a tappable chip would arm it from a second
-trigger.
+`ClickHandler.processSetTypeChange → persistSet → interactor.updateSet`, the write path that
+carries the #178 stale-weight hazard, and a tappable chip would arm it from a second trigger.
+Since #281 that write is value-only — it no longer rewrites `position`, so it cannot collide with
+the v7 unique target index — but the reps, weight and type it does send still come from UI state,
+so the stale-weight hazard itself is unchanged.
 
 ### Discard / back gesture
 

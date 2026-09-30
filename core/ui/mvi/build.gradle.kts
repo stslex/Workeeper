@@ -38,9 +38,6 @@ kotlin {
             // points are @Composable — the convention adds these as `implementation` only.
             api(libs.cmp.runtime)
 
-            // Scope stability only: the measured production import count is zero. Removing it
-            // is a separately reviewed cleanup with its own graph proof, not incidental here.
-            implementation(project(":core:ui:kit"))
         }
 
         androidMain.dependencies {
@@ -77,6 +74,9 @@ dependencies {
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
+    // The telemetry redaction test captures the Firebase holder objects (mockkObject).
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
 
     "androidDeviceTestImplementation"(libs.bundles.android.test)
     "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)

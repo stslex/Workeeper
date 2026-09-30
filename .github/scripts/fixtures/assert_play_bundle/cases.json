@@ -1,0 +1,202 @@
+[
+  {
+    "name": "phone release bundle",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "entries": [
+      "base/lib/armeabi-v7a/libsqliteJni.so", "base/lib/arm64-v8a/libsqliteJni.so",
+      "base/lib/x86/libsqliteJni.so", "base/lib/x86_64/libsqliteJni.so"
+    ],
+    "expect": {"G6": "N/A"}
+  },
+  {
+    "name": "wear release bundle",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "entries": [
+      "base/lib/armeabi-v7a/libdatastore_shared_counter.so", "base/lib/arm64-v8a/libdatastore_shared_counter.so"
+    ],
+    "expect": {}
+  },
+  {
+    "name": "wear bundle without native libraries",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "entries": [],
+    "expect": {}
+  },
+  {
+    "name": "wear bundle checked as phone (swap control, M-A2)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "N/A"}
+  },
+  {
+    "name": "phone bundle checked as wear (M-A3)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "FAIL"}
+  },
+  {
+    "name": "wear bundle with the phone identity (the F3 collision)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:versionCode=\"1000052\"", "android:versionCode=\"52\""],
+                ["android:versionName=\"1.51.0-wear\"", "android:versionName=\"1.51.0\""]],
+    "expect": {"G3": "FAIL", "G4": "FAIL"}
+  },
+  {
+    "name": "phone versionCode off by one (M-A4)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["android:versionCode=\"52\"", "android:versionCode=\"53\""]],
+    "expect": {"G3": "FAIL", "G6": "N/A"}
+  },
+  {
+    "name": "wear versionCode off by one",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:versionCode=\"1000052\"", "android:versionCode=\"1000053\""]],
+    "expect": {"G3": "FAIL"}
+  },
+  {
+    "name": "phone versionName differs from the TOML",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["android:versionName=\"1.51.0\"", "android:versionName=\"1.51.1\""]],
+    "expect": {"G4": "FAIL", "G6": "N/A"}
+  },
+  {
+    "name": "dev application id",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["package=\"io.github.stslex.workeeper\"", "package=\"io.github.stslex.workeeper.dev\""]],
+    "expect": {"G2": "FAIL", "G6": "N/A"}
+  },
+  {
+    "name": "phone declares the watch feature",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-feature android:name=\"android.hardware.camera\" android:required=\"false\"/>",
+                 "<uses-feature android:name=\"android.hardware.type.watch\" android:required=\"false\"/>"]],
+    "expect": {"G5": "FAIL", "G6": "N/A"}
+  },
+  {
+    "name": "wear watch feature required=false",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:name=\"android.hardware.type.watch\" android:required=\"true\"",
+                 "android:name=\"android.hardware.type.watch\" android:required=\"false\""]],
+    "expect": {"G5": "FAIL"}
+  },
+  {
+    "name": "wear watch feature with no android:required (defaults to required)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:name=\"android.hardware.type.watch\" android:required=\"true\"",
+                 "android:name=\"android.hardware.type.watch\""]],
+    "expect": {}
+  },
+  {
+    "name": "wear standalone=true",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:name=\"com.google.android.wearable.standalone\" android:value=\"false\"",
+                 "android:name=\"com.google.android.wearable.standalone\" android:value=\"true\""]],
+    "expect": {"G6": "FAIL"}
+  },
+  {
+    "name": "wear standalone meta-data missing",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<meta-data android:name=\"com.google.android.wearable.standalone\" android:value=\"false\"/>", ""]],
+    "expect": {"G6": "FAIL"}
+  },
+  {
+    "name": "armeabi-v7a library without an arm64-v8a twin (M-A5)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "entries": [
+      "base/lib/armeabi-v7a/libdatastore_shared_counter.so", "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "base/lib/armeabi-v7a/libandroidx.graphics.path.so"
+    ],
+    "expect": {"G7": "FAIL"}
+  },
+  {
+    "name": "arm64-v8a twin in another module does not count",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "entries": ["feature/lib/armeabi-v7a/libsqliteJni.so", "base/lib/arm64-v8a/libsqliteJni.so"],
+    "expect": {"G6": "N/A", "G7": "FAIL"}
+  },
+  {
+    "name": "phone bundle declaring the advertising ID permission (M-L4)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "wear bundle declaring the advertising ID permission (M-L4)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "advertising ID permission through uses-permission-sdk-23",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "phone bundle declaring the Privacy Sandbox advertising ID permission (M-L5)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_AD_ID\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "phone bundle declaring the Privacy Sandbox attribution permission",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_ATTRIBUTION\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "wear bundle declaring the Privacy Sandbox advertising ID permission",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "Privacy Sandbox attribution permission through uses-permission-sdk-23",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"android.permission.ACCESS_ADSERVICES_ATTRIBUTION\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "the optional android.ext.adservices library is not a permission (the release bundles carry it)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<meta-data android:name=\"com.google.android.gms.version\"",
+                 "<uses-library android:name=\"android.ext.adservices\" android:required=\"false\"/><meta-data android:name=\"com.google.android.gms.version\""]],
+    "expect": {"G6": "N/A"}
+  },
+  {
+    "name": "phone bundle without the advertising ID collection meta-data",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<meta-data android:name=\"google_analytics_adid_collection_enabled\" android:value=\"false\"/>", ""]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "wear bundle collecting the advertising ID (meta-data true)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:name=\"google_analytics_adid_collection_enabled\" android:value=\"false\"",
+                 "android:name=\"google_analytics_adid_collection_enabled\" android:value=\"true\""]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "no file at the path",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "missing",
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
+  },
+  {
+    "name": "empty file at the path",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "empty",
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
+  },
+  {
+    "name": "glob matching two bundles",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear", "bundle": "two",
+    "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
+               "G8": "SKIP"}
+  }
+]

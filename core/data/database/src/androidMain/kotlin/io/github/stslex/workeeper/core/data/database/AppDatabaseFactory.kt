@@ -3,8 +3,11 @@ package io.github.stslex.workeeper.core.data.database
 
 import android.content.Context
 import androidx.room3.Room
+import androidx.room3.RoomDatabase
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
+import io.github.stslex.workeeper.core.data.database.migration.reportReconciledTargets
 
 /**
  * The only place the app builds its Room database; `BaseApplication` threads the result into the
@@ -21,4 +24,16 @@ fun buildAppDatabase(context: Context): AppDatabase = Room
     // device instead of the per-OEM system one, at frozen main-db and WAL file formats.
     .setDriver(BundledSQLiteDriver())
     .apply { MIGRATIONS.forEach { addMigrations(it) } }
+    .addCallback(
+        object : RoomDatabase.Callback() {
+            /**
+             * Room runs migrations inside `BEGIN EXCLUSIVE TRANSACTION` and reaches this only
+             * after the commit, so a reconciliation count reported here belongs to an upgrade
+             * that actually landed rather than to an attempt that may yet roll back.
+             */
+            override suspend fun onOpen(connection: SQLiteConnection) {
+                reportReconciledTargets()
+            }
+        },
+    )
     .build()

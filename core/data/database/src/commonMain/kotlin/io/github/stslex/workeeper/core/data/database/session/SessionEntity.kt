@@ -36,4 +36,16 @@ data class SessionEntity(
     val startedAt: Long,
     @ColumnInfo(name = "finished_at")
     val finishedAt: Long?,
+    @ColumnInfo(name = "wear_revision", defaultValue = "0")
+    val wearRevision: Long = 0,
+    @ColumnInfo(name = "wear_lease_generation", defaultValue = "0")
+    val wearLeaseGeneration: Long = 0,
+    @ColumnInfo(name = "wear_receipt_command_id")
+    val wearReceiptCommandId: String? = null,
+    @ColumnInfo(name = "wear_receipt_attempt_fingerprint")
+    val wearReceiptAttemptFingerprint: ByteArray? = null,
+    @ColumnInfo(name = "wear_receipt_database_epoch")
+    val wearReceiptDatabaseEpoch: String? = null,
+    @ColumnInfo(name = "wear_receipt_revision")
+    val wearReceiptRevision: Long? = null,
 )

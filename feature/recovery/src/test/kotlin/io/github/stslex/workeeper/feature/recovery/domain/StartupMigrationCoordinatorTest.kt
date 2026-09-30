@@ -213,6 +213,32 @@ internal class StartupMigrationCoordinatorTest {
     }
 
     @Test
+    fun `a recorded first-open failure becomes the decision MainActivity routes on`() = runTest {
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+            BackupResult.Success(liveDbFile)
+        val thrown = IllegalStateException("migration 7 threw")
+
+        val result = coordinator.recordLiveDatabaseOpenFailure(thrown)
+
+        assertEquals(
+            StartupCheck.RouteToRecovery(StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED),
+            result,
+        )
+        // The routing surface itself: `MainActivity` reads `lastDecision`, nothing else.
+        assertEquals(result, coordinator.lastDecision)
+        // Same treatment as a peek failure, so the recovery screen has a raw export to offer.
+        assertEquals(RecoveryExportOutcome.Available, coordinator.lastRecoveryExportOutcome)
+        coVerify(exactly = 1) {
+            reporter.recordStartupMigrationFailure(
+                exception = thrown,
+                fromSchema = -1,
+                toSchema = APP_DATABASE_VERSION,
+                reason = StartupMigrationFailureReason.LIVE_DB_OPEN_FAILED,
+            )
+        }
+    }
+
+    @Test
     fun `thrown export failure is visible while startup still routes to recovery`() = runTest {
         val older = APP_DATABASE_VERSION - 1
         coEvery {

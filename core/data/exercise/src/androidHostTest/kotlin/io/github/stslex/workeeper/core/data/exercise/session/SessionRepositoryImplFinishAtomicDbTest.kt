@@ -226,9 +226,17 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
             val realTransition = env.transition
             val transitionSpy = spyk(
                 object : DbTransitionRunner {
+                    override fun addAfterMutationCommitListener(listener: () -> Unit) {
+                        realTransition.addAfterMutationCommitListener(listener)
+                    }
+
                     override suspend fun <T> invoke(
                         block: suspend kotlinx.coroutines.CoroutineScope.() -> T,
                     ): T = realTransition(block)
+
+                    override suspend fun <T> mutate(
+                        block: suspend kotlinx.coroutines.CoroutineScope.() -> T,
+                    ): T = realTransition.mutate(block)
                 },
             )
 

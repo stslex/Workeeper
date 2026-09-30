@@ -1029,7 +1029,9 @@ verify task without naming it; `assertGoldenLiveness` is what catches that case.
 From the project root:
 
 ```bash
-# Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest)
+# Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest).
+# Needs python3 on PATH: the Wear alias also runs :app:wear:verifyEmulatorAcceptanceRunner, the
+# acceptance parser suite with its exact 65-test identity inventory (run_parser_tests.py).
 ./gradlew testDebugUnitTest
 
 # Shared MVI Android-host tests plus exact JUnit identities

@@ -94,6 +94,9 @@ private val ARTIFACT_TYPE = Attribute.of("artifactType", String::class.java)
  */
 private val ANDROID_TEST_RUNTIME_CLASSPATHS = listOf(
     "debugAndroidTestRuntimeClasspath",
+    // The Wear application has a distribution flavor while preserving one shared androidTest.
+    "devDebugAndroidTestRuntimeClasspath",
+    "storeDebugAndroidTestRuntimeClasspath",
     "androidDeviceTestRuntimeClasspath",
 )
 
@@ -103,6 +106,8 @@ private val ANDROID_TEST_RUNTIME_CLASSPATHS = listOf(
  */
 private val ANDROID_TEST_ASSEMBLE_TASKS = setOf(
     "assembleDebugAndroidTest",
+    "assembleDevDebugAndroidTest",
+    "assembleStoreDebugAndroidTest",
     "assembleAndroidDeviceTest",
     "assembleAndroidTest",
 )
@@ -113,6 +118,8 @@ private val ANDROID_TEST_ASSEMBLE_TASKS = setOf(
  */
 private val ANDROID_TEST_RUN_TASKS = setOf(
     "connectedDebugAndroidTest",
+    "connectedDevDebugAndroidTest",
+    "connectedStoreDebugAndroidTest",
     "connectedAndroidDeviceTest",
 )
 

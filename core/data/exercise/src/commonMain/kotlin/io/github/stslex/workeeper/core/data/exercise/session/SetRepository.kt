@@ -20,6 +20,10 @@ interface SetRepository {
 
     suspend fun insert(performedExerciseUuid: String, set: SetsDataModel)
 
+    /**
+     * Rewrites the *values* of `set.uuid` — reps, weight, type. `set.position` is read-only here;
+     * use [reorderSets] to move a set.
+     */
     suspend fun update(performedExerciseUuid: String, set: SetsDataModel)
 
     /** Atomically rewrites the sets of [performedExerciseUuid] into [orderedSetUuids] order. */

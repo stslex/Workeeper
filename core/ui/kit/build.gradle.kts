@@ -22,6 +22,7 @@ compose.resources {
 kotlin {
     sourceSets {
         commonMain.dependencies {
+            implementation(project(":core:ui:design-tokens"))
             // Supplies the AppScope DI token (commonMain `di` package) for @ContributesBinding(AppScope).
             implementation(project(":core:core"))
 

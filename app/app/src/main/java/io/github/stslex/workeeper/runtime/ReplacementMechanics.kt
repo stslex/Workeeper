@@ -18,6 +18,8 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -743,6 +745,21 @@ internal class WorkerAdmissionGate {
         }
     }
 
+    /** Wear callbacks share the exact closed/drained counter with backup work. */
+    suspend fun awaitWearLease(deps: () -> WearBridgeDeps): WearBridgeWorkLease? {
+        while (true) {
+            synchronized(lock) {
+                if (sealed) return null
+                if (!closed.value) {
+                    val bound = deps()
+                    activeLeases.update { it + 1 }
+                    return WearLeaseImpl(bound)
+                }
+            }
+            closed.first { isClosed -> !isClosed }
+        }
+    }
+
     /**
      * Driven only from the cold-start recovery verdict, which runs inside `Application.onCreate`
      * before any component callback — so no acquirer can be parked when it fires.
@@ -757,6 +774,15 @@ internal class WorkerAdmissionGate {
         withTimeoutOrNull(timeoutMillis) { activeLeases.first { it == 0 } } != null
 
     private inner class LeaseImpl(override val deps: BackupWorkerDeps) : BackupWorkLease {
+        private val released = AtomicBoolean(false)
+        override fun release() {
+            if (released.compareAndSet(false, true)) {
+                activeLeases.update { count -> (count - 1).coerceAtLeast(0) }
+            }
+        }
+    }
+
+    private inner class WearLeaseImpl(override val deps: WearBridgeDeps) : WearBridgeWorkLease {
         private val released = AtomicBoolean(false)
         override fun release() {
             if (released.compareAndSet(false, true)) {
