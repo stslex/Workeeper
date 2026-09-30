@@ -47,10 +47,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val mutationWriter: WearSetMutationWriter,
 ) : PhoneWorkoutBridge {
 
-    /**
-     * Empty: both owner gates closed on 2026-09-29, recorded in
-     * wear-phase-1-active-workout-tile.md §6.1 and wear-paired-transport.md §2 (D1, D2).
-     */
+    /** Empty: no owner gate is open (wear-phase-1-active-workout-tile.md §6.1). */
     override val transportStatus: Set<WearPayloadTransportStatus> = emptySet()
 
     private val coordinatorMutex = Mutex()
