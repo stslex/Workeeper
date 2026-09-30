@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScopeImpl
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.core.logger.telemetryTypeName
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -121,11 +122,11 @@ open class BaseStore<S : State, A : Action, E : Event>(
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
         if (allowConsumeAction.not()) {
-            logger.i("consume skipped for ${telemetryTypeName(action)}")
+            logger.i("consume skipped for ${telemetryTypeName(action)}", telemetryDedupeKey(action))
             return
         }
         // Type names only: the Store logger also writes the Crashlytics log (telemetryTypeName).
-        logger.i("consume: ${telemetryTypeName(action)}")
+        logger.i("consume: ${telemetryTypeName(action)}", telemetryDedupeKey(action))
         analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
             _lastAction = action
@@ -153,7 +154,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     override fun sendEvent(event: E) {
-        logger.i("sendEvent: ${telemetryTypeName(event)}")
+        logger.i("sendEvent: ${telemetryTypeName(event)}", telemetryDedupeKey(event))
         analytics.logEvent(event)
         sendEventWithAwait(event)
     }
@@ -165,6 +166,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
                 "Event ${telemetryTypeName(event)} was try emitted: $emitted with buffer capacity " +
                     "${_event.subscriptionCount.value} " +
                     "and buffer size ${_event.replayCache.size}",
+                telemetryDedupeKey(event),
             )
             scope.launch {
                 _event.emit(event)

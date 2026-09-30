@@ -30,6 +30,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -48,6 +49,7 @@ internal class StoreTelemetryRedactionTest {
 
     private val analytics = mutableListOf<FirebaseEvent>()
     private val breadcrumbs = mutableListOf<String>()
+    private val breadcrumbKeys = mutableListOf<Pair<String, Int>>()
     private lateinit var dispatcher: TestDispatcher
     private var wasLogging = true
 
@@ -59,7 +61,11 @@ internal class StoreTelemetryRedactionTest {
         Dispatchers.setMain(dispatcher)
         mockkObject(FirebaseAnalyticsHolder, FirebaseCrashlyticsHolder)
         every { FirebaseAnalyticsHolder.log(any()) } answers { analytics += firstArg<FirebaseEvent>() }
-        every { FirebaseCrashlyticsHolder.log(any()) } answers { breadcrumbs += firstArg<String>() }
+        every { FirebaseCrashlyticsHolder.log(any<String>()) } answers { breadcrumbs += firstArg<String>() }
+        every { FirebaseCrashlyticsHolder.log(any<String>(), any<Int>()) } answers {
+            breadcrumbs += firstArg<String>()
+            breadcrumbKeys += firstArg<String>() to secondArg<Int>()
+        }
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
             breadcrumbs += "${secondArg<String>()} ${firstArg<Throwable>().message}"
         }
@@ -124,6 +130,38 @@ internal class StoreTelemetryRedactionTest {
             "telemetry checked: ${analytics.size} analytics events (${parameters.size} parameters), " +
                 "${breadcrumbs.size} breadcrumbs, ${SENTINELS.size} sentinels, 0 leaks",
         )
+
+        store.dispose()
+        lifetime.cancelAndJoin()
+    }
+
+    @Test
+    fun `repeats are debounced exactly when the entered values repeat`() = runTest {
+        val lifetime = AppScopeLifetime()
+        val store = RedactionStore(StoreDispatchers(dispatcher, dispatcher), lifetime)
+        store.init(RedactionLifecycleOwner())
+        val first = RedactionAction.Recorded(SENTINEL_NAME, SENTINEL_WEIGHT, SENTINEL_REPS)
+        val second = RedactionAction.Recorded("$SENTINEL_NAME-b", SENTINEL_WEIGHT, SENTINEL_REPS)
+
+        store.consume(first)
+        store.consume(second)
+        store.consume(first)
+
+        // Analytics: the params are the same type name; the local key keeps the events apart
+        // exactly as far as the payloads were (§9.2 item 6: no telemetry removed by the debounce).
+        val events = analytics.filterIsInstance<FirebaseEvent.Store.Action>()
+        assertEquals(3, events.size)
+        assertEquals(1, events.map { it.params }.distinct().size, "the params never carry the payload")
+        assertTrue(events[0] != events[1] && events[0].hashCode() != events[1].hashCode(), "different payloads")
+        assertEquals(events[0], events[2], "the same payload debounces as before")
+        // Breadcrumbs: the same line, the key distinct exactly when the payload is.
+        val consumed = breadcrumbKeys.filter { (line, _) -> "consume: Recorded" in line }
+        assertEquals(3, consumed.size)
+        assertEquals(1, consumed.map { it.first }.distinct().size)
+        assertNotEquals(consumed[0].second, consumed[1].second)
+        assertEquals(consumed[0].second, consumed[2].second)
+        val keys = consumed.map { it.second.toString() }
+        assertTrue(breadcrumbs.none { line -> keys.any { it in line } }, "the key never enters a line")
 
         store.dispose()
         lifetime.cancelAndJoin()

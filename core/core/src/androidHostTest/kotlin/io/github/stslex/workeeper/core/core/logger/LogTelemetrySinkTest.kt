@@ -23,13 +23,18 @@ internal class LogTelemetrySinkTest {
 
     private val sinks = mutableListOf<String>()
     private val recordedTags = mutableListOf<String>()
+    private val keyed = mutableListOf<Pair<String, Int>>()
     private var wasLogging = true
 
     @BeforeEach
     fun setUp() {
         wasLogging = Log.isLogging
         mockkObject(FirebaseCrashlyticsHolder)
-        every { FirebaseCrashlyticsHolder.log(any()) } answers { sinks += firstArg<String>() }
+        every { FirebaseCrashlyticsHolder.log(any<String>()) } answers { sinks += firstArg<String>() }
+        every { FirebaseCrashlyticsHolder.log(any<String>(), any<Int>()) } answers {
+            sinks += firstArg<String>()
+            keyed += firstArg<String>() to secondArg<Int>()
+        }
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } answers {
             recordedTags += secondArg<String>()
             sinks += "${secondArg<String>()} ${firstArg<Throwable>().message}"
@@ -61,7 +66,21 @@ internal class LogTelemetrySinkTest {
         assertTrue(leaks.isEmpty(), "an e() message or v() line reached Crashlytics: $leaks")
     }
 
+    @Test
+    fun `a dedupe key reaches the debounce and never the line`() {
+        Log.isLogging = false
+        val logger = Log.tag(TAG)
+
+        logger.d("label", DEDUPE_KEY)
+        logger.i("label", DEDUPE_KEY)
+        logger.w("label", DEDUPE_KEY)
+
+        assertEquals(List(3) { "$TAG: label" to DEDUPE_KEY }, keyed)
+        assertTrue(sinks.none { DEDUPE_KEY.toString() in it }, "the key never enters a line: $sinks")
+    }
+
     private companion object {
+        const val DEDUPE_KEY = 918_273_645
         const val TAG = "SinkProbe"
         const val SENTINEL = "Sentinel-Holiday-7f3a.jpg"
     }

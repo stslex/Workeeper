@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -38,11 +39,12 @@ internal class CommonHandler @Inject constructor(
         }
         observeStartCard()
         interactor.observeActiveSession().launch { row ->
-            logger.i {
-                // Presence only: the row carries the training name (wear-paired-transport.md §9.2).
+            // Presence only: the row carries the training name (wear-paired-transport.md §9.2).
+            logger.i(
                 "Received update for active session: ${if (row == null) "none" else "present"}. " +
-                    "Updating state with new active session data."
-            }
+                    "Updating state with new active session data.",
+                telemetryDedupeKey(row),
+            )
             updateStateImmediate { current ->
                 val now = if (current.nowMillis == 0L) {
                     System.currentTimeMillis()

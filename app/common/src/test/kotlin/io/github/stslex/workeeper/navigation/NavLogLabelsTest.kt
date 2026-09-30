@@ -32,8 +32,8 @@ internal class NavLogLabelsTest {
     fun `the navigator bus logs labels, never the picked image or a result`() {
         val lines = mutableListOf<String>()
         val logger = mockk<Logger>(relaxed = true)
-        every { logger.d(any<() -> String>()) } answers { lines += firstArg<() -> String>()() }
-        every { logger.w(any<() -> String>()) } answers { lines += firstArg<() -> String>()() }
+        every { logger.d(any<String>(), any<Int>()) } answers { lines += firstArg<String>() }
+        every { logger.w(any<String>(), any<Int>()) } answers { lines += firstArg<String>() }
         mockkObject(Log)
         try {
             every { Log.tag(any()) } returns logger

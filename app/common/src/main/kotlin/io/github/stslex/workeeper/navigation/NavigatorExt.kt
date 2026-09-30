@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
@@ -46,7 +47,7 @@ object NavigatorExt {
         results: NavResultsSource,
         context: Context,
     ) {
-        logger.i { "Processing navigation command: ${command.logLabel()}" }
+        logger.i("Processing navigation command: ${command.logLabel()}", telemetryDedupeKey(command))
         when (command) {
             is NavCommand.NavTo -> navTo(holder, command.screen)
             is NavCommand.PopBack -> popBack(holder)
@@ -70,7 +71,7 @@ object NavigatorExt {
         holder: NavigatorHolder,
         screen: Screen,
     ) {
-        logger.d("navTo ${screen.logLabel()}")
+        logger.d("navTo ${screen.logLabel()}", telemetryDedupeKey(screen))
         try {
             PerformanceMetricsRecorder.process(RecordAction.Navigation.NavTo(screen::class))
             val stack = holder.backStack
@@ -108,7 +109,7 @@ object NavigatorExt {
         key: String,
         result: Any,
     ) {
-        logger.d { "popBackWithResult($key)" }
+        logger.d("popBackWithResult($key)", telemetryDedupeKey(result))
 
         results.setResult(key, result)
         popBack(holder)
@@ -118,7 +119,7 @@ object NavigatorExt {
         holder: NavigatorHolder,
         screen: Screen,
     ) {
-        logger.d("replaceTo ${screen.logLabel()}")
+        logger.d("replaceTo ${screen.logLabel()}", telemetryDedupeKey(screen))
         try {
             PerformanceMetricsRecorder.process(RecordAction.Navigation.ReplaceTo(screen::class))
             val stack = holder.backStack

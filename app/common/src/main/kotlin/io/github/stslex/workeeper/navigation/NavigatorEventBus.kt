@@ -7,6 +7,7 @@ import dev.zacsweers.metro.SingleIn
 import dev.zacsweers.metro.binding
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
@@ -95,10 +96,10 @@ class NavigatorEventBus(
     }
 
     private fun consume(command: NavCommand) {
-        log.d { "Processing navigation command: ${command.logLabel()}" }
+        log.d("Processing navigation command: ${command.logLabel()}", telemetryDedupeKey(command))
         _commands.tryEmit(command).also { emitted ->
             if (emitted.not()) {
-                log.w { "Failed to emit navigation command: ${command.logLabel()}" }
+                log.w("Failed to emit navigation command: ${command.logLabel()}", telemetryDedupeKey(command))
             }
         }
     }
