@@ -2,7 +2,9 @@
 <resources
     xmlns:tools="http://schemas.android.com/tools"
     tools:keep="@array/android_wear_capabilities">
-    <!-- Capability discovery carries no workout payload and is authorized while privacy gates are open. -->
+    <!-- Capability discovery carries no workout payload. Workout transport is authorized by the
+         Phase 1 gate closure record (wear-phase-1-active-workout-tile.md §6.1); the watch discovers
+         the phone by WearProtocol.PHONE_CAPABILITY, which a phone test pins to this item. -->
     <string-array
         name="android_wear_capabilities"
         tools:ignore="Typos">

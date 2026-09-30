@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!-- The phone end of the paired Wear transport (wear-paired-transport.md §6.1). Exported
+             because Google Play services binds it; the listener accepts binder calls from Google
+             Play services only. The filter matches the one RPC path exactly, never a prefix. -->
+        <service
+            android:name=".transport.WearRpcListenerService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:path="/workeeper/wear/v1/rpc"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
