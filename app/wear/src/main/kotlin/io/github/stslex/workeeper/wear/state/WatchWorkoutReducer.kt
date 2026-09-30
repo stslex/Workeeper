@@ -675,7 +675,7 @@ internal class WatchWorkoutReducer {
 }
 
 /** Pure pairing check of a command response against its command; reads no reducer state. */
-private fun responsePairingIsValid(
+internal fun responsePairingIsValid(
     response: CompleteCurrentSetResponse,
     command: LogicalCommand,
 ): Boolean {

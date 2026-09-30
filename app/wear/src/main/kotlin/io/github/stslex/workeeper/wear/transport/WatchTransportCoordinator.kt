@@ -435,7 +435,7 @@ internal class WatchTransportCoordinator(
 }
 
 /** Built field for field from the owner's command and the request's correlation; nothing recomputed (§5.3). */
-private fun FingerprintCommand.toRequest(token: RequestToken) = CompleteCurrentSetRequest(
+internal fun FingerprintCommand.toRequest(token: RequestToken) = CompleteCurrentSetRequest(
     schemaVersion = schemaVersion,
     correlationId = token.correlationId,
     commandId = commandId,
@@ -454,13 +454,13 @@ private fun FingerprintCommand.toRequest(token: RequestToken) = CompleteCurrentS
     ),
 )
 
-private fun RequestOperation.label(): String = when (this) {
+internal fun RequestOperation.label(): String = when (this) {
     RequestOperation.HANDSHAKE -> "handshake"
     RequestOperation.COMMAND_INITIAL -> "command"
     RequestOperation.COMMAND_RETRY -> "command_retry"
 }
 
-private fun Boolean?.admissionLabel(): String = when (this) {
+internal fun Boolean?.admissionLabel(): String = when (this) {
     null -> "not_admitted"
     true -> "accepted"
     false -> "rejected"
