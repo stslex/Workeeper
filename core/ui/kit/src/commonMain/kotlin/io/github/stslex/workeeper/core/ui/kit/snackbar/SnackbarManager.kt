@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,10 +53,12 @@ object SnackbarManager {
                 DeliveredSnackbar(queued.model, queued.epoch)
             } else {
                 // A committed handover discards stale callbacks rather than running them in N+1.
-                logger.w {
-                    "discarding snackbar '${queued.model.message}' from a replaced generation " +
-                        "(epoch ${queued.epoch} < $epoch)"
-                }
+                // GUARD: never the message text; it can name a user's exercise or training and this
+                // line reaches the Crashlytics log (wear-paired-transport.md §9.2).
+                logger.w(
+                    "discarding a snackbar from a replaced generation (epoch ${queued.epoch} < $epoch)",
+                    telemetryDedupeKey(queued.model.message),
+                )
                 null
             }
         }

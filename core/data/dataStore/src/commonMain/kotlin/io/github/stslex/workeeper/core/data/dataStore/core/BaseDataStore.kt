@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -21,8 +22,9 @@ open class BaseDataStore(
         prefs[longPreferencesKey(key)]
     }
 
+    // Keys only: a value can be a date the user picked (wear-paired-transport.md §9.2).
     suspend fun updateLong(key: String, value: Long) {
-        logger.i("Update key: $key with value: $value")
+        logger.i("Update key: $key", telemetryDedupeKey(value))
         storeProvider.dataStore.edit { prefs ->
             prefs[longPreferencesKey(key)] = value
         }
@@ -34,7 +36,7 @@ open class BaseDataStore(
         }
 
     suspend fun updateString(key: String, value: String) {
-        logger.i("Update key: $key with value: $value")
+        logger.i("Update key: $key", telemetryDedupeKey(value))
         storeProvider.dataStore.edit { prefs ->
             prefs[stringPreferencesKey(key)] = value
         }

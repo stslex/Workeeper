@@ -2,8 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The app shows no ads: firebase-analytics brings this permission, the build removes it.
+         Checked on the release bundle by assert_play_bundle.py G8 (wear-paired-transport.md §9.2). -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+
     <application
         android:name=".store.StoreMobileApp"
         tools:replace="android:name"
-        tools:ignore="MissingApplicationIcon" />
+        tools:ignore="MissingApplicationIcon">
+
+        <!-- Below Android 13 the advertising ID is readable without the permission. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+    </application>
 </manifest>

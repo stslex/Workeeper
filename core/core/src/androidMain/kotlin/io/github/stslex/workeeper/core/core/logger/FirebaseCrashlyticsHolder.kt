@@ -28,6 +28,13 @@ actual object FirebaseCrashlyticsHolder {
     }
 
     @Synchronized
+    actual fun log(message: String, dedupeKey: TelemetryDedupeKey) {
+        val sink = crashlytics ?: return
+        // GUARD: the key joins the debounce key only; the sink receives the message alone.
+        filter(message to dedupeKey) { sink.log(message) }
+    }
+
+    @Synchronized
     actual fun recordException(
         throwable: Throwable,
         tag: String,
