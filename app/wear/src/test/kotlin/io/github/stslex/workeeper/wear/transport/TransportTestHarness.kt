@@ -40,6 +40,12 @@ internal class FakePhoneLink : WearLink {
 
     /** Held lookups stay pending until the test completes this gate. */
     var lookupGate: CompletableDeferred<Unit>? = null
+
+    /** Fails the next observer registration, as a failed `addListener` Task does. */
+    var failNextObserve: Throwable? = null
+
+    /** Held registrations stay pending until the test completes this gate. */
+    var observeGate: CompletableDeferred<Unit>? = null
     var reachability: ((Boolean) -> Unit)? = null
 
     /** Held requests stay in flight until the test completes this gate. */
@@ -74,8 +80,13 @@ internal class FakePhoneLink : WearLink {
         return answer(envelope)
     }
 
-    override fun observeReachability(onChange: (reachable: Boolean) -> Unit) {
+    override suspend fun observeReachability(onChange: (reachable: Boolean) -> Unit) {
         calls += "observeReachability"
+        failNextObserve?.let { failure ->
+            failNextObserve = null
+            throw failure
+        }
+        observeGate?.await()
         reachability = onChange
     }
 

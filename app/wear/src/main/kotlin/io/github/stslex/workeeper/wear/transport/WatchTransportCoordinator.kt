@@ -24,6 +24,7 @@ import io.github.stslex.workeeper.wear.state.RequestOperation
 import io.github.stslex.workeeper.wear.state.RequestToken
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -265,11 +266,21 @@ internal class WatchTransportCoordinator(
         if (answer == null || answer.isEmpty()) Exchange.NoAnswer else Exchange.Answer(answer)
     } ?: Exchange.NoAnswer
 
+    /**
+     * §7.7: registers the process-lifetime observer in its own coroutine, so a slow registration never
+     * holds up the request. A failed registration clears the flag and the next request tries again.
+     */
     private fun observeReachabilityOnce() {
         if (observingReachability) return
         observingReachability = true
-        runCatching { link.observeReachability { value -> post { onReachability(value) } } }
-            .onFailure { failure -> logger.w { "reachability observer unavailable: ${failure::class.simpleName}" } }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { link.observeReachability { value -> post { onReachability(value) } } }
+                .onFailure { failure ->
+                    if (failure is CancellationException) currentCoroutineContext().ensureActive()
+                    observingReachability = false
+                    logger.w { "reachability observer unavailable: ${failure::class.simpleName}" }
+                }
+        }
     }
 
     /** §7.3 step 5: classify the exchange and apply it to the owner. */

@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Locale
@@ -454,6 +455,41 @@ internal class WatchTransportCoordinatorTest {
 
         assertEquals(1, h.link.handshakes.size, "a phone found after a timed-out lookup is O3")
         assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
+    }
+
+    @Test
+    fun `a failed observer registration is retried by the next request`() = runTest {
+        val h = TransportHarness(this)
+        h.link.failNextObserve = IllegalStateException("addListener failed")
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertEquals(1, h.link.handshakes.size, "a failed registration does not hold up the request")
+        assertNull(h.link.reachability)
+
+        h.runtime.onControllerInteractive(false)
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertEquals(2, h.link.handshakes.size, "O1 again")
+        assertEquals(2, h.link.calls.count { it == "observeReachability" }, "the next request registers again")
+        assertNotNull(h.link.reachability, "the observer is installed once a registration succeeds (§7.7)")
+    }
+
+    @Test
+    fun `a pending observer registration does not hold up the request`() = runTest {
+        val h = TransportHarness(this)
+        val registration = CompletableDeferred<Unit>()
+        h.link.observeGate = registration
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertEquals(1, h.link.handshakes.size)
+        assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
+        assertNull(h.link.reachability, "the registration is still pending")
+
+        registration.complete(Unit)
+        runCurrent()
+        assertNotNull(h.link.reachability)
     }
 
     @Test

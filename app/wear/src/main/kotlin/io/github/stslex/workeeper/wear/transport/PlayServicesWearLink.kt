@@ -37,7 +37,9 @@ internal class PlayServicesWearLink(context: Context) : WearLink {
     override suspend fun request(nodeId: String, request: ByteArray): ByteArray =
         messages.sendRequest(nodeId, WearProtocol.RPC_PATH, request).await() ?: ByteArray(0)
 
-    override fun observeReachability(onChange: (reachable: Boolean) -> Unit) {
+    override suspend fun observeReachability(onChange: (reachable: Boolean) -> Unit) {
+        // The Task reports a failed registration; awaiting it lets the caller retry (§7.7).
         capabilities.addListener({ info -> onChange(info.nodes.isNotEmpty()) }, WearProtocol.PHONE_CAPABILITY)
+            .await()
     }
 }

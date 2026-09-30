@@ -19,8 +19,11 @@ internal interface WearLink {
     /** One request/response exchange; an empty result means "no semantic response" (§5.3). */
     suspend fun request(nodeId: String, request: ByteArray): ByteArray
 
-    /** Registers [onChange] for the process lifetime: `true` when some phone becomes reachable. */
-    fun observeReachability(onChange: (reachable: Boolean) -> Unit)
+    /**
+     * Registers [onChange] for the process lifetime: `true` when some phone becomes reachable.
+     * Returns once the registration took effect; throws when it failed, so the caller can retry.
+     */
+    suspend fun observeReachability(onChange: (reachable: Boolean) -> Unit)
 }
 
 internal data class PhoneNode(val id: String, val isNearby: Boolean) {
