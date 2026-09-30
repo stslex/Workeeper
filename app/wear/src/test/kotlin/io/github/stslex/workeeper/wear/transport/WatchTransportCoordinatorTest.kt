@@ -493,6 +493,27 @@ internal class WatchTransportCoordinatorTest {
     }
 
     @Test
+    fun `a lost phone shows the retry surface once the cached display expires`() = runTest {
+        val h = connected(this)
+        h.runtime.onControllerInteractive(false)
+        h.link.phones = emptyList()
+        h.link.reachability?.invoke(false)
+        runCurrent()
+
+        advanceTimeBy(WearProtocol.DISPLAY_CACHE_TTL_MS)
+        h.runtime.onWake()
+        runCurrent()
+
+        assertInstanceOf(WatchDisplayState.Loading::class.java, h.owner.snapshot.value.workout.display)
+        assertEquals(
+            WearSurfaceKind.RETRYABLE_ERROR,
+            WearSurfaceMapper.map(h.owner.snapshot.value).kind,
+            "an expired display with no phone must not load forever (§7.5)",
+        )
+        assertEquals(LinkStatus.UNREACHABLE, h.owner.snapshot.value.link)
+    }
+
+    @Test
     fun `phone reachability starts a refresh only while the controller is interactive`() = runTest {
         val h = connected(this)
         val reachability = requireNotNull(h.link.reachability) { "the first request registers the observer" }

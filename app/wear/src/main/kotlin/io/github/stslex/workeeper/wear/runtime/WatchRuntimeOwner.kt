@@ -185,11 +185,15 @@ internal class WatchRuntimeOwner(
         link = LinkStatus.REACHABLE
     }
 
+    /**
+     * The phone's capability is no longer reachable. The link status records it (§7.5), so a display
+     * that later expires to Loading shows the retry surface instead of loading forever.
+     */
     fun disconnected(): Unit = transition {
         val now = clock.nowMs()
         reducer.markDisconnected()
         ongoing.disconnected(now)
-        Unit
+        link = LinkStatus.UNREACHABLE
     }
 
     private fun acceptLocked(
