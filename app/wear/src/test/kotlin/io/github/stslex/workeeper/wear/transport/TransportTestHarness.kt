@@ -34,6 +34,12 @@ internal class FakePhoneLink : WearLink {
 
     /** Thrown by the next request instead of answering, as a failed or cancelled Task does. */
     var failNextRequest: Throwable? = null
+
+    /** Thrown by the next lookup, as a failed capability Task does. */
+    var failNextLookup: Throwable? = null
+
+    /** Held lookups stay pending until the test completes this gate. */
+    var lookupGate: CompletableDeferred<Unit>? = null
     var reachability: ((Boolean) -> Unit)? = null
 
     /** Held requests stay in flight until the test completes this gate. */
@@ -43,7 +49,15 @@ internal class FakePhoneLink : WearLink {
 
     override suspend fun localNodeId(): String = localNode.also { calls += "localNodeId" }
 
-    override suspend fun reachablePhones(): List<PhoneNode> = phones.also { calls += "reachablePhones" }
+    override suspend fun reachablePhones(): List<PhoneNode> {
+        calls += "reachablePhones"
+        failNextLookup?.let { failure ->
+            failNextLookup = null
+            throw failure
+        }
+        lookupGate?.await()
+        return phones
+    }
 
     override suspend fun request(nodeId: String, request: ByteArray): ByteArray {
         calls += "request"

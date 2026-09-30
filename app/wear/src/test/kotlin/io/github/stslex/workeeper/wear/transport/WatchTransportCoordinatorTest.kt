@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Locale
@@ -84,7 +85,7 @@ internal class WatchTransportCoordinatorTest {
 
         h.runtime.onControllerInteractive(true)
         runCurrent()
-        assertEquals(listOf("reachablePhones", "observeReachability", "localNodeId", "request"), h.link.calls)
+        assertEquals(listOf("observeReachability", "reachablePhones", "localNodeId", "request"), h.link.calls)
     }
 
     @Test
@@ -417,6 +418,42 @@ internal class WatchTransportCoordinatorTest {
         h.coordinator.onTileRendered()
         runCurrent()
         assertEquals(2, h.link.handshakes.size)
+    }
+
+    @Test
+    fun `the first request registers the observer even when its lookup fails`() = runTest {
+        val h = TransportHarness(this)
+        h.link.failNextLookup = IllegalStateException("Play services unavailable")
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onControllerInteractive(true)
+        runCurrent()
+        assertRetrySurface(h)
+        assertNotNull(h.link.reachability, "the first request registers the observer (§7.7)")
+
+        h.link.reachability?.invoke(true)
+        runCurrent()
+
+        assertEquals(1, h.link.handshakes.size, "a phone found after a failed lookup is O3")
+        assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
+    }
+
+    @Test
+    fun `the first request registers the observer even when its lookup times out`() = runTest {
+        val h = TransportHarness(this)
+        h.link.lookupGate = CompletableDeferred()
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onControllerInteractive(true)
+        advanceTimeBy(REQUEST_TIMEOUT_MS + 1)
+        runCurrent()
+        assertRetrySurface(h)
+        assertNotNull(h.link.reachability, "the first request registers the observer (§7.7)")
+
+        h.link.lookupGate = null
+        h.link.reachability?.invoke(true)
+        runCurrent()
+
+        assertEquals(1, h.link.handshakes.size, "a phone found after a timed-out lookup is O3")
+        assertInstanceOf(WatchDisplayState.Active::class.java, h.owner.snapshot.value.workout.display)
     }
 
     @Test

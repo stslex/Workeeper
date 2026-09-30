@@ -252,8 +252,9 @@ internal class WatchTransportCoordinator(
 
     /** §7.3 steps 3 and 4: node lookup and the request, under one local deadline. */
     private suspend fun exchange(request: ByteArray): Exchange = withTimeoutOrNull(requestTimeoutMs) {
-        val phones = attempt { link.reachablePhones() } ?: return@withTimeoutOrNull Exchange.Unreachable
+        // §7.7: the first request registers the observer, whatever its lookup then returns.
         observeReachabilityOnce()
+        val phones = attempt { link.reachablePhones() } ?: return@withTimeoutOrNull Exchange.Unreachable
         // What this lookup learned, so a later "reachable" from the listener is O3 (§7.4).
         reachable = phones.isNotEmpty()
         val phone = phones.preferredPhone() ?: return@withTimeoutOrNull Exchange.Unreachable
@@ -364,7 +365,8 @@ internal class WatchTransportCoordinator(
         if (previous == nowReachable) return
         if (!nowReachable) {
             owner.disconnected()
-        } else if (previous == false && interactive) {
+        } else if (previous != true && interactive) {
+            // O3 (§7.4): from no phone known to be reachable (none found, or no lookup answered) to one.
             enqueueRefresh(Chain(RefreshOrigin.PHONE_REACHABLE))
         }
     }
