@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.core.core.result
 
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.core.model.AppError
 import io.github.stslex.workeeper.core.core.result.ResultUtils.fold
 import kotlinx.coroutines.Job
@@ -34,7 +35,8 @@ class ResultFlow<T : Any>(
         scope = scope,
         onError = { onError?.invoke(it) ?: logger.e(it, it.message) },
         onLoading = { onLoading?.invoke() ?: logger.i("Loading...") },
-        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success: $it") },
+        // A fixed label: the payload can be anything a caller loads (wear-paired-transport.md §9.2).
+        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success", telemetryDedupeKey(it)) },
     )
 
     companion object {

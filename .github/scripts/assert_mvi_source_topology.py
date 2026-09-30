@@ -78,6 +78,7 @@ EXPECTED_PATHS_BY_SOURCE_SET = {
     },
     "androidHostTest": {
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/MviJvmAbiTest.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreTelemetryRedactionTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/AndroidPerformanceProviderTest.kt",
     },
     "androidDeviceTest": {

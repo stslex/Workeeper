@@ -55,6 +55,12 @@ EXPECTED = [
                 f"{MVI_PACKAGE}.MviJvmAbiTest",
                 "publicMviAbiMatchesTheMeasuredManifest",
             ),
+            # Store telemetry carries type names, never entered values
+            # (wear-paired-transport.md §9.2 item 5).
+            host(
+                f"{MVI_PACKAGE}.StoreTelemetryRedactionTest",
+                "entered values never reach analytics parameters or breadcrumbs",
+            ),
             # Android keeps real Firebase: the platform provider, and the delegation.
             host(
                 f"{MVI_PACKAGE}.performance.AndroidPerformanceProviderTest",
