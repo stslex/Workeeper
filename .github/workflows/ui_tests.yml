@@ -86,6 +86,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # GUARD: the default also installs the obsolete `tools` package, which the SDK repository
+          # no longer serves; sdkmanager then fails before any test runs.
+          packages: platform-tools
 
       - name: Configure Keystore
         env:
@@ -282,6 +286,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # GUARD: the default also installs the obsolete `tools` package, which the SDK repository
+          # no longer serves; sdkmanager then fails before any test runs.
+          packages: platform-tools
 
       - name: Configure Keystore
         env:
