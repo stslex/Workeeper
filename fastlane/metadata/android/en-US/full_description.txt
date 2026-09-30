@@ -11,7 +11,7 @@ Gym Progress Tracker is a simple and convenient app for those who want to system
 • Beginners who want structured training.  
 • Everyone who values discipline and order in the gym.  
 
-💡 All data is stored locally on your device.  
+💡 Your workout data is stored on your device; the app has no server of its own.  
 No registration required, no personal data collected.  
 
 Start your training diary today!

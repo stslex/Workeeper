@@ -22,8 +22,13 @@ trackers along the **values** axis, not the feature axis:
   what the app does with their data.
 - **Free forever.** No subscription, no premium tier, no advertising,
   no in-app purchases.
-- **Fully offline.** All data lives on the device. There is no account,
-  no server, no cloud sync, no telemetry beyond crash reporting.
+- **Fully offline.** Workout data lives on the phone, and the app works
+  without a network. There is no account, no server and no cloud sync of our
+  own; workout data leaves the phone only through a paired Wear OS watch, a
+  backup in the user's own Google Drive, Android's device backup, or a file the
+  user shares after a data error. Telemetry is limited to crash reports,
+  performance data and usage events, and the app adds no entered workout
+  content to them.
 - **No social layer.** No followers, no shared workouts, no feed.
 
 The intended audience is privacy-conscious lifters who reject
@@ -251,12 +256,15 @@ app-private display cache defined by the Phase 1 specification.
 
 This exception does not authorize watchOS or shared KMP watch UI, starting or
 finishing sessions from the watch, health/sensor capture, Health Services,
-Health Connect, Samsung Health, or a general wearable platform. Implementation
-also remains subject to both the paired-device disclosure gate and the transport
-gate in
-[the Phase 1 Wear specification](feature-specs/wear-phase-1-active-workout-tile.md):
-the existing privacy promise and Play Store copy must be reconciled explicitly
-before any workout payload crosses from the phone to the watch.
+Health Connect, Samsung Health, or a general wearable platform. Both privacy
+gates of
+[the Phase 1 Wear specification](feature-specs/wear-phase-1-active-workout-tile.md)
+closed on 2026-09-29 by owner decision, recorded in
+[Wear paired transport](feature-specs/wear-paired-transport.md): the public
+privacy policy describes the paired phone/watch transfer, the bounded watch
+cache, and possible end-to-end encrypted Google relay transit, and workout
+payloads cross between phone and watch only through the transport that
+specification defines.
 
 ## Non-goals
 
@@ -271,10 +279,12 @@ re-read of this section first.
   the personally paired Wear OS companion: after the required product and
   public privacy disclosures are live, it may transfer the minimum active
   workout snapshot and completion commands between the user's phone and watch
-  and retain the bounded watch cache defined by its specification. Any
-  Google-owned end-to-end encrypted Data Layer relay transit is a separate
-  owner decision and disclosure; it is never authorized implicitly. Manual
-  export / import may be added later, but is not a v1 commitment.
+  and retain the bounded watch cache defined by its specification. The owner
+  authorized Google-owned end-to-end encrypted Data Layer relay transit for it
+  on 2026-09-29, together with its public disclosure
+  ([Wear paired transport](feature-specs/wear-paired-transport.md)); no other
+  phone/watch route is authorized. Manual export / import may be added later,
+  but is not a v1 commitment.
 - **No social features.** No feed, no following, no shared workouts,
   no comments, no likes.
 - **No subscriptions, premium tiers, or in-app purchases.**
@@ -294,7 +304,8 @@ re-read of this section first.
   Wear OS companion above is the only approved exception; Health Services,
   Health Connect, Samsung Health, watchOS, and cross-platform watch UI remain
   outside the product scope.
-- **No analytics or telemetry** beyond crash reporting.
+- **No analytics or telemetry** beyond crash reports, performance data and
+  usage events, to which the app adds no entered workout content.
 
 ## Open questions (resolved in later stages)
 
