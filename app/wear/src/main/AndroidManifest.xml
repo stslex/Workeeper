@@ -5,10 +5,17 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- The app shows no ads: firebase-analytics brings this permission, the build removes it.
-         Checked on the release bundle by assert_play_bundle.py G8 (wear-paired-transport.md §9.2). -->
+    <!-- The app shows no ads: firebase-analytics brings these permissions (the advertising ID and
+         the Privacy Sandbox pair), the build removes them. Checked on the release bundle by
+         assert_play_bundle.py G8 (wear-paired-transport.md §9.2 item 4). -->
     <uses-permission
         android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
         tools:node="remove" />
 
     <uses-feature

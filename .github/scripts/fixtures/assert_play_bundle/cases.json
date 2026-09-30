@@ -134,6 +134,41 @@
     "expect": {"G8": "FAIL"}
   },
   {
+    "name": "phone bundle declaring the Privacy Sandbox advertising ID permission (M-L5)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_AD_ID\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "phone bundle declaring the Privacy Sandbox attribution permission",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/>",
+                 "<uses-sdk android:minSdkVersion=\"28\" android:targetSdkVersion=\"37\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_ATTRIBUTION\"/>"]],
+    "expect": {"G6": "N/A", "G8": "FAIL"}
+  },
+  {
+    "name": "wear bundle declaring the Privacy Sandbox advertising ID permission",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_AD_ID\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "Privacy Sandbox attribution permission through uses-permission-sdk-23",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                 "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"android.permission.ACCESS_ADSERVICES_ATTRIBUTION\"/>"]],
+    "expect": {"G8": "FAIL"}
+  },
+  {
+    "name": "the optional android.ext.adservices library is not a permission (the release bundles carry it)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<meta-data android:name=\"com.google.android.gms.version\"",
+                 "<uses-library android:name=\"android.ext.adservices\" android:required=\"false\"/><meta-data android:name=\"com.google.android.gms.version\""]],
+    "expect": {"G6": "N/A"}
+  },
+  {
     "name": "phone bundle without the advertising ID collection meta-data",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
     "replace": [["<meta-data android:name=\"google_analytics_adid_collection_enabled\" android:value=\"false\"/>", ""]],

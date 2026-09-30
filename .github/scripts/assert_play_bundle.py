@@ -15,8 +15,9 @@ G4 versionName is the TOML value (phone) or the TOML value + "-wear" (wear).
 G5 phone: no uses-feature android.hardware.type.watch; wear: present and not required="false".
 G6 wear: meta-data com.google.android.wearable.standalone is "false" (not applicable to phone).
 G7 every lib/armeabi-v7a/*.so has the same file under lib/arm64-v8a/, in every module.
-G8 advertising ID off, for both roles: no com.google.android.gms.permission.AD_ID in the base
-   manifest (uses-permission or uses-permission-sdk-23), and the application meta-data
+G8 advertising ID off, for both roles: none of com.google.android.gms.permission.AD_ID,
+   android.permission.ACCESS_ADSERVICES_AD_ID or android.permission.ACCESS_ADSERVICES_ATTRIBUTION
+   in the base manifest (uses-permission or uses-permission-sdk-23), and the application meta-data
    google_analytics_adid_collection_enabled is exactly "false" (below Android 13 the ID is
    readable without the permission). The apps show no ads.
 
@@ -49,7 +50,12 @@ WEAR_VERSION_CODE_OFFSET = 1_000_000
 WEAR_VERSION_NAME_SUFFIX = "-wear"
 WATCH_FEATURE = "android.hardware.type.watch"
 STANDALONE_META = "com.google.android.wearable.standalone"
-AD_ID_PERMISSION = "com.google.android.gms.permission.AD_ID"
+# The advertising ID and the Privacy Sandbox pair that firebase-analytics brings (§9.2 item 4).
+AD_PERMISSIONS = (
+    "com.google.android.gms.permission.AD_ID",
+    "android.permission.ACCESS_ADSERVICES_AD_ID",
+    "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+)
 ADID_COLLECTION_META = "google_analytics_adid_collection_enabled"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
@@ -194,11 +200,12 @@ def check_manifest(manifest, role, code, name):
         )
 
     permissions = manifest["permissions"]
-    declared = permissions.count(AD_ID_PERMISSION)
+    declared = {name: permissions.count(name) for name in AD_PERMISSIONS}
     collection = manifest["adid_collection"]
+    counts = ", ".join(f"{name} {count} times" for name, count in declared.items())
     results["G8"] = (
-        PASS if declared == 0 and collection == ["false"] else FAIL,
-        f"{len(permissions)} permissions declared, {AD_ID_PERMISSION} {declared} times, expected 0; "
+        PASS if not any(declared.values()) and collection == ["false"] else FAIL,
+        f"{len(permissions)} permissions declared; {counts}, expected 0 each; "
         f"meta-data {ADID_COLLECTION_META}: {collection}, expected exactly ['false']",
     )
     return results
