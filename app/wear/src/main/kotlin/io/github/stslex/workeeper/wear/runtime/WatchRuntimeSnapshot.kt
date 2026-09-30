@@ -11,6 +11,25 @@ internal data class WatchRuntimeSnapshot(
     val recoveryRequired: Boolean = false,
     val readOnly: Boolean = false,
     val locale: Locale = Locale.getDefault(),
+    val link: LinkStatus = LinkStatus.UNKNOWN,
 ) {
     override fun toString(): String = "WatchRuntimeSnapshot"
+}
+
+/**
+ * What the last request learned about the phone (wear-paired-transport.md §7.5). A status only:
+ * it never creates or retires authority.
+ */
+internal enum class LinkStatus {
+    UNKNOWN,
+    REACHABLE,
+
+    /** No phone advertising the capability was reachable. */
+    UNREACHABLE,
+
+    /** A phone was reachable, but the handshake got no semantic response. */
+    UNANSWERED,
+    ;
+
+    val failed: Boolean get() = this == UNREACHABLE || this == UNANSWERED
 }

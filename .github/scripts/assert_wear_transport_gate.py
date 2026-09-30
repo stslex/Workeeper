@@ -44,6 +44,14 @@ The single exemption from checks 1 and 2 is `lint-rules/`, where the gate is
 defined and tested: the rule names the package it bans, and its fixtures spell
 out the violations it must catch. Nothing there is a transport call site.
 
+THE TRANSPORT ALLOWLIST (wear-paired-transport.md section 8) exempts exactly two
+files from check 1, and only check 1: the phone's listener service and the
+watch's Play services link, the only sources allowed to name the Data Layer.
+This script is the exact-path authority for that list: whole repository paths
+compared as strings, no prefix, no glob. Check 2 still runs on both files, so
+a suppression inside an allowlisted file fails like one anywhere else. Widening
+the list is a privacy decision.
+
 Run from the repository root:
 
     python3 .github/scripts/assert_wear_transport_gate.py
@@ -70,6 +78,14 @@ JAVA_GLOBS = ("*.java",)
 
 # The gate defines and tests itself here; every other tracked source is a call site.
 EXEMPT_PREFIXES = ("lint-rules/",)
+
+# GUARD: the transport allowlist (wear-paired-transport.md section 8). Exact repository paths,
+# compared whole: never a prefix, a directory or a glob. Exempt from check 1 only.
+TRANSPORT_ALLOWLIST = frozenset({
+    "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
+    "WearRpcListenerService.kt",
+    "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
+})
 
 # Every argument that would silence either half of the gate. Rule ids, the rule-set ids that
 # contain them, detekt's `detekt:`/`detekt.` prefixed spellings, and the blanket form.
@@ -303,6 +319,11 @@ def is_exempt(path: Path) -> bool:
     return str(path).startswith(EXEMPT_PREFIXES)
 
 
+def is_transport_allowlisted(path: Path) -> bool:
+    """Whole-path equality with a POSIX repository path; a suffix or a sibling never matches."""
+    return path.as_posix() in TRANSPORT_ALLOWLIST
+
+
 def java_source_violations() -> list[str]:
     """Any tracked Java file, anywhere, including under the gate's own exemption.
 
@@ -347,6 +368,12 @@ def suppression_violations(path: Path, text: str) -> list[str]:
     return violations
 
 
+def file_violations(path: Path, text: str) -> list[str]:
+    """Checks 1 and 2 for one file; [text] must already be [canonical]."""
+    allowlisted = is_transport_allowlisted(path)
+    return ([] if allowlisted else package_violations(path, text)) + suppression_violations(path, text)
+
+
 def scan(paths: list[Path]) -> list[str]:
     violations: list[str] = []
     for path in paths:
@@ -358,8 +385,7 @@ def scan(paths: list[Path]) -> list[str]:
         except ConstantResolutionExhausted as exhausted:
             violations.append(f"{path}: {exhausted}; cannot prove this file clean")
             continue
-        violations += package_violations(path, text)
-        violations += suppression_violations(path, text)
+        violations += file_violations(path, text)
     return violations
 
 
@@ -523,19 +549,63 @@ def self_test() -> int:
         ("unrelated suppression", '@Suppress("TooManyFunctions")\nval x = 1\n', 0),
         ("near-miss package", "package com.google.android.gms.wearablefake\n", 0),
     ]
+    # The transport allowlist (wear-paired-transport.md section 10.3): exact paths only, and check 2
+    # still applies inside an allowlisted file.
+    listed = sorted(TRANSPORT_ALLOWLIST)
+    call_site = f"import {FORBIDDEN_PACKAGE}.MessageClient\nval c = {FORBIDDEN_PACKAGE}.Wearable.API\n"
+    path_cases = [
+        (f"allowlisted file naming the package: {name}", Path(name), call_site, 0)
+        for name in listed
+    ] + [
+        (f"sibling in the same directory: {name}", Path(name).with_name("Sibling.kt"), call_site, 2)
+        for name in listed
+    ] + [
+        (f"path merely ending with an allowlisted path: {name}", Path("vendor/" + name), call_site, 2)
+        for name in listed
+    ] + [
+        (f"allowlisted path as a directory prefix: {name}", Path(name + "/Nested.kt"), call_site, 2)
+        for name in listed
+    ] + [
+        (
+            f"suppression inside an allowlisted file: {name}",
+            Path(name),
+            '@file:Suppress("WearDataLayerApiRule")\n' + call_site,
+            1,
+        )
+        for name in listed
+    ]
     failures = 0
     for name, content, expected in cases:
         path = Path("synthetic.kt")
         text = canonical(content)
-        found = len(package_violations(path, text) + suppression_violations(path, text))
+        found = len(file_violations(path, text))
         verdict = "ok" if found == expected else "MISMATCH"
         if found != expected:
             failures += 1
         print(f"  [{verdict}] {name}: {found} violation(s), expected {expected}")
+    for name, path, content, expected in path_cases:
+        found = len(file_violations(path, canonical(content)))
+        verdict = "ok" if found == expected else "MISMATCH"
+        if found != expected:
+            failures += 1
+        print(f"  [{verdict}] {name}: {found} violation(s), expected {expected}")
+    # The list itself is pinned: widening it must also change this literal, reviewed as a privacy
+    # decision (wear-paired-transport.md section 8).
+    pinned = {
+        "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
+        "WearRpcListenerService.kt",
+        "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
+    }
+    verdict = "ok" if TRANSPORT_ALLOWLIST == pinned else "MISMATCH"
+    if TRANSPORT_ALLOWLIST != pinned:
+        failures += 1
+    print(f"  [{verdict}] the transport allowlist is exactly the two section 8 paths")
+    total = len(cases) + len(path_cases) + 1
     if failures:
-        print(f"\nself-test FAILED: {failures} case(s) disagree")
+        print(f"\nself-test FAILED: {failures} of {total} case(s) disagree")
         return 1
-    print(f"\nself-test passed: {len(cases)} cases, both anchors exercised")
+    print(f"\nself-test passed: {total} cases ({len(path_cases)} over the {len(listed)}-file transport "
+          f"allowlist), both anchors exercised")
     return 0
 
 
@@ -547,19 +617,24 @@ def main() -> int:
     scanned = [path for path in paths if not is_exempt(path)]
     violations = java_source_violations() + scan(paths)
 
+    allowlisted = [path for path in scanned if is_transport_allowlisted(path)]
     print(f"wear transport gate: {len(scanned)} tracked Kotlin file(s) scanned, "
-          f"{len(paths) - len(scanned)} exempt under {', '.join(EXEMPT_PREFIXES)}")
+          f"{len(paths) - len(scanned)} exempt under {', '.join(EXEMPT_PREFIXES)}, "
+          f"{len(allowlisted)} of {len(TRANSPORT_ALLOWLIST)} transport-allowlisted file(s) present "
+          f"(exempt from check 1 only)")
     if not violations:
-        print(f"no reference to {FORBIDDEN_PACKAGE}, nothing suppresses the gate, no Java sources")
+        print(f"no reference to {FORBIDDEN_PACKAGE} outside the transport allowlist, nothing suppresses "
+              f"the gate, no Java sources")
         return 0
 
     print(f"\n{len(violations)} violation(s):\n")
     for violation in violations:
         print(f"  {violation}")
     print(
-        "\nSending any workout payload over the Wearable Data Layer is blocked on the privacy\n"
-        "review in documentation/feature-specs/wear-phase-1-active-workout-tile.md section 6.\n"
-        "This gate is not a detekt rule precisely so that it cannot be suppressed from source."
+        "\nWorkout payloads cross between phone and watch only through the two files that\n"
+        "documentation/feature-specs/wear-paired-transport.md section 8 allowlists; widening\n"
+        "that list is a privacy decision. This gate is not a detekt rule precisely so that it\n"
+        "cannot be suppressed from source."
     )
     return 1
 

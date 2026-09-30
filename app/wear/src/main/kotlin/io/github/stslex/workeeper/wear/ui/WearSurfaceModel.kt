@@ -100,7 +100,18 @@ internal object WearSurfaceMapper {
             )
         }
         return when (val display = state.display) {
-            is WatchDisplayState.Loading -> WearSurfaceModel(WearSurfaceKind.LOADING, selectedLocale = locale)
+            // wear-paired-transport.md §7.5: a failed handshake must not load forever. The DISCONNECTED
+            // surface draws an active target and cannot render without a snapshot, so an unreachable
+            // and an unanswered phone both show the retry surface, whose Retry issues a refresh.
+            is WatchDisplayState.Loading -> if (snapshot.link.failed) {
+                WearSurfaceModel(
+                    kind = WearSurfaceKind.RETRYABLE_ERROR,
+                    retryEnabled = !snapshot.recoveryRequired,
+                    selectedLocale = locale,
+                )
+            } else {
+                WearSurfaceModel(WearSurfaceKind.LOADING, selectedLocale = locale)
+            }
             is WatchDisplayState.NoSession -> WearSurfaceModel(WearSurfaceKind.NO_SESSION, selectedLocale = locale)
             is WatchDisplayState.ProtocolMismatch ->
                 WearSurfaceModel(WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale)

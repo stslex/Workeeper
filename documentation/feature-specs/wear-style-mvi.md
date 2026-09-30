@@ -26,7 +26,8 @@ key. A second Firebase app in the same project is impossible, since the Data Lay
 phone's package name and signature and Firebase rejects a duplicate package, so the only
 alternative is a separate project; the lean is the shared app plus an Analytics user property
 `platform`. Wear telemetry must not serialize workout payloads through action/event descriptions.
-The real-phone-payload privacy gate remains closed; validation uses synthetic/debug sources only.
+The real-phone-payload privacy gates closed on 2026-09-29 (Phase 1 §6.1); release builds use the
+paired transport, and debug validation keeps synthetic sources only.
 Deferred before Wear ships (review follow-up F06): every consumed Store action still reaches Analytics
 and a Crashlytics breadcrumb, release included (an ambient tick is two actions, a rotary step three);
 the lean is a quiet-action marker in `core:ui:mvi` that skips both sinks for high-frequency actions.
@@ -94,8 +95,8 @@ keep it honest without a polling loop:
   time (never wall clock, so Phase 1 section 5.1 holds and no timeline validity is used): the
   service renders `WatchRuntime.tileFrame(locale)`, one owner operation with expiry inside it that
   returns the snapshot and the time to the same authority / ongoing / display-cache deadline the
-  owner schedules its one-shot callback on. 0 means no boundary and nothing else (release read-only
-  runtime, LOADING); a boundary that has already passed asks for 1 ms and a pending recovery for
+  owner schedules its one-shot callback on. 0 means no boundary and nothing else (an empty
+  cache, LOADING); a boundary that has already passed asks for 1 ms and a pending recovery for
   60 s (`tileFreshnessIntervalMs`). A NoSession tombstone keeps its display-cache TTL as a
   boundary. The platform may throttle refreshes to about one per minute, so a request at the
   boundary is a request, not a guarantee; the stale request then changes the rendered content once
@@ -217,8 +218,8 @@ Named controls and final-stage root/emulator validation follow this checkpoint.
 boundary, and the complete phone Firebase SDK set are implemented. Phone and watch set their
 Crashlytics platform key before application graph work. The remaining stacked changes implement
 presentation MVI/relative input, adapted Wear typography/geometry, and Tile refresh/acceptance.
-The real-phone-payload privacy gate remains closed. Physical watches, reconnect, energy use and
-hardware ambient behavior remain separate acceptance.
+The real-phone-payload privacy gates have since closed (Phase 1 §6.1). Physical watches, reconnect,
+energy use and hardware ambient behavior remain separate acceptance.
 
 2026-09-26 presentation: the existing retained project Store and typed handlers now own
 screen/editor decisions. Runtime snapshots keep process cache, authority and ongoing ownership

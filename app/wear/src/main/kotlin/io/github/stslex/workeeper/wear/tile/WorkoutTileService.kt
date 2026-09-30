@@ -10,7 +10,11 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.wear.BuildConfig
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
 
-/** Cache-first glance surface. Privacy-gated transport wiring is intentionally absent. */
+/**
+ * Cache-first glance surface. It renders what the runtime owns; in release a render may ask the
+ * paired transport for a refresh (wear-paired-transport.md §7.4 O2), never more often than
+ * TILE_REFRESH_MIN_AGE_MS.
+ */
 class WorkoutTileService : TileService() {
 
     /**

@@ -695,10 +695,14 @@ it flag its own test file on the repo-wide detekt run.
 
 **File:** `WearDataLayerApiRule.kt` · **Severity:** Defect.
 
-Bans every reference to `com.google.android.gms.wearable` — the Wearable Data Layer, the transport
-the Wear specification puts behind a **blocking** privacy review before any workout payload leaves
-the phone. See
-[wear-phase-1-active-workout-tile.md](feature-specs/wear-phase-1-active-workout-tile.md).
+Bans every reference to `com.google.android.gms.wearable` — the Wearable Data Layer — outside the
+paired-transport allowlist of exactly two files,
+`feature/wear-bridge/.../transport/WearRpcListenerService.kt` and
+`app/wear/.../transport/PlayServicesWearLink.kt`
+([wear-paired-transport.md](feature-specs/wear-paired-transport.md) §8). Workout payloads cross
+between phone and watch only there; widening the list is a privacy decision. Both detekt rules
+exclude the two files by rule-level `excludes` entries of the form `**/<full repository path>`, and
+`assert_wear_transport_gate.py` is the exact-path authority.
 
 The rule is one half of that gate. `ForbiddenImport` in `lint-rules/detekt.yml` owns the other half
 — import directives — and the two are complementary rather than redundant: this rule skips import
@@ -803,8 +807,11 @@ The runtime case is pinned as an expected-zero self-test so the limit stays a re
 rather than a gap someone rediscovers. Beyond the line, code review is the control — which is what a
 *blocking* privacy gate means: it makes an introduction visible and reviewable, it does not defend
 against a committer who is deliberately hiding one, and a gate claiming otherwise is the failure
-mode this rule was written to end. `lint-rules/` is its one exemption, because
-the rule names the package it bans and its fixtures spell out the violations it must catch. The
+mode this rule was written to end. `lint-rules/` is exempt from both checks, because
+the rule names the package it bans and its fixtures spell out the violations it must catch. The two
+transport files are exempt from the package check only, by whole repository path: a sibling, a
+longer path ending in the same name, or a directory prefix still fails, and a suppression inside an
+allowlisted file still fails check 2. The
 script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
 nothing to find on a clean tree has no other way to show it fires.
 

@@ -47,10 +47,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val mutationWriter: WearSetMutationWriter,
 ) : PhoneWorkoutBridge {
 
-    override val transportStatus: Set<WearPayloadTransportStatus> = setOf(
-        WearPayloadTransportStatus.PRIVACY_DISCLOSURE_REQUIRED,
-        WearPayloadTransportStatus.TRANSPORT_POLICY_REQUIRED,
-    )
+    /** Empty: no owner gate is open (wear-phase-1-active-workout-tile.md §6.1). */
+    override val transportStatus: Set<WearPayloadTransportStatus> = emptySet()
 
     private val coordinatorMutex = Mutex()
     private val snapshotResponses =

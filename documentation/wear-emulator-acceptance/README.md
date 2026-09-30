@@ -191,8 +191,9 @@ Each manual verdict requires existing, nonempty evidence files, retained with ha
 - `ongoing-return`: leave to the watch face and use the actual ongoing affordance to
   return. Record Activity/task identity and eligible editor/draft before and after;
   launching MainActivity from ADB is not this return observation.
-- `release-boundary`: record the release APK hash and actual installed package. Confirm
-  read-only behavior and that the acceptance receiver is absent. Keep this installation
+- `release-boundary`: record the release APK hash and actual installed package. Confirm that
+  synthetic scenarios are refused and that the acceptance receiver is absent; without a paired
+  phone the release app shows the retry surface after its first request. Keep this installation
   separate from debug trials and restore the pinned debug APKs before continuing them.
 - `store-debug-parity`: execute the fixed smoke subset below with separately pinned
   StoreDebug APKs. This comparison does not replace the declared full matrix.

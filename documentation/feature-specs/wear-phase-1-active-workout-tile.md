@@ -1134,7 +1134,8 @@ without a new decision. Unmeasured synthetic development cannot close this STOP.
 
 [Wear lifecycle UI](wear-lifecycle-ui.md) records the single process owner, pristine
 cache restoration, ambient state retention, notification denial behavior, Android
-adapter ordering and the executed host ledger. Release remains read-only. Wear OS 5+
+adapter ordering and the executed host ledger. Release was read-only through this stage;
+[Wear paired transport](wear-paired-transport.md) §7.7 connects it. Wear OS 5+
 foreground retention and older supported versions have separate physical acceptance
 rows; no host test or debug policy closes the device timing/return requirements.
 

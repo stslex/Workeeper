@@ -8,7 +8,10 @@ import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 
-/** Disconnected phone authority. No Data Layer listener invokes it while owner gates are open. */
+/**
+ * The phone authority for the paired watch. The Data Layer listener invokes it through a
+ * generation-bound lease (wear-paired-transport.md §6); it answers only while [transportStatus] is empty.
+ */
 interface PhoneWorkoutBridge {
     val transportStatus: Set<WearPayloadTransportStatus>
 
@@ -29,7 +32,7 @@ interface PhoneWorkoutBridge {
     ): CompleteCurrentSetResponse
 }
 
-/** Narrow app-graph surface used by a future generation-bound listener after both owner gates. */
+/** Narrow app-graph surface the generation-bound Data Layer listener reads through its lease. */
 interface WearBridgeDeps {
     val phoneWorkoutBridge: PhoneWorkoutBridge
 }

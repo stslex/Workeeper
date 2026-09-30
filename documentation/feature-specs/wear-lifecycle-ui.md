@@ -2,12 +2,14 @@
 
 **Status:** the authorized synthetic runtime/ongoing stage has executed host acceptance
 in §6: 110 intended negative controls, 100 protected identities and fresh restored/repository
-gates. Release remains read-only. Physical acceptance, calibrated device constants and
-real workout transfer/acknowledgement remain open; the privacy gate is unchanged.
+gates. Release now runs the connected owner-backed runtime of
+[Wear paired transport](wear-paired-transport.md) §7.7. Physical acceptance and calibrated device
+constants remain open; both privacy gates closed on 2026-09-29 (Phase 1 §6.1).
 
 [Wear UI completion](wear-ui-completion.md) owns the delivery sequence and visibility
 criteria. [Phase 1 §8](wear-phase-1-active-workout-tile.md#8-lifecycle-and-ongoing-surface)
-owns lifecycle policy and physical acceptance. Its privacy/transport gate remains closed.
+owns lifecycle policy and physical acceptance; its privacy/transport gates are closed by the
+Phase 1 §6.1 record, and [Wear paired transport](wear-paired-transport.md) owns the transport.
 
 ## 1. One process owner and the release boundary
 
@@ -21,12 +23,15 @@ notification adapter and an explicitly uncalibrated `OngoingPolicy`. Synthetic s
 commands enter through a new explicit debug intent. Activity recreation and notification
 permission results do not replay a scenario. Valid fixtures use correlated protocol
 snapshots; fixtures that cannot represent a valid canonical protocol payload remain
-nonmutating static previews. No Data Layer sender/listener or real phone payload is wired.
+nonmutating static previews. Debug variants never construct the Data Layer link, so no synthetic
+source reaches a real phone and no real phone payload reaches a debug scenario.
 
-The release factory returns one read-only facade over `WatchProcessState`, rejects all
-UI mutations and synthetic scenarios, reports no ongoing lifecycle, and selects no
-reconnect policy. The release source-set test must establish that `DebugSnapshotDriver`
-is absent from that classpath. A debug-only branch in a shared test is insufficient.
+The release factory builds the same owner once per process with the provisional release reconnect
+policy and connects it to the phone through `ConnectedWatchRuntime` and the paired transport
+([Wear paired transport](wear-paired-transport.md) §7.7); it rejects synthetic scenarios and
+calls no Google Play services before the first request. The release source-set test must
+establish that `DebugSnapshotDriver` is absent from that classpath. A debug-only branch in a
+shared test is insufficient.
 
 A completion action obtains an existing reducer request token and fingerprint, then
 enters command-in-flight state. It does not change the completed-set ordinal, fabricate
@@ -237,8 +242,9 @@ preserves the fingerprint, rejects a duplicate issue and fabricates no acknowled
 
 The release baseline/restoration executes only
 `ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass()`
-in `testDevReleaseUnitTest`. It proves the read-only factory's rejection and absence of
-the synthetic source class from that host classpath. It is not a release-device UI test.
+in `testDevReleaseUnitTest`. At that stage it proved the read-only factory's rejection and
+absence of the synthetic source class from that host classpath; the release runtime is now the
+connected one, and the test runs on `storeRelease` (ci-cd.md). It is not a release-device UI test.
 Explicit release host commands and the two release controls include command-local
 `-Pandroid.onlyEnableUnitTestForTheTestedBuildType=false`; global variant configuration
 is unchanged. `assembleStoreRelease` remains a separate packaging/build result.

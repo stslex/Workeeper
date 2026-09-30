@@ -72,7 +72,14 @@ bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --
   --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 ```
 
-The last line proves the Wear release boundary on **storeRelease**, the variant that ships. The
+The last line proves the Wear release boundary on **storeRelease**, the variant that ships: the
+release runtime is the connected owner-backed runtime of
+[wear-paired-transport.md](feature-specs/wear-paired-transport.md) §7.7, no synthetic source or
+acceptance receiver is reachable, and with an empty cache the Tile declares no freshness interval.
+The `Assert Wear transport privacy gate` step of the same job runs
+`.github/scripts/assert_wear_transport_gate.py` (self-test first): no tracked Kotlin source names
+the Data Layer outside the two allowlisted transport files (§8), matched as whole repository paths,
+and nothing suppresses the gate. The
 two Wear flavors differ only by `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance
 logcat meta-data entry); AGP does not create release unit-test tasks unless
 `android.onlyEnableUnitTestForTheTestedBuildType=false` is passed, which is why the step spells
@@ -168,7 +175,7 @@ from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2). 
 | G5 | Phone: no `uses-feature android.hardware.type.watch`. Wear: exactly one, not `required="false"`. |
 | G6 | Wear: the application meta-data `com.google.android.wearable.standalone` is `false`. Not applicable to phone. |
 | G7 | Every `lib/armeabi-v7a/*.so` has the same file under `lib/arm64-v8a/` of the same module. Counts per ABI and module are printed; zero native libraries is a valid, reported result. |
-| G8 | Advertising ID off, for both roles: no `com.google.android.gms.permission.AD_ID` in the base manifest (`uses-permission` or `uses-permission-sdk-23`), and the application meta-data `google_analytics_adid_collection_enabled` is exactly `false` (below Android 13 the ID is readable without the permission). The apps show no ads: each application manifest removes the permission that `firebase-analytics` brings and sets the meta-data. `app/dev` ships no store bundle, so review covers it. |
+| G8 | Advertising ID off, for both roles: none of `com.google.android.gms.permission.AD_ID`, `android.permission.ACCESS_ADSERVICES_AD_ID` or `android.permission.ACCESS_ADSERVICES_ATTRIBUTION` in the base manifest (`uses-permission` or `uses-permission-sdk-23`), and the application meta-data `google_analytics_adid_collection_enabled` is exactly `false` (below Android 13 the ID is readable without the permission). The apps show no ads: each application manifest removes the three permissions that `firebase-analytics` brings and sets the meta-data. The optional `android.ext.adservices` library entry is not a permission and stays. `app/dev` ships no store bundle, so review covers it. |
 
 Every check prints what it read, and the last line is `RESULT PASS` or `RESULT FAIL <checks>` with
 the number of checks that ran. Exit 0: every check passed. Exit 1: a check failed. Exit 2: the gate
@@ -185,7 +192,7 @@ script runs `java -cp <those jars> com.android.tools.build.bundletool.BundleTool
 dependency resolution, and the script exits 2 when the classpath file or any jar in it is missing.
 G7 reads the AAB's zip entries directly.
 
-`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 25 cases over two
+`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 30 cases over two
 manifests trimmed from real `bundletool dump manifest` output, each case applying exact-once text
 replacements. It fails on any mismatch and unless every check is shown both PASS and FAIL.
 

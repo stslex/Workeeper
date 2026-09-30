@@ -10,12 +10,6 @@ import io.github.stslex.workeeper.wear.cache.ElapsedRealtimeClock
 import io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotification
 import io.github.stslex.workeeper.wear.ongoing.OngoingPolicy
 import io.github.stslex.workeeper.wear.tile.observeWorkoutTile
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.File
 
 internal object WatchRuntimeFactory {
@@ -43,7 +37,7 @@ internal object WatchRuntimeFactory {
             notification = AndroidOngoingNotification(context, clock),
             policy = OngoingPolicy(DEBUG_UNCALIBRATED_RECONNECT_WINDOW_MS),
             identity = RuntimeIdentity(sourceNodeId = "synthetic-watch", ids = ids),
-            scheduler = DebugDeadlineScheduler(clock),
+            scheduler = CoroutineDeadlineScheduler(clock),
             selectedLocale = context.resources.configuration.locales[0],
         )
         observeWorkoutTile(context, owner)
@@ -51,19 +45,4 @@ internal object WatchRuntimeFactory {
     }
 
     private data class RuntimeInstance(val owner: WatchRuntimeOwner, val driver: DebugSnapshotDriver)
-}
-
-private class DebugDeadlineScheduler(private val clock: ElapsedRealtimeClock) : RuntimeDeadlineScheduler {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var deadlineJob: Job? = null
-
-    override fun replace(deadlineElapsedRealtimeMs: Long?, callback: () -> Unit) {
-        deadlineJob?.cancel()
-        deadlineJob = deadlineElapsedRealtimeMs?.let { deadline ->
-            scope.launch {
-                delay((deadline - clock.nowMs()).coerceAtLeast(0L))
-                runWearRuntimeUiEvent(callback)
-            }
-        }
-    }
 }
