@@ -1,6 +1,11 @@
 # KMP Phase 7.8 — feature:archive becomes a shared feature entry
 
-**Status:** SPECIFICATION ONLY — IMPLEMENTATION REQUIRES A LATER EXPLICIT MAINTAINER GO
+**Status:** IMPLEMENTED FOR REVIEW — MAINTAINER MERGE REQUIRED
+
+**Authorized implementation baseline:** b1945ee15ed7a64be811d821d11d4d6e86000375 — exact
+origin/dev at implementation entry (Section 19.1)
+
+**Maintainer implementation GO:** 2026-10-01
 
 **Target branch:** dev
 
@@ -1229,22 +1234,294 @@ contract but does not authorize implementation. Phase 7.8 implementation may beg
 Until then, no production, test, Gradle, workflow, script, generated, golden, ruleset, repository,
 release, or deployment mutation is permitted.
 
-## 19. Implementation evidence template
+## 19. Implementation evidence
 
-This section remains intentionally empty in the documentation-only PR. A later authorized
-implementation fills it with observed facts only:
+This section records the bounded implementation authorized by the separate maintainer GO given on
+2026-10-01 (Section 18, item 5). That GO authorized exactly Section 7 and nothing in Section 8; it
+did not relax any scope, STOP condition, or proof requirement. Section 3.7 remains the historical
+baseline measurement and is not rewritten here.
 
-- authorized implementation baseline and ancestry;
-- signed commit SHAs and GitHub verification;
-- exact final path boundary;
-- focused and repository N/N summaries;
-- Android-host, Native, app identity, device, Smoke, and Regression XML;
-- exact three suppression-removal compiler experiments covering the five comma-bearing identities;
-- every GREEN/RED/restoration control;
-- final PNG manifests and blob proof;
-- local limitations and remote run/job IDs;
-- final head, PR state, and auto-merge state; and
-- every review finding and its classification.
+### 19.1 Entry, drift, and authorization baseline
 
-No future SHA, test count beyond this specification's oracle, run ID, review result, or merge claim
-is predeclared.
+At entry, `origin/dev` was `b1945ee15ed7a64be811d821d11d4d6e86000375`. This specification's blob
+was unchanged on it (`6cc56c68d412e115abdc3c88c8e3baf5a419c24d`), its PR #276 was merged and an
+ancestor, and PR #273 was `MERGED` with merge commit `bbc650ca2acda43d7e0121bb4309d467284a40a1`
+and head `84c3894c2822b7cc422308f25fde55f59e70cf3c`. There was no open PR. The only remote branch
+matching `archive` or `7-8`, `feature/kmp-c1-archive-slice`, is a July 2026 Phase C.1 branch with
+zero commits ahead of `dev` and no PR; it does not implement this phase. The implementation branch
+`feature/kmp-phase-7-8-archive` was created in an isolated worktree from that exact SHA, and a
+dangling `commit-tree -S` probe verified `Good` against the configured ED25519 signing key before
+the first commit.
+
+`dev` had moved 275 commits (41 first-parent) past the Section 0.1 baseline `97b55d73`: Wear OS and
+release work, with no KMP commit after this specification itself. The maintainer's planner had
+measured `fd0f9365`; live `dev` was one first-parent merge later (#306, which changes only
+`versionName`/`versionCode`). Every row was reproduced at the live SHA:
+
+| Item | Specification | Planner (`fd0f9365`) | Measured (`b1945ee1`) | Verdict |
+| --- | --- | --- | --- | --- |
+| D1 all-repository PNGs | 484, `f2c4a01e…` | 528 (+44 added, 0 changed, 0 removed) | 528; +44 A (app/wear 20, wear-emulator-acceptance 14, feature-specs 6, metadata-wear 4), 0 M, 0 D | EXPECTED |
+| D1 fresh baseline mode/blob/path | — | `fc2dda16…` | `fc2dda1621c889b3c9811ae66feb72bbef0c23db1adf3267e5e5f706996fcde3` | EXPECTED |
+| D1 fresh projection after the move | `8b788add…` (superseded) | `06a1f2ad…` | `06a1f2adb9b38b70463d5b9b46db881059c594cf879d98f13acfb2e78cfb4d39` | EXPECTED |
+| D2 boundary files changed | — | unified workflow 18, ci-cd 31, AppGraph +`WearBridgeDeps`, testing 1 | identical (18/31/1/1; AppGraph adds only `WearBridgeDeps`) | EXPECTED |
+| D3 archive's KMP dependencies | — | 69 files, +3745/−748 | identical with `--no-renames` over `core/{core,data/dataStore,data/database,data/exercise,ui/kit,ui/mvi}`; 84 files, +4313/−748 when kit's new `core/ui/design-tokens` dependency is included; no KMP convention plugin changed | EXPECTED |
+| I1 `git diff 97b55d73.. -- feature/archive` | empty | empty | empty (0 files) | HELD |
+| I2 archive PNG blob set (14) | `19dd79f0…` | `19dd79f0…` | `19dd79f0964d2b19d301370527b56a37eda937055bf6044f7d014f7a9ed0684b` | HELD |
+| I3 Paparazzi manifests (456 / 13 owners) | `e5c47e60…`, `720a2f7d…` | same | same; projections `616a0ea5…`, `4782c538…` valid | HELD |
+| I4 catalog | kotlin 2.4.10, paging 3.5.0, composeGradle 1.11.1 | same | same | HELD |
+| I5 Section 2 order; Context.appDeps readers | archive smallest; 11 | same | archive row exact; order unchanged; 11 | HELD |
+| I6 conflicting PR or branch | none | none | none (see above) | HELD |
+
+The Section 2 census reproduced archive's row exactly (25 / 1,409 / 6 / 503 / 1 / 25 / 14). Three
+cells of other features moved with the Wear arc without changing the order: home production lines
+3,081 → 3,085, settings production lines 3,324 → 3,326, live-workout unit lines 6,857 → 6,882.
+Every Section 3.1–3.7 static measurement (25 per-file line counts, 49 paths, both catalogs, the
+25 test names, 14 PNG names, both inherited suppressions, consumers, 11 readers) reproduced.
+
+Section 3.7's all-repository projection `8b788add…` is superseded by `06a1f2ad…` for one reason:
+44 non-archive PNGs were added on `dev` after the baseline. The four manifest formats were first
+validated by reproducing all four Section 3.7 baseline hashes and both projections exactly.
+
+### 19.2 Commits and changed boundary
+
+| Commit | SHA | Boundary and verification |
+| --- | --- | --- |
+| `refactor(kmp): share archive feature entry` | `36703afa14b54590188af921f4a22eca1c117196` | target module, six root consumers, minimal topology delta; locally valid SSH signature; GitHub verification recorded on the PR |
+| `ci(kmp): gate shared archive feature` | `07e8c6815c916ab984ff0ef9acf806450fbc88c5` | exactly the three Section 9.2 CI paths; locally valid SSH signature; GitHub verification recorded on the PR |
+| `docs(kmp): record Phase 7.8 evidence` | this commit | the four Section 9.2 documentation paths only |
+
+Against the authorized base `b1945ee1`, the three commits change 111 paths (counted without
+rename pairing): 98 under `feature/archive` — the 48 legacy `src/main`, `src/test` and
+`src/androidTest` paths removed, 49 added (the 48 moved files plus the one Native scene) and the
+build file modified — and exactly the 13 Section 9.2 paths outside it. No other path changed.
+`feature/archive` tracks exactly 50 paths at exit with no legacy residue; all 14 PNGs, the golden
+test, both catalogs and the device test are 100%-similarity renames.
+
+### 19.3 Fresh baseline before any edit
+
+Every load-bearing Gradle invocation in this section and below ran immediately after
+`./gradlew --stop` with `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`
+(plus `--continue` where specified); every summary below is `N actionable tasks: N executed`.
+
+| Command (baseline tree) | Executed | Parsed result |
+| --- | ---: | --- |
+| `:feature:archive:assembleDebug` | 104/104 | target assembled |
+| `:feature:archive:testDebugUnitTest` | 173/173 | 5 XML suites, 25 cases 9/1/7/4/4, the 25 Section 3.2 identities, 0/0/0 |
+| `:feature:archive:assembleDebugAndroidTest` | 223/223 | device APK assembled |
+| current seven-module Native command (`--continue`) | 211/211 | 21 XML suites, 94 cases, 0/0/0; `assert_kmp_ios_smoke.py` green for all seven modules |
+| `:feature:archive:connectedDebugAndroidTest` (Smoke) on `emulator-5554` | 224/224 | one case, `ArchiveScreenTest.pendingFeatureRewrite`, skipped |
+
+The device is the repository's Pixel 6 API 34 arm64 AVD, serial `emulator-5554`, the only attached
+device for every device gate in this record; rotation was `accelerometer_rotation=1`,
+`user_rotation=0` throughout.
+
+### 19.4 Commit 1 focused evidence
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | archive's 49 exact `src` paths; 10 readers |
+| `:feature:archive:assembleDebug` | 214/214 | Android and iOS klib targets |
+| `:feature:archive:testAndroidHostTest` | 175/175 | 5 suites, 25 cases 9/1/7/4/4, exact identities, 0/0/0 |
+| eight-module Native command (`--continue`) | 235/235 | archive: 6 suites, 26 cases (25 + the scene), 0/0/0; the seven existing modules unchanged and green |
+| `:app:common:assembleDebug` | 315/315 | explicit consumer compiled |
+| `:app:app:testDebugUnitTest --tests '*ArchiveExtensionIdentityTest*'` | 574/574 | the four exact identities, 0/0/0 |
+| `:feature:archive:verifyPaparazziDebug` | 176/176 | 14 golden cases executed for 14 images; `Visual gate live: 14 … for 14` |
+| focused `:app:app:connectedDebugAndroidTest` | 735/735 | `RouteReachabilityTest.archiveOpensFromSettingsAndSettingsReturns`, `BackStackStateRestorationTest.backStackDepthSurvivesActivityRecreation`, the three `UiAdmissionRaceTest` identities; 0/0/0 |
+| `:feature:archive:connectedDebugAndroidTest` (Smoke) | 224/224 | `ArchiveScreenTest.pendingFeatureRewrite` the one skip, now under `connected/androidMain` |
+
+All 14 PNG moves are `git mv` renames at 100% similarity; the index after the move reproduced the
+fresh projections exactly: all PNGs 528 `06a1f2ad…`, Paparazzi 456 across 13 owners `616a0ea5…`,
+path list `4782c538…`, archive blob set `19dd79f0…`. No `recordPaparazzi` task ran in any
+invocation. The 14 blob IDs, unchanged before and after:
+
+| PNG (`feature/archive/src/androidHostTest/snapshots/images/…ArchiveGoldenTest_`) | Blob |
+| --- | --- |
+| `pagingError_dark` | `ffa97faf929410002cd23e3dafebbc50d53853dc` |
+| `pagingError_light` | `ae8b1138180e75b59c3c43ce93e0d47080e61463` |
+| `pagingLoading_dark` | `07987ad0b892d01c9e797e08c817624c112a8db0` |
+| `pagingLoading_light` | `ec7c9bf274ff725bc70ac06d4e21d1290bdc99fc` |
+| `rowClamped_dark` | `5688b842de6864aaebd80bc79318fdb172183e80` |
+| `rowClamped_light` | `bbf7065d7a2c05b96bafd5f1799c66472ea05d7f` |
+| `rowExercise_dark` | `e913e9b9e59a560644f1ef4d068ff3c5457cf70c` |
+| `rowExercise_light` | `33d6d2593752a28d90f89c08582eb22318b8531b` |
+| `rowTraining_dark` | `4bfcf69ecf5934e5392e510a796b275674ce6eaf` |
+| `rowTraining_light` | `e69b097a076baf2ccd9b50648c67d9b0ed84184b` |
+| `screenExercisesNoRows_dark` | `4d2328d669bb931f1e5e482434e79262ef24f64d` |
+| `screenExercisesNoRows_light` | `54c875394f074aa102b8599267b92f16be7e0c8b` |
+| `screenTrainingsNoRows_dark` | `caa34c60ffb98947570b698afa13aab878001300` |
+| `screenTrainingsNoRows_light` | `404cc09cae7905f4c1230adb60faf593ddd2cf8c` |
+
+### 19.5 Section 4.4 compiler experiments
+
+Each file-scope suppression was removed in turn through `mutation_harness.py` against
+`:feature:archive:compileTestKotlinIosSimulatorArm64` and byte-restored automatically (restoration
+re-verified by blob hash). Each run was compile-invalid, as Section 4.4 predicts, and is decision
+evidence only, never a RED control:
+
+| File | Kotlin/Native diagnostic | Declarations named |
+| --- | --- | --- |
+| `ArchiveMetaLineTest.kt` | `Name contains illegal characters: ","` ×3 (84/84 executed) | `the kind is first, ahead of the date`; `tags come last, after the date`; `the date is day-and-month, not a relative span` |
+| `ArchiveListSurfaceTest.kt` | `Name contains illegal characters: ","` (80/80) | `an unsettled refresh with no rows is loading, not empty` |
+| `PagingTailKindTest.kt` | `Name contains illegal characters: ","` (80/80) | `a failed page draws the error footer, not silence` |
+
+Exactly the five Section 4.4 identities, and nothing else, depend on the three annotations.
+
+### 19.6 Repository, visual, and device evidence (commit-2 tree)
+
+After `./gradlew clean`, each Section 12.4 command ran as its own invocation, sequentially, so
+Detekt never ran beside tests:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2378/2378 | 432 fresh host XML files across 32 modules, 3,050 tests, 0/0/0 |
+| `detekt --continue` | 63/63 | GREEN |
+| `assembleDebugAndroidTest --continue` | 2169/2169 | GREEN |
+| `verifyPaparazziDebug` | 643/643 | 13 liveness lines, 456 golden cases executed for 456 images (archive 14 for 14) |
+| `:lint-rules:test` | 9/9 | GREEN |
+| `python3 documentation/personal_data_gate.py -v` | GREEN | only the pre-existing excused entries |
+| the exact CI Native command (eight modules, `--continue --full-stacktrace`) | 235/235 | `assert_kmp_ios_smoke.py` GREEN for all eight modules; archive 26 executed, 26 exact identities |
+| `assert_kmp_ui_source_topology.py`, `assert_mvi_source_topology.py` | GREEN | archive contract, 10 readers |
+
+The canonical device suites from `documentation/testing.md` ran with the required flags plus
+`--continue --max-workers=2` on `emulator-5554`, each after deleting every connected result
+directory (zero stale directories remained), with the XML copied out before the next suite:
+
+| Suite | Executed | Parsed result |
+| --- | ---: | --- |
+| Smoke | 2129/2129 | 15 fresh XML files; 44 unique cases: 41 executed and exactly the three documented skips `ArchiveScreenTest.pendingFeatureRewrite`, `AllTrainingsScreenTest.pendingFeatureRewrite` and `AllExercisesScreenTest.pendingFeatureRewrite`; zero failures and errors. Archive's skip is now reported from `connected/androidMain`. |
+| Regression | 2129/2129 | 15 fresh XML owners (Phase 7.7's 14 plus the newer `feature:wear-bridge`); 88 unique cases, all executed, zero skip, failure or error: `app:app` 49, `core:data:database` 35, `core:data:exercise` 1, `feature:all-exercises` 1, `feature:wear-bridge` 2, the other owners 0. |
+
+The device rotation settings were `accelerometer_rotation=1`, `user_rotation=0` before and after
+every device run.
+
+The whitespace check (`diff --check`) is clean for every commit. The local mockup shell gate ran
+with Homebrew Python 3.14: its static checks 1–6, 9 and 10 pass on this branch, and the permanent
+known negative `--target f52462c7` still fails checks 6, 9 and 10 without a browser. The render
+checks 7 and 8 are **unverified locally**: no headless browser is on `PATH`, and the installed
+Chrome, exposed through an exec wrapper, hung until the gate's own 90-second timeout — the same
+macOS behavior Phase 7.7 recorded. The remote `Mockup Appearance Gate` is their authority. This PR
+changes neither `documentation/mockups/pass2d.html` nor `AppColors.kt`.
+
+Final PNG manifests (bytes on disk and the committed tree): all PNGs 528 entries
+`06a1f2adb9b38b70463d5b9b46db881059c594cf879d98f13acfb2e78cfb4d39`; Paparazzi 456 across 13 owners
+`616a0ea5dcc85256a984bb710eb08a8b1110f1f41b1ae3a6e488909db8f65446`, path list
+`4782c53805144b129de6ccf933edadcdddc084f46c16fcc3d33de70d6037e733`; archive blob set
+`19dd79f0964d2b19d301370527b56a37eda937055bf6044f7d014f7a9ed0684b`. No golden was recorded or
+rewritten.
+
+
+### 19.7 Mandatory known-negative controls
+
+Every control used fresh GREEN → one named observable RED → automatic exact restoration → fresh
+GREEN; no mutation was committed. Gradle-gated controls 18–20 used
+`documentation/mockups/mutation_harness.py`; the script-, path- and PNG-gated controls and the
+Gradle-gated controls 15, 16, 21–23 and 25 used an equally safe scratch harness that snapshots
+every touched path, restores bytes (or absence) in `finally` — also on SIGTERM — and proves both
+byte equality and an unchanged `git status --porcelain` before the post-GREEN. A RED counted only
+when the gate's output contained the named failure text. Gradle GREENs are forced runs; the two
+device controls used `--max-workers=2`, as `ui_tests.yml` does (see 19.9).
+
+| # | Mutation | Observable RED (quoted) | GREEN before/after |
+| ---: | --- | --- | --- |
+| 1 | delete `ui/components/PagingTailKind.kt` | topology: `source manifest mismatch; missing=['src/commonMain/…/ui/components/PagingTailKind.kt'], extra=[]` | topology GREEN |
+| 2 | copy `di/ArchiveScope.kt` into `src/main/kotlin/…` | `legacy source set src/main still contains ['src/main/kotlin/…/di/ArchiveScope.kt']` | topology GREEN |
+| 3 | move `PagingTails.kt` from `ui/components/` to `ui/` | `missing=[…/ui/components/PagingTails.kt], extra=[…/ui/PagingTails.kt]` | topology GREEN |
+| 4 | add `import android.util.Log` to `PagingTailKind.kt` | `…/ui/components/PagingTailKind.kt imports a platform API in commonMain: 'import android.'` | topology GREEN |
+| 5 | rename EN key `feature_archive_snackbar_undo` (count kept) | `exact private CMP catalog mismatch in …/values/strings.xml; mismatched=["feature_archive_snackbar_undo: expected='Undo', actual=None"], unexpected=['feature_archive_snackbar_undo_renamed'], order=drifted` | topology GREEN |
+| 6 | change the RU value of `feature_archive_paging_retry` | `exact private CMP catalog mismatch in …/values-ru/strings.xml; mismatched=["feature_archive_paging_retry: …"], unexpected=[], order=exact` | topology GREEN |
+| 7 | move `feature_archive_snackbar_undo` from archive EN to `feature/settings` EN | `resource ownership drift for feature_archive_snackbar_undo; expected=[both archive catalogs], actual=[archive values-ru, 'feature/settings/src/main/res/values/strings.xml']` | topology GREEN |
+| 8 | add `val titleRes: Int = 0` to `State` | `Store State must stay semantic with exactly (…); actual=(…, ('titleRes', 'Int = 0'))` | topology GREEN |
+| 9 | `exerciseKind = resourceWrapper.getString(0)` in `ArchivePagingHandler` | `…/ArchivePagingHandler.kt resolves archive copy through ResourceWrapper.getString` | topology GREEN |
+| 10 | compile-valid suspend `getString(…)` inside `ArchiveClickHandler`'s `updateStateImmediate` | `updateStateImmediate in …/ArchiveClickHandler.kt resolves a resource inside the State lambda: 'getString('` | topology GREEN |
+| 11 | restore `uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES` on the Dark screen preview | `…/ArchiveScreen.kt contains forbidden platform/lookup API 'android.content'` and `… 'uiMode'` | topology GREEN |
+| 12 | `LocalContext.current` + `context.appDeps<ArchiveGraph.Factory>()` in `ArchiveFeature` | `… forbidden platform/lookup API 'LocalContext'`, `… 'appDeps<'`, and `remaining Context.appDeps readers are not the exact 10 unported entries` | topology GREEN |
+| 13 | delete `archiveGraphFactory` from `AppRootDeps` | `exact root-factory flow requires 'val archiveGraphFactory: ArchiveGraph.Factory' once in …/AppRootDeps.kt` | topology GREEN |
+| 14 | create the graph before `rememberMetroStoreProcessor` | `factory invocation must occur exactly inside retained Store creation` | topology GREEN |
+| 15 | resolve `appRootDeps()` twice inside the admitted `remember` | device: `an admitted region resolves the generation's app-scope deps expected:<1> but was:<2>` | `UiAdmissionRaceTest` 735/735, all 3 cases |
+| 16 | hoist the `remember { appRootDeps() }` above `if (admission.granted)` | `a retired generation must resolve NOTHING — not even the app root deps expected:<0> but was:<1>`; `the stale generation's region must resolve NOTHING expected:<0> but was:<1>` (the admitted case passed) | 735/735 |
+| 17 | identity helper via `asContribution<ArchiveGraph.Factory>()` | `extension identities must not bypass AppRootDeps via asContribution` | topology GREEN |
+| 18 | `listOf(archivedPhrase, kind)` in `ArchiveUiMapper` | the five order-observing MetaLine identities, including `the kind is first, ahead of the date`, FAILED on Android host and on Native (11 failing cases with the scene) | host + Native 248/248 |
+| 19 | refresh `Loading` → `EMPTY` in `archiveListSurface` | `an unsettled refresh with no rows is loading, not empty` FAILED on host and Native (and the scene) | 248/248 |
+| 20 | append `Error` → `NONE` in `pagingTailKind` | `a failed page draws the error footer, not silence` FAILED on host and Native (and the scene) | 248/248 |
+| 21 | blank the scene's `setContent` body | `Failed to perform isDisplayed check. Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'ArchiveScreen')` | Native 104/104 |
+| 22 | Back button `onClick = { }` in `ArchiveScreen` | `Expected <Back>, actual <OnSegmentChange(segment=TRAININGS)>.` | Native 104/104 |
+| 23 | rename the scene method to `renamedSceneSubstitute` | Gradle green with 26 passing cases, then the oracle: `feature:archive: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest' name='resourcesPagingBranchesAndActionsRenderAndDispatch[iosSimulatorArm64]', found 0; parsed 26 testcase(s): [….renamedSceneSubstitute[iosSimulatorArm64], …]` | Native 104/104 + oracle GREEN |
+| 24 | flip the last byte of `…rowExercise_light.png` | `archive blob drift: …rowExercise_light.png expected=33d6d2593752a28d90f89c08582eb22318b8531b actual=9b8490f868a2dd0967359200cfcd9c7beca3ced1` and the all-PNG hash drift | PNG assertion GREEN |
+| 25 | compile-valid overlong assertion in `PagingTailKindTest.kt` | root Detekt: `PagingTailKindTest.kt:15:…` `[ArgumentListWrapping]` and `[MaxLineLength]` | root `detekt` 63/63 |
+
+### 19.8 Deviations, spec gaps, and implementation decisions
+
+- **G1 — commit-1 topology delta (precedent #273, `1525a041f`).** The live topology gate pins the
+  exact reader set, so commit 1 alone would have been red. Commit 1 therefore carries only the
+  minimal script delta: archive's exact 49-path `MODULES` manifest, the archive entry removed
+  from `EXPECTED_APP_DEPS_READERS`, and both "11" texts changed to "10". Every archive-specific
+  contract check is in commit 2.
+- **G2 — review fixes** land as separate signed commits inside Section 9; nothing is amended,
+  squashed, or reordered. No review fix exists at the time of this commit; any later fix is
+  listed on the PR.
+- **G3 — bare `%d` under Compose resources (new gap, no precedent).** Compose Multiplatform
+  resources 1.11.1 substitute only positional placeholders (`Regex("%(\d+)\$[ds]")` in
+  `replaceWithArgs`). `feature_archive_session_count` uses a bare `%d` in all six EN/RU items, so a
+  byte-exact catalog move would have rendered the literal `%d sessions` in the permanent-delete
+  dialog. Sections 3.4, 5.1 and 16 forbid changing the placeholder, and Sections 8 and 16 forbid
+  changing visible copy; the one resolution satisfying both is in `PermanentDeleteDialog`: the
+  plural resolves through `pluralStringResource` and the dialog fills the bare `%d` itself, as
+  Android's `String.format` did. The catalog stays byte-identical. The Native scene asserts the
+  rendered `3 sessions` and `1 session` literally. No other catalog string has a bare placeholder.
+- **`commonTest` omits `libs.coroutine.test`.** Section 10 lists it in its sketch but also requires
+  verifying rather than copying; no portable archive test imports `kotlinx-coroutines-test`. The
+  ported click-handler fake reproduces the old relaxed MockK store exactly — Store-scope `launch`
+  work is not run — so each identity proves the same transition and haptic as before.
+- **Mapper seam.** `ArchiveMetaCopy` (kinds, bare word, separator) lives in `ArchiveUiMapper.kt`,
+  since Section 9.1 allows no new production file. `ArchivePagingHandler` resolves it once per
+  `PagingData` emission and each item's `archived since <date>` per item, both inside suspending
+  Paging work; the mapper alone chooses kind by payload, orders kind before date before tags, and
+  falls back to the bare word for a missing timestamp. The handler now formats a date even for a
+  missing timestamp and discards it, which is not visible.
+- **Snackbar copy.** JVM `String.format` is unavailable in common code, so the event renderer, a
+  suspend block, formats the restored/deleted messages with Compose resources' suspend
+  `getString(resource, name)`; the undo label still resolves in composition. The app has no
+  per-app locale, so the composition and system resource environments agree.
+- **Previews.** Both previews keep `showBackground = true`; only the Android `uiMode` parameter is
+  replaced by explicit `ThemeMode.LIGHT`/`ThemeMode.DARK` through `AppTheme`.
+- **Native scene settling.** Paging hands each new list over on the main dispatcher and the kit
+  holds a shown loading treatment for at least 260 ms, so one fixed clock advance per paging
+  branch was not enough. The scene settles each paging branch in at most ten one-second steps until
+  that branch's production tag exists, and checks that the cold-open loading verdict is held across
+  three further steps rather than being the transient first frame of a new list.
+
+### 19.9 Rejected runs, local limitations, and the remote evidence boundary
+
+Runs that did not measure what they appear to were excluded and their owning proof rerun freshly:
+
+- One control batch invoked the mutation harness through an unsplit zsh variable, so no harness
+  ran and nothing was mutated; it was stopped and relaunched. Its interrupted GREEN was discarded.
+- The first device pre-GREEN for controls 15/16 lost the device to ddmlib
+  `ShellCommandUnresponsiveException` ("No compatible devices connected"). Stopping that batch
+  with SIGTERM bypassed the repository harness's `finally`, leaving the control-15 line in
+  `App.kt`; it was reversed by hand and proved byte-identical to `HEAD` before anything else ran.
+  The scratch harness now converts SIGTERM into a restoring interrupt.
+- A second pre-GREEN failed with `Instrumentation run failed due to keyDispatchingTimedOut` while
+  the emulator guest was memory-starved after long uptime; the AVD was cold-booted (same serial,
+  API 34, animation and rotation settings verified unchanged). One mutation run then lost the
+  device to a ddmlib property-fetch timeout ("Unknown API Level"); the harness refused to score
+  it. The accepted device controls ran with `--max-workers=2`, as `ui_tests.yml` does.
+- The first Smoke attempt lost `feature:all-trainings` to `Instrumentation run failed due to
+  failed to attach`, and its XML was lost to a copy step that split file names containing spaces;
+  in that rejected run archive's line also read `Starting 0 tests`. The accepted Smoke run in
+  Section 19.6 is a fresh full rerun, in which archive's one case was discovered and skipped
+  exactly.
+
+Local limitations:
+
+- The mockup gate's browser checks 7 and 8 are unverified locally (Section 19.6); the remote
+  `Mockup Appearance Gate` is their authority.
+- The bare-`%d` substitution (G3) is proven rendered on Native by the scene. On Android the same
+  common code runs, but no host or device test renders the dialog: Paparazzi models one window,
+  and the device placeholder is ignored by contract. The Compose-resources formatter that makes the
+  substitution necessary is shared common code, so the Native proof covers its behavior.
+- Wear device tests are not part of the phone `connectedDebugAndroidTest` suites (flavored tasks,
+  no alias), matching `ui_tests.yml`.
+- This documentation commit must exist before its SHA, the PR, GitHub signature verification of
+  the pushed commits, CI run/job IDs, and review threads can exist. Those facts, and every review
+  finding's classification, are recorded in the live PR, not predeclared here.
