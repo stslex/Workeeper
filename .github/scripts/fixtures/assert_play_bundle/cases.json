@@ -200,7 +200,7 @@
                "G8": "SKIP", "G9": "SKIP", "G10": "SKIP", "G11": "SKIP"}
   },
   {
-    "name": "phone bundle without the capability array (as 1.52.0 and 1.52.1 shipped, M1)",
+    "name": "phone bundle without the capability array (M1)",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
     "resource_absent": ["array/android_wear_capabilities"],
     "expect": {"G6": "N/A", "G9": "FAIL"}
@@ -212,7 +212,7 @@
     "expect": {"G9": "FAIL", "G10": "N/A"}
   },
   {
-    "name": "wear bundle as 1.52.1-wear shipped: no capability array, the drawable glyph as launcher icon (M2, M4)",
+    "name": "wear bundle with no capability array and the drawable glyph as launcher icon (M2, M4)",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@drawable/ic_workeeper_wear\""]],
     "resource_absent": ["array/android_wear_capabilities", "mipmap/ic_launcher"],

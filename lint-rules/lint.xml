@@ -21,8 +21,8 @@
     <issue id="IconMissingDensityFolder" severity="error">
         <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
-    <!-- app/wear carries a byte-identical copy of the phone's launcher icon set (1.52.2 hotfix):
-         the same files are exempt from the two checks that fire on that copy. -->
+    <!-- app/wear carries a byte-identical copy of the phone's launcher icon set: the same files
+         are exempt from the two checks that fire on that copy. -->
     <issue id="IconExpectedSize" severity="error">
         <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
         <ignore path="**/wear/src/main/res/mipmap-**/ic_launcher**" />

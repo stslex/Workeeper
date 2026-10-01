@@ -872,7 +872,7 @@ kept honest by review and by that KDoc, not by any Gradle task.
 - **Mipmap launcher icons** are exempted from icon-related checks
   (`IconDensities`, `IconDuplicates`, `IconLocation`, `IconMissingDensityFolder`,
   `IconExpectedSize`, `IconLauncherShape`, `VectorRaster`, `ConvertToWebp`). Those ignore paths
-  match `app/app` only. `app/wear` carries a byte-identical copy of the same set (1.52.2 hotfix), so
+  match `app/app` only. `app/wear` carries a byte-identical copy of the same set, so
   its path is added to exactly the two checks that fire on that copy: `ConvertToWebp`
   (`mipmap-xxxhdpi/ic_launcher.png`) and `IconExpectedSize` (the five `ic_launcher_monochrome.png`).
 - **Dependency-freshness checks** (`GradleDependency`, `NewerVersionAvailable`,
