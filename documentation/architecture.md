@@ -2108,13 +2108,16 @@ module — typically `core/ui/kit` for UI verbs:
 
 Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions" vs Russian
 forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
+Write every placeholder positionally (`%1$d`, `%1$s`): Compose resources fill only that form and
+render a bare `%d` literally, and `assert_kmp_ui_source_topology.py` rejects anything else in a
+`commonMain/composeResources` catalog.
 
 Example:
 
 ```xml
 <plurals name="feature_archive_session_count">
-    <item quantity="one">%d session</item>
-    <item quantity="other">%d sessions</item>
+    <item quantity="one">%1$d session</item>
+    <item quantity="other">%1$d sessions</item>
 </plurals>
 ```
 
@@ -2122,10 +2125,10 @@ Russian needs the `few` quantity for 2-4:
 
 ```xml
 <plurals name="feature_archive_session_count">
-    <item quantity="one">%d сессия</item>
-    <item quantity="few">%d сессии</item>
-    <item quantity="many">%d сессий</item>
-    <item quantity="other">%d сессии</item>
+    <item quantity="one">%1$d сессия</item>
+    <item quantity="few">%1$d сессии</item>
+    <item quantity="many">%1$d сессий</item>
+    <item quantity="other">%1$d сессии</item>
 </plurals>
 ```
 

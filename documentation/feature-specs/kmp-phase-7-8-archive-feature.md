@@ -1264,7 +1264,7 @@ measured `fd0f9365`; live `dev` was one first-parent merge later (#306, which ch
 | D1 fresh baseline mode/blob/path | — | `fc2dda16…` | `fc2dda1621c889b3c9811ae66feb72bbef0c23db1adf3267e5e5f706996fcde3` | EXPECTED |
 | D1 fresh projection after the move | `8b788add…` (superseded) | `06a1f2ad…` | `06a1f2adb9b38b70463d5b9b46db881059c594cf879d98f13acfb2e78cfb4d39` | EXPECTED |
 | D2 boundary files changed | — | unified workflow 18, ci-cd 31, AppGraph +`WearBridgeDeps`, testing 1 | identical (18/31/1/1; AppGraph adds only `WearBridgeDeps`) | EXPECTED |
-| D3 archive's KMP dependencies | — | 69 files, +3745/−748 | identical with `--no-renames` over `core/{core,data/dataStore,data/database,data/exercise,ui/kit,ui/mvi}`; 84 files, +4313/−748 when kit's new `core/ui/design-tokens` dependency is included; no KMP convention plugin changed | EXPECTED |
+| D3 archive's KMP dependencies | — | 69 files, +3745/−748 (method not stated) | `97b55d73..b1945ee1` and `97b55d73..fd0f9365` alike, module set `core/core`, `core/data/dataStore`, `core/data/database`, `core/data/exercise`, `core/ui/kit`, `core/ui/mvi` (`core/ui/navigation` unchanged): 69 files, +3745/−748 with rename detection on (`-M`) and off (`--no-renames`) alike. Adding kit's new `core/ui/design-tokens`: 84 files, +4313/−748 with `--no-renames`; 75 files, +4127/−562 with `-M`, where nine kit → design-tokens moves pair as renames: seven binary `.ttf` fonts and the two 93-line OFL licence texts (`licenses/OFL-Archivo.txt`, `licenses/OFL-IBMPlex.txt`), which account for the whole 186-line difference. No KMP convention plugin changed | EXPECTED |
 | I1 `git diff 97b55d73.. -- feature/archive` | empty | empty | empty (0 files) | HELD |
 | I2 archive PNG blob set (14) | `19dd79f0…` | `19dd79f0…` | `19dd79f0964d2b19d301370527b56a37eda937055bf6044f7d014f7a9ed0684b` | HELD |
 | I3 Paparazzi manifests (456 / 13 owners) | `e5c47e60…`, `720a2f7d…` | same | same; projections `616a0ea5…`, `4782c538…` valid | HELD |
@@ -1286,16 +1286,21 @@ validated by reproducing all four Section 3.7 baseline hashes and both projectio
 
 | Commit | SHA | Boundary and verification |
 | --- | --- | --- |
-| `refactor(kmp): share archive feature entry` | `36703afa14b54590188af921f4a22eca1c117196` | target module, six root consumers, minimal topology delta; locally valid SSH signature; GitHub verification recorded on the PR |
-| `ci(kmp): gate shared archive feature` | `07e8c6815c916ab984ff0ef9acf806450fbc88c5` | exactly the three Section 9.2 CI paths; locally valid SSH signature; GitHub verification recorded on the PR |
-| `docs(kmp): record Phase 7.8 evidence` | this commit | the four Section 9.2 documentation paths only |
+| `refactor(kmp): share archive feature entry` | `36703afa14b54590188af921f4a22eca1c117196` | target module, six root consumers, minimal topology delta; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `ci(kmp): gate shared archive feature` | `07e8c6815c916ab984ff0ef9acf806450fbc88c5` | exactly the three Section 9.2 CI paths; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `docs(kmp): record Phase 7.8 evidence` | `1bafa081df26cefaa2147c534e626d67475d1feb` | exactly the four Section 9.2 documentation paths (`architecture.md`, `ci-cd.md`, `testing.md` and this specification); locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `fix(kmp): give archive's session count a positional placeholder` | `206583ff0a32e1349930228e1fd51e00b38b8431` | decision P1 (Section 19.8): the six catalog items, `PermanentDeleteDialog`, the Native scene's raw-catalog expectation, and the topology gate; locally valid SSH signature |
+| `ci(kmp): cite decision P1 beside the archive catalog table` | `14264931da70e24da762642ab419460e9b105919` | the topology gate's table comment only; locally valid SSH signature |
+| `docs(kmp): complete Phase 7.8 decision records` | this commit | this specification and `architecture.md`'s plural example |
 
-Against the authorized base `b1945ee1`, the three commits change 111 paths (counted without
-rename pairing): 98 under `feature/archive` — the 48 legacy `src/main`, `src/test` and
-`src/androidTest` paths removed, 49 added (the 48 moved files plus the one Native scene) and the
-build file modified — and exactly the 13 Section 9.2 paths outside it. No other path changed.
-`feature/archive` tracks exactly 50 paths at exit with no legacy residue; all 14 PNGs, the golden
-test, both catalogs and the device test are 100%-similarity renames.
+Against the authorized base `b1945ee1`, the six commits change 111 paths (counted without
+rename pairing; the three follow-up commits touch only paths the first three already changed): 98
+under `feature/archive` — the 48 legacy `src/main`, `src/test` and `src/androidTest` paths
+removed, 49 added (the 48 moved files plus the one Native scene) and the build file modified — and
+exactly the 13 Section 9.2 paths outside it. No other path changed.
+`feature/archive` tracks exactly 50 paths at exit with no legacy residue. All 14 PNGs, the golden
+test and the device test are 100%-similarity renames; the two catalogs were too in `36703afa1`,
+before decision P1 changed their six session-count items.
 
 ### 19.3 Fresh baseline before any edit
 
@@ -1459,15 +1464,40 @@ device controls used `--max-workers=2`, as `ui_tests.yml` does (see 19.9).
 - **G2 — review fixes** land as separate signed commits inside Section 9; nothing is amended,
   squashed, or reordered. No review fix exists at the time of this commit; any later fix is
   listed on the PR.
-- **G3 — bare `%d` under Compose resources (new gap, no precedent).** Compose Multiplatform
-  resources 1.11.1 substitute only positional placeholders (`Regex("%(\d+)\$[ds]")` in
-  `replaceWithArgs`). `feature_archive_session_count` uses a bare `%d` in all six EN/RU items, so a
-  byte-exact catalog move would have rendered the literal `%d sessions` in the permanent-delete
-  dialog. Sections 3.4, 5.1 and 16 forbid changing the placeholder, and Sections 8 and 16 forbid
-  changing visible copy; the one resolution satisfying both is in `PermanentDeleteDialog`: the
-  plural resolves through `pluralStringResource` and the dialog fills the bare `%d` itself, as
-  Android's `String.format` did. The catalog stays byte-identical. The Native scene asserts the
-  rendered `3 sessions` and `1 session` literally. No other catalog string has a bare placeholder.
+- **P1 — positional placeholders (maintainer decision, 2026-10-01).** Compose Multiplatform
+  resources 1.11.1 substitute only `%N$d` and `%N$s` (`Regex("%(\d+)\$[ds]")` in
+  `replaceWithArgs`) and render any other placeholder literally, so the byte-exact move of
+  `feature_archive_session_count`, whose six EN/RU items used a bare `%d`, would have shown
+  `%d sessions` in the permanent-delete dialog. The rendered copy is the contract, not the bytes:
+  commit `206583ff0` changes exactly those six items to `%1$d` and no other catalog byte, and
+  `PermanentDeleteDialog` resolves the plural as
+  `pluralStringResource(Res.plurals.feature_archive_session_count, impactCount, impactCount)`,
+  the pre-migration call shape. The topology gate walks every
+  `*/src/commonMain/composeResources/values*/strings.xml` and accepts only `%N$d`, `%N$s` or `%%`,
+  naming the file, key and token of anything else. For those six items only, P1 supersedes the
+  values in Section 3.4's plural table and the placeholder clauses of Sections 5.1 and 16; Sections
+  0–18 stay the historical specification, and the gate's archive table, which cites Section 3.4,
+  carries the amended values. The classic catalogs of all nine remaining navigation entries
+  (Section 17) use a bare `%d` in both locales, so P1 is the template for those migrations;
+  `feature:recovery`'s catalog has no placeholder and `feature:app-dialogs:impl`'s uses only
+  `%1$s`. Past-session's `feature_past_session_tonnage_format` uses `%,d`, whose locale digit
+  grouping has no positional Compose equivalent, so that migration needs the number pre-formatted,
+  not just a positional rewrite. `%%` passes the gate as the decision specifies, although Compose
+  resources 1.11.1 render it literally as `%%`; no catalog contains it. Rejected alternative, the
+  first resolution in commit `36703afa1`: keep the catalog byte-identical and let the dialog fill
+  the bare `%d` itself (`pluralStringResource(...).replace("%d", …)`). It matched the visible
+  copy, but it hid a formatter mismatch inside one call site and would have to be repeated
+  wherever a migrated catalog keeps a bare placeholder.
+- **G3 — Native exactness (Amendment 1, 2026-10-01).** The archive Native oracle requires each of
+  the 26 exact tuples exactly once with zero failure, error or skip and, like every module in
+  `assert_kmp_ios_smoke.py`, allows additional passing cases. Control 23 is therefore RED by the
+  missing exact tuple (`found 0`), and the oracle's parsed-case listing names the substitute
+  (`renamedSceneSubstitute`). The topology gate's source-level test-name inventory independently
+  pins the 26 names.
+- **G4 — timeout contingency (Amendment 1, 2026-10-01): did not trigger.** No job timed out on
+  head `1bafa081d` (run `36892368502`): `KMP iOS kit smoke` finished in 10m14s, `Build and Unit
+  Tests` in 22m13s and `Release bundle identity` in 11m34s, each against a 60-minute limit. No
+  timeout value or other CI setting changed.
 - **`commonTest` omits `libs.coroutine.test`.** Section 10 lists it in its sketch but also requires
   verifying rather than copying; no portable archive test imports `kotlinx-coroutines-test`. The
   ported click-handler fake reproduces the old relaxed MockK store exactly — Store-scope `launch`
@@ -1484,6 +1514,20 @@ device controls used `--max-workers=2`, as `ui_tests.yml` does (see 19.9).
   per-app locale, so the composition and system resource environments agree.
 - **Previews.** Both previews keep `showBackground = true`; only the Android `uiMode` parameter is
   replaced by explicit `ThemeMode.LIGHT`/`ThemeMode.DARK` through `AppTheme`.
+- **Specification prose the measured tree contradicts** (recorded by the first implementation
+  attempt and re-verified at `b1945ee1`; none changes a gate or an identity):
+  - Section 2 calls archive smallest in unit files, but it ties single-training at 6.
+  - Section 2 calls archive smallest in resource surface, but past-session has fewer EN string
+    keys (20 against 25).
+  - Section 3.5 gives `kotlinx.collections.immutable` as being for preview fixtures; production
+    `ArchiveScreen` uses `persistentListOf` in its body for the segmented control, and no public
+    signature exposes the type, so the edge stays `implementation`.
+  - Section 3.3 reads as if `@Smoke` sat on `pendingFeatureRewrite`; it is on the
+    `ArchiveScreenTest` class, and only `@Ignore` is on the method.
+  - The `@Ignore` reason literal ends with a period: `Awaiting feature rewrite — see GH issue #93
+    for coverage scope.`
+  - The RU catalog's comment still says the file has no `paging_error`, although it does; Section
+    5.1 required a byte-semantic move, so the stale comment moved with it.
 - **Native scene settling.** Paging hands each new list over on the main dispatcher and the kit
   holds a shown loading treatment for at least 260 ms, so one fixed clock advance per paging
   branch was not enough. The scene settles each paging branch in at most ten one-second steps until
@@ -1516,12 +1560,48 @@ Local limitations:
 
 - The mockup gate's browser checks 7 and 8 are unverified locally (Section 19.6); the remote
   `Mockup Appearance Gate` is their authority.
-- The bare-`%d` substitution (G3) is proven rendered on Native by the scene. On Android the same
+- The positional session count (P1) is proven rendered on Native by the scene. On Android the same
   common code runs, but no host or device test renders the dialog: Paparazzi models one window,
-  and the device placeholder is ignored by contract. The Compose-resources formatter that makes the
-  substitution necessary is shared common code, so the Native proof covers its behavior.
+  the device placeholder is ignored by contract, and no app journey opens the delete dialog. The
+  Compose-resources formatter is shared common code, so the Native proof covers its behavior.
 - Wear device tests are not part of the phone `connectedDebugAndroidTest` suites (flavored tasks,
   no alias), matching `ui_tests.yml`.
 - This documentation commit must exist before its SHA, the PR, GitHub signature verification of
   the pushed commits, CI run/job IDs, and review threads can exist. Those facts, and every review
   finding's classification, are recorded in the live PR, not predeclared here.
+
+### 19.10 Remote evidence and Follow-up 1
+
+Head `1bafa081d` (the first three commits) was green on every context. Unified run `36892368502`:
+`Build and Unit Tests` job `110470872809`, `KMP iOS kit smoke` job `110470873028`, `Release bundle
+identity` job `110470872462`; `Unit Test Results` check `110479076418` (2,891 tests passed) and
+`Detailed Unit Test Report` check `110479275680`. Mockup run `36892368466`, `Mockup Appearance Gate`
+job `110470871953`. A Codex review requested on that head found no major issues, and the PR had no
+review threads.
+
+Commit `206583ff0` implements decision P1. Its gates ran on exactly its tree, each after
+`./gradlew --stop` with `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | 12 commonMain catalogs walked, 36 placeholders, all `%N$d`, `%N$s` or `%%`; archive's exact table carries the six `%1$d` values |
+| `:feature:archive:assembleDebug` | 214/214 | Android and iOS klib targets |
+| `:feature:archive:testAndroidHostTest` | 175/175 | 25 portable cases, 0/0/0 |
+| eight-module Native command (`--continue`) + `assert_kmp_ios_smoke.py` | 235/235 | oracle GREEN for all eight modules; archive 26 exact tuples; the scene still asserts the rendered `3 sessions` and `1 session` |
+| `:feature:archive:verifyPaparazziDebug` | 176/176 | 14 golden cases for 14 images; host XML 39 cases (25 portable + 14 goldens), 0/0/0 |
+| `detekt --continue` | 63/63 | GREEN |
+
+The device suites cannot reach this change: the plural is read only by `PermanentDeleteDialog`,
+`ArchiveScreenTest.pendingFeatureRewrite` is the ignored placeholder, and no device test or app
+journey opens archive's delete dialog. They were not rerun.
+
+Commit `14264931d` changes only the comment above the gate's archive table so it also cites
+decision P1; on its tree the topology gate is GREEN under Homebrew Python 3.14 and macOS Python 3.9,
+and `assert_kmp_ios_smoke.py` stays GREEN on the Native XML above.
+
+The new check's known negative used the same byte-restoring harness: fresh GREEN → one bare `%d`
+reintroduced in the archive EN catalog → RED with
+`compose-resource placeholder is not %N$d, %N$s or %%:
+feature/archive/src/commonMain/composeResources/values/strings.xml key
+feature_archive_session_count[one] token '%d'` → exact restoration and an unchanged `git status`
+→ fresh GREEN.
