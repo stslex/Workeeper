@@ -28,9 +28,9 @@ module PlayState
     end
   end
 
-  # Every track with its releases' version codes, and the configured track's codes. Those are read
-  # only when the track is listed: supply's #track_version_codes returns [] for a missing track.
-  # configuredTrackProbe: "listed", or for an unlisted track what edits.tracks.get answers.
+  # Every track with its releases' version codes, and the configured track's codes. For a listed
+  # track they come from its listed entry; configuredTrackProbe: "listed", or for an unlisted track
+  # what edits.tracks.get answers.
   def tracks(client, configured)
     listed = client.tracks.map do |track|
       releases = Array(track.releases).map do |release|
@@ -38,8 +38,11 @@ module PlayState
       end
       { "id" => track.track, "releases" => releases }
     end
-    probe, codes = if listed.any? { |track| track["id"] == configured }
-                     ["listed", client.track_version_codes(configured).map(&:to_i)]
+    configured_entry = listed.find { |track| track["id"] == configured }
+    # GUARD: never supply's #track_version_codes here. A listed track with no releases (a new Wear
+    # track) carries `releases: nil`, and that method calls #flat_map on it.
+    probe, codes = if configured_entry
+                     ["listed", configured_entry["releases"].flat_map { |release| release["versionCodes"] }]
                    else
                      probe_unlisted(client, configured)
                    end
