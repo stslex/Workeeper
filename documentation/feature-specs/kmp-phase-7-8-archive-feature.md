@@ -1289,12 +1289,14 @@ validated by reproducing all four Section 3.7 baseline hashes and both projectio
 | `refactor(kmp): share archive feature entry` | `36703afa14b54590188af921f4a22eca1c117196` | target module, six root consumers, minimal topology delta; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
 | `ci(kmp): gate shared archive feature` | `07e8c6815c916ab984ff0ef9acf806450fbc88c5` | exactly the three Section 9.2 CI paths; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
 | `docs(kmp): record Phase 7.8 evidence` | `1bafa081df26cefaa2147c534e626d67475d1feb` | exactly the four Section 9.2 documentation paths (`architecture.md`, `ci-cd.md`, `testing.md` and this specification); locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
-| `fix(kmp): give archive's session count a positional placeholder` | `206583ff0a32e1349930228e1fd51e00b38b8431` | decision P1 (Section 19.8): the six catalog items, `PermanentDeleteDialog`, the Native scene's raw-catalog expectation, and the topology gate; locally valid SSH signature |
-| `ci(kmp): cite decision P1 beside the archive catalog table` | `14264931da70e24da762642ab419460e9b105919` | the topology gate's table comment only; locally valid SSH signature |
-| `docs(kmp): complete Phase 7.8 decision records` | this commit | this specification and `architecture.md`'s plural example |
+| `fix(kmp): give archive's session count a positional placeholder` | `206583ff0a32e1349930228e1fd51e00b38b8431` | decision P1 (Section 19.8): the six catalog items, `PermanentDeleteDialog`, the Native scene's raw-catalog expectation, and the topology gate; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `ci(kmp): cite decision P1 beside the archive catalog table` | `14264931da70e24da762642ab419460e9b105919` | the topology gate's table comment only; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `docs(kmp): complete Phase 7.8 decision records` | `fbf6dc06e5a736998941a97f2881930dfcfc7aa8` | this specification and `architecture.md`'s plural example; locally valid SSH signature; GitHub `verified: true`, `reason: valid` |
+| `ci(kmp): reject %% and index-0 placeholders in Compose catalogs` | `040811182baa852c4b04d03c4c3e0273fb79d542` | decision P1a (Section 19.11): the placeholder gate only; locally valid SSH signature |
+| `docs(kmp): record the tightened placeholder rule` | this commit | this specification only |
 
-Against the authorized base `b1945ee1`, the six commits change 111 paths (counted without
-rename pairing; the three follow-up commits touch only paths the first three already changed): 98
+Against the authorized base `b1945ee1`, the eight commits change 111 paths (counted without
+rename pairing; the five follow-up commits touch only paths the first three already changed): 98
 under `feature/archive` — the 48 legacy `src/main`, `src/test` and `src/androidTest` paths
 removed, 49 added (the 48 moved files plus the one Native scene) and the build file modified — and
 exactly the 13 Section 9.2 paths outside it. No other path changed.
@@ -1465,29 +1467,32 @@ device controls used `--max-workers=2`, as `ui_tests.yml` does (see 19.9).
   squashed, or reordered. No review fix exists at the time of this commit; any later fix is
   listed on the PR.
 - **P1 — positional placeholders (maintainer decision, 2026-10-01).** Compose Multiplatform
-  resources 1.11.1 substitute only `%N$d` and `%N$s` (`Regex("%(\d+)\$[ds]")` in
-  `replaceWithArgs`) and render any other placeholder literally, so the byte-exact move of
-  `feature_archive_session_count`, whose six EN/RU items used a bare `%d`, would have shown
-  `%d sessions` in the permanent-delete dialog. The rendered copy is the contract, not the bytes:
-  commit `206583ff0` changes exactly those six items to `%1$d` and no other catalog byte, and
+  resources 1.11.1 substitute only `%N$d` and `%N$s` (`Regex("%(\d+)\$[ds]")` in `replaceWithArgs`)
+  and render any other placeholder literally, so the byte-exact move of
+  `feature_archive_session_count`, whose six EN/RU items used a bare `%d`, would have shown `%d
+  sessions` in the permanent-delete dialog. The rendered copy is the contract, not the bytes: commit
+  `206583ff0` changes exactly those six items to `%1$d` and no other catalog byte, and
   `PermanentDeleteDialog` resolves the plural as
-  `pluralStringResource(Res.plurals.feature_archive_session_count, impactCount, impactCount)`,
-  the pre-migration call shape. The topology gate walks every
-  `*/src/commonMain/composeResources/values*/strings.xml` and accepts only `%N$d`, `%N$s` or `%%`,
-  naming the file, key and token of anything else. For those six items only, P1 supersedes the
-  values in Section 3.4's plural table and the placeholder clauses of Sections 5.1 and 16; Sections
-  0–18 stay the historical specification, and the gate's archive table, which cites Section 3.4,
-  carries the amended values. The classic catalogs of all nine remaining navigation entries
-  (Section 17) use a bare `%d` in both locales, so P1 is the template for those migrations;
-  `feature:recovery`'s catalog has no placeholder and `feature:app-dialogs:impl`'s uses only
-  `%1$s`. Past-session's `feature_past_session_tonnage_format` uses `%,d`, whose locale digit
-  grouping has no positional Compose equivalent, so that migration needs the number pre-formatted,
-  not just a positional rewrite. `%%` passes the gate as the decision specifies, although Compose
-  resources 1.11.1 render it literally as `%%`; no catalog contains it. Rejected alternative, the
-  first resolution in commit `36703afa1`: keep the catalog byte-identical and let the dialog fill
-  the bare `%d` itself (`pluralStringResource(...).replace("%d", …)`). It matched the visible
-  copy, but it hid a formatter mismatch inside one call site and would have to be repeated
-  wherever a migrated catalog keeps a bare placeholder.
+  `pluralStringResource(Res.plurals.feature_archive_session_count, impactCount, impactCount)`, the
+  pre-migration call shape. The topology gate walks every
+  `*/src/commonMain/composeResources/values*/strings.xml` and, as tightened by P1a, accepts only
+  `%N$d` or `%N$s` with N ≥ 1, naming the file, key and token of anything else. For those six items
+  only, P1 supersedes the values in Section 3.4's plural table and the placeholder clauses of
+  Sections 5.1 and 16; Sections 0–18 stay the historical specification, and the gate's archive
+  table, which cites Section 3.4, carries the amended values. The classic catalogs of all nine
+  remaining navigation entries (Section 17) use a bare `%d` in both locales, so P1 is the template
+  for those migrations; `feature:recovery`'s catalog has no placeholder and
+  `feature:app-dialogs:impl`'s uses only `%1$s`. Past-session's
+  `feature_past_session_tonnage_format` uses `%,d`, whose locale digit grouping has no positional
+  Compose equivalent, so that migration needs the number pre-formatted, not just a positional
+  rewrite. Decision P1a (2026-10-01) corrected the rule's first form, which also accepted `%%`: the
+  gate now accepts only `%[1-9]\d*\$[ds]`, because Compose resources 1.11.1 render `%%` literally
+  rather than as an escape, and `%0$d` matches their substitution regex but reads `args[-1]` at
+  render time. No catalog in the repository, Android or Compose, contains either. Rejected
+  alternative, the first resolution in commit `36703afa1`: keep the catalog byte-identical and let
+  the dialog fill the bare `%d` itself (`pluralStringResource(...).replace("%d", …)`). It matched
+  the visible copy, but it hid a formatter mismatch inside one call site and would have to be
+  repeated wherever a migrated catalog keeps a bare placeholder.
 - **G3 — Native exactness (Amendment 1, 2026-10-01).** The archive Native oracle requires each of
   the 26 exact tuples exactly once with zero failure, error or skip and, like every module in
   `assert_kmp_ios_smoke.py`, allows additional passing cases. Control 23 is therefore RED by the
@@ -1605,3 +1610,33 @@ reintroduced in the archive EN catalog → RED with
 feature/archive/src/commonMain/composeResources/values/strings.xml key
 feature_archive_session_count[one] token '%d'` → exact restoration and an unchanged `git status`
 → fresh GREEN.
+
+### 19.11 Follow-up 2: the tightened placeholder rule (P1a)
+
+Head `fbf6dc06e` was green on every context. Unified run `36905386586`: `Build and Unit Tests`
+job `110514516322`, `KMP iOS kit smoke` job `110514516582`, `Release bundle identity` job
+`110514516164`; `Unit Test Results` check `110520683150` and `Detailed Unit Test Report` check
+`110520835657`. Mockup run `36905386623`, `Mockup Appearance Gate` job `110514515618`.
+
+Commit `040811182` implements decision P1a in the placeholder gate alone: `POSITIONAL_PLACEHOLDER`
+becomes `%[1-9]\d*\$[ds]`, the tokenizer reads `%%` as one token so it is reported whole, a lone
+`%` stays rejected. The failure text now reads "compose-resource placeholder is not %N$d or %N$s
+with N >= 1", and the docstring and success summary state the same rule positively ("every
+placeholder is %N$d or %N$s with N >= 1"). Its gates, each fresh:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | 12 commonMain catalogs and 36 placeholders walked, every one `%N$d` or `%N$s` with N ≥ 1 (also GREEN under macOS Python 3.9) |
+| `./gradlew --stop`, then `detekt --continue` with the spec flags | 63/63 | GREEN |
+
+Nothing else is reachable from this change: it touches one Python CI script that no Gradle task,
+Kotlin source or test consumes, and whose only runner is the topology step of `Build and Unit
+Tests`.
+
+Both new known negatives used the byte-restoring harness, each fresh GREEN → named RED → exact
+restoration with an unchanged `git status` → fresh GREEN:
+
+| Control | Mutation | Observable RED (quoted) |
+| --- | --- | --- |
+| P1a-1 | `Retry` → `Retry %%` in the archive EN `feature_archive_paging_retry` | `compose-resource placeholder is not %N$d or %N$s with N >= 1: feature/archive/src/commonMain/composeResources/values/strings.xml key feature_archive_paging_retry token '%%'` |
+| P1a-2 | `Exercises (%1$d)` → `Exercises (%0$d)` in the archive EN `feature_archive_segment_exercises` | `compose-resource placeholder is not %N$d or %N$s with N >= 1: feature/archive/src/commonMain/composeResources/values/strings.xml key feature_archive_segment_exercises token '%0$d'` |
