@@ -574,6 +574,7 @@ jobs:
           :core:ui:plan-editor:iosSimulatorArm64Test
           :feature:image-viewer:iosSimulatorArm64Test
           :feature:plan-editor:iosSimulatorArm64Test
+          :feature:archive:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -609,4 +610,5 @@ jobs:
             core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
             feature/image-viewer/build/test-results/iosSimulatorArm64Test/
             feature/plan-editor/build/test-results/iosSimulatorArm64Test/
+            feature/archive/build/test-results/iosSimulatorArm64Test/
           retention-days: 30

@@ -1060,6 +1060,638 @@ def check_plan_editor_feature_contract() -> list[str]:
     return failures
 
 
+ARCHIVE_ROOT = Path("feature/archive")
+
+ARCHIVE_COMMON_MAIN = ARCHIVE_ROOT / "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive"
+
+ARCHIVE_CATALOG_PATHS = (
+    ARCHIVE_ROOT / "src/commonMain/composeResources/values/strings.xml",
+    ARCHIVE_ROOT / "src/commonMain/composeResources/values-ru/strings.xml",
+)
+
+# Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
+# ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
+# all contractual (kmp-phase-7-8-archive-feature.md §3.4).
+ARCHIVE_RESOURCES = (
+    ("string", "feature_archive_title", "Archive", "Архив"),
+    ("string", "feature_archive_action_more", "More", "Ещё"),
+    ("string", "feature_archive_segment_exercises", "Exercises (%1$d)", "Упражнения (%1$d)"),
+    ("string", "feature_archive_segment_trainings", "Trainings (%1$d)", "Тренировки (%1$d)"),
+    ("string", "feature_archive_action_restore", "Restore", "Восстановить"),
+    ("string", "feature_archive_action_permanent_delete", "Delete permanently", "Удалить навсегда"),
+    ("string", "feature_archive_kind_exercise", "exercise", "упражнение"),
+    ("string", "feature_archive_kind_training", "training", "тренировка"),
+    ("string", "feature_archive_label_archived", "archived", "в архиве"),
+    (
+        "string",
+        "feature_archive_label_archived_since_format",
+        "archived since %1$s",
+        "в архиве с %1$s",
+    ),
+    ("string", "feature_archive_meta_separator", "·", "·"),
+    ("string", "feature_archive_empty_headline", "Nothing archived", "Архив пуст"),
+    (
+        "string",
+        "feature_archive_empty_supporting_exercises",
+        "Archived exercises appear here for restore or permanent delete.",
+        "Здесь будут архивированные упражнения — для восстановления или удаления навсегда.",
+    ),
+    (
+        "string",
+        "feature_archive_empty_supporting_trainings",
+        "Archived trainings appear here for restore or permanent delete.",
+        "Здесь будут архивированные тренировки — для восстановления или удаления навсегда.",
+    ),
+    (
+        "string",
+        "feature_archive_dialog_permanent_delete_title",
+        "Delete ‘%1$s’ permanently?",
+        "Удалить «%1$s» навсегда?",
+    ),
+    (
+        "string",
+        "feature_archive_dialog_permanent_delete_body_no_history",
+        "This action cannot be undone.",
+        "Это действие нельзя отменить.",
+    ),
+    (
+        "string",
+        "feature_archive_dialog_impact_summary_empty",
+        "No session history affected",
+        "Сессии истории не затронуты",
+    ),
+    ("string", "feature_archive_dialog_confirm_delete", "Delete", "Удалить"),
+    ("string", "feature_archive_snackbar_restored_format", "%1$s restored", "«%1$s» восстановлено"),
+    (
+        "string",
+        "feature_archive_snackbar_deleted_format",
+        "%1$s permanently deleted",
+        "«%1$s» удалено навсегда",
+    ),
+    ("string", "feature_archive_snackbar_undo", "Undo", "Отменить"),
+    (
+        "plurals",
+        "feature_archive_session_count",
+        (("one", "%d session"), ("other", "%d sessions")),
+        (
+            ("one", "%d сессия"),
+            ("few", "%d сессии"),
+            ("many", "%d сессий"),
+            ("other", "%d сессии"),
+        ),
+    ),
+    (
+        "plurals",
+        "feature_archive_dialog_permanent_delete_body_with_history",
+        (
+            ("one", "%1$d session of history will also be deleted. This action cannot be undone."),
+            ("other", "%1$d sessions of history will also be deleted. This action cannot be undone."),
+        ),
+        (
+            ("one", "Также будет удалена %1$d сессия истории. Это действие нельзя отменить."),
+            ("few", "Также будут удалены %1$d сессии истории. Это действие нельзя отменить."),
+            ("many", "Также будет удалено %1$d сессий истории. Это действие нельзя отменить."),
+            ("other", "Также будет удалено %1$d сессии истории. Это действие нельзя отменить."),
+        ),
+    ),
+    ("string", "feature_archive_paging_loading", "Loading", "Загружаю"),
+    ("string", "feature_archive_paging_error", "Couldn’t load more", "Не удалось загрузить дальше"),
+    ("string", "feature_archive_paging_retry", "Retry", "Повторить"),
+    ("string", "feature_archive_refresh_error", "Couldn’t load the archive", "Не удалось загрузить архив"),
+)
+
+# Store State stays semantic: plain strings and counts, never a generated handle or an Int id.
+ARCHIVE_STATE_FIELDS = (
+    ("selectedSegment", "Segment"),
+    ("exerciseCount", "Int"),
+    ("trainingCount", "Int"),
+    ("exerciseSegmentLabel", "String"),
+    ("trainingSegmentLabel", "String"),
+    ("archivedExercisesPaging", "PagingUiState<PagingData<ArchivedItemUi.Exercise>>"),
+    ("archivedTrainingsPaging", "PagingUiState<PagingData<ArchivedItemUi.Training>>"),
+    ("pendingDeleteImpact", "Int?"),
+    ("pendingDeleteTarget", "ArchivedItem?"),
+    ("deleteImpactLoading", "Boolean"),
+)
+
+# The only suppressions the target may carry: two inherited production annotations and the three
+# Native test-name annotations §4.4 authorizes. Anything else is a new suppression.
+ARCHIVE_SUPPRESSIONS = {
+    "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt": [
+        '"UNCHECKED_CAST"',
+    ],
+    "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt": [
+        '"TooManyFunctions"',
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
+        '"INVALID_CHARACTERS_NATIVE_ERROR"',
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
+        '"INVALID_CHARACTERS_NATIVE_ERROR"',
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
+        '"INVALID_CHARACTERS_NATIVE_ERROR"',
+    ],
+}
+
+# The exact portable test-name inventory: 25 inherited identities plus the one Native scene.
+ARCHIVE_TEST_NAMES = {
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveClickHandlerTest.kt": [
+        "OnSegmentChange updates selectedSegment and emits SegmentTick haptic",
+        "OnSegmentChange to current segment is no-op",
+        "OnRestoreClick emits ContextClick haptic",
+        "OnUndoRestore emits ContextClick haptic",
+        "OnDeleteDismiss does not emit haptic",
+        "OnDeleteDismiss clears pending delete state",
+        "OnPermanentDeleteClick emits LongPress haptic and stores target",
+        "OnDeleteConfirm emits LongPress haptic and clears target",
+        "OnDeleteConfirm without target does nothing",
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandlerTest.kt": [
+        "placeholder",
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
+        "an exercise leads with its kind word",
+        "a training leads with the other kind word",
+        "the kind is first, ahead of the date",
+        "tags come last, after the date",
+        "no tags leaves no dangling separator",
+        "the date is day-and-month, not a relative span",
+        "a missing timestamp degrades to the bare word rather than a wrong date",
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
+        "rows win over everything",
+        "an unsettled refresh with no rows is loading, not empty",
+        "a failed first page is its own verdict",
+        "settled with no rows is the empty state",
+    ],
+    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
+        "appending draws the loading footer",
+        "a failed page draws the error footer, not silence",
+        "exhausted draws no footer at all",
+        "idle mid-list draws no footer either",
+    ],
+    "src/iosTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveFeatureSceneIosTest.kt": [
+        "resourcesPagingBranchesAndActionsRenderAndDispatch",
+    ],
+}
+
+ARCHIVE_GOLDEN_METHODS = [
+    "rowExercise",
+    "rowTraining",
+    "rowClamped",
+    "pagingLoading",
+    "pagingError",
+    "screenExercisesNoRows",
+    "screenTrainingsNoRows",
+]
+
+ARCHIVE_IDENTITY_TEST_NAMES = [
+    "extension resolves the store through the parent graph",
+    "store's app-scoped deps are the SAME instances the parent holds",
+    "the two handler-store keys resolve to ONE instance",
+    "the emitter the Store bound itself into is the one the handlers delegate through",
+]
+
+KOTLIN_TEST_NAME = re.compile(r"@Test\s+fun\s+(?:`([^`]+)`|(\w+))\s*\(")
+
+
+def strip_kotlin_comments(source: str) -> str:
+    return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL))
+
+
+def read_catalog(path: Path) -> list[tuple]:
+    """Ordered (tag, name, value) entries; plurals carry ordered (quantity, value) pairs."""
+    entries: list[tuple] = []
+    for element in ET.parse(path).getroot():
+        if element.tag == "string":
+            entries.append(("string", element.attrib["name"], element.text or ""))
+        elif element.tag == "plurals":
+            items = tuple(
+                (item.attrib["quantity"], item.text or "") for item in element.findall("item")
+            )
+            entries.append(("plurals", element.attrib["name"], items))
+        else:
+            entries.append((element.tag, element.attrib.get("name", ""), None))
+    return entries
+
+
+def check_archive_feature_contract() -> list[str]:
+    failures: list[str] = []
+    root = ARCHIVE_ROOT
+
+    # Exact 50-path topology: MODULES pins the 49 files under src; the build file is the 50th.
+    top_level_files = sorted(path.name for path in root.iterdir() if path.is_file())
+    if top_level_files != ["build.gradle.kts"]:
+        failures.append(
+            f"feature:archive: module root must hold exactly build.gradle.kts; found {top_level_files}"
+        )
+
+    build_source = (root / "build.gradle.kts").read_text(encoding="utf-8")
+    required_build_fragments = [
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.archive.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'api(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.androidx.paging.common)",
+        "api(libs.coroutines.core)",
+        "implementation(libs.androidx.compose.paging)",
+        "implementation(libs.cmp.material.icons.extended)",
+        "implementation(libs.kotlinx.collections.immutable)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        '"androidDeviceTestImplementation"(libs.bundles.android.test)',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)',
+        '"androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
+        '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ]
+    for fragment in required_build_fragments:
+        if build_source.count(fragment) != 1:
+            failures.append(
+                f"feature:archive: build contract must contain {fragment!r} exactly once"
+            )
+    if build_source.count('implementation(kotlin("test"))') != 2:
+        failures.append(
+            "feature:archive: kotlin(test) must exist exactly once in commonTest and iosTest"
+        )
+    for forbidden in (
+        "convention.composeLibrary",
+        "publicResClass",
+        "androidTestImplementation",
+        "debugImplementation",
+        "testImplementation(",
+        "paging.testing",
+        "androidMain",
+        "iosMain",
+        "mockk",
+        "robolectric",
+    ):
+        if forbidden in build_source:
+            failures.append(
+                f"feature:archive: forbidden build dependency/configuration remains: {forbidden}"
+            )
+
+    # Exact private catalogs, in order, with the Android res owner gone.
+    for locale_index, catalog in enumerate(ARCHIVE_CATALOG_PATHS):
+        expected = [
+            (tag, name, values[locale_index])
+            for tag, name, *values in ARCHIVE_RESOURCES
+        ]
+        actual = read_catalog(catalog) if catalog.is_file() else []
+        if actual != expected:
+            actual_by_name = {entry[1]: entry for entry in actual}
+            mismatches = [
+                f"{name}: expected={value!r}, actual={actual_by_name.get(name)!r}"
+                for tag, name, value in expected
+                if actual_by_name.get(name) != (tag, name, value)
+            ]
+            extra = sorted(set(actual_by_name) - {name for _, name, _ in expected})
+            failures.append(
+                f"feature:archive: exact private CMP catalog mismatch in {catalog}; "
+                f"mismatched={mismatches}, unexpected={extra}, "
+                f"order={'exact' if [e[1] for e in actual] == [e[1] for e in expected] else 'drifted'}"
+            )
+    owners: dict[str, list[str]] = {}
+    for catalog in source_files("strings.xml"):
+        for entry in read_catalog(catalog):
+            if entry[1].startswith("feature_archive_"):
+                owners.setdefault(entry[1], []).append(catalog.as_posix())
+    expected_owners = sorted(path.as_posix() for path in ARCHIVE_CATALOG_PATHS)
+    for name, paths in sorted(owners.items()):
+        if sorted(paths) != expected_owners:
+            failures.append(
+                f"feature:archive: resource ownership drift for {name}; "
+                f"expected={expected_owners}, actual={sorted(paths)}"
+            )
+
+    common_sources = {
+        path: path.read_text(encoding="utf-8")
+        for path in sorted((root / "src/commonMain/kotlin").rglob("*.kt"))
+    }
+    forbidden_common_tokens = (
+        "androidx.compose.ui.platform.LocalContext",
+        "LocalContext",
+        "appDeps<",
+        "android.content",
+        "uiMode",
+        "VisibleForTesting",
+        "CompositionLocal",
+        "ServiceLocator",
+        "FactoryRegistry",
+        ".format(",
+    )
+    for path, source in common_sources.items():
+        relative = path.relative_to(root)
+        for token in forbidden_common_tokens:
+            if token in source:
+                failures.append(
+                    f"feature:archive: {relative} contains forbidden platform/lookup API {token!r}"
+                )
+        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE):
+            failures.append(f"feature:archive: {relative} contains a forbidden expect/actual shim")
+        if "@Preview(" in source and "ThemeMode" not in source:
+            failures.append(f"feature:archive: {relative} previews must use portable ThemeMode")
+
+    # No generated resource handle or Int id in Store, model or domain payloads.
+    payload_paths = [
+        path
+        for path in common_sources
+        if "/domain/" in path.as_posix()
+        or path.name in {"ArchiveStore.kt", "ArchivedItemUi.kt", "ArchiveUiMapper.kt"}
+    ]
+    for path in payload_paths:
+        source = common_sources[path]
+        for token in (
+            "StringResource",
+            "PluralStringResource",
+            ".resources.",
+            "Res.string",
+            "Res.plurals",
+            "StringRes",
+            "PluralsRes",
+            "ResourceWrapper",
+        ):
+            if token in source:
+                failures.append(
+                    f"feature:archive: {path.relative_to(root)} carries a resource handle/lookup "
+                    f"{token!r} in a Store/domain payload"
+                )
+    store_source = strip_kotlin_comments(common_sources[ARCHIVE_COMMON_MAIN / "mvi/store/ArchiveStore.kt"])
+    state_block = re.search(r"data class State\((?P<params>.*?)\)\s*:\s*Store\.State", store_source, re.DOTALL)
+    state_fields = (
+        tuple(
+            (name, type_.strip())
+            for name, type_ in re.findall(r"val\s+(\w+)\s*:\s*([^,]+),", state_block.group("params"))
+        )
+        if state_block
+        else ()
+    )
+    if state_fields != ARCHIVE_STATE_FIELDS:
+        failures.append(
+            "feature:archive: Store State must stay semantic with exactly "
+            f"{ARCHIVE_STATE_FIELDS!r}; actual={state_fields!r}"
+        )
+    item_ui_source = strip_kotlin_comments(common_sources[ARCHIVE_COMMON_MAIN / "mvi/model/ArchivedItemUi.kt"])
+    item_ui_fields = sorted(set(re.findall(r"val\s+(\w+)\s*:\s*([\w.]+)", item_ui_source)))
+    expected_item_ui_fields = sorted(
+        {
+            ("item", "ArchivedItem"),
+            ("item", "ArchivedItem.Exercise"),
+            ("item", "ArchivedItem.Training"),
+            ("metaLine", "String"),
+        }
+    )
+    if item_ui_fields != expected_item_ui_fields:
+        failures.append(
+            "feature:archive: ArchivedItemUi must carry only item and the plain metaLine; "
+            f"actual={item_ui_fields!r}"
+        )
+
+    # ResourceWrapper stays for formatDayMonth only, in the paging handler only.
+    paging_path = ARCHIVE_COMMON_MAIN / "mvi/handler/ArchivePagingHandler.kt"
+    for path, source in common_sources.items():
+        if path != paging_path and "ResourceWrapper" in source:
+            failures.append(
+                f"feature:archive: {path.relative_to(root)} must not read ResourceWrapper"
+            )
+        for match in re.finditer(
+            r"resourceWrapper\s*\.\s*(getString|getQuantityString|getAbbreviatedRelativeTime|"
+            r"formatMediumDate)\s*\(",
+            source,
+        ):
+            failures.append(
+                f"feature:archive: {path.relative_to(root)} resolves archive copy through "
+                f"ResourceWrapper.{match.group(1)}; use the private Compose resources"
+            )
+    if common_sources[paging_path].count("resourceWrapper.formatDayMonth(") != 1:
+        failures.append(
+            "feature:archive: ResourceWrapper must serve exactly one formatDayMonth date"
+        )
+
+    # State lambdas only copy State: resources resolve before updateState, never inside it.
+    update_count = 0
+    for path, source in common_sources.items():
+        if "/mvi/handler/" not in path.as_posix():
+            continue
+        for call in ("updateState", "updateStateImmediate"):
+            for body in braced_call_bodies(source, call):
+                update_count += 1
+                if ".copy(" not in compact(body):
+                    failures.append(
+                        f"feature:archive: {call} in {path.relative_to(root)} must return a State copy"
+                    )
+                for side_effect in (
+                    "getString(",
+                    "getPluralString(",
+                    "stringResource(",
+                    "pluralStringResource(",
+                    "resourceWrapper.",
+                    "Res.",
+                ):
+                    if side_effect in body:
+                        failures.append(
+                            f"feature:archive: {call} in {path.relative_to(root)} resolves a "
+                            f"resource inside the State lambda: {side_effect!r}"
+                        )
+    if update_count == 0:
+        failures.append("feature:archive: no updateState lambdas were inspected")
+
+    # Exactly four portable previews: ArchiveScreen and ArchivedItemRow, each Light and Dark.
+    preview_contract = {
+        ARCHIVE_COMMON_MAIN / "ui/ArchiveScreen.kt": "ArchiveScreen",
+        ARCHIVE_COMMON_MAIN / "ui/components/ArchivedItemRow.kt": "ArchivedItemRow",
+    }
+    total_previews = sum(source.count("@Preview(") for source in common_sources.values())
+    if total_previews != 4:
+        failures.append(
+            f"feature:archive: exactly four portable previews are required; found {total_previews}"
+        )
+    for path, subject in preview_contract.items():
+        source = common_sources[path]
+        for fragment in (
+            '@Preview(name = "Light", showBackground = true)',
+            f"{subject}LightPreview()",
+            f"{subject}Preview(themeMode = ThemeMode.LIGHT)",
+            '@Preview(name = "Dark", showBackground = true)',
+            f"{subject}DarkPreview()",
+            f"{subject}Preview(themeMode = ThemeMode.DARK)",
+            "AppTheme(themeMode = themeMode)",
+        ):
+            if source.count(fragment) != 1:
+                failures.append(
+                    f"feature:archive: {path.name} preview contract requires {fragment!r} exactly once"
+                )
+
+    # Exactly the two inherited production and three Native test-name suppressions.
+    actual_suppressions: dict[str, list[str]] = {}
+    for path in sorted((root / "src").rglob("*.kt")):
+        found = re.findall(r"@(?:file:)?Suppress\(([^)]*)\)", path.read_text(encoding="utf-8"))
+        if found:
+            actual_suppressions[path.relative_to(root).as_posix()] = [args.strip() for args in found]
+    if actual_suppressions != ARCHIVE_SUPPRESSIONS:
+        failures.append(
+            "feature:archive: suppressions must be exactly the two inherited production and three "
+            f"Native test-name annotations; expected={ARCHIVE_SUPPRESSIONS!r}, "
+            f"actual={actual_suppressions!r}"
+        )
+    for relative in ARCHIVE_SUPPRESSIONS:
+        if "/commonTest/" in relative:
+            source = (root / relative).read_text(encoding="utf-8")
+            if '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")' not in source:
+                failures.append(
+                    f"feature:archive: {relative} Native test-name suppression must be file-scoped"
+                )
+
+    # The exact 26 portable/Native test names, and no Android test API in commonTest.
+    for relative, expected_names in ARCHIVE_TEST_NAMES.items():
+        path = root / relative
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        actual_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(source)]
+        if sorted(actual_names) != sorted(expected_names):
+            failures.append(
+                f"feature:archive: exact test identities drifted in {relative}; "
+                f"missing={sorted(set(expected_names) - set(actual_names))}, "
+                f"unexpected={sorted(set(actual_names) - set(expected_names))}"
+            )
+    for path in sorted((root / "src/commonTest/kotlin").rglob("*.kt")):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in ("org.junit", "io.mockk", "@Disabled", "@Ignore"):
+            if forbidden in source:
+                failures.append(
+                    f"feature:archive: {path.relative_to(root)} contains forbidden test API "
+                    f"{forbidden!r}"
+                )
+    golden_source = (
+        root
+        / "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/archive/golden/ArchiveGoldenTest.kt"
+    ).read_text(encoding="utf-8")
+    golden_methods = re.findall(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source)
+    if golden_methods != ARCHIVE_GOLDEN_METHODS:
+        failures.append(
+            f"feature:archive: golden methods must be exactly {ARCHIVE_GOLDEN_METHODS}; "
+            f"actual={golden_methods}"
+        )
+    device_source = (
+        root
+        / "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt"
+    ).read_text(encoding="utf-8")
+    for fragment in (
+        "@Smoke",
+        '@Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")',
+        "fun pendingFeatureRewrite()",
+    ):
+        if device_source.count(fragment) != 1:
+            failures.append(
+                f"feature:archive: device placeholder must keep {fragment!r} exactly once"
+            )
+
+    # The explicit generation-owned factory flow, and nothing that bypasses it.
+    feature_path = ARCHIVE_COMMON_MAIN / "di/ArchiveFeature.kt"
+    feature_source = common_sources[feature_path]
+    graph_path = ARCHIVE_COMMON_MAIN / "ui/ArchiveGraph.kt"
+    graph_source = common_sources[graph_path]
+    required_root_fragments = {
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
+            "val archiveGraphFactory: ArchiveGraph.Factory",
+        ],
+        Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
+            "override val archiveGraphFactory: ArchiveGraph.Factory",
+        ],
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
+            "if (admission.granted) {",
+            "val deps = remember(currentPhase.id)",
+            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "AppGenerationContent(deps)",
+            "private fun AppGenerationContent(deps: AppRootDeps)",
+            "archiveGraphFactory = deps.archiveGraphFactory",
+        ],
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
+            "archiveGraphFactory: ArchiveGraph.Factory,",
+            "archiveGraph(factory = archiveGraphFactory,",
+        ],
+        graph_path: [
+            "factory: ArchiveGraph.Factory,",
+            "navComponentScreen(ArchiveFeature(factory))",
+        ],
+        feature_path: [
+            "internal class ArchiveFeature(",
+            "private val factory: ArchiveGraph.Factory",
+        ],
+        Path("app/app/src/test/kotlin/io/github/stslex/workeeper/di/ArchiveExtensionIdentityTest.kt"): [
+            "private fun AppGraph.archive(): ArchiveGraph = archiveGraphFactory.createArchiveGraph()",
+        ],
+    }
+    for path, fragments in required_root_fragments.items():
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        compact_source = compact(source)
+        for fragment in fragments:
+            if compact_source.count(compact(fragment)) != 1:
+                failures.append(
+                    f"feature:archive: exact root-factory flow requires {fragment!r} once in {path}"
+                )
+    retained_factory = compact(
+        """
+        rememberMetroStoreProcessor<ArchiveStoreImpl> {
+            factory
+                .createArchiveGraph()
+                .archiveStore
+        }
+        """
+    )
+    if compact(feature_source).count(retained_factory) != 1:
+        failures.append(
+            "feature:archive: factory invocation must occur exactly inside retained Store creation"
+        )
+    graph_calls = sum(source.count("createArchiveGraph(") for source in common_sources.values())
+    # One declaration on ArchiveGraph.Factory plus the one retained invocation.
+    if graph_calls != 2 or feature_source.count("createArchiveGraph(") != 1:
+        failures.append(
+            "feature:archive: createArchiveGraph() must be invoked once, inside the Store lambda"
+        )
+    for source in (graph_source, feature_source):
+        if re.search(r"(?:factory|archiveGraphFactory)\s*:\s*ArchiveGraph\.Factory\s*[?=]", source):
+            failures.append("feature:archive: factory parameters must be required and non-null")
+    if "object ArchiveFeature" in feature_source:
+        failures.append("feature:archive: ArchiveFeature must take its factory, not be an object")
+
+    identity_source = Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/ArchiveExtensionIdentityTest.kt"
+    ).read_text(encoding="utf-8")
+    if "asContribution" in identity_source:
+        failures.append(
+            "feature:archive: extension identities must not bypass AppRootDeps via asContribution"
+        )
+    identity_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(identity_source)]
+    if identity_names != ARCHIVE_IDENTITY_TEST_NAMES:
+        failures.append(
+            f"feature:archive: the four extension identities must stay exact; actual={identity_names}"
+        )
+    if len(re.findall(r"(?<!AppGraph)\.archive\(\)", identity_source)) != 4:
+        failures.append(
+            "feature:archive: all four extension identities must reach the graph through the accessor"
+        )
+
+    app_common_build = Path("app/common/build.gradle.kts").read_text(encoding="utf-8")
+    if app_common_build.count('api(project(":feature:archive"))') != 1:
+        failures.append("app:common: archive edge must be exactly one api dependency")
+    if 'implementation(project(":feature:archive"))' in app_common_build:
+        failures.append("app:common: archive edge must not remain implementation")
+    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
+    if app_build.count('implementation(project(":feature:archive"))') != 1:
+        failures.append("app:app: direct archive aggregation edge must remain implementation")
+
+    return failures
+
+
 def check_module(name: str, manifest: dict) -> list[str]:
     failures: list[str] = []
     root = manifest["root"]
@@ -1135,6 +1767,7 @@ def main() -> None:
     failures.extend(check_plan_editor_resources())
     failures.extend(check_image_viewer_contract())
     failures.extend(check_plan_editor_feature_contract())
+    failures.extend(check_archive_feature_contract())
 
     if failures:
         raise SystemExit(
@@ -1155,6 +1788,10 @@ def main() -> None:
     print("  image-viewer resources and Coil request are exact")
     print(
         "  plan-editor resources, semantic State, portable BackHandler, previews, "
+        "and explicit factory flow are exact"
+    )
+    print(
+        "  archive catalogs, semantic State, suppressions, previews, test identities, "
         "and explicit factory flow are exact"
     )
     print("  app:common API edges and 10 remaining Context.appDeps readers are exact")
