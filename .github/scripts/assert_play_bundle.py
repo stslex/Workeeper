@@ -27,11 +27,14 @@ G9 both roles: the base resource table has array/android_wear_capabilities with 
    nothing in code references it and the release resource shrinker drops it unless a res/raw keep
    file names it. An absent array is a FAIL, not a gate error.
 G10 phone: exactly one <service> has an intent filter with the action
-   com.google.android.gms.wearable.REQUEST_RECEIVED; it is android:exported="true", and that
-   filter's data is exactly scheme wear, host * and path /workeeper/wear/v1/rpc (no pathPrefix,
-   pathPattern or any other data attribute). Not applicable to wear.
-G11 both roles: application android:icon is @mipmap/ic_launcher, and that resource has an anydpi
-   entry (density 65534) that is an XML file: the adaptive icon.
+   com.google.android.gms.wearable.REQUEST_RECEIVED; it is android:exported="true", neither it nor
+   the application is android:enabled other than "true", it declares no android:permission, and
+   that filter's data is exactly scheme wear, host * and path /workeeper/wear/v1/rpc (no
+   pathPrefix, pathPattern or any other data attribute). Not applicable to wear.
+G11 both roles: application android:icon is @mipmap/ic_launcher, no android:roundIcon and no
+   launcher activity or activity-alias names another icon, and @mipmap/ic_launcher has an anydpi
+   entry (density 65534) whose compiled XML in the bundle is an <adaptive-icon> with a
+   <background> and a <foreground>.
 
 The manifest and the resources come from the catalog-pinned bundletool: `./gradlew
 :bundletoolClasspath` writes the classpath this script reads (ci-cd.md § "Bundle identity gate").
@@ -60,6 +63,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CLASSPATH = REPO_ROOT / "build" / "bundletool" / "classpath.txt"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "assert_play_bundle"
+ADAPTIVE_ICON_FIXTURE = "ic_launcher.adaptive.pb"
+ANYDPI_ICON_ENTRY = "base/res/mipmap-anydpi-v26/ic_launcher.xml"
 
 PACKAGE = "io.github.stslex.workeeper"
 # GUARD: must equal WEAR_VERSION_CODE_OFFSET in ConfigureWearApplication.kt (spec §5, D2).
@@ -89,6 +94,9 @@ RPC_ACTION = "com.google.android.gms.wearable.REQUEST_RECEIVED"
 RPC_DATA = {"host": ["*"], "path": ["/workeeper/wear/v1/rpc"], "scheme": ["wear"]}
 LAUNCHER_ICON = "@mipmap/ic_launcher"
 LAUNCHER_ICON_RESOURCE = "mipmap/ic_launcher"
+ICON_ATTRIBUTES = ("icon", "roundIcon")
+LAUNCHER_ACTION, LAUNCHER_CATEGORY = "android.intent.action.MAIN", "android.intent.category.LAUNCHER"
+ADAPTIVE_ICON_ROOT, ADAPTIVE_ICON_LAYERS = "adaptive-icon", ("background", "foreground")
 # The anydpi density qualifier (0xfffe), as bundletool prints a configuration in protobuf text format.
 ANYDPI_QUALIFIER = "density: 65534"
 # The positive control of every resource dump: both apps label themselves with it.
@@ -107,6 +115,7 @@ RESOURCE_HEADER = re.compile(r"0x[0-9a-f]{8} - (?P<name>[^/\s]+/\S+)")
 CONFIG_VALUE = re.compile(r"(?P<config>.*?) - \[(?P<type>[A-Z_]+)\] (?P<value>.*)", re.DOTALL)
 # An array prints as ["item", "item"]: each item quoted, quotes and backslashes escaped.
 QUOTED_ITEM = re.compile(r'"((?:[^"\\]|\\.)*)"')
+PLAIN_ESCAPES = re.compile(r'(?:[^\\]|\\[\\"])*')
 
 
 class GateError(Exception):
@@ -217,13 +226,34 @@ def parse_manifest(xml_text):
             {
                 "name": service.get(ANDROID + "name"),
                 "exported": service.get(ANDROID + "exported"),
+                "enabled": service.get(ANDROID + "enabled"),
+                "permission": service.get(ANDROID + "permission"),
                 "filters": [data_attributes(intent_filter) for intent_filter in rpc_filters(service)],
             }
             for service in (application.findall("service") if application is not None else [])
             if rpc_filters(service)
         ],
-        "icon": application.get(ANDROID + "icon") if application is not None else None,
+        "application_enabled": application.get(ANDROID + "enabled") if application is not None else None,
+        "icons": {
+            attribute: application.get(ANDROID + attribute) if application is not None else None
+            for attribute in ICON_ATTRIBUTES
+        },
+        "launcher_icons": [
+            (entry.get(ANDROID + "name"), {attribute: entry.get(ANDROID + attribute) for attribute in ICON_ATTRIBUTES})
+            for tag in ("activity", "activity-alias")
+            for entry in (application.findall(tag) if application is not None else [])
+            if is_launcher(entry)
+        ],
     }
+
+
+def is_launcher(entry):
+    """An activity or alias the launcher lists: an intent filter with MAIN and LAUNCHER."""
+    return any(
+        any(action.get(ANDROID + "name") == LAUNCHER_ACTION for action in intent_filter.findall("action"))
+        and any(category.get(ANDROID + "name") == LAUNCHER_CATEGORY for category in intent_filter.findall("category"))
+        for intent_filter in entry.findall("intent-filter")
+    )
 
 
 def rpc_filters(service):
@@ -299,7 +329,15 @@ def check_rpc_listener(manifest, role):
     listeners = manifest["rpc_services"]
     read = (
         f"{manifest['services']} services, {len(listeners)} with action {RPC_ACTION}: "
-        + ("; ".join(f"{s['name']} exported={s['exported']!r} filters={s['filters']}" for s in listeners) or "none")
+        + (
+            "; ".join(
+                f"{s['name']} exported={s['exported']!r} enabled={s['enabled']!r} permission={s['permission']!r} "
+                f"filters={s['filters']}"
+                for s in listeners
+            )
+            or "none"
+        )
+        + f"; application enabled={manifest['application_enabled']!r}"
     )
     if role != "phone":
         return NOT_APPLICABLE, read + " (checked for phone only)"
@@ -310,6 +348,14 @@ def check_rpc_listener(manifest, role):
         listener = listeners[0]
         if listener["exported"] != "true":
             problems.append(f"exported={listener['exported']!r}, expected 'true'")
+        # Absent means enabled; anything but a literal "true" (false, a resource) is not proven enabled.
+        if listener["enabled"] not in (None, "true"):
+            problems.append(f"enabled={listener['enabled']!r}, expected absent or 'true'")
+        if manifest["application_enabled"] not in (None, "true"):
+            problems.append(f"application enabled={manifest['application_enabled']!r}, expected absent or 'true'")
+        # Play services binds the listener; a permission it may not hold would lock it out.
+        if listener["permission"] is not None:
+            problems.append(f"permission={listener['permission']!r}, expected none")
         if listener["filters"] != [RPC_DATA]:
             problems.append(f"filter data {listener['filters']}, expected exactly [{RPC_DATA}]")
     return (FAIL, read + "; " + "; ".join(problems)) if problems else (PASS, read)
@@ -390,7 +436,11 @@ def array_items(value):
     quoted = QUOTED_ITEM.findall(inner)
     if ", ".join(f'"{item}"' for item in quoted) != inner:
         return None
-    return [re.sub(r"\\(.)", r"\1", item) for item in quoted]
+    # bundletool escapes a backslash and a quote, and spells control characters (\n, \u000B, ...):
+    # an item with any of the latter is not a capability, so it never decodes into one.
+    if any(not PLAIN_ESCAPES.fullmatch(item) for item in quoted):
+        return None
+    return [re.sub(r'\\([\\"])', r"\1", item) for item in quoted]
 
 
 def describe_dump(name, dump):
@@ -410,18 +460,98 @@ def check_capabilities(dump, role):
     )
 
 
-def check_launcher_icon(icon, dump):
-    """G11. The launcher icon is the adaptive one: an anydpi XML entry behind @mipmap/ic_launcher."""
-    adaptive = [
-        value
-        for qualifiers, kind, value in dump or []
-        if ANYDPI_QUALIFIER in qualifiers and kind == "FILE" and value.endswith(".xml")
-    ]
-    ok = icon == LAUNCHER_ICON and len(adaptive) >= 1
-    return (PASS if ok else FAIL), (
-        f"application android:icon {icon!r}, expected {LAUNCHER_ICON!r}; "
-        f"{describe_dump(LAUNCHER_ICON_RESOURCE, dump)}; {len(adaptive)} anydpi XML entries, expected at least 1"
+def check_launcher_icon(manifest, dump, read_file):
+    """G11. The launcher shows the adaptive icon: @mipmap/ic_launcher everywhere the launcher looks,
+    and its anydpi entry compiled to an <adaptive-icon> with both layers."""
+    problems = []
+    icons = manifest["icons"]
+    if icons["icon"] != LAUNCHER_ICON:
+        problems.append(f"application android:icon {icons['icon']!r}, expected {LAUNCHER_ICON!r}")
+    if icons["roundIcon"] not in (None, LAUNCHER_ICON):
+        problems.append(f"application android:roundIcon {icons['roundIcon']!r}, expected absent or {LAUNCHER_ICON!r}")
+    for name, entry_icons in manifest["launcher_icons"]:
+        for attribute, value in entry_icons.items():
+            if value not in (None, LAUNCHER_ICON):
+                problems.append(f"launcher entry {name} android:{attribute} {value!r}, expected absent or {LAUNCHER_ICON!r}")
+    anydpi = [value for qualifiers, kind, value in dump or [] if ANYDPI_QUALIFIER in qualifiers and kind == "FILE"]
+    adaptive = []
+    for path in anydpi:
+        root, children = proto_xml_root(read_file("base/" + path), path)
+        verdict = root == ADAPTIVE_ICON_ROOT and all(layer in children for layer in ADAPTIVE_ICON_LAYERS)
+        adaptive.append(f"{path}: <{root}> children {children}{'' if verdict else ' (not an adaptive icon with both layers)'}")
+        if not verdict:
+            problems.append(f"{path} is <{root}> with {children}, expected <{ADAPTIVE_ICON_ROOT}> with {list(ADAPTIVE_ICON_LAYERS)}")
+    if not anydpi:
+        problems.append(f"no anydpi entry, expected at least 1, each an <{ADAPTIVE_ICON_ROOT}>")
+    read = (
+        f"application icon={icons['icon']!r} roundIcon={icons['roundIcon']!r}; "
+        f"{len(manifest['launcher_icons'])} launcher entries: {manifest['launcher_icons']}; "
+        f"{describe_dump(LAUNCHER_ICON_RESOURCE, dump)}; anydpi XML: {adaptive or 'none'}"
     )
+    return (FAIL, read + "; " + "; ".join(problems)) if problems else (PASS, read)
+
+
+def proto_varint(data, index):
+    shift = result = 0
+    while True:
+        if index >= len(data) or shift > 63:
+            raise GateError("truncated or oversized protobuf varint")
+        byte = data[index]
+        index += 1
+        result |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return result, index
+        shift += 7
+
+
+def proto_fields(data):
+    """(field number, wire type, value) of one protobuf message, from the wire format alone."""
+    index = 0
+    while index < len(data):
+        key, index = proto_varint(data, index)
+        field, wire = key >> 3, key & 7
+        if wire == 0:
+            value, index = proto_varint(data, index)
+        elif wire == 2:
+            length, index = proto_varint(data, index)
+            value, index = data[index:index + length], index + length
+        elif wire in (1, 5):
+            size = 8 if wire == 1 else 4
+            value, index = data[index:index + size], index + size
+        else:
+            raise GateError(f"unsupported protobuf wire type {wire}")
+        if index > len(data):
+            raise GateError("truncated protobuf message")
+        yield field, wire, value
+
+
+def proto_xml_root(data, path):
+    """Root element name and child element names of an aapt2 proto XML file (Resources.proto:
+    XmlNode.element = 1; XmlElement.name = 3, XmlElement.child = 5)."""
+    if data is None:
+        raise GateError(f"the resource table names {path}, which the bundle does not hold")
+    elements = [value for field, wire, value in proto_fields(data) if field == 1 and wire == 2]
+    if len(elements) != 1:
+        raise GateError(f"{path}: {len(elements)} root elements in the compiled XML, expected 1")
+    name, children = None, []
+    for field, wire, value in proto_fields(elements[0]):
+        if field == 3 and wire == 2:
+            name = value.decode("utf-8")
+        elif field == 5 and wire == 2:
+            for node_field, node_wire, node in proto_fields(value):
+                if node_field == 1 and node_wire == 2:
+                    children.extend(v.decode("utf-8") for f, w, v in proto_fields(node) if f == 3 and w == 2)
+    return name, children
+
+
+def zip_reader(aab):
+    """A function reading one entry of the bundle, or None when the bundle lacks it."""
+
+    def read(entry):
+        with zipfile.ZipFile(aab) as bundle:
+            return bundle.read(entry) if entry in bundle.namelist() else None
+
+    return read
 
 
 def check_abi_parity(aab):
@@ -467,7 +597,7 @@ def evaluate(aab_pattern, role, toml_path, reader):
     results["G7"] = check_abi_parity(path)
     resources = read_resources(reader, path)
     results["G9"] = check_capabilities(resources[CAPABILITIES_RESOURCE], role)
-    results["G11"] = check_launcher_icon(manifest["icon"], resources[LAUNCHER_ICON_RESOURCE])
+    results["G11"] = check_launcher_icon(manifest, resources[LAUNCHER_ICON_RESOURCE], zip_reader(path))
     return results
 
 
@@ -582,7 +712,9 @@ def self_test():
 
 def build_fixture_bundle(directory, case):
     """Materialise a case's bundle; the manifest and the resource dumps are supplied separately, as
-    bundletool would. The zip holds base/resources.pb unless the case lists its resource tables."""
+    bundletool would. The zip holds base/resources.pb unless the case lists its resource tables, and
+    the compiled adaptive launcher icon (aapt2 proto XML from the release bundle) unless the case
+    names another fixture as anydpi_xml, or null for none."""
     shape = case.get("bundle", "zip")
     if shape == "missing":
         return str(directory / "absent.aab")
@@ -595,6 +727,9 @@ def build_fixture_bundle(directory, case):
             bundle.writestr("base/manifest/AndroidManifest.xml", b"fixture")
             for table in case.get("resource_tables", [BASE_RESOURCE_TABLE]):
                 bundle.writestr(table, b"fixture")
+            # The compiled launcher XML that the anydpi entry of the resource fixtures names.
+            if case.get("anydpi_xml", ADAPTIVE_ICON_FIXTURE) is not None:
+                bundle.writestr(ANYDPI_ICON_ENTRY, (FIXTURES / case.get("anydpi_xml", ADAPTIVE_ICON_FIXTURE)).read_bytes())
             for entry in case.get("entries", []):
                 bundle.writestr(entry, b"\x7fELF")
     return str(directory / "*.aab") if shape == "two" else str(directory / "bundle.aab")
