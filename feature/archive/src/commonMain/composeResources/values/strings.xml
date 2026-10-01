@@ -35,8 +35,8 @@
     <string name="feature_archive_snackbar_undo">Undo</string>
 
     <plurals name="feature_archive_session_count">
-        <item quantity="one">%d session</item>
-        <item quantity="other">%d sessions</item>
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
     </plurals>
 
     <plurals name="feature_archive_dialog_permanent_delete_body_with_history">

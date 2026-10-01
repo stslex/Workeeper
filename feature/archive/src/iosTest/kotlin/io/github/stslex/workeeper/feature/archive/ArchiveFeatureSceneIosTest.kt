@@ -407,8 +407,8 @@ class ArchiveFeatureSceneIosTest {
             "Couldn’t load more",
             "Retry",
             "Couldn’t load the archive",
-            "%d session",
-            "%d sessions",
+            "%1\$d session",
+            "%1\$d sessions",
             "%1\$d session of history will also be deleted. This action cannot be undone.",
             "%1\$d sessions of history will also be deleted. This action cannot be undone.",
         )

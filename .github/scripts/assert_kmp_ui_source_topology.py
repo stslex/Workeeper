@@ -1132,12 +1132,12 @@ ARCHIVE_RESOURCES = (
     (
         "plurals",
         "feature_archive_session_count",
-        (("one", "%d session"), ("other", "%d sessions")),
+        (("one", "%1$d session"), ("other", "%1$d sessions")),
         (
-            ("one", "%d сессия"),
-            ("few", "%d сессии"),
-            ("many", "%d сессий"),
-            ("other", "%d сессии"),
+            ("one", "%1$d сессия"),
+            ("few", "%1$d сессии"),
+            ("many", "%1$d сессий"),
+            ("other", "%1$d сессии"),
         ),
     ),
     (
@@ -1692,6 +1692,69 @@ def check_archive_feature_contract() -> list[str]:
     return failures
 
 
+# Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and
+# render anything else literally, so a bare `%d` moved from Android `res` ships as "%d sessions".
+POSITIONAL_PLACEHOLDER = re.compile(r"%(?:%|\d+\$[ds])")
+ANY_PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]|%")
+
+
+def placeholder_tokens(text: str) -> list[str]:
+    """Every `%` sequence in [text], read as the longest positional or printf-style token."""
+    tokens: list[str] = []
+    cursor = 0
+    while (start := text.find("%", cursor)) != -1:
+        match = POSITIONAL_PLACEHOLDER.match(text, start) or ANY_PLACEHOLDER.match(text, start)
+        tokens.append(match.group(0))
+        cursor = start + len(match.group(0))
+    return tokens
+
+
+def catalog_values(path: Path) -> list[tuple[str, str]]:
+    """(key, text) for every string, plural quantity, and string-array item in [path]."""
+    values: list[tuple[str, str]] = []
+    for element in ET.parse(path).getroot():
+        name = element.attrib.get("name", "")
+        if element.tag == "string":
+            values.append((name, "".join(element.itertext())))
+        else:
+            for index, item in enumerate(element.findall("item")):
+                label = item.attrib.get("quantity", str(index))
+                values.append((f"{name}[{label}]", "".join(item.itertext())))
+    return values
+
+
+def check_compose_resource_placeholders() -> tuple[list[str], list[str]]:
+    """Every placeholder in every commonMain Compose catalog is `%N$d`, `%N$s`, or `%%`."""
+    failures: list[str] = []
+    walked: list[str] = []
+    catalogs = [
+        path
+        for path in source_files("strings.xml")
+        if path.parent.name.startswith("values")
+        and path.parent.parent.name == "composeResources"
+        and path.parent.parent.parent.name == "commonMain"
+    ]
+    if not catalogs:
+        failures.append("compose-resource placeholders: no commonMain composeResources catalog was walked")
+    for catalog in catalogs:
+        found = [
+            (key, token)
+            for key, text in catalog_values(catalog)
+            for token in placeholder_tokens(text)
+        ]
+        walked.append(
+            f"{catalog.as_posix()}: {len(found)} placeholder(s)"
+            + (": " + ", ".join(f"{key}={token}" for key, token in found) if found else "")
+        )
+        for key, token in found:
+            if not POSITIONAL_PLACEHOLDER.fullmatch(token):
+                failures.append(
+                    f"compose-resource placeholder is not %N$d, %N$s or %%: {catalog.as_posix()} "
+                    f"key {key} token {token!r}"
+                )
+    return failures, walked
+
+
 def check_module(name: str, manifest: dict) -> list[str]:
     failures: list[str] = []
     root = manifest["root"]
@@ -1768,6 +1831,8 @@ def main() -> None:
     failures.extend(check_image_viewer_contract())
     failures.extend(check_plan_editor_feature_contract())
     failures.extend(check_archive_feature_contract())
+    placeholder_failures, placeholder_walk = check_compose_resource_placeholders()
+    failures.extend(placeholder_failures)
 
     if failures:
         raise SystemExit(
@@ -1795,6 +1860,12 @@ def main() -> None:
         "and explicit factory flow are exact"
     )
     print("  app:common API edges and 10 remaining Context.appDeps readers are exact")
+    print(
+        f"  compose-resource placeholders: {len(placeholder_walk)} commonMain catalogs walked, "
+        "every placeholder is %N$d, %N$s or %%"
+    )
+    for line in placeholder_walk:
+        print(f"    {line}")
 
 
 if __name__ == "__main__":

@@ -28,10 +28,10 @@
     <string name="feature_archive_snackbar_undo">Отменить</string>
 
     <plurals name="feature_archive_session_count">
-        <item quantity="one">%d сессия</item>
-        <item quantity="few">%d сессии</item>
-        <item quantity="many">%d сессий</item>
-        <item quantity="other">%d сессии</item>
+        <item quantity="one">%1$d сессия</item>
+        <item quantity="few">%1$d сессии</item>
+        <item quantity="many">%1$d сессий</item>
+        <item quantity="other">%1$d сессии</item>
     </plurals>
 
     <plurals name="feature_archive_dialog_permanent_delete_body_with_history">

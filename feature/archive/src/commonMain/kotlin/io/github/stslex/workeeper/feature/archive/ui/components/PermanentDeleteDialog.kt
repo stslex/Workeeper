@@ -35,10 +35,7 @@ internal fun PermanentDeleteDialog(
         stringResource(Res.string.feature_archive_dialog_permanent_delete_body_no_history)
     }
     val impactSummary = if (impactCount > 0) {
-        // GUARD: Compose resources substitute only positional `%1$d`; this catalog's bare `%d`
-        // is filled here, as Android's String.format did, so the catalog moves byte-exact.
-        pluralStringResource(Res.plurals.feature_archive_session_count, impactCount)
-            .replace("%d", impactCount.toString())
+        pluralStringResource(Res.plurals.feature_archive_session_count, impactCount, impactCount)
     } else {
         stringResource(Res.string.feature_archive_dialog_impact_summary_empty)
     }
