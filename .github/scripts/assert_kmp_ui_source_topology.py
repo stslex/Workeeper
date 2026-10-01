@@ -1695,8 +1695,9 @@ def check_archive_feature_contract() -> list[str]:
 
 # Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and
 # render anything else literally, so a bare `%d` moved from Android `res` ships as "%d sessions".
-POSITIONAL_PLACEHOLDER = re.compile(r"%(?:%|\d+\$[ds])")
-ANY_PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]|%")
+# `%%` is no escape there (it renders as "%%"), and `%0$d` matches the regex but reads args[-1].
+POSITIONAL_PLACEHOLDER = re.compile(r"%[1-9]\d*\$[ds]")
+ANY_PLACEHOLDER = re.compile(r"%%|%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]|%")
 
 
 def placeholder_tokens(text: str) -> list[str]:
@@ -1725,7 +1726,7 @@ def catalog_values(path: Path) -> list[tuple[str, str]]:
 
 
 def check_compose_resource_placeholders() -> tuple[list[str], list[str]]:
-    """Every placeholder in every commonMain Compose catalog is `%N$d`, `%N$s`, or `%%`."""
+    """Every placeholder in every commonMain Compose catalog is `%N$d` or `%N$s` with N >= 1."""
     failures: list[str] = []
     walked: list[str] = []
     catalogs = [
@@ -1750,8 +1751,8 @@ def check_compose_resource_placeholders() -> tuple[list[str], list[str]]:
         for key, token in found:
             if not POSITIONAL_PLACEHOLDER.fullmatch(token):
                 failures.append(
-                    f"compose-resource placeholder is not %N$d, %N$s or %%: {catalog.as_posix()} "
-                    f"key {key} token {token!r}"
+                    "compose-resource placeholder is not %N$d or %N$s with N >= 1: "
+                    f"{catalog.as_posix()} key {key} token {token!r}"
                 )
     return failures, walked
 
@@ -1863,7 +1864,7 @@ def main() -> None:
     print("  app:common API edges and 10 remaining Context.appDeps readers are exact")
     print(
         f"  compose-resource placeholders: {len(placeholder_walk)} commonMain catalogs walked, "
-        "every placeholder is %N$d, %N$s or %%"
+        "every placeholder is %N$d or %N$s with N >= 1"
     )
     for line in placeholder_walk:
         print(f"    {line}")
