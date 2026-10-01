@@ -383,5 +383,17 @@
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
     "anydpi_xml": null,
     "gate_error": "which the bundle does not hold"
+  },
+  {
+    "name": "application-wide permission (applies to the listener too)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<application android:allowBackup=\"true\"", "<application android:allowBackup=\"true\" android:permission=\"io.github.stslex.workeeper.RPC\""]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "adaptive launcher icon with an empty foreground layer",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "anydpi_xml": "ic_launcher.empty-foreground.pb",
+    "expect": {"G10": "N/A", "G11": "FAIL"}
   }
 ]
