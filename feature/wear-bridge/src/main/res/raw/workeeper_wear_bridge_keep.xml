@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keeps the phone's Wear capability array in release builds. Nothing in code references it:
+     Google Play services reads android_wear_capabilities by name, so the resource shrinker sees an
+     unused array. R8's resource shrinker (the default since AGP 9.0) reads tools:keep only from keep
+     files under res/raw, never from the root of a values file, so the keep lives here. The bundle
+     identity gate (assert_play_bundle.py G9) checks the array in the release bundle. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@array/android_wear_capabilities" />
