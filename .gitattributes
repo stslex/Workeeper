@@ -1,2 +1,4 @@
 graphify-out/graph.json linguist-generated=true
 graphify-out/manifest.json linguist-generated=true
+# Compiled aapt2 proto XML read byte for byte by assert_play_bundle.py --self-test: no EOL conversion.
+.github/scripts/fixtures/assert_play_bundle/*.pb binary
