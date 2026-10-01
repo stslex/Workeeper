@@ -28,13 +28,13 @@ G9 both roles: the base resource table has array/android_wear_capabilities with 
    file names it. An absent array is a FAIL, not a gate error.
 G10 phone: exactly one <service> has an intent filter with the action
    com.google.android.gms.wearable.REQUEST_RECEIVED; it is android:exported="true", neither it nor
-   the application is android:enabled other than "true", it declares no android:permission, and
+   the application is android:enabled other than "true", neither declares an android:permission, and
    that filter's data is exactly scheme wear, host * and path /workeeper/wear/v1/rpc (no
    pathPrefix, pathPattern or any other data attribute). Not applicable to wear.
 G11 both roles: application android:icon is @mipmap/ic_launcher, no android:roundIcon and no
    launcher activity or activity-alias names another icon, and @mipmap/ic_launcher has an anydpi
    entry (density 65534) whose compiled XML in the bundle is an <adaptive-icon> with a
-   <background> and a <foreground>.
+   <background> and a <foreground>, each filled (an android:drawable or a child drawable).
 
 The manifest and the resources come from the catalog-pinned bundletool: `./gradlew
 :bundletoolClasspath` writes the classpath this script reads (ci-cd.md § "Bundle identity gate").
@@ -102,7 +102,8 @@ ANYDPI_QUALIFIER = "density: 65534"
 # The positive control of every resource dump: both apps label themselves with it.
 CONTROL_RESOURCE = "string/app_name"
 BASE_RESOURCE_TABLE = "base/resources.pb"
-ANDROID = "{http://schemas.android.com/apk/res/android}"
+ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
+ANDROID = "{" + ANDROID_NAMESPACE + "}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
 ROLES = ("phone", "wear")
 CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11")
@@ -234,6 +235,7 @@ def parse_manifest(xml_text):
             if rpc_filters(service)
         ],
         "application_enabled": application.get(ANDROID + "enabled") if application is not None else None,
+        "application_permission": application.get(ANDROID + "permission") if application is not None else None,
         "icons": {
             attribute: application.get(ANDROID + attribute) if application is not None else None
             for attribute in ICON_ATTRIBUTES
@@ -337,7 +339,7 @@ def check_rpc_listener(manifest, role):
             )
             or "none"
         )
-        + f"; application enabled={manifest['application_enabled']!r}"
+        + f"; application enabled={manifest['application_enabled']!r} permission={manifest['application_permission']!r}"
     )
     if role != "phone":
         return NOT_APPLICABLE, read + " (checked for phone only)"
@@ -353,9 +355,12 @@ def check_rpc_listener(manifest, role):
             problems.append(f"enabled={listener['enabled']!r}, expected absent or 'true'")
         if manifest["application_enabled"] not in (None, "true"):
             problems.append(f"application enabled={manifest['application_enabled']!r}, expected absent or 'true'")
-        # Play services binds the listener; a permission it may not hold would lock it out.
+        # Play services binds the listener; a permission it may not hold would lock it out. An
+        # application permission applies to every component that sets none of its own.
         if listener["permission"] is not None:
             problems.append(f"permission={listener['permission']!r}, expected none")
+        if manifest["application_permission"] is not None:
+            problems.append(f"application permission={manifest['application_permission']!r}, expected none")
         if listener["filters"] != [RPC_DATA]:
             problems.append(f"filter data {listener['filters']}, expected exactly [{RPC_DATA}]")
     return (FAIL, read + "; " + "; ".join(problems)) if problems else (PASS, read)
@@ -477,10 +482,14 @@ def check_launcher_icon(manifest, dump, read_file):
     adaptive = []
     for path in anydpi:
         root, children = proto_xml_root(read_file("base/" + path), path)
-        verdict = root == ADAPTIVE_ICON_ROOT and all(layer in children for layer in ADAPTIVE_ICON_LAYERS)
-        adaptive.append(f"{path}: <{root}> children {children}{'' if verdict else ' (not an adaptive icon with both layers)'}")
+        filled = {name for name, has_drawable in children if has_drawable}
+        shown = [name if has_drawable else f"{name} (empty)" for name, has_drawable in children]
+        verdict = root == ADAPTIVE_ICON_ROOT and all(layer in filled for layer in ADAPTIVE_ICON_LAYERS)
+        adaptive.append(f"{path}: <{root}> children {shown}{'' if verdict else ' (not an adaptive icon with both layers)'}")
         if not verdict:
-            problems.append(f"{path} is <{root}> with {children}, expected <{ADAPTIVE_ICON_ROOT}> with {list(ADAPTIVE_ICON_LAYERS)}")
+            problems.append(
+                f"{path} is <{root}> with {shown}, expected <{ADAPTIVE_ICON_ROOT}> with filled {list(ADAPTIVE_ICON_LAYERS)}"
+            )
     if not anydpi:
         problems.append(f"no anydpi entry, expected at least 1, each an <{ADAPTIVE_ICON_ROOT}>")
     read = (
@@ -526,8 +535,11 @@ def proto_fields(data):
 
 
 def proto_xml_root(data, path):
-    """Root element name and child element names of an aapt2 proto XML file (Resources.proto:
-    XmlNode.element = 1; XmlElement.name = 3, XmlElement.child = 5)."""
+    """Root element name and its child elements as (name, has a drawable) of an aapt2 proto XML file.
+
+    Resources.proto: XmlNode.element = 1; XmlElement.name = 3, .attribute = 4, .child = 5;
+    XmlAttribute.namespace_uri = 1, .name = 2. A child has a drawable when it carries android:drawable
+    or holds an element of its own (an inline drawable)."""
     if data is None:
         raise GateError(f"the resource table names {path}, which the bundle does not hold")
     elements = [value for field, wire, value in proto_fields(data) if field == 1 and wire == 2]
@@ -540,8 +552,23 @@ def proto_xml_root(data, path):
         elif field == 5 and wire == 2:
             for node_field, node_wire, node in proto_fields(value):
                 if node_field == 1 and node_wire == 2:
-                    children.extend(v.decode("utf-8") for f, w, v in proto_fields(node) if f == 3 and w == 2)
+                    children.append(proto_layer(node))
     return name, children
+
+
+def proto_layer(element):
+    """(name, has a drawable) of one compiled child element."""
+    name, has_drawable = None, False
+    for field, wire, value in proto_fields(element):
+        if field == 3 and wire == 2:
+            name = value.decode("utf-8")
+        elif field == 4 and wire == 2:
+            attribute = {f: v for f, w, v in proto_fields(value) if w == 2 and f in (1, 2)}
+            if attribute.get(1) == ANDROID_NAMESPACE.encode() and attribute.get(2) == b"drawable":
+                has_drawable = True
+        elif field == 5 and wire == 2:
+            has_drawable = has_drawable or any(f == 1 and w == 2 for f, w, _ in proto_fields(value))
+    return name, has_drawable
 
 
 def zip_reader(aab):
