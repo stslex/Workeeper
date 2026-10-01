@@ -14,30 +14,30 @@
     "entries": [
       "base/lib/armeabi-v7a/libdatastore_shared_counter.so", "base/lib/arm64-v8a/libdatastore_shared_counter.so"
     ],
-    "expect": {}
+    "expect": {"G10": "N/A"}
   },
   {
     "name": "wear bundle without native libraries",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "entries": [],
-    "expect": {}
+    "expect": {"G10": "N/A"}
   },
   {
     "name": "wear bundle checked as phone (swap control, M-A2)",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "phone",
-    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "N/A"}
+    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "N/A", "G9": "FAIL", "G10": "FAIL"}
   },
   {
     "name": "phone bundle checked as wear (M-A3)",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "wear",
-    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "FAIL"}
+    "expect": {"G3": "FAIL", "G4": "FAIL", "G5": "FAIL", "G6": "FAIL", "G9": "FAIL", "G10": "N/A"}
   },
   {
     "name": "wear bundle with the phone identity (the F3 collision)",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:versionCode=\"1000052\"", "android:versionCode=\"52\""],
                 ["android:versionName=\"1.51.0-wear\"", "android:versionName=\"1.51.0\""]],
-    "expect": {"G3": "FAIL", "G4": "FAIL"}
+    "expect": {"G3": "FAIL", "G4": "FAIL", "G10": "N/A"}
   },
   {
     "name": "phone versionCode off by one (M-A4)",
@@ -49,7 +49,7 @@
     "name": "wear versionCode off by one",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:versionCode=\"1000052\"", "android:versionCode=\"1000053\""]],
-    "expect": {"G3": "FAIL"}
+    "expect": {"G3": "FAIL", "G10": "N/A"}
   },
   {
     "name": "phone versionName differs from the TOML",
@@ -75,27 +75,27 @@
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:name=\"android.hardware.type.watch\" android:required=\"true\"",
                  "android:name=\"android.hardware.type.watch\" android:required=\"false\""]],
-    "expect": {"G5": "FAIL"}
+    "expect": {"G5": "FAIL", "G10": "N/A"}
   },
   {
     "name": "wear watch feature with no android:required (defaults to required)",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:name=\"android.hardware.type.watch\" android:required=\"true\"",
                  "android:name=\"android.hardware.type.watch\""]],
-    "expect": {}
+    "expect": {"G10": "N/A"}
   },
   {
     "name": "wear standalone=true",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:name=\"com.google.android.wearable.standalone\" android:value=\"false\"",
                  "android:name=\"com.google.android.wearable.standalone\" android:value=\"true\""]],
-    "expect": {"G6": "FAIL"}
+    "expect": {"G6": "FAIL", "G10": "N/A"}
   },
   {
     "name": "wear standalone meta-data missing",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["<meta-data android:name=\"com.google.android.wearable.standalone\" android:value=\"false\"/>", ""]],
-    "expect": {"G6": "FAIL"}
+    "expect": {"G6": "FAIL", "G10": "N/A"}
   },
   {
     "name": "armeabi-v7a library without an arm64-v8a twin (M-A5)",
@@ -104,7 +104,7 @@
       "base/lib/armeabi-v7a/libdatastore_shared_counter.so", "base/lib/arm64-v8a/libdatastore_shared_counter.so",
       "base/lib/armeabi-v7a/libandroidx.graphics.path.so"
     ],
-    "expect": {"G7": "FAIL"}
+    "expect": {"G7": "FAIL", "G10": "N/A"}
   },
   {
     "name": "arm64-v8a twin in another module does not count",
@@ -124,14 +124,14 @@
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                  "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
-    "expect": {"G8": "FAIL"}
+    "expect": {"G8": "FAIL", "G10": "N/A"}
   },
   {
     "name": "advertising ID permission through uses-permission-sdk-23",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                  "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"com.google.android.gms.permission.AD_ID\"/>"]],
-    "expect": {"G8": "FAIL"}
+    "expect": {"G8": "FAIL", "G10": "N/A"}
   },
   {
     "name": "phone bundle declaring the Privacy Sandbox advertising ID permission (M-L5)",
@@ -152,14 +152,14 @@
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                  "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"android.permission.ACCESS_ADSERVICES_AD_ID\"/>"]],
-    "expect": {"G8": "FAIL"}
+    "expect": {"G8": "FAIL", "G10": "N/A"}
   },
   {
     "name": "Privacy Sandbox attribution permission through uses-permission-sdk-23",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                  "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission-sdk-23 android:name=\"android.permission.ACCESS_ADSERVICES_ATTRIBUTION\"/>"]],
-    "expect": {"G8": "FAIL"}
+    "expect": {"G8": "FAIL", "G10": "N/A"}
   },
   {
     "name": "the optional android.ext.adservices library is not a permission (the release bundles carry it)",
@@ -179,24 +179,151 @@
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:name=\"google_analytics_adid_collection_enabled\" android:value=\"false\"",
                  "android:name=\"google_analytics_adid_collection_enabled\" android:value=\"true\""]],
-    "expect": {"G8": "FAIL"}
+    "expect": {"G8": "FAIL", "G10": "N/A"}
   },
   {
     "name": "no file at the path",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "missing",
     "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
-               "G8": "SKIP"}
+               "G8": "SKIP", "G9": "SKIP", "G10": "SKIP", "G11": "SKIP"}
   },
   {
     "name": "empty file at the path",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone", "bundle": "empty",
     "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
-               "G8": "SKIP"}
+               "G8": "SKIP", "G9": "SKIP", "G10": "SKIP", "G11": "SKIP"}
   },
   {
     "name": "glob matching two bundles",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear", "bundle": "two",
     "expect": {"G1": "FAIL", "G2": "SKIP", "G3": "SKIP", "G4": "SKIP", "G5": "SKIP", "G6": "SKIP", "G7": "SKIP",
-               "G8": "SKIP"}
+               "G8": "SKIP", "G9": "SKIP", "G10": "SKIP", "G11": "SKIP"}
+  },
+  {
+    "name": "phone bundle without the capability array (the 1.52.1 phone bundle, M1)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_absent": ["array/android_wear_capabilities"],
+    "expect": {"G6": "N/A", "G9": "FAIL"}
+  },
+  {
+    "name": "wear bundle without the capability array (M2)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "resource_absent": ["array/android_wear_capabilities"],
+    "expect": {"G9": "FAIL", "G10": "N/A"}
+  },
+  {
+    "name": "the 1.52.1 wear bundle: no capability array, the drawable glyph as launcher icon (M2, M4)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@drawable/ic_workeeper_wear\""]],
+    "resource_absent": ["array/android_wear_capabilities", "mipmap/ic_launcher"],
+    "expect": {"G9": "FAIL", "G10": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "phone capability item changed (M3)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"array/android_wear_capabilities": [["\"workeeper_phone_active_workout_v1\"",
+                                                              "\"workeeper_phone_active_workout_v2\""]]},
+    "expect": {"G6": "N/A", "G9": "FAIL"}
+  },
+  {
+    "name": "phone capability array with two items",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"array/android_wear_capabilities": [["[\"workeeper_phone_active_workout_v1\"]",
+      "[\"workeeper_phone_active_workout_v1\", \"workeeper_watch_active_workout_v1\"]"]]},
+    "expect": {"G6": "N/A", "G9": "FAIL"}
+  },
+  {
+    "name": "wear bundle advertising the phone capability",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "resource_replace": {"array/android_wear_capabilities": [["\"workeeper_watch_active_workout_v1\"",
+                                                              "\"workeeper_phone_active_workout_v1\""]]},
+    "expect": {"G9": "FAIL", "G10": "N/A"}
+  },
+  {
+    "name": "capability array under a locale configuration only",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"array/android_wear_capabilities": [["\t(default) - [ARRAY]", "\tlocale: \"ru\" - [ARRAY]"]]},
+    "expect": {"G6": "N/A", "G9": "FAIL"}
+  },
+  {
+    "name": "phone bundle without the RPC listener (M5)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["    <service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">\n      <intent-filter>\n        <action android:name=\"com.google.android.gms.wearable.REQUEST_RECEIVED\"/>\n        <data android:host=\"*\" android:path=\"/workeeper/wear/v1/rpc\" android:scheme=\"wear\"/>\n      </intent-filter>\n    </service>\n", ""]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "RPC listener not exported (M5)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">",
+                 "<service android:exported=\"false\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">"]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "RPC listener matching a path prefix (M5)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["android:path=\"/workeeper/wear/v1/rpc\"", "android:pathPrefix=\"/workeeper/wear/v1/rpc\""]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "RPC listener with a pathPattern besides its path",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["android:path=\"/workeeper/wear/v1/rpc\"", "android:path=\"/workeeper/wear/v1/rpc\" android:pathPattern=\".*\""]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "a second service with the RPC action",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<service android:directBootAware=\"true\" android:exported=\"false\" android:name=\"androidx.room3.MultiInstanceInvalidationService\"/>",
+                 "<service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.Other\"><intent-filter><action android:name=\"com.google.android.gms.wearable.REQUEST_RECEIVED\"/><data android:host=\"*\" android:path=\"/workeeper/wear/v1/rpc\" android:scheme=\"wear\"/></intent-filter></service>"]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "wear launcher icon is the drawable glyph (M4)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@drawable/ic_workeeper_wear\""]],
+    "expect": {"G10": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "launcher icon without an anydpi entry",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"mipmap/ic_launcher": [["\tdensity: 65534 - [FILE] res/mipmap-anydpi-v26/ic_launcher.xml\n", ""]]},
+    "expect": {"G6": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "anydpi entry with a second qualifier (printed on its own line, as below minSdk 26)",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "resource_replace": {"mipmap/ic_launcher": [["\tdensity: 65534 - [FILE]", "\tdensity: 65534\nsdk_version: 26 - [FILE]"]]},
+    "expect": {"G10": "N/A"}
+  },
+  {
+    "name": "a second module's resource table (dump resources would merge it)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_tables": ["base/resources.pb", "feature/resources.pb"],
+    "gate_error": "expected exactly ['base/resources.pb']"
+  },
+  {
+    "name": "no resource table at all",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "resource_tables": [],
+    "gate_error": "expected exactly ['base/resources.pb']"
+  },
+  {
+    "name": "positive control missing: the resource dump read nothing",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_absent": ["string/app_name"],
+    "gate_error": "positive control string/app_name not found"
+  },
+  {
+    "name": "a dump that prints another resource",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "resource_replace": {"array/android_wear_capabilities": [[" - array/android_wear_capabilities", " - array/other"]]},
+    "gate_error": "printed array/other"
+  },
+  {
+    "name": "a dump that prints the array twice (two tables merged)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"array/android_wear_capabilities": [["\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n",
+      "\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n0x7f030000 - array/android_wear_capabilities\n\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n"]]},
+    "gate_error": "printed it 2 times"
   }
 ]

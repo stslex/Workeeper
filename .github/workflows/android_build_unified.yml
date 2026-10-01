@@ -470,7 +470,9 @@ jobs:
       - name: Assert the phone bundle identity
         run: python3 .github/scripts/assert_play_bundle.py --aab "$PHONE_AAB" --role phone
 
+      # Runs even when the phone gate failed, so one run reports both bundles.
       - name: Assert the Wear bundle identity
+        if: ${{ !cancelled() }}
         run: python3 .github/scripts/assert_play_bundle.py --aab "$WEAR_AAB" --role wear
 
       # The known negative, run every time: a gate that never fails on a real bundle is not shown to
