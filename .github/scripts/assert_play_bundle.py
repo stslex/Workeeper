@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Bundle identity gate: prove an AAB is the one its role claims before anything talks to Play.
 
-Spec: documentation/feature-specs/wear-release-pipeline.md §6 (G1–G7) and
-documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8). One bundle per run:
+Spec: documentation/feature-specs/wear-release-pipeline.md §6 (G1–G7),
+documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8) and the 1.52.2 hotfix
+(G9–G11, documentation/ci-cd.md § "Bundle identity gate"). One bundle per run:
 
     python3 .github/scripts/assert_play_bundle.py --aab <path> --role phone|wear \
         --toml gradle/libs.versions.toml
@@ -20,11 +21,26 @@ G8 advertising ID off, for both roles: none of com.google.android.gms.permission
    in the base manifest (uses-permission or uses-permission-sdk-23), and the application meta-data
    google_analytics_adid_collection_enabled is exactly "false" (below Android 13 the ID is
    readable without the permission). The apps show no ads.
+G9 both roles: the base resource table has array/android_wear_capabilities with exactly one
+   configuration, (default), holding exactly one item: workeeper_phone_active_workout_v1 (phone)
+   or workeeper_watch_active_workout_v1 (wear). Google Play services reads the array by name, so
+   nothing in code references it and the release resource shrinker drops it unless a res/raw keep
+   file names it. An absent array is a FAIL, not a gate error.
+G10 phone: exactly one <service> has an intent filter with the action
+   com.google.android.gms.wearable.REQUEST_RECEIVED; it is android:exported="true", and that
+   filter's data is exactly scheme wear, host * and path /workeeper/wear/v1/rpc (no pathPrefix,
+   pathPattern or any other data attribute). Not applicable to wear.
+G11 both roles: application android:icon is @mipmap/ic_launcher, and that resource has an anydpi
+   entry (density 65534) that is an XML file: the adaptive icon.
 
-The manifest comes from the catalog-pinned bundletool: `./gradlew :bundletoolClasspath` writes the
-classpath this script reads (ci-cd.md § "Bundle identity gate"). G7 reads the zip directly. Every
-check prints what it read. Exit 0: all checks passed. Exit 1: a check failed. Exit 2: the gate
-could not run (bad arguments, bundletool missing or failing).
+The manifest and the resources come from the catalog-pinned bundletool: `./gradlew
+:bundletoolClasspath` writes the classpath this script reads (ci-cd.md § "Bundle identity gate").
+`dump resources` merges the tables of every module with no module attribution, so G9 and G11
+require base/resources.pb to be the bundle's only resource table, and a positive control
+(string/app_name) must be found before an absent resource counts as absent. G7 reads the zip
+directly. Every check prints what it read. Exit 0: all checks passed. Exit 1: a check failed.
+Exit 2: the gate could not run (bad arguments, bundletool missing or failing, a resource dump it
+cannot read).
 """
 
 import argparse
@@ -32,6 +48,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -57,11 +74,39 @@ AD_PERMISSIONS = (
     "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
 )
 ADID_COLLECTION_META = "google_analytics_adid_collection_enabled"
+CAPABILITIES_RESOURCE = "array/android_wear_capabilities"
+CAPABILITIES = {
+    # GUARD: must equal WearProtocol.PHONE_CAPABILITY (core/wear-protocol) and the item of
+    # feature/wear-bridge/src/main/res/values/wear_capabilities.xml.
+    "phone": "workeeper_phone_active_workout_v1",
+    # GUARD: must equal the android_wear_capabilities item of app/wear/src/main/res/values/strings.xml.
+    "wear": "workeeper_watch_active_workout_v1",
+}
+# GUARD: must equal WearRpcListenerService.REQUEST_ACTION (MessageClient.ACTION_REQUEST_RECEIVED) and
+# the action of the listener's intent filter in feature/wear-bridge/src/main/AndroidManifest.xml.
+RPC_ACTION = "com.google.android.gms.wearable.REQUEST_RECEIVED"
+# GUARD: the path must equal WearProtocol.RPC_PATH (core/wear-protocol), matched exactly.
+RPC_DATA = {"host": ["*"], "path": ["/workeeper/wear/v1/rpc"], "scheme": ["wear"]}
+LAUNCHER_ICON = "@mipmap/ic_launcher"
+LAUNCHER_ICON_RESOURCE = "mipmap/ic_launcher"
+# The anydpi density qualifier (0xfffe), as bundletool prints a configuration in protobuf text format.
+ANYDPI_QUALIFIER = "density: 65534"
+# The positive control of every resource dump: both apps label themselves with it.
+CONTROL_RESOURCE = "string/app_name"
+BASE_RESOURCE_TABLE = "base/resources.pb"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
 ROLES = ("phone", "wear")
-CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8")
+CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11")
 PASS, FAIL, SKIP, NOT_APPLICABLE = "PASS", "FAIL", "SKIP", "N/A"
+
+# `dump resources --values` output: "Package '<name>':", then per entry "0x<id> - <type>/<name>" and one
+# tab-indented "<configuration> - [<TYPE>] <value>" per configuration. A configuration with several
+# qualifiers prints one qualifier per line, so the lines after the first carry no tab.
+RESOURCE_HEADER = re.compile(r"0x[0-9a-f]{8} - (?P<name>[^/\s]+/\S+)")
+CONFIG_VALUE = re.compile(r"(?P<config>.*?) - \[(?P<type>[A-Z_]+)\] (?P<value>.*)", re.DOTALL)
+# An array prints as ["item", "item"]: each item quoted, quotes and backslashes escaped.
+QUOTED_ITEM = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 
 class GateError(Exception):
@@ -102,29 +147,37 @@ def check_single_file(pattern):
     return PASS, f"1 file: {path} ({size} bytes, sha256 {digest})", path
 
 
-def bundletool_reader(classpath_file):
-    """Return a function that dumps an AAB's base manifest with the pinned bundletool."""
+class BundletoolReader:
+    """Dumps an AAB's base manifest, and one resource at a time, with the pinned bundletool."""
 
-    def read(aab):
-        if not Path(classpath_file).is_file():
-            raise GateError(f"{classpath_file} is missing; run ./gradlew :bundletoolClasspath first")
-        jars = [line.strip() for line in Path(classpath_file).read_text().splitlines() if line.strip()]
+    def __init__(self, classpath_file):
+        self.classpath_file = Path(classpath_file)
+
+    def manifest(self, aab):
+        return self._run(["dump", "manifest", "--bundle", str(aab)])
+
+    def resource(self, aab, name):
+        """The dump of one resource with its values; bundletool prints nothing when it is absent."""
+        return self._run(["dump", "resources", "--bundle", str(aab), "--resource", name, "--values"])
+
+    def _run(self, args):
+        if not self.classpath_file.is_file():
+            raise GateError(f"{self.classpath_file} is missing; run ./gradlew :bundletoolClasspath first")
+        jars = [line.strip() for line in self.classpath_file.read_text().splitlines() if line.strip()]
         missing = [jar for jar in jars if not Path(jar).is_file()]
         if not jars or missing:
-            raise GateError(f"{classpath_file}: {len(jars)} jars, missing {missing}; re-run :bundletoolClasspath")
+            raise GateError(f"{self.classpath_file}: {len(jars)} jars, missing {missing}; re-run :bundletoolClasspath")
         java = str(Path(os.environ["JAVA_HOME"]) / "bin" / "java") if os.environ.get("JAVA_HOME") else "java"
         pinned = next((Path(jar).name for jar in jars if Path(jar).name.startswith("bundletool-")), "?")
-        print(f"bundletool: {pinned} ({len(jars)} jars) dump manifest --bundle {aab}")
+        print(f"bundletool: {pinned} ({len(jars)} jars) {' '.join(args)}")
         result = subprocess.run(
-            [java, "-cp", os.pathsep.join(jars), BUNDLETOOL_MAIN, "dump", "manifest", "--bundle", str(aab)],
+            [java, "-cp", os.pathsep.join(jars), BUNDLETOOL_MAIN, *args],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
             raise GateError(f"bundletool exited {result.returncode}: {result.stderr.strip()[-2000:]}")
         return result.stdout
-
-    return read
 
 
 def parse_manifest(xml_text):
@@ -159,11 +212,40 @@ def parse_manifest(xml_text):
             for meta in (application.findall("meta-data") if application is not None else [])
             if meta.get(ANDROID + "name") == ADID_COLLECTION_META
         ],
+        "services": len(application.findall("service")) if application is not None else 0,
+        "rpc_services": [
+            {
+                "name": service.get(ANDROID + "name"),
+                "exported": service.get(ANDROID + "exported"),
+                "filters": [data_attributes(intent_filter) for intent_filter in rpc_filters(service)],
+            }
+            for service in (application.findall("service") if application is not None else [])
+            if rpc_filters(service)
+        ],
+        "icon": application.get(ANDROID + "icon") if application is not None else None,
     }
 
 
+def rpc_filters(service):
+    """The service's intent filters that carry the Wear RPC action."""
+    return [
+        intent_filter
+        for intent_filter in service.findall("intent-filter")
+        if any(action.get(ANDROID + "name") == RPC_ACTION for action in intent_filter.findall("action"))
+    ]
+
+
+def data_attributes(intent_filter):
+    """Every attribute of the filter's <data> elements, by local name; Android combines them all."""
+    attributes = {}
+    for data in intent_filter.findall("data"):
+        for key, value in data.attrib.items():
+            attributes.setdefault(key.rsplit("}", 1)[-1], []).append(value)
+    return {key: sorted(values) for key, values in sorted(attributes.items())}
+
+
 def check_manifest(manifest, role, code, name):
-    """G2..G6 and G8 over a parsed manifest. Returns {check: (status, detail)}."""
+    """G2..G6, G8 and G10 over a parsed manifest. Returns {check: (status, detail)}."""
     results = {}
     package = manifest["package"]
     results["G2"] = (PASS if package == PACKAGE else FAIL, f"package {package!r}, expected {PACKAGE!r}")
@@ -208,7 +290,138 @@ def check_manifest(manifest, role, code, name):
         f"{len(permissions)} permissions declared; {counts}, expected 0 each; "
         f"meta-data {ADID_COLLECTION_META}: {collection}, expected exactly ['false']",
     )
+    results["G10"] = check_rpc_listener(manifest, role)
     return results
+
+
+def check_rpc_listener(manifest, role):
+    """G10. The phone end of the Wear transport: the one service Play services delivers requests to."""
+    listeners = manifest["rpc_services"]
+    read = (
+        f"{manifest['services']} services, {len(listeners)} with action {RPC_ACTION}: "
+        + ("; ".join(f"{s['name']} exported={s['exported']!r} filters={s['filters']}" for s in listeners) or "none")
+    )
+    if role != "phone":
+        return NOT_APPLICABLE, read + " (checked for phone only)"
+    problems = []
+    if len(listeners) != 1:
+        problems.append(f"expected exactly 1 such service, found {len(listeners)}")
+    else:
+        listener = listeners[0]
+        if listener["exported"] != "true":
+            problems.append(f"exported={listener['exported']!r}, expected 'true'")
+        if listener["filters"] != [RPC_DATA]:
+            problems.append(f"filter data {listener['filters']}, expected exactly [{RPC_DATA}]")
+    return (FAIL, read + "; " + "; ".join(problems)) if problems else (PASS, read)
+
+
+def resource_tables(aab):
+    """Every module's resource table in the bundle: <module>/resources.pb."""
+    try:
+        with zipfile.ZipFile(aab) as bundle:
+            names = bundle.namelist()
+    except zipfile.BadZipFile as error:
+        raise GateError(f"{aab} is not a zip archive: {error}") from error
+    return sorted(name for name in names if len(name.split("/")) == 2 and name.endswith("/resources.pb"))
+
+
+def parse_resource_dump(text, name):
+    """`dump resources --resource <name> --values` -> [(qualifiers, type, value)], or None if absent.
+
+    qualifiers is a tuple with one line per qualifier, ("(default)",) for the default configuration.
+
+    bundletool prints nothing, and exits 0, for a resource the table lacks. Anything it prints that is
+    not this one resource is a dump the gate cannot read: GateError, never a guess."""
+    entries, configs = 0, []
+    for line in text.splitlines():
+        if not line or line.startswith("Package '"):
+            continue
+        header = RESOURCE_HEADER.fullmatch(line)
+        if header:
+            if header["name"] != name:
+                raise GateError(f"the dump of {name} printed {header['name']}")
+            entries += 1
+        elif line.startswith("\t") and entries:
+            configs.append(line[1:])
+        elif configs:
+            configs[-1] += "\n" + line
+        else:
+            raise GateError(f"the dump of {name} has an unexpected line: {line!r}")
+    if entries == 0:
+        return None
+    if entries != 1:
+        raise GateError(f"the dump of {name} printed it {entries} times; one resource table holds it once")
+    parsed = []
+    for config in configs:
+        match = CONFIG_VALUE.fullmatch(config)
+        if not match:
+            raise GateError(f"the dump of {name} has a configuration it cannot parse: {config!r}")
+        parsed.append((tuple(match["config"].split("\n")), match["type"], match["value"]))
+    if not parsed:
+        raise GateError(f"the dump of {name} printed the resource with no configuration")
+    return parsed
+
+
+def read_resources(reader, aab):
+    """Dump the resources G9 and G11 read, after the two preconditions that make an absence mean absent."""
+    tables = resource_tables(aab)
+    if not tables:
+        raise GateError(f"resource tables [], expected exactly [{BASE_RESOURCE_TABLE!r}]: nothing to read")
+    if tables != [BASE_RESOURCE_TABLE]:
+        raise GateError(
+            f"resource tables {tables}, expected exactly [{BASE_RESOURCE_TABLE!r}]: dump resources merges every "
+            "module's table without naming the module, so it cannot read the base table alone"
+        )
+    control = parse_resource_dump(reader.resource(aab, CONTROL_RESOURCE), CONTROL_RESOURCE)
+    if control is None:
+        raise GateError(f"positive control {CONTROL_RESOURCE} not found: the resource dump read nothing")
+    print(f"resource table {BASE_RESOURCE_TABLE}: control {CONTROL_RESOURCE} has {len(control)} configurations")
+    return {
+        resource: parse_resource_dump(reader.resource(aab, resource), resource)
+        for resource in (CAPABILITIES_RESOURCE, LAUNCHER_ICON_RESOURCE)
+    }
+
+
+def array_items(value):
+    """The items of an [ARRAY] value, or None when the value is not a list of quoted strings."""
+    if not (value.startswith("[") and value.endswith("]")):
+        return None
+    inner = value[1:-1]
+    quoted = QUOTED_ITEM.findall(inner)
+    if ", ".join(f'"{item}"' for item in quoted) != inner:
+        return None
+    return [re.sub(r"\\(.)", r"\1", item) for item in quoted]
+
+
+def describe_dump(name, dump):
+    if dump is None:
+        return f"{name} absent from {BASE_RESOURCE_TABLE}"
+    entries = "; ".join(f"{', '.join(qualifiers)} [{kind}] {value}" for qualifiers, kind, value in dump)
+    return f"{name}: {len(dump)} configurations: {entries}"
+
+
+def check_capabilities(dump, role):
+    """G9. Play services discovers each end by this array; nothing else keeps it in a release build."""
+    expected = [CAPABILITIES[role]]
+    found = [(qualifiers, kind, array_items(value)) for qualifiers, kind, value in dump or []]
+    ok = found == [(("(default)",), "ARRAY", expected)]
+    return (PASS if ok else FAIL), (
+        f"{describe_dump(CAPABILITIES_RESOURCE, dump)}; expected exactly 1 configuration, (default), with items {expected}"
+    )
+
+
+def check_launcher_icon(icon, dump):
+    """G11. The launcher icon is the adaptive one: an anydpi XML entry behind @mipmap/ic_launcher."""
+    adaptive = [
+        value
+        for qualifiers, kind, value in dump or []
+        if ANYDPI_QUALIFIER in qualifiers and kind == "FILE" and value.endswith(".xml")
+    ]
+    ok = icon == LAUNCHER_ICON and len(adaptive) >= 1
+    return (PASS if ok else FAIL), (
+        f"application android:icon {icon!r}, expected {LAUNCHER_ICON!r}; "
+        f"{describe_dump(LAUNCHER_ICON_RESOURCE, dump)}; {len(adaptive)} anydpi XML entries, expected at least 1"
+    )
 
 
 def check_abi_parity(aab):
@@ -239,8 +452,8 @@ def check_abi_parity(aab):
     return PASS, detail
 
 
-def evaluate(aab_pattern, role, toml_path, read_manifest):
-    """Run G1..G8 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
+def evaluate(aab_pattern, role, toml_path, reader):
+    """Run G1..G11 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
     toml_name, toml_code = read_toml_identity(toml_path)
     code, name = expected_identity(role, toml_name, toml_code)
     print(f"role={role} toml={toml_path} versionName={toml_name!r} versionCode={toml_code}")
@@ -249,8 +462,12 @@ def evaluate(aab_pattern, role, toml_path, read_manifest):
     if path is None:
         results.update({check: (SKIP, "G1 failed") for check in CHECKS[1:]})
         return results
-    results.update(check_manifest(parse_manifest(read_manifest(path)), role, code, name))
+    manifest = parse_manifest(reader.manifest(path))
+    results.update(check_manifest(manifest, role, code, name))
     results["G7"] = check_abi_parity(path)
+    resources = read_resources(reader, path)
+    results["G9"] = check_capabilities(resources[CAPABILITIES_RESOURCE], role)
+    results["G11"] = check_launcher_icon(manifest["icon"], resources[LAUNCHER_ICON_RESOURCE])
     return results
 
 
@@ -264,24 +481,82 @@ def report(results):
     return 1 if failed else 0
 
 
+class FixtureReader:
+    """Replays captured bundletool output in place of the pinned bundletool."""
+
+    def __init__(self, manifest, resources):
+        self._manifest, self._resources = manifest, resources
+
+    def manifest(self, _aab):
+        return self._manifest
+
+    def resource(self, _aab, name):
+        # A resource the table lacks: bundletool prints nothing and exits 0 (measured on 1.18.3).
+        return self._resources.get(name, "")
+
+
+class FixtureError(Exception):
+    """A case the self-test cannot replay as written."""
+
+
+def replaced(text, pairs, label):
+    """Apply a case's exact-once text replacements; an anchor that does not match once is a broken case."""
+    for old, new in pairs:
+        if text.count(old) != 1:
+            raise FixtureError(f"{label}: replacement anchor matched {text.count(old)} times")
+        text = text.replace(old, new)
+    return text
+
+
+def fixture_reader(case, dumps):
+    """A case's manifest plus the resource dumps of its bundle (the manifest's stem unless it names one)."""
+    manifest = replaced((FIXTURES / case["manifest"]).read_text(encoding="utf-8"), case.get("replace", []), case["name"])
+    bundle = case.get("resources", case["manifest"].split(".")[0])
+    resources = {name: "\n".join(lines) for name, lines in dumps[bundle].items()}
+    for name, pairs in case.get("resource_replace", {}).items():
+        resources[name] = replaced(resources[name], pairs, f"{case['name']}: {name}")
+    for name in case.get("resource_absent", []):
+        if name not in resources:
+            raise FixtureError(f"{case['name']}: resource_absent names {name}, which the fixture lacks")
+        del resources[name]
+    return FixtureReader(manifest, resources)
+
+
 def self_test():
     """Replay the committed fixture cases and require each check to be shown both PASS and FAIL."""
     cases = json.loads((FIXTURES / "cases.json").read_text(encoding="utf-8"))
+    dumps = json.loads((FIXTURES / "resources.json").read_text(encoding="utf-8"))
     print(f"self-test: {len(cases)} cases from {FIXTURES.relative_to(REPO_ROOT)}")
     if not cases:
         print("self-test FAIL: zero cases")
         return 1
-    mismatches, seen = [], {check: set() for check in CHECKS}
+    mismatches, seen, gate_errors = [], {check: set() for check in CHECKS}, 0
     for case in cases:
-        manifest = (FIXTURES / case["manifest"]).read_text(encoding="utf-8")
-        for old, new in case.get("replace", []):
-            if manifest.count(old) != 1:
-                print(f"self-test FAIL: {case['name']}: replacement anchor matched {manifest.count(old)} times")
-                return 1
-            manifest = manifest.replace(old, new)
+        try:
+            reader = fixture_reader(case, dumps)
+        except FixtureError as error:
+            print(f"self-test FAIL: {error}")
+            return 1
         with tempfile.TemporaryDirectory() as tmp:
             pattern = build_fixture_bundle(Path(tmp), case)
-            results = evaluate(pattern, case["role"], FIXTURES / case["toml"], lambda _path: manifest)
+            try:
+                results, error = evaluate(pattern, case["role"], FIXTURES / case["toml"], reader), None
+            except GateError as gate_error:
+                results, error = None, str(gate_error)
+        if "gate_error" in case:
+            gate_errors += 1
+            ok = error is not None and case["gate_error"] in error
+            verdict = "ok" if ok else "MISMATCH"
+            print(f"  {verdict:8} {case['name']}: GATE ERROR {error!r}, expected one containing {case['gate_error']!r}")
+            if not ok:
+                mismatches.append(case["name"])
+                if results is not None:
+                    report(results)
+            continue
+        if error is not None:
+            print(f"  MISMATCH {case['name']}: GATE ERROR {error!r}, expected check results")
+            mismatches.append(case["name"])
+            continue
         actual = {check: results[check][0] for check in CHECKS}
         expected = {check: case["expect"].get(check, PASS) for check in CHECKS}
         for check, status in expected.items():
@@ -298,12 +573,16 @@ def self_test():
     if mismatches:
         print(f"self-test FAIL: {len(mismatches)}/{len(cases)} cases mismatched: {mismatches}")
         return 1
-    print(f"self-test PASS: {len(cases)} cases, every check shown both PASS and FAIL")
+    print(
+        f"self-test PASS: {len(cases)} cases ({gate_errors} expecting a gate error), "
+        "every check shown both PASS and FAIL"
+    )
     return 0
 
 
 def build_fixture_bundle(directory, case):
-    """Materialise a case's bundle; the manifest is supplied separately, as bundletool would."""
+    """Materialise a case's bundle; the manifest and the resource dumps are supplied separately, as
+    bundletool would. The zip holds base/resources.pb unless the case lists its resource tables."""
     shape = case.get("bundle", "zip")
     if shape == "missing":
         return str(directory / "absent.aab")
@@ -314,6 +593,8 @@ def build_fixture_bundle(directory, case):
     for name in names:
         with zipfile.ZipFile(directory / name, "w") as bundle:
             bundle.writestr("base/manifest/AndroidManifest.xml", b"fixture")
+            for table in case.get("resource_tables", [BASE_RESOURCE_TABLE]):
+                bundle.writestr(table, b"fixture")
             for entry in case.get("entries", []):
                 bundle.writestr(entry, b"\x7fELF")
     return str(directory / "*.aab") if shape == "two" else str(directory / "bundle.aab")
@@ -332,7 +613,7 @@ def main(argv):
             return self_test()
         if not args.aab or not args.role:
             parser.error("--aab and --role are required unless --self-test")
-        return report(evaluate(args.aab, args.role, args.toml, bundletool_reader(args.bundletool_classpath)))
+        return report(evaluate(args.aab, args.role, args.toml, BundletoolReader(args.bundletool_classpath)))
     except GateError as error:
         print(f"GATE ERROR (exit 2): {error}")
         return 2

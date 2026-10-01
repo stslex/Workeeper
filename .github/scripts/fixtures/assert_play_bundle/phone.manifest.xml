@@ -6,6 +6,13 @@
     <provider android:authorities="io.github.stslex.workeeper.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_provider_paths"/>
     </provider>
+    <service android:exported="true" android:name="io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService">
+      <intent-filter>
+        <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED"/>
+        <data android:host="*" android:path="/workeeper/wear/v1/rpc" android:scheme="wear"/>
+      </intent-filter>
+    </service>
+    <service android:directBootAware="true" android:exported="false" android:name="androidx.room3.MultiInstanceInvalidationService"/>
     <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version"/>
     <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false"/>
   </application>
