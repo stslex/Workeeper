@@ -5,6 +5,11 @@
   <application android:allowBackup="false" android:extractNativeLibs="false" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:name="io.github.stslex.workeeper.wear.WearApplication" android:supportsRtl="true" android:theme="@style/Theme.Workeeper.Wear">
     <meta-data android:name="com.google.android.wearable.standalone" android:value="false"/>
     <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false"/>
-    <activity android:exported="true" android:name="io.github.stslex.workeeper.wear.MainActivity" android:taskAffinity=""/>
+    <activity android:exported="true" android:name="io.github.stslex.workeeper.wear.MainActivity" android:taskAffinity="">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity>
   </application>
 </manifest>

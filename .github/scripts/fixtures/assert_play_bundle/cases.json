@@ -200,7 +200,7 @@
                "G8": "SKIP", "G9": "SKIP", "G10": "SKIP", "G11": "SKIP"}
   },
   {
-    "name": "phone bundle without the capability array (the 1.52.1 phone bundle, M1)",
+    "name": "phone bundle without the capability array (as 1.52.0 and 1.52.1 shipped, M1)",
     "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
     "resource_absent": ["array/android_wear_capabilities"],
     "expect": {"G6": "N/A", "G9": "FAIL"}
@@ -212,7 +212,7 @@
     "expect": {"G9": "FAIL", "G10": "N/A"}
   },
   {
-    "name": "the 1.52.1 wear bundle: no capability array, the drawable glyph as launcher icon (M2, M4)",
+    "name": "wear bundle as 1.52.1-wear shipped: no capability array, the drawable glyph as launcher icon (M2, M4)",
     "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
     "replace": [["android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@drawable/ic_workeeper_wear\""]],
     "resource_absent": ["array/android_wear_capabilities", "mipmap/ic_launcher"],
@@ -325,5 +325,63 @@
     "resource_replace": {"array/android_wear_capabilities": [["\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n",
       "\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n0x7f030000 - array/android_wear_capabilities\n\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]\n"]]},
     "gate_error": "printed it 2 times"
+  },
+  {
+    "name": "capability item with an escaped newline (only right if escapes were dropped)",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "resource_replace": {"array/android_wear_capabilities": [["\"workeeper_phone_active_workout_v1\"",
+                                                              "\"workeeper_pho\\ne_active_workout_v1\""]]},
+    "expect": {"G6": "N/A", "G9": "FAIL"}
+  },
+  {
+    "name": "RPC listener disabled",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">",
+                 "<service android:enabled=\"false\" android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">"]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "application disabled",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<application android:allowBackup=\"true\"", "<application android:allowBackup=\"true\" android:enabled=\"false\""]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "RPC listener behind a permission",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "replace": [["<service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\">",
+                 "<service android:exported=\"true\" android:name=\"io.github.stslex.workeeper.feature.wear_bridge.transport.WearRpcListenerService\" android:permission=\"io.github.stslex.workeeper.RPC\">"]],
+    "expect": {"G6": "N/A", "G10": "FAIL"}
+  },
+  {
+    "name": "anydpi launcher XML compiled from a <vector>, not an adaptive icon",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "anydpi_xml": "ic_launcher.vector.pb",
+    "expect": {"G10": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "adaptive launcher icon without a foreground layer",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "anydpi_xml": "ic_launcher.no-foreground.pb",
+    "expect": {"G6": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "the launcher activity names the drawable glyph",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["<activity android:exported=\"true\" android:name=\"io.github.stslex.workeeper.wear.MainActivity\"",
+                 "<activity android:exported=\"true\" android:icon=\"@drawable/ic_workeeper_wear\" android:name=\"io.github.stslex.workeeper.wear.MainActivity\""]],
+    "expect": {"G10": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "application roundIcon is the drawable glyph",
+    "manifest": "wear.manifest.xml", "toml": "versions.toml", "role": "wear",
+    "replace": [["android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@mipmap/ic_launcher\" android:roundIcon=\"@drawable/ic_workeeper_wear\""]],
+    "expect": {"G10": "N/A", "G11": "FAIL"}
+  },
+  {
+    "name": "the compiled anydpi launcher XML missing from the bundle",
+    "manifest": "phone.manifest.xml", "toml": "versions.toml", "role": "phone",
+    "anydpi_xml": null,
+    "gate_error": "which the bundle does not hold"
   }
 ]

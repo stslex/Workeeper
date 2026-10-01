@@ -3,6 +3,13 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-feature android:name="android.hardware.camera" android:required="false"/>
   <application android:allowBackup="true" android:extractNativeLibs="false" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:name="io.github.stslex.workeeper.store.StoreMobileApp" android:supportsRtl="true" android:theme="@style/Theme.Workeeper">
+    <activity android:configChanges="0x50007fff" android:exported="true" android:name="io.github.stslex.workeeper.MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity>
+    <activity android:exported="false" android:name="io.github.stslex.workeeper.feature.recovery.RecoveryActivity"/>
     <provider android:authorities="io.github.stslex.workeeper.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_provider_paths"/>
     </provider>
