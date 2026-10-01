@@ -460,6 +460,7 @@ jobs:
           echo "0 uploadCrashlyticsMappingFile* tasks scheduled"
 
       - name: Build both release bundles
+        id: bundles
         run: |
           read -r -a tasks <<< "$BUNDLE_TASKS"
           ./gradlew "${tasks[@]}" --no-build-cache --full-stacktrace
@@ -470,7 +471,9 @@ jobs:
       - name: Assert the phone bundle identity
         run: python3 .github/scripts/assert_play_bundle.py --aab "$PHONE_AAB" --role phone
 
+      # Runs even when the phone gate failed, so one run reports both bundles; not without bundles.
       - name: Assert the Wear bundle identity
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: python3 .github/scripts/assert_play_bundle.py --aab "$WEAR_AAB" --role wear
 
       # The known negative, run every time: a gate that never fails on a real bundle is not shown to

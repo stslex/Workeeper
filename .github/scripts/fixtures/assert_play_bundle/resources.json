@@ -1,0 +1,65 @@
+{
+  "_comment": [
+    "assert_play_bundle.py --self-test: verbatim stdout of `bundletool dump resources --bundle <aab>",
+    "--resource <type/name> --values` (bundletool 1.18.3) on the phone and Wear release bundles,",
+    "one list entry per line. A resource the table lacks prints nothing and exits 0: a case",
+    "lists it under resource_absent, which replays that empty output."
+  ],
+  "phone": {
+    "string/app_name": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f110039 - string/app_name",
+      "\t(default) - [STR] \"Workeeper\"",
+      "",
+      ""
+    ],
+    "array/android_wear_capabilities": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f030000 - array/android_wear_capabilities",
+      "\t(default) - [ARRAY] [\"workeeper_phone_active_workout_v1\"]",
+      "",
+      ""
+    ],
+    "mipmap/ic_launcher": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f0e0000 - mipmap/ic_launcher",
+      "\tdensity: 160 - [FILE] res/mipmap-mdpi-v4/ic_launcher.png",
+      "\tdensity: 240 - [FILE] res/mipmap-hdpi-v4/ic_launcher.png",
+      "\tdensity: 320 - [FILE] res/mipmap-xhdpi-v4/ic_launcher.png",
+      "\tdensity: 480 - [FILE] res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "\tdensity: 640 - [FILE] res/mipmap-xxxhdpi-v4/ic_launcher.png",
+      "\tdensity: 65534 - [FILE] res/mipmap-anydpi-v26/ic_launcher.xml",
+      "",
+      ""
+    ]
+  },
+  "wear": {
+    "string/app_name": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f110029 - string/app_name",
+      "\t(default) - [STR] \"Workeeper\"",
+      "\tlocale: \"ru\" - [STR] \"Workeeper\"",
+      "",
+      ""
+    ],
+    "array/android_wear_capabilities": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f030000 - array/android_wear_capabilities",
+      "\t(default) - [ARRAY] [\"workeeper_watch_active_workout_v1\"]",
+      "",
+      ""
+    ],
+    "mipmap/ic_launcher": [
+      "Package 'io.github.stslex.workeeper':",
+      "0x7f0e0000 - mipmap/ic_launcher",
+      "\tdensity: 160 - [FILE] res/mipmap-mdpi-v4/ic_launcher.png",
+      "\tdensity: 240 - [FILE] res/mipmap-hdpi-v4/ic_launcher.png",
+      "\tdensity: 320 - [FILE] res/mipmap-xhdpi-v4/ic_launcher.png",
+      "\tdensity: 480 - [FILE] res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "\tdensity: 640 - [FILE] res/mipmap-xxxhdpi-v4/ic_launcher.png",
+      "\tdensity: 65534 - [FILE] res/mipmap-anydpi-v26/ic_launcher.xml",
+      "",
+      ""
+    ]
+  }
+}

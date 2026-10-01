@@ -164,7 +164,8 @@ per-task `test*/` output directories; the first is flat-file belt-and-braces).
 
 `.github/scripts/assert_play_bundle.py` proves that an AAB is the bundle its role claims before
 anything talks to Play ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §6; G8
-from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2). One bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml`.
+from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2; G9–G11 below). One
+bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml`.
 
 | Check | Rule |
 |---|---|
@@ -176,11 +177,14 @@ from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2). 
 | G6 | Wear: the application meta-data `com.google.android.wearable.standalone` is `false`. Not applicable to phone. |
 | G7 | Every `lib/armeabi-v7a/*.so` has the same file under `lib/arm64-v8a/` of the same module. Counts per ABI and module are printed; zero native libraries is a valid, reported result. |
 | G8 | Advertising ID off, for both roles: none of `com.google.android.gms.permission.AD_ID`, `android.permission.ACCESS_ADSERVICES_AD_ID` or `android.permission.ACCESS_ADSERVICES_ATTRIBUTION` in the base manifest (`uses-permission` or `uses-permission-sdk-23`), and the application meta-data `google_analytics_adid_collection_enabled` is exactly `false` (below Android 13 the ID is readable without the permission). The apps show no ads: each application manifest removes the three permissions that `firebase-analytics` brings and sets the meta-data. The optional `android.ext.adservices` library entry is not a permission and stays. `app/dev` ships no store bundle, so review covers it. |
+| G9 | Both roles: the base resource table has `array/android_wear_capabilities` with exactly one configuration, `(default)`, holding exactly one item: `workeeper_phone_active_workout_v1` (phone, `WearProtocol.PHONE_CAPABILITY`) or `workeeper_watch_active_workout_v1` (Wear). Google Play services reads the array by name, so nothing in code references it, and R8's resource shrinker (the default since AGP 9.0) drops it unless a keep file under `res/raw` names it: a `tools:keep` on the root of a values file is not read. Without it the phone advertises no capability, the watch finds no phone node, and the link reports the phone unreachable. Item escapes other than `\\` and `\"` (bundletool spells control characters, such as `\n`) make the item invalid. An absent array is a FAIL, not a gate error. |
+| G10 | Phone: exactly one `<service>` has an intent filter with the action `com.google.android.gms.wearable.REQUEST_RECEIVED`. It is `android:exported="true"`, neither it nor the application sets `android:enabled` to anything but `true`, neither declares an `android:permission` (Play services binds the listener, and an application permission applies to every component that sets none), and that filter's data is exactly scheme `wear`, host `*` and path `/workeeper/wear/v1/rpc` (`WearProtocol.RPC_PATH`), with no `pathPrefix`, `pathPattern` or other data attribute. Not applicable to Wear. |
+| G11 | Both roles: `application android:icon` is `@mipmap/ic_launcher`, there is no other `android:roundIcon`, and no launcher activity or `activity-alias` (MAIN + LAUNCHER) names another icon. `@mipmap/ic_launcher` has at least one `anydpi` entry (density 65534), and each one's compiled XML in the bundle is an `<adaptive-icon>` with a `<background>` and a `<foreground>`, each filled (an `android:drawable` or a child drawable): the adaptive icon the phone ships, with layers instead of a bare glyph. The gate reads that file's aapt2 proto XML with a stdlib wire-format reader (root element name, child element names and their `android:drawable`). |
 
 Every check prints what it read, and the last line is `RESULT PASS` or `RESULT FAIL <checks>` with
 the number of checks that ran. Exit 0: every check passed. Exit 1: a check failed. Exit 2: the gate
-could not run (unreadable TOML, bundletool missing or failing), which a swap control must not
-mistake for the failure it expects.
+could not run (unreadable TOML, bundletool missing or failing, a resource dump it cannot read),
+which a swap control must not mistake for the failure it expects.
 
 **bundletool.** The manifest dump comes from bundletool pinned in the version catalog
 (`bundletool = "1.18.3"`, library `libs.bundletool`): the version AGP 9.3.0 itself resolves
@@ -192,9 +196,23 @@ script runs `java -cp <those jars> com.android.tools.build.bundletool.BundleTool
 dependency resolution, and the script exits 2 when the classpath file or any jar in it is missing.
 G7 reads the AAB's zip entries directly.
 
-`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 30 cases over two
-manifests trimmed from real `bundletool dump manifest` output, each case applying exact-once text
-replacements. It fails on any mismatch and unless every check is shown both PASS and FAIL.
+G9 and G11 read resources with `dump resources --bundle <aab> --resource <type>/<name> --values`, one
+resource per run. Measured on bundletool 1.18.3: a resource the table lacks prints nothing and exits
+0, so the gate first requires two things before it counts an empty dump as absent. The bundle's only
+resource table is `base/resources.pb`, because the command merges every module's table without
+naming the module. And the positive control `string/app_name` is found. Either one missing is a gate
+error (exit 2). A configuration with several qualifiers prints one qualifier per line, which the
+parser joins back.
+
+`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 61 cases over two
+manifests trimmed from real `bundletool dump manifest` output, the verbatim `dump resources` output
+of the two release bundles (`resources.json`), and four compiled launcher XML files
+(`ic_launcher.*.pb`: the release bundles' adaptive icon, and aapt2-compiled `<vector>`,
+background-only and empty-foreground variants). Each case applies exact-once text replacements, removes a resource the way
+bundletool reports its absence, or swaps the compiled launcher XML. Six cases must end in a gate
+error (a second module's resource table, no resource table, the positive control missing, a dump of
+another resource, a resource printed twice, the launcher XML missing from the bundle). It fails on
+any mismatch and unless every check is shown both PASS and FAIL.
 
 **Where it runs.**
 
@@ -207,7 +225,8 @@ replacements. It fails on any mismatch and unless every check is shown both PASS
 - Pull requests: the `Release bundle identity` job of `android_build_unified.yml`.
 
 **The pull-request job** builds `:app:store:bundleRelease` and `:app:wear:bundleStoreRelease`, runs
-the self-test, runs the gate on both real AABs, and runs the swap control: the Wear AAB checked with
+the self-test, runs the gate on both real AABs (the Wear gate runs even after the phone gate failed,
+so one run reports both, but not when the bundle build failed), and runs the swap control: the Wear AAB checked with
 `--role phone` must exit 1 with G5 among the failures, so the control cannot pass on an identity
 mismatch alone. It is a job of its own because the phone release bundle compiles every module's
 release variant and the build job's worst green run took 47.1 of its 60 minutes. It uses no Gradle
