@@ -2,8 +2,8 @@
 """Bundle identity gate: prove an AAB is the one its role claims before anything talks to Play.
 
 Spec: documentation/feature-specs/wear-release-pipeline.md §6 (G1–G7),
-documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8) and the 1.52.2 hotfix
-(G9–G11, documentation/ci-cd.md § "Bundle identity gate"). One bundle per run:
+documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8) and documentation/ci-cd.md
+§ "Bundle identity gate" (G9–G11). One bundle per run:
 
     python3 .github/scripts/assert_play_bundle.py --aab <path> --role phone|wear \
         --toml gradle/libs.versions.toml

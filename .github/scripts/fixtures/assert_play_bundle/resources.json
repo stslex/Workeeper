@@ -1,8 +1,8 @@
 {
   "_comment": [
     "assert_play_bundle.py --self-test: verbatim stdout of `bundletool dump resources --bundle <aab>",
-    "--resource <type/name> --values` (bundletool 1.18.3) on the release bundles of the fix that added",
-    "G9-G11, one list entry per line. A resource the table lacks prints nothing and exits 0: a case",
+    "--resource <type/name> --values` (bundletool 1.18.3) on the phone and Wear release bundles,",
+    "one list entry per line. A resource the table lacks prints nothing and exits 0: a case",
     "lists it under resource_absent, which replays that empty output."
   ],
   "phone": {
