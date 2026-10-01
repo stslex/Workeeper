@@ -174,6 +174,71 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:archive": {
+        "root": Path("feature/archive"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/mapper/ArchivedItemDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/model/ArchivedItem.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveNavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/model/ArchivedItemUi.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/store/ArchiveStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/store/ArchiveStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveBody.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurface.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchivedItemRow.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKind.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTails.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PermanentDeleteDialog.kt",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/archive/golden/ArchiveGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_pagingError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_pagingError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_pagingLoading_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_pagingLoading_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowClamped_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowClamped_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowExercise_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowExercise_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowTraining_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_rowTraining_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_screenExercisesNoRows_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_screenExercisesNoRows_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_screenTrainingsNoRows_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.archive.golden_ArchiveGoldenTest_screenTrainingsNoRows_light.png",
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -223,7 +288,6 @@ EXPECTED_APP_DEPS_READERS = {
     Path("feature/all-exercises/src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesFeature.kt"): "AllExercisesGraph.Factory",
     Path("feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt"): "AllTrainingsGraph.Factory",
     Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
-    Path("feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt"): "ArchiveGraph.Factory",
     Path("feature/exercise-chart/src/main/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt"): "ExerciseChartGraph.Factory",
     Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
     Path("feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt"): "HomeGraph.Factory",
@@ -661,7 +725,7 @@ def check_image_viewer_contract() -> list[str]:
     }
     if actual_readers != expected_readers:
         failures.append(
-            "remaining Context.appDeps readers are not the exact 11 unported entries; "
+            "remaining Context.appDeps readers are not the exact 10 unported entries; "
             f"expected={expected_readers!r}, actual={actual_readers!r}"
         )
 
@@ -1093,7 +1157,7 @@ def main() -> None:
         "  plan-editor resources, semantic State, portable BackHandler, previews, "
         "and explicit factory flow are exact"
     )
-    print("  app:common API edges and 11 remaining Context.appDeps readers are exact")
+    print("  app:common API edges and 10 remaining Context.appDeps readers are exact")
 
 
 if __name__ == "__main__":

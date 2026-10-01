@@ -29,6 +29,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
+import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.archive.ui.archiveGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.ui.exerciseChartGraph
@@ -49,6 +50,7 @@ internal fun AppNavigationHost(
     results: NavResultsSource,
     imageViewerGraphFactory: ImageViewerGraph.Factory,
     planEditorGraphFactory: PlanEditorGraph.Factory,
+    archiveGraphFactory: ArchiveGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -165,6 +167,7 @@ internal fun AppNavigationHost(
                             .testTag("SettingsGraph"),
                     )
                     archiveGraph(
+                        factory = archiveGraphFactory,
                         modifier = standardModifier
                             .reportScreenPlace<Screen.Archive>()
                             .testTag("ArchiveGraph"),

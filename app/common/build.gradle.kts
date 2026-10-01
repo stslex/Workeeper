@@ -33,10 +33,10 @@ dependencies {
     implementation(project(":feature:all-exercises"))
     implementation(project(":feature:single-training"))
     implementation(project(":feature:settings"))
-    implementation(project(":feature:archive"))
     implementation(project(":feature:home"))
     implementation(project(":feature:live-workout"))
     implementation(project(":feature:past-session"))
+    api(project(":feature:archive"))
     api(project(":feature:image-viewer"))
     api(project(":feature:plan-editor"))
 
