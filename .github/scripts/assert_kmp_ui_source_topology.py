@@ -1071,7 +1071,8 @@ ARCHIVE_CATALOG_PATHS = (
 
 # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
 # ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
-# all contractual (kmp-phase-7-8-archive-feature.md §3.4).
+# all contractual (kmp-phase-7-8-archive-feature.md §3.4, with the session count's six items
+# made positional by decision P1, §19.8).
 ARCHIVE_RESOURCES = (
     ("string", "feature_archive_title", "Archive", "Архив"),
     ("string", "feature_archive_action_more", "More", "Ещё"),
