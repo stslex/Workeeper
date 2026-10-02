@@ -30,8 +30,9 @@ import java.util.jar.JarFile
  * * **default-argument helpers** — `HandlerStore` and `StoreConsumer` DO declare default argument
  *   values, and under `-Xjvm-default=all` / [org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode]
  *   `NO_COMPATIBILITY` their synthetic `name$default` bridges are static members of the interface
- *   itself. Under `ENABLE` the very same helpers move into a `DefaultImpls` compatibility class,
- *   which changes the binary interface every consumer compiles against.
+ *   itself. Under `ENABLE` they stay static members of the interface and are additionally copied
+ *   into a `DefaultImpls` compatibility class; that holder is what changes the binary interface
+ *   every consumer compiles against.
  *
  * The mode is owned by `KmpLibraryConventionPlugin`, not by this module; this test is the proof
  * that it reached the module. Flipping the convention's `jvmDefault` to `ENABLE` reddens it.
@@ -46,8 +47,9 @@ internal class MviJvmAbiTest {
             assertFalse(
                 found,
                 "$holder must not exist: it appears when this module's jvmDefault mode is " +
-                    "ENABLE instead of NO_COMPATIBILITY, moving the \$default helpers off the " +
-                    "interface and changing the ABI all 15 consumers compile against",
+                    "ENABLE instead of NO_COMPATIBILITY, copying the \$default helpers, which " +
+                    "stay on the interface, into this holder and changing the ABI all 15 " +
+                    "consumers compile against",
             )
         }
     }
