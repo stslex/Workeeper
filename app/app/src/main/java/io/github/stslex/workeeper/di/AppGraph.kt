@@ -43,6 +43,7 @@ import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
+import io.github.stslex.workeeper.feature.wear_bridge.transport.PhoneChangeNotifier
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -142,6 +143,12 @@ internal interface AppGraph :
     override val restoreStateRepository: RestoreStateRepository
 
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
+
+    /**
+     * The phone → watch change signal of this generation (wear-live-sync.md §6.3). Its reader is
+     * `StartupProcessor.armPostPreflight`, which arms it on this generation's lifetime.
+     */
+    val phoneChangeNotifier: PhoneChangeNotifier
 
     @Provides
     @SingleIn(AppScope::class)

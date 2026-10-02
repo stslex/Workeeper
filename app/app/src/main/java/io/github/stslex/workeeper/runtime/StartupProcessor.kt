@@ -231,8 +231,8 @@ internal class StartupProcessor(
     }
 
     /**
-     * Chores then observer arming, in order: cleanup → planner → observer. Not reached for a
-     * rolled-back restore or for terminal recovery.
+     * Chores then observer arming, in order: cleanup → planner → change notifier → observer. Not
+     * reached for a rolled-back restore or for terminal recovery.
      */
     private fun armPostPreflight(
         graph: AppGraph,
@@ -241,6 +241,7 @@ internal class StartupProcessor(
     ) {
         cleanupOrphanedImageTempFiles(graph, lifetime)
         warmQueryPlanner(graph, appDatabase, lifetime)
+        armPhoneChangeNotifier(graph, lifetime)
         armDialogObserver(graph)
     }
 
@@ -262,6 +263,17 @@ internal class StartupProcessor(
             runCatching { warmPlanner(appDatabase) }
                 .onFailure { error -> Log.e(error) }
         }
+    }
+
+    /**
+     * The phone → watch change signal, once per generation on its lifetime (wear-live-sync.md
+     * §6.3). It reads the database, so it shares the planner's recovery check, but not its low-RAM
+     * check. The notifier catches its own failures (D11): nothing escapes into this scope.
+     */
+    private fun armPhoneChangeNotifier(graph: AppGraph, lifetime: AppScopeLifetime) {
+        if (graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) return
+        val notifier = graph.phoneChangeNotifier
+        lifetime.childScope(ioDispatcher).launch { notifier.run() }
     }
 
     /**

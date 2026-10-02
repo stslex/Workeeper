@@ -445,10 +445,12 @@ style:
       - "kotlinx.android.synthetic.*"
       - "java.util.logging.*"
       - "android.util.Log.*"
-      # The Wear transport privacy gate: workout payloads cross between phone and watch only
-      # through the paired transport (documentation/feature-specs/wear-paired-transport.md § 8).
+      # The Wear transport privacy gate: only the allowlisted files name the Data Layer
+      # (documentation/feature-specs/wear-live-sync.md § 8). Workout payloads cross between phone
+      # and watch only through the paired transport's two RPC files; the change-signal files carry
+      # none.
       #
-      # GUARD: repository-wide except the allowlist below, which is exactly two files. Widening it
+      # GUARD: repository-wide except the allowlist below, which is exactly three files. Widening it
       # is a privacy decision, reviewed as one, never a convenience edit.
       # GUARD: all three globs are load-bearing — dropping any one leaves a live way in.
       # GUARD: imports are only half the gate. WearDataLayerApiRule covers the spellings that carry
@@ -458,13 +460,14 @@ style:
       - "com.google.android.gms.wearable.*"
       - "com.google.android.gms.wearable.**"
     forbiddenPatterns: ''
-    # GUARD: the transport allowlist (wear-paired-transport.md § 8), one exact path each. detekt
-    # matches absolute paths, so the leading `**/` is the only wildcard allowed. The two files
-    # leave this rule's other entries too; review covers that. The same two entries exclude them
-    # from WearDataLayerApiRule, and assert_wear_transport_gate.py is the exact-path authority.
+    # GUARD: the Data Layer allowlist (wear-live-sync.md § 8), one exact path each. detekt matches
+    # absolute paths, so the leading `**/` is the only wildcard allowed. The allowlisted files
+    # leave this rule's other entries too; review covers that. The same entries exclude them from
+    # WearDataLayerApiRule, and assert_wear_transport_gate.py is the exact-path authority.
     excludes:
       - "**/feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/WearRpcListenerService.kt"
       - "**/app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt"
+      - "**/feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/PlayServicesWatchNudgeLink.kt"
   ForbiddenMethodCall:
     active: false
   ForbiddenVoid:
@@ -766,8 +769,9 @@ mvi-architecture:
   # See documentation/lint-rules.md § `WearDataLayerApiRule`.
   WearDataLayerApiRule:
     active: true
-    # GUARD: the same two-file transport allowlist as ForbiddenImport (wear-paired-transport.md
-    # § 8); exact paths behind the leading `**/` only. Widening it is a privacy decision.
+    # GUARD: the same Data Layer allowlist as ForbiddenImport (wear-live-sync.md § 8); exact paths
+    # behind the leading `**/` only. Widening it is a privacy decision.
     excludes:
       - "**/feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/WearRpcListenerService.kt"
       - "**/app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt"
+      - "**/feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/PlayServicesWatchNudgeLink.kt"

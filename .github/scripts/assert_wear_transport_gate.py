@@ -44,13 +44,14 @@ The single exemption from checks 1 and 2 is `lint-rules/`, where the gate is
 defined and tested: the rule names the package it bans, and its fixtures spell
 out the violations it must catch. Nothing there is a transport call site.
 
-THE TRANSPORT ALLOWLIST (wear-paired-transport.md section 8) exempts exactly two
-files from check 1, and only check 1: the phone's listener service and the
-watch's Play services link, the only sources allowed to name the Data Layer.
-This script is the exact-path authority for that list: whole repository paths
-compared as strings, no prefix, no glob. Check 2 still runs on both files, so
-a suppression inside an allowlisted file fails like one anywhere else. Widening
-the list is a privacy decision.
+THE DATA LAYER ALLOWLIST (wear-live-sync.md section 8) exempts exactly three
+files from check 1, and only check 1: the phone's RPC listener service and the
+watch's Play services link, the only files workout payloads cross through, and
+the phone's change-signal link, whose message carries no workout data. They are
+the only sources allowed to name the Data Layer. This script is the exact-path
+authority for that list: whole repository paths compared as strings, no prefix,
+no glob. Check 2 still runs on every allowlisted file, so a suppression inside
+one fails like one anywhere else. Widening the list is a privacy decision.
 
 Run from the repository root:
 
@@ -79,12 +80,14 @@ JAVA_GLOBS = ("*.java",)
 # The gate defines and tests itself here; every other tracked source is a call site.
 EXEMPT_PREFIXES = ("lint-rules/",)
 
-# GUARD: the transport allowlist (wear-paired-transport.md section 8). Exact repository paths,
-# compared whole: never a prefix, a directory or a glob. Exempt from check 1 only.
+# GUARD: the Data Layer allowlist (wear-live-sync.md section 8). Exact repository paths, compared
+# whole: never a prefix, a directory or a glob. Exempt from check 1 only.
 TRANSPORT_ALLOWLIST = frozenset({
     "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
     "WearRpcListenerService.kt",
     "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
+    "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
+    "PlayServicesWatchNudgeLink.kt",
 })
 
 # Every argument that would silence either half of the gate. Rule ids, the rule-set ids that
@@ -549,8 +552,8 @@ def self_test() -> int:
         ("unrelated suppression", '@Suppress("TooManyFunctions")\nval x = 1\n', 0),
         ("near-miss package", "package com.google.android.gms.wearablefake\n", 0),
     ]
-    # The transport allowlist (wear-paired-transport.md section 10.3): exact paths only, and check 2
-    # still applies inside an allowlisted file.
+    # The Data Layer allowlist (wear-live-sync.md section 10.1): exact paths only, and check 2 still
+    # applies inside an allowlisted file.
     listed = sorted(TRANSPORT_ALLOWLIST)
     call_site = f"import {FORBIDDEN_PACKAGE}.MessageClient\nval c = {FORBIDDEN_PACKAGE}.Wearable.API\n"
     path_cases = [
@@ -590,16 +593,18 @@ def self_test() -> int:
             failures += 1
         print(f"  [{verdict}] {name}: {found} violation(s), expected {expected}")
     # The list itself is pinned: widening it must also change this literal, reviewed as a privacy
-    # decision (wear-paired-transport.md section 8).
+    # decision (wear-live-sync.md section 8).
     pinned = {
         "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
         "WearRpcListenerService.kt",
         "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
+        "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
+        "PlayServicesWatchNudgeLink.kt",
     }
     verdict = "ok" if TRANSPORT_ALLOWLIST == pinned else "MISMATCH"
     if TRANSPORT_ALLOWLIST != pinned:
         failures += 1
-    print(f"  [{verdict}] the transport allowlist is exactly the two section 8 paths")
+    print(f"  [{verdict}] the Data Layer allowlist is exactly the {len(pinned)} section 8 paths")
     total = len(cases) + len(path_cases) + 1
     if failures:
         print(f"\nself-test FAILED: {failures} of {total} case(s) disagree")
@@ -631,10 +636,11 @@ def main() -> int:
     for violation in violations:
         print(f"  {violation}")
     print(
-        "\nWorkout payloads cross between phone and watch only through the two files that\n"
-        "documentation/feature-specs/wear-paired-transport.md section 8 allowlists; widening\n"
-        "that list is a privacy decision. This gate is not a detekt rule precisely so that it\n"
-        "cannot be suppressed from source."
+        "\nOnly the files that documentation/feature-specs/wear-live-sync.md section 8 allowlists\n"
+        "may name the Data Layer: workout payloads cross only through the paired transport's\n"
+        "two RPC files, and the change signal carries none. Widening that list is a privacy\n"
+        "decision. This gate is not a detekt rule precisely so that it cannot be suppressed\n"
+        "from source."
     )
     return 1
 

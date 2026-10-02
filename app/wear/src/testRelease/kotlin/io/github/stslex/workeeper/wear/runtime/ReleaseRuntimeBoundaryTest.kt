@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
  * owner-backed runtime, and no synthetic source or acceptance receiver is reachable. It builds here,
  * where Play services are absent: nothing reaches the link before a request origin
  * (`WatchTransportCoordinatorTest`), and `PlayServicesWearLink` creates its clients lazily, on its
- * first call (its GUARD; no test outside the two allowlisted files may name the Data Layer).
+ * first call (its GUARD; no test may name the Data Layer, wear-live-sync.md §8).
  * The Tile request below is an O2 origin, so it starts a request in the background; nothing here
  * asserts on the link.
  */
