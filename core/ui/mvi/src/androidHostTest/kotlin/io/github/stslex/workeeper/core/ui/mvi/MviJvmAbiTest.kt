@@ -33,8 +33,8 @@ import java.util.jar.JarFile
  *   itself. Under `ENABLE` the very same helpers move into a `DefaultImpls` compatibility class,
  *   which changes the binary interface every consumer compiles against.
  *
- * Flipping this module's `jvmDefault` to `ENABLE` therefore reddens this test, which is the
- * point: the setting lives in `core/ui/mvi/build.gradle.kts` and nothing else guards it.
+ * The mode is owned by `KmpLibraryConventionPlugin`, not by this module; this test is the proof
+ * that it reached the module. Flipping the convention's `jvmDefault` to `ENABLE` reddens it.
  */
 internal class MviJvmAbiTest {
 

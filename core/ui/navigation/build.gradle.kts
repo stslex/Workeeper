@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-
 plugins {
     alias(libs.plugins.convention.kmpComposeLibrary)
     // GUARD: the classic composeLibrary convention applied this implicitly; the KMP convention
@@ -40,12 +37,4 @@ dependencies {
     // check, no Bundle) and kotlin-reflect enumerates the sealed hierarchy.
     "androidHostTestImplementation"(libs.kotlinx.serialization.json)
     "androidHostTestImplementation"(kotlin("reflect"))
-}
-
-// GUARD: the classic convention compiled this module with -Xjvm-default=all; Kotlin 2.4's
-// default ENABLE would additionally emit Screen$DefaultImpls / Screen$BottomBar$DefaultImpls
-// compatibility bridges, changing the module's JVM interface ABI. Module-local on purpose —
-// the shared KMP convention keeps the toolchain default.
-tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
 }
