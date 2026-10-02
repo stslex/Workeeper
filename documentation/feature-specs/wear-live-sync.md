@@ -724,6 +724,7 @@ Append-only. One row per PR, release step and acceptance item.
 |---|---|---|---|
 | 2026-10-02 | §12.1 step 1: this specification on `dev`, with the transport status paragraph of §9 | e8a9395f | Direct push. The copy's sha256 `65765213…` equals the approved source file; the transport specification changed only by the §9 paragraph. GitHub verified the signature. |
 | 2026-10-02 | Amendment after PR-S discovery: D10 to D12, the Q2 and Q4 answers, the G12 self-test SKIP rule | 1e663164 | Direct push. The copy's sha256 `97f90f8a…` equals the owner's file. GitHub verified the signature. |
+| 2026-10-02 | PR-S #313: the phone's change signal, origin O6, the live-workout screen's watch sets, `singleTop`, the four-file allowlist, G12 | head 18bdee78 (9 commits); run 37048223696 | All checks green on 18bdee78: Build and Unit Tests (2,960 tests), KMP iOS kit smoke, Release bundle identity (G12 PASS on Wear, N/A on phone), Mockup Appearance Gate. Measured locally: 36 named-mutation runs RED then GREEN, every head gate green. An independent review found four gaps, fixed before opening (17e07a26, 95b7dc2c, 18bdee78). The review bot did not review: its usage limit was reached. Every commit GitHub-verified. The owner merges. |
 
 ## 16. Sources
 
