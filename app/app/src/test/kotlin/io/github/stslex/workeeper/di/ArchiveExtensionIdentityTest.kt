@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
@@ -42,7 +41,7 @@ internal class ArchiveExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
-    private fun AppGraph.archive(): ArchiveGraph = asContribution<ArchiveGraph.Factory>()
+    private fun AppGraph.archive(): ArchiveGraph = archiveGraphFactory
         .createArchiveGraph()
 
     @Test

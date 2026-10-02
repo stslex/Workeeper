@@ -209,7 +209,10 @@ the Activity's store, silently process-scoping every Store
 
 1. Plain `Feature` — the feature resolves `context.appDeps<XxxGraph.Factory>()`, creates its graph
    extension, and reads the Store accessor. Plain features have no route arguments (e.g.
-   `Screen.BottomBar.Home`).
+   `Screen.BottomBar.Home`). The shared archive is the plain-shape factory-resolution exception:
+   its generation-owned root passes the required `ArchiveGraph.Factory` through
+   `AppNavigationHost` and `archiveGraph` into `ArchiveFeature`, which invokes it only inside the
+   `rememberMetroStoreProcessor` creation lambda.
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
@@ -478,11 +481,12 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`). Image-viewer and plan-editor no longer use the feature-side Context
-seam: `AppGraph.imageViewerGraphFactory` and `AppGraph.planEditorGraphFactory` implement the
-accessors declared by `AppRootDeps`, and the admitted composition reads that root contract exactly
-once. Retired generations and generations that lose the publication race resolve it zero times.
-Exactly 11 feature/dialog Context readers remain.
+not depend on `core:ui:mvi`). Image-viewer, plan-editor, and archive no longer use the
+feature-side Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+and `AppGraph.archiveGraphFactory` implement the accessors declared by `AppRootDeps`, and the
+admitted composition reads that root contract exactly once. Retired generations and generations
+that lose the publication race resolve it zero times. Exactly 10 feature/dialog Context readers
+remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -2104,13 +2108,16 @@ module — typically `core/ui/kit` for UI verbs:
 
 Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions" vs Russian
 forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
+Write every placeholder positionally (`%1$d`, `%1$s`): Compose resources fill only that form and
+render a bare `%d` literally, and `assert_kmp_ui_source_topology.py` rejects anything else in a
+`commonMain/composeResources` catalog.
 
 Example:
 
 ```xml
 <plurals name="feature_archive_session_count">
-    <item quantity="one">%d session</item>
-    <item quantity="other">%d sessions</item>
+    <item quantity="one">%1$d session</item>
+    <item quantity="other">%1$d sessions</item>
 </plurals>
 ```
 
@@ -2118,10 +2125,10 @@ Russian needs the `few` quantity for 2-4:
 
 ```xml
 <plurals name="feature_archive_session_count">
-    <item quantity="one">%d сессия</item>
-    <item quantity="few">%d сессии</item>
-    <item quantity="many">%d сессий</item>
-    <item quantity="other">%d сессии</item>
+    <item quantity="one">%1$d сессия</item>
+    <item quantity="few">%1$d сессии</item>
+    <item quantity="many">%1$d сессий</item>
+    <item quantity="other">%1$d сессии</item>
 </plurals>
 ```
 
