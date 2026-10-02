@@ -44,11 +44,12 @@ The single exemption from checks 1 and 2 is `lint-rules/`, where the gate is
 defined and tested: the rule names the package it bans, and its fixtures spell
 out the violations it must catch. Nothing there is a transport call site.
 
-THE DATA LAYER ALLOWLIST (wear-live-sync.md section 8) exempts exactly three
+THE DATA LAYER ALLOWLIST (wear-live-sync.md section 8) exempts exactly four
 files from check 1, and only check 1: the phone's RPC listener service and the
 watch's Play services link, the only files workout payloads cross through, and
-the phone's change-signal link, whose message carries no workout data. They are
-the only sources allowed to name the Data Layer. This script is the exact-path
+the phone's change-signal link and the watch's change listener, whose message
+carries no workout data. They are the only sources allowed to name the Data
+Layer. This script is the exact-path
 authority for that list: whole repository paths compared as strings, no prefix,
 no glob. Check 2 still runs on every allowlisted file, so a suppression inside
 one fails like one anywhere else. Widening the list is a privacy decision.
@@ -88,6 +89,7 @@ TRANSPORT_ALLOWLIST = frozenset({
     "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
     "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
     "PlayServicesWatchNudgeLink.kt",
+    "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PhoneChangeListenerService.kt",
 })
 
 # Every argument that would silence either half of the gate. Rule ids, the rule-set ids that
@@ -600,6 +602,7 @@ def self_test() -> int:
         "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PlayServicesWearLink.kt",
         "feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/"
         "PlayServicesWatchNudgeLink.kt",
+        "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/PhoneChangeListenerService.kt",
     }
     verdict = "ok" if TRANSPORT_ALLOWLIST == pinned else "MISMATCH"
     if TRANSPORT_ALLOWLIST != pinned:

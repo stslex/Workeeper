@@ -14,8 +14,12 @@ import io.github.stslex.workeeper.wear.tile.WorkoutTileService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
@@ -35,7 +39,29 @@ import java.util.concurrent.TimeUnit
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [Build.VERSION_CODES.TIRAMISU])
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 internal class ReleaseRuntimeBoundaryTest {
+
+    /**
+     * wear-live-sync.md §10.1: the release factory's runtime hands the phone's change signal to the
+     * coordinator (O6). Play services is absent here, so the handshake O6 starts cannot reach a phone
+     * and the owner records that in its link status, which nothing else has touched yet: the factory's
+     * runtime lives for the process, so this runs first, before the Tile test below starts an O2.
+     */
+    @Test
+    @Order(1)
+    fun releaseRuntimeForwardsThePhoneChangeSignal() {
+        val runtime = WatchRuntimeFactory.get(RuntimeEnvironment.getApplication())
+        assertEquals(LinkStatus.UNKNOWN, runtime.snapshot.value.link, "no origin has reached the link yet")
+
+        runtime.onPhoneChanged()
+
+        val deadline = System.nanoTime() + FORWARD_DEADLINE_NANOS
+        while (runtime.snapshot.value.link == LinkStatus.UNKNOWN && System.nanoTime() < deadline) {
+            Thread.sleep(FORWARD_POLL_MS)
+        }
+        assertNotEquals(LinkStatus.UNKNOWN, runtime.snapshot.value.link, "O6 started a handshake")
+    }
     @Test
     fun releaseRejectsSyntheticEventsAndExcludesTheirSourceClass() {
         val context = RuntimeEnvironment.getApplication()
@@ -78,5 +104,11 @@ internal class ReleaseRuntimeBoundaryTest {
             .getDeclaredMethod("onTileRequest", RequestBuilders.TileRequest::class.java)
             .apply { isAccessible = true }
         return (method.invoke(this, request) as ListenableFuture<*>).get(5, TimeUnit.SECONDS) as TileBuilders.Tile
+    }
+
+    private companion object {
+        /** The coordinator's own request deadline is 10 s; a lookup that fails fails sooner. */
+        const val FORWARD_DEADLINE_NANOS = 20_000_000_000L
+        const val FORWARD_POLL_MS = 20L
     }
 }

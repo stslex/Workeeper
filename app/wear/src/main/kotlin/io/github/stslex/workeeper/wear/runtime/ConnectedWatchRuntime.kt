@@ -35,4 +35,7 @@ internal class ConnectedWatchRuntime(
     }
 
     override fun onControllerInteractive(interactive: Boolean) = transport.setInteractive(interactive)
+
+    /** O6 (wear-live-sync.md §7.2): the coordinator decides when it is asked for. */
+    override fun onPhoneChanged() = transport.onPhoneChanged()
 }
