@@ -36,8 +36,9 @@
     <string name="retry">Try again</string>
     <string name="reps_invalid">Choose reps between 1 and 999</string>
     <string name="weight_invalid">Check the weight on your phone</string>
-    <!-- Reserved build-time capability resource read by Google Play services. Release builds keep
-         it through res/raw/workeeper_wear_keep.xml (assert_play_bundle.py G9). -->
+    <!-- Reserved build-time capability resource read by Google Play services. The phone finds the
+         watch by WearProtocol.WATCH_CAPABILITY, which WatchCapabilityTest pins to this item.
+         Release builds keep it through res/raw/workeeper_wear_keep.xml (assert_play_bundle.py G9). -->
     <string-array
         name="android_wear_capabilities"
         tools:ignore="Typos">

@@ -84,7 +84,8 @@ CAPABILITIES = {
     # GUARD: must equal WearProtocol.PHONE_CAPABILITY (core/wear-protocol) and the item of
     # feature/wear-bridge/src/main/res/values/wear_capabilities.xml.
     "phone": "workeeper_phone_active_workout_v1",
-    # GUARD: must equal the android_wear_capabilities item of app/wear/src/main/res/values/strings.xml.
+    # GUARD: must equal WearProtocol.WATCH_CAPABILITY (core/wear-protocol) and the item of
+    # app/wear/src/main/res/values/strings.xml.
     "wear": "workeeper_watch_active_workout_v1",
 }
 # GUARD: must equal WearRpcListenerService.REQUEST_ACTION (MessageClient.ACTION_REQUEST_RECEIVED) and
