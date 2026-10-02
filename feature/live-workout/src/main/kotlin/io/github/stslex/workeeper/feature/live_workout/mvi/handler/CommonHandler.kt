@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -47,6 +48,9 @@ internal class CommonHandler @Inject constructor(
     private var externalWritesJob: Job? = null
     private val coverage = ExternalWriteCoverage()
 
+    /** Completed once the latest Init's subscription is active; a reload waits for it. */
+    private var subscribed = CompletableDeferred<Unit>()
+
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
@@ -57,6 +61,9 @@ internal class CommonHandler @Inject constructor(
 
     private fun processInit() {
         val current = state.value
+        // GUARD: Init and PlanResultReceived are both consumed on the main thread, so a reload
+        // consumed after this Init always waits for this Init's subscription.
+        if (subscribed.isCompleted) subscribed = CompletableDeferred()
         launch(onError = { abandonUnloadedSession() }) {
             val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
             if (sessionUuid == null) {
@@ -92,7 +99,11 @@ internal class CommonHandler @Inject constructor(
 
     private fun processReload() {
         val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
+        val subscription = subscribed
         launch {
+            // As the Init load: no read before the subscription is active, or a watch write committed
+            // between the two would reach nobody, and a later apply of this result would hide it.
+            subscription.await()
             coveredLoad { interactor.loadSession(sessionUuid)?.toLoadedState() }
         }
     }
@@ -111,18 +122,21 @@ internal class CommonHandler @Inject constructor(
      * cannot hide them. False when the read found no session.
      */
     private suspend fun coveredLoad(read: suspend () -> State?): Boolean {
-        val mark = onMain { coverage.beginLoad() }
+        val load = ExternalWriteCoverage.Load()
+        // GUARD: begin inside the try. A dispose between the begin block and the hop back still throws
+        // out of withContext, after the block ran; the finally must end that load too.
         try {
+            onMain { coverage.begin(load) }
             val loaded = read() ?: return false
             onMain {
                 // A plan-editor round-trip is not leaving the session (§7); expansions survive.
                 updateStateImmediate { previous ->
-                    coverage.since(mark).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalSet)
+                    coverage.since(load).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalSet)
                 }
             }
             return true
         } finally {
-            withContext(NonCancellable + storeDispatchers.mainImmediateDispatcher) { coverage.endLoad() }
+            withContext(NonCancellable + storeDispatchers.mainImmediateDispatcher) { coverage.end(load) }
         }
     }
 
@@ -144,6 +158,7 @@ internal class CommonHandler @Inject constructor(
                 .catch { failure -> logger.w { "external set writes stopped: ${failure::class.simpleName}" } }
                 .collect()
         }
+        subscribed.complete(Unit)
     }
 
     /** Applied at once (§6.4 A to C), and kept while a load is in flight. */

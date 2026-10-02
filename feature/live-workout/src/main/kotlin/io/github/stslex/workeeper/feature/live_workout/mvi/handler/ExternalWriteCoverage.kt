@@ -12,29 +12,36 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiMo
  */
 internal class ExternalWriteCoverage {
 
+    /** One load. [end] runs for every load, [begin] only if the load got that far. */
+    class Load
+
     private var received = 0L
-    private var loadsInFlight = 0
+
+    /** The loads in flight, each with the count of writes received before its read started. */
+    private val marks = HashMap<Load, Long>()
     private val kept = ArrayDeque<KeptWrite>()
 
-    /** Before a load's read: the mark that [since] takes when this load's result is applied. */
-    fun beginLoad(): Long {
-        loadsInFlight += 1
-        return received
+    /** Before [load]'s read starts. */
+    fun begin(load: Load) {
+        marks[load] = received
     }
 
     /** Every write the subscription receives; kept only while a load is in flight. */
     fun receive(write: ExternalSetUiModel) {
-        if (loadsInFlight > 0) kept.addLast(KeptWrite(received, write))
+        if (marks.isNotEmpty()) kept.addLast(KeptWrite(received, write))
         received += 1
     }
 
-    /** The writes received after [mark], in order. */
-    fun since(mark: Long): List<ExternalSetUiModel> = kept.filter { it.index >= mark }.map { it.write }
+    /** The writes received after [load] began, in order. */
+    fun since(load: Load): List<ExternalSetUiModel> {
+        val mark = marks[load] ?: return emptyList()
+        return kept.filter { it.index >= mark }.map { it.write }
+    }
 
-    /** After a load ended in any way, applied, empty, failed or cancelled. */
-    fun endLoad() {
-        loadsInFlight -= 1
-        if (loadsInFlight == 0) kept.clear()
+    /** After [load] ended in any way: applied, empty, failed or cancelled, begun or not. */
+    fun end(load: Load) {
+        marks.remove(load)
+        if (marks.isEmpty()) kept.clear()
     }
 
     private data class KeptWrite(val index: Long, val write: ExternalSetUiModel)

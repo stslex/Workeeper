@@ -42,6 +42,7 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import kotlin.coroutines.CoroutineContext
 
 /**
  * wear-live-sync.md §6.4 (D10) and §10.1, the live-workout half: the real [BaseStore] lifecycle (every
@@ -82,26 +84,34 @@ internal class CommonHandlerExternalWritesTest {
         coEvery { loadSession(SESSION) } coAnswers { loads.next() }
     }
     private val handlerStore = LiveWorkoutHandlerStoreImpl()
-    private val handler = CommonHandler(
-        interactor = interactor,
-        resourceWrapper = resourceWrapper,
-        setMutator = setMutator,
-        storeDispatchers = StoreDispatchers(dispatcher, dispatcher),
-        store = handlerStore,
-    )
+
+    /** The store's work dispatcher; one test swaps it for [ManualDispatcher] before first use. */
+    private var workDispatcher: CoroutineDispatcher = dispatcher
+    private val storeDispatchers by lazy { StoreDispatchers(workDispatcher, dispatcher) }
+    private val handler by lazy {
+        CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            setMutator = setMutator,
+            storeDispatchers = storeDispatchers,
+            store = handlerStore,
+        )
+    }
 
     @Suppress("UNCHECKED_CAST")
-    private val store = object : BaseStore<State, Action, Event>(
-        name = "LiveWorkoutExternalWritesTest",
-        initialState = State.create(sessionUuid = SESSION, trainingUuid = TRAINING),
-        storeEmitter = handlerStore,
-        handlerCreator = { handler as Handler<Action> },
-        initialActions = listOf(Action.Common.Init),
-        storeDispatchers = StoreDispatchers(dispatcher, dispatcher),
-        appScopeLifetime = lifetime,
-        analyticsHolder = AnalyticsHolder(),
-        loggerHolder = LoggerHolder(),
-    ) {}
+    private val store by lazy {
+        object : BaseStore<State, Action, Event>(
+            name = "LiveWorkoutExternalWritesTest",
+            initialState = State.create(sessionUuid = SESSION, trainingUuid = TRAINING),
+            storeEmitter = handlerStore,
+            handlerCreator = { handler as Handler<Action> },
+            initialActions = listOf(Action.Common.Init),
+            storeDispatchers = storeDispatchers,
+            appScopeLifetime = lifetime,
+            analyticsHolder = AnalyticsHolder(),
+            loggerHolder = LoggerHolder(),
+        ) {}
+    }
 
     private val owner = object : LifecycleOwner {
         override val lifecycle: Lifecycle = LifecycleRegistry.createUnsafe(this)
@@ -299,7 +309,53 @@ internal class CommonHandlerExternalWritesTest {
         assertShowsWatchSet(store.state.value, PE_1, position = 0)
     }
 
+    /**
+     * §6.4: a reload must not read before the subscription is active, or a write committed between
+     * the two reaches nobody. On a return with a save both coroutines start on the work dispatcher;
+     * here the reload's runs as far as it can before the Init's starts, as a busy thread pool may.
+     */
+    @Test
+    fun `a reload scheduled ahead of the return's Init still reads only with the subscription active`() {
+        val work = ManualDispatcher()
+        workDispatcher = work
+        store.init(owner)
+        drain(work)
+        store.dispose()
+        drain(work)
+        loads.subscribersAtRead.clear()
+
+        store.init(owner)
+        store.consume(Action.Common.PlanResultReceived(saved = true))
+        assertEquals(2, work.queue.size, "the Init and the reload are both waiting for a thread")
+        val init = work.queue.removeFirst()
+        drain(work)
+        work.queue.addLast(init)
+        drain(work)
+
+        assertEquals(2, loads.subscribersAtRead.size, "both loads read")
+        assertEquals(listOf(1, 1), loads.subscribersAtRead, "each read started with the subscription active")
+    }
+
     // endregion
+
+    /** Runs both dispatchers until neither has work, the work queue in its current order. */
+    private fun drain(work: ManualDispatcher) {
+        while (true) {
+            scheduler.runCurrent()
+            val next = work.queue.removeFirstOrNull() ?: break
+            next.run()
+        }
+        scheduler.runCurrent()
+    }
+
+    /** A work dispatcher the test runs by hand, so it can choose which coroutine a thread runs first. */
+    private class ManualDispatcher : CoroutineDispatcher() {
+        val queue = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            queue.addLast(block)
+        }
+    }
 
     private fun returnWithSave(initLoadLast: Boolean) {
         open()
