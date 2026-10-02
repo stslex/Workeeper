@@ -2,8 +2,13 @@
 
 **Status:** approved by the owner on 2026-10-01, ready for implementation.
 
+**Amended on 2026-10-02** by owner decision after the PR-S discovery: F1, F2, F5, F6, F12, F19, F21
+and F25 are corrected and F28 is added; D10 to D12 record the decisions; the problem table, §4,
+§5.2, §6.2 to §6.4, §7.5, §8, §10, §11, §13 and §14 follow from them.
+
 - **Specification base:** `dev` at `b1945ee1` (hotfix 1.52.2 merged, `master` synced). Evidence
-  is `path:line` there.
+  is `path:line` there. The facts the 2026-10-02 amendment corrects or adds were verified at
+  `481ee294`, which moves none of the lines this document cites.
 - **Amends:** [Wear OS paired transport](wear-paired-transport.md) (increment 5a). Superseded
   there, as §2 states: D4 ("pull only"); §8 and the clauses that call its two transport files the
   only Data Layer files (§4, §5.5, §6.1, §7.1); the phone-UI and bridge clauses of §6.4 ("no
@@ -20,7 +25,7 @@ The owner's field test of 1.52.2 on 2026-10-01 found four problems. This increme
 
 | # | Observed | Cause | Here |
 |---|---|---|---|
-| 1 | A set completed on the watch shows on the open phone screen only after re-entering it | The live-workout screen loads the session once (F12) | §6.4 |
+| 1 | A set completed on the watch shows on the open phone screen only after re-entering it | The live-workout screen reads the session only when it is entered (F12) | §6.4 |
 | 2 | A set completed, or a workout started, on the phone shows on the watch only after re-entering or tapping it | Pull only: the watch asks only on its own origins O1–O5; a tap in ambient is O1 (F16) | §5, §6.1–§6.3, §7.1–§7.4 |
 | 3 | Back from the controller shows the same screen; a second back leaves | A Tile tap while the app runs stacks a second `MainActivity` (F19) | §7.5 |
 | 4 | No way to pick the exercise or skip a set or an exercise on the watch | Phase 1 §4 by design | §13 (Phase 2) |
@@ -49,20 +54,23 @@ increment.
 
 ## 2. Owner decisions
 
-L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis. P: proposed by this
-specification and approved with it on 2026-10-01.
+L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis, or of 2026-10-02 on the PR-S
+discovery (D10 to D12). P: proposed by this specification and approved with it on 2026-10-01.
 
 | Id | | Decision |
 |---|---|---|
-| D1 | L | **Phone → watch change signal; supersedes transport D4.** When the active session's `(uuid, wear_revision)` changes, the phone sends an empty message on `CHANGED_PATH` to each reachable node that advertises `WATCH_CAPABILITY` and does not already hold that state (D7). The signal carries no workout data. The watch answers it with an ordinary correlated handshake, so workout data still moves only when the watch asks. A pushed snapshot would not save that round trip: Phase 1 §3 already forbids an unsolicited snapshot to start a session, apply `NoSession` or install a lease, and makes it trigger one correlated refresh (F24). |
+| D1 | L | **Phone → watch change signal; supersedes transport D4.** When the active session's `(uuid, wear_revision)` changes, the phone sends a content-free message on `CHANGED_PATH` to each reachable node that advertises `WATCH_CAPABILITY` and does not already hold that state (D7). The signal carries no workout data. The watch answers it with an ordinary correlated handshake, so workout data still moves only when the watch asks. A pushed snapshot would not save that round trip: Phase 1 §3 already forbids an unsolicited snapshot to start a session, apply `NoSession` or install a lease, and makes it trigger one correlated refresh (F24). |
 | D2 | L | **The watch receives the signal with its app closed.** A manifest `WearableListenerService` hands it to the process runtime, so the Tile and the ongoing indicator update without the app. While the app runs, ambient included, the same path refreshes the controller. The signal never opens the watch app. |
 | D3 | L | **The Data Layer allowlist grows from two files to four** (§8), superseding transport §8: one phone sender, one watch listener. Neither new file carries a workout payload; workout data still crosses only through the two RPC files. This is the privacy decision. The public policy text stays unchanged (§9). |
-| D4 | L, mechanism P | **The phone live-workout screen shows a set the watch completed without re-entry.** Expanded cards and the drafts of other sets stay; a draft of the same set yields to the watch's values. Mechanism (P): the screen applies the set the bridge wrote, through the mutator the phone's own completion uses (F14), and does not re-read the session. A re-read replaces the whole state (the plan-editor reload keeps only expansions, F12) and would overwrite an optimistic phone mark whose write is still in flight (F13). |
+| D4 | L, mechanism P | **The phone live-workout screen shows a set the watch completed without re-entry.** Expanded cards and the drafts of other sets stay; a draft of the same set yields to the watch's values. Mechanism (P): the screen applies the set the bridge wrote, through the mutator the phone's own completion uses (F14), and does not re-read the session. A re-read replaces the whole state (every reload keeps only expansions, F12) and would overwrite an optimistic phone mark whose write is still in flight (F13). |
 | D5 | L | **The watch `MainActivity` gets `android:launchMode="singleTop"`** (§7.5). |
 | D6 | P | **The new origin O6 has its own limiter instead of `AUTO_REFRESH_BUDGET`, and an O6 that cannot start yet waits instead of being dropped** (§7.3). The budget drops what it refuses (F16): under rapid phone edits a dropped last change leaves the watch stale until some other origin, which is field-test problem 2 again. O6 cannot loop, because a handshake never changes `wear_revision` (F2); M-S1 proves it. An O6 handshake that fails (phone unreachable or silent) is not retried, as for every other origin; the next signal or O1–O5 recovers. |
 | D7 | P | **The phone does not signal a watch that already holds the current state.** The bridge remembers, per watch node, the session and revision of the last snapshot it answered that node with (F26), and the notifier skips such nodes. Without this, every set completed on the watch would be signalled back to the same watch, and the handshake that answers a signal retires the watch's authority for one round trip (F25): about half a second after Complete set, the controls would go disabled and an open editor of the next set would close. A per-node entry in phone memory is cheaper than a revision inside the signal, which would need a new wire model. |
 | D8 | P | **`documentation/product.md` gains one clause**, so the non-goal's Wear exception names the signal (Appendix A). |
 | D9 | P | **The new constants are provisional** (§5.3, §7.3) and follow the labelling rule of transport §7.8. |
+| D10 | L | **Every load of the live-workout screen keeps the watch's sets** (§6.4). The screen reloads the session each time it returns to composition, and after a plan-editor save `processReload` runs alongside that reload (F12). Each load applies again the watch writes received since it started, and every `Init` restarts the subscription. `processReload` stays: removing it would make correctness depend on `Init` re-running, which `tech-debt.md` proposes to stop. |
+| D11 | L | **The notifier survives its database closing** (§6.2, §6.3). The Android restore path closes the database while the generation, and so the notifier, is still alive (F6); the notifier catches the failure of its query, logs it by class and ends. The restore path does not change. |
+| D12 | L | **Two Workeeper watches in one workout remain a known residual** (§11). A handshake from either watch retires the other's lease (F5), so its next Complete set fails once (F28); D7 makes this follow every set. Lease rules stay as Phase 1 defines them; Phase 2's lease rework is where to revisit it. |
 
 ## 3. Verified facts at the specification base
 
@@ -71,33 +79,34 @@ contradiction that changes the design is a STOP.
 
 | Id | Fact | Evidence |
 |---|---|---|
-| F1 | Triggers raise `session_table.wear_revision`, and clear the receipt, on every set insert, update and delete; on a performed-exercise insert, delete, and update of its session, exercise, position or `skipped`; on an update of the session's training, state, start or finish; and on training, plan and exercise edits that touch the active session. No trigger watches `wear_lease_generation` or a receipt column. | `core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/wear/WearSyncStorage.kt:116-315` (`wear_session_update_revision` at 208) |
-| F2 | A watch handshake is a phone write that leaves `wear_revision` alone: `getActiveWorkout` runs inside `transition.mutate`, and its only write increments `wear_lease_generation`. | `feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/PhoneWorkoutBridgeImpl.kt:59-77,523`; `core/data/database/.../wear/WearSyncDao.kt:53-61` |
+| F1 | Triggers raise `session_table.wear_revision`, and clear the receipt, of an in-progress session when one of its sets is inserted, deleted, or updated in its exercise, position, reps, weight or type; when one of its performed exercises is inserted, deleted, or updated in its session, exercise, position or `skipped`; and on training, plan and exercise edits that touch it. A separate trigger raises it on any update of a session's training, state, start or finish, whatever its state. No trigger watches `wear_lease_generation` or a receipt column. | `core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/wear/WearSyncStorage.kt:116-315` (`wear_session_update_revision` at 208) |
+| F2 | `getActiveWorkout` runs inside `transition.mutate`. A handshake writes only when it grants authority (an active session with a target, in a response that fits): it then increments `wear_lease_generation` and leaves `wear_revision` alone. Any other handshake writes nothing. | `feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/PhoneWorkoutBridgeImpl.kt:59-77,443-463,518-530`; `core/data/database/.../wear/WearSyncDao.kt:53-61` |
 | F3 | `SessionDao.observeActive()` emits the whole row. Room invalidates per table, so a `session_table` query re-emits on every write to that table, a handshake's lease write included. | `core/data/database/.../session/SessionDao.kt:79-80`; `.../session/SessionEntity.kt:39-50` |
 | F4 | An applied watch command writes one set inside `transition.mutate`, checks that the revision advanced and stores the receipt at the new revision. `completeCurrentSet` holds `coordinatorMutex` throughout. | `PhoneWorkoutBridgeImpl.kt:79-128,326-357` |
-| F5 | Every `mutate` commit runs the after-commit listeners. `WearMutationLeaseStore` registers `retireAll` there, so any phone write retires every watch lease. | `core/data/database/.../di/DbCascadeBindingContainer.kt:44-64`; `feature/wear-bridge/.../WearMutationLeaseStore.kt:62-64` |
-| F6 | Generation-scoped background work starts in `armPostPreflight` on `lifetime.childScope(ioDispatcher)`. `warmQueryPlanner` skips a generation that routes to recovery, and a live-database open failure records that decision before `armPostPreflight` runs. The quiescer cancels and joins the outgoing lifetime before the database closes. | `app/app/src/main/java/io/github/stslex/workeeper/runtime/StartupProcessor.kt:190-202,237-265`; `feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/domain/StartupMigrationCoordinator.kt:83-92`; `app/app/.../runtime/GenerationQuiescer.kt:55-64` |
+| F5 | Every commit through `DbTransitionRunner.mutate` runs the after-commit listeners. `WearMutationLeaseStore` registers `retireAll` there, so every `mutate` commit, a watch handshake included, retires the leases of every watch node. A write through the runner's plain `invoke`, such as `TagRepositoryImpl.add`, runs no listener. | `core/data/database/.../di/DbCascadeBindingContainer.kt:44-64`; `feature/wear-bridge/.../WearMutationLeaseStore.kt:62-64,212-216`; `core/data/exercise/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImpl.kt:41` |
+| F6 | Generation-scoped background work starts in `armPostPreflight` on `lifetime.childScope(ioDispatcher)`: a supervisor scope with no exception handler, so an exception that escapes a coroutine there reaches the thread's default handler. `warmQueryPlanner` skips a generation that routes to recovery and runs its work inside `runCatching`; a live-database open failure records the recovery decision before `armPostPreflight` runs. An in-process rebuild tears the outgoing generation down (store clear, then the lifetime cancelled and joined) before its database closes. The Android restore path (`RestartProcess`) does not: after quiescence it closes the database with the generation lifetime still active, replaces the file and restarts the process. | `app/app/src/main/java/io/github/stslex/workeeper/runtime/StartupProcessor.kt:190-202,237-265`; `core/core/src/commonMain/kotlin/io/github/stslex/workeeper/core/core/coroutine/scope/AppScopeLifetime.kt:15-27`; `feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/domain/StartupMigrationCoordinator.kt:83-92`; `app/app/.../runtime/GenerationQuiescer.kt:23,55-67`; `app/app/.../runtime/AppRuntime.kt:311,531-546,563`; `app/app/.../runtime/ReplacementMechanics.kt:320-345` |
 | F7 | The phone advertises `workeeper_phone_active_workout_v1` and the watch `workeeper_watch_active_workout_v1`. `WearProtocol` names only the phone's, and no Kotlin code references the watch's. | `feature/wear-bridge/src/main/res/values/wear_capabilities.xml:12`; `app/wear/src/main/res/values/strings.xml:44`; `core/wear-protocol/src/main/kotlin/io/github/stslex/workeeper/core/wear/protocol/WearProtocol.kt:20,23` |
 | F8 | The phone manifest declares one Data Layer service, `WearRpcListenerService`, for `REQUEST_RECEIVED` on the exact RPC path. | `feature/wear-bridge/src/main/AndroidManifest.xml:9-20` |
 | F9 | The watch manifest declares no Data Layer service. `MainActivity` has no `launchMode` and has `taskAffinity=""`. | `app/wear/src/main/AndroidManifest.xml:44-52` |
 | F10 | The Data Layer allowlist is enforced in three layers, each listing the same two exact paths, and is described in several documents (§8 lists them). | `lint-rules/detekt.yml:448-467,764-773`; `.github/scripts/assert_wear_transport_gate.py:84-88,593-602`; `documentation/lint-rules.md:694-705` |
 | F11 | The bundle identity gate runs G1–G11. G10 checks the phone's RPC listener and is not applicable to Wear. | `.github/scripts/assert_play_bundle.py:12-40,329-367`; `documentation/ci-cd.md:163-183` |
-| F12 | The live-workout screen loads the session in `Init`, creating it first when the route has none, and re-reads it only after a plan-editor save; the re-read keeps only `expandedExerciseUuids`. | `feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/CommonHandler.kt:33-35,39-104`; `.../mvi/mapper/LiveWorkoutMapper.kt:241-249` |
+| F12 | The live-workout screen loads the session in `Init`, creating it first when the route has none. Its store is retained across navigation, but `rememberStoreProcessor` disposes the store when the screen leaves composition, which cancels its scope, and initializes it again when the screen returns, which runs `Init` again; `tech-debt.md` records this for every store. So every return to the screen reloads the session, and a return from the plan editor after a save also runs `processReload` alongside that reload. Each reload replaces the screen state and keeps only `expandedExerciseUuids`. The timer survives a return only because `Init` restarts it, cancelling a running one first; `app-dialogs` starts its subscription in its initial action for the same reason. | `feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/CommonHandler.kt:33-35,39-104,106-107`; `.../mvi/mapper/LiveWorkoutMapper.kt:241-249`; `.../ui/LiveWorkoutGraph.kt:25-26`; `core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt:92-113`; `core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt:73-80`; `feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/store/AppDialogStoreImpl.kt:41`; `documentation/tech-debt.md:270-274` |
 | F13 | The phone's own completion is optimistic: the state flips first and the write is launched after it. | `.../mvi/handler/ClickHandler.kt:178-198` |
 | F14 | `applySetMarked` removes the draft of that set, upserts the performed set with its record flag, and recomputes statuses, visible rows, counts and progress. Visible rows never hide a performed position. | `.../mvi/mapper/LiveSetMutator.kt:54-97`; `.../mvi/mapper/StateStatusMapper.kt:20-27`; `LiveWorkoutMapper.kt:182-207`; `.../mvi/mapper/LiveSetRowsResolver.kt:35` |
 | F15 | The screen state holds ephemeral fields: drafts, row overrides, an undo window, explicitly started exercises, expansions, dialogs and sheets. An undo window keeps a restore snapshot of exercises, drafts and overrides. Deleting an exercise is soft until its undo window closes. | `.../mvi/store/LiveWorkoutStore.kt:25-75`; `.../mvi/store/PendingUndo.kt:16-24`; `.../mvi/handler/DialogClickHandler.kt:55-57,95` |
 | F16 | The watch origins are O1–O5. A refresh is dropped while another is queued or in flight; an automatic one is dropped at start under retry preservation or when `AUTO_REFRESH_BUDGET` (6 per 60 s) is spent. TILE and AUTHORITY_EXPIRED chains get no follow-up while the controller is not interactive. | `app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/transport/WatchTransportCoordinator.kt:35-50,128-138,202-209,230-245,355-370`; `.../transport/TransportConstants.kt:18-26` |
 | F17 | `WatchRuntimeFactory.get` builds the release runtime once per process and starts the Tile observer with it. The observer requests a Tile update whenever the rendered content changes. An accepted snapshot posts or cancels the ongoing indicator with no foreground requirement. | `app/wear/src/release/kotlin/io/github/stslex/workeeper/wear/runtime/WatchRuntimeFactory.kt:28-62`; `app/wear/.../tile/AndroidWorkoutTileUpdates.kt:12-24`; `.../tile/WatchTileCoordinator.kt:28-36`; `.../ongoing/WatchOngoingCoordinator.kt:57-91` |
 | F18 | A watch draft survives a new snapshot only with the same source version (database epoch, identity, session revision) and the same target. | `app/wear/.../runtime/WatchRuntimeOwner.kt:199-210,364-374`; `.../state/ReducerModels.kt:17-26` |
-| F19 | A Tile tap starts `MainActivity` through a protolayout `LaunchAction`, which carries package and class only and cannot set intent flags. The ongoing indicator uses `FLAG_ACTIVITY_SINGLE_TOP`. `MainActivity` handles `onNewIntent` by refreshing. | `app/wear/.../tile/WorkoutTileLayout.kt:24-31`; `.../ongoing/AndroidOngoingNotification.kt:99-105`; `app/wear/.../MainActivity.kt:83-88` |
+| F19 | A Tile tap starts `MainActivity` through a protolayout `LaunchAction`, which carries package and class only and cannot set intent flags. The ongoing indicator uses `FLAG_ACTIVITY_SINGLE_TOP`. `MainActivity` answers `onNewIntent` with a local re-read (`onWake`, which is not an origin); a handshake comes from O1 when the activity resumes. | `app/wear/.../tile/WorkoutTileLayout.kt:24-31`; `.../ongoing/AndroidOngoingNotification.kt:99-105`; `app/wear/.../MainActivity.kt:58,83-88,95-99` |
 | F20 | The watch numeric editor closes on swipe or back and applies every step to the current target at once. | `app/wear/.../ui/WearControllerScreen.kt:675-700` |
-| F21 | The public policy lists what the phone sends the watch and says the data moves only between the two through the Data Layer. It says nothing about which side starts a transfer. | `docs/index.md:18-31,142-157` |
+| F21 | The public policy names what the phone sends the watch and what the watch sends back, and says the data moves only between the user's phone and watch through the Data Layer, possibly relayed by Google. It makes no promise about which side starts a transfer. | `docs/index.md:18-31,142-157` |
 | F22 | `product.md` allows the companion to transfer "the minimum active workout snapshot and completion commands", and no other phone/watch route. | `documentation/product.md:277-287` |
 | F23 | The version is 1.52.2 (code 55). | `gradle/libs.versions.toml:16-17` |
 | F24 | Phase 1 §3: an unsolicited snapshot may update read-only display state only; it cannot introduce a session, apply `NoSession`, install a lease or reset mutation freshness, and it triggers one correlated refresh. | `documentation/feature-specs/wear-phase-1-active-workout-tile.md:325-329` |
-| F25 | Issuing a handshake token retires any watch authority until the answer is applied. Editing and completion need `Available` authority, and outside ambient the controller drops an open numeric editor when its controls become disabled. | `app/wear/.../state/WatchWorkoutReducer.kt:57-61,591-595`; `.../state/WatchInteractionEligibility.kt:27-30`; `app/wear/.../mvi/handler/CommonHandler.kt:40-43` |
+| F25 | Issuing a handshake token retires any watch authority until the answer is applied. Editing and completion need `Available` authority, and outside ambient the controller drops an open numeric editor when its controls become disabled. | `app/wear/.../state/WatchWorkoutReducer.kt:57-61,591-595`; `.../state/WatchInteractionEligibility.kt:27-31`; `app/wear/.../mvi/handler/CommonHandler.kt:40-44` |
 | F26 | Every bridge call carries the authenticated source node id, and every bridge response carries a snapshot whose `sessionIdentityOrNull()` gives the session and revision it shows (null for no session). | `PhoneWorkoutBridgeImpl.kt:59-62,79-82`; `feature/wear-bridge/.../PhoneWorkoutSnapshotBuilder.kt:248` |
 | F27 | The in-memory database of `RepositoryTestEnv` installs no Wear triggers; tests that need them call `prepareWearSyncStorage`. | `core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt:25-31`; `feature/wear-bridge/src/test/.../PhoneWorkoutBridgeImplTest.kt:81` |
+| F28 | On `AuthorizationExpired` the phone answers with a replacement snapshot that grants a fresh lease when the target exists and the response fits. The watch closes the command with an error haptic and keeps the draft while the target is unchanged, so the next tap can succeed. | `PhoneWorkoutBridgeImpl.kt:269-272,466-516`; `app/wear/.../state/WatchWorkoutReducer.kt:464-465,488-490` |
 
 Assumptions the implementer verifies in discovery (§14) before writing code:
 
@@ -118,7 +127,7 @@ WearSyncDao.observeActiveWearKey(): (uuid, revision)?
         │ distinct, first value dropped, settle, minimum interval
 PhoneChangeNotifier (generation lifetime) ── skips nodes ── WatchKnownRevisions ◀── bridge records
         │                                                    (node → session, revision answered)
-PlayServicesWatchNudgeLink ══ sendMessage(CHANGED_PATH, empty) ══▶ PhoneChangeListenerService
+PlayServicesWatchNudgeLink ══ sendMessage(CHANGED_PATH, 0x00) ═══▶ PhoneChangeListenerService
                                                                         │ WatchRuntimeFactory.get(...).onPhoneChanged()
                                                                   WatchTransportCoordinator: O6
                                                                         │ correlated handshake (transport §5, unchanged)
@@ -143,7 +152,8 @@ Added to `core/wear-protocol` `WearProtocol`:
 ### 5.2 Message
 
 - Phone to watch only. Its meaning is "the active workout may have changed; ask". The payload is
-  empty (ASM-8). It never carries a name, number, identifier or revision.
+  the single byte `0x00`, because discovery left ASM-8 unproven; the watch ignores it. The signal
+  never carries a name, number, identifier or revision.
 - Destination: each node returned by `CapabilityClient.getCapability(WATCH_CAPABILITY,
   FILTER_REACHABLE)`, except a node that already holds the current state (§6.2). Relay through a
   non-nearby node is permitted, as for the RPC (transport D2).
@@ -206,7 +216,7 @@ interface WatchNudgeLink {
     /** Node ids of the reachable watches that advertise WATCH_CAPABILITY. */
     suspend fun reachableWatches(): List<String>
 
-    /** Sends the empty CHANGED_PATH message to one node. */
+    /** Sends the CHANGED_PATH message, payload 0x00, to one node. */
     suspend fun signal(nodeId: String)
 }
 ```
@@ -218,6 +228,7 @@ keys.distinctUntilChanged()
     .drop(1)                       // the generation's first value is a baseline, not a change
     .debounce(CHANGE_SETTLE_MS)
     .conflate()
+    .catch { failure -> stopped(failure) } // the key query failed, e.g. its database closed (F6)
     .collect { key ->
         signalStale(key)           // every reachable watch whose known key differs from key
         delay(CHANGE_MIN_INTERVAL_MS)
@@ -228,6 +239,9 @@ keys.distinctUntilChanged()
   not when the change arrived.
 - A failed lookup or send is logged by exception class only and is not retried; the next change
   signals again.
+- No exception leaves the notifier (D11). A failure of the key query ends the notifier for its
+  generation and is logged by class (`stopped`); `signalStale` catches and logs its own failures.
+  The Android restore path closes the database under the query (F6), so this end is expected.
 - Logs carry only the word `signal`, the result class, the counts of reachable and signalled nodes,
   and elapsed milliseconds. Never a node id (transport §7.9).
 
@@ -236,13 +250,16 @@ keys.distinctUntilChanged()
 - `feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/PlayServicesWatchNudgeLink.kt`
   is the only new phone file that names the Data Layer. Its clients are lazy, so nothing calls
   Google Play services before the first signal. `reachableWatches` looks up `WATCH_CAPABILITY`
-  with `FILTER_REACHABLE`; `signal` sends `CHANGED_PATH` with the empty payload.
+  with `FILTER_REACHABLE`; `signal` sends `CHANGED_PATH` with the payload `0x00`.
 - The notifier is armed once per generation in `StartupProcessor.armPostPreflight`, on
   `lifetime.childScope(ioDispatcher)` (F6), behind the same recovery check as `warmQueryPlanner`
-  (`StartupProcessor.kt:259`) and without its low-RAM check. The generation's quiescence cancels it
-  with the lifetime; nothing else stops it. The notifier, the link and the known revisions are
-  app-scoped bindings of the generation graph; the PR records the accessor `armPostPreflight` uses
-  and the application `Context` binding the link gets.
+  (`StartupProcessor.kt:259`) and without its low-RAM check. An in-process rebuild cancels it with
+  the lifetime before the database closes. The Android restore path closes the database under it
+  and restarts the process (F6): the notifier then ends through the failure handling of §6.2, or
+  stays suspended until the process ends. The notifier, the link and the known revisions are
+  app-scoped bindings of the generation graph; `armPostPreflight` reaches the notifier as
+  `AppGraph.phoneChangeNotifier`, and the link takes the application `Context` that
+  `AppGraph.Factory` binds (Q4).
 - No foreground service, no WorkManager, no wake lock. The notifier runs while the phone process
   runs, which is whenever the phone writes.
 
@@ -255,8 +272,8 @@ an app-scoped `ExternalSetWrites` with `fun publish(write: ExternalSetWrite)` an
 extraBufferCapacity = 64)`. `publish` uses `tryEmit` and logs a refusal by class.
 `ExternalSetWrite(sessionUuid, performedExerciseUuid, position, weight: Double?, reps: Int,
 type: SetsDataType)` carries the values exactly as written. `SessionRepository` does not change.
-The mapping into `SetsDataType` is internal to `core:data:exercise` today; the PR records where the
-bridge's mapping lives (Q4).
+The mapping from `SetTypeEntity` into `SetsDataType` is internal to `core:data:exercise`, so the
+bridge maps with its own exhaustive `when`, pinned by a test over every `SetTypeEntity` value (Q4).
 
 **Bridge.** `PhoneWorkoutBridgeImpl` makes exactly two changes besides its constructor:
 
@@ -274,28 +291,48 @@ bridge's mapping lives (Q4).
 **Interactor.** `LiveWorkoutInteractor.observeExternalSetWrites(sessionUuid: String):
 Flow<ExternalSetDomain>` filters by session and maps to the domain model.
 
-**Store.** The common handler subscribes as soon as the session uuid is known in `Init`, after
-`createSession` when the screen creates the session, and starts the first load only once the
-subscription is active (`onSubscription`, or a collector started undispatched), so no write can
-fall between the load's read and the subscription. It maps to `LiveSetUiModel` in the chain
-(`.map { }` before `.launch { }`). For each write:
+**Store (D10).** Every `Init` starts the subscription, as it starts the timer (F12): the store's
+scope ends whenever the screen leaves composition, and `Init` runs again when it returns. A
+subscription still running is cancelled first, as `startTimer` cancels a running timer, so two
+never run together. `Init` subscribes as soon as the session uuid is known (after `createSession`
+when the screen creates the session) and starts its load only once the subscription is active
+(`onSubscription`, or a collector started undispatched), so no write can fall between a load's
+read and the subscription. A GUARD comment at the subscription says: if `Init` stops running on
+each return (the latch `tech-debt.md` proposes), the subscription and the timer must move to the
+return path, and the return-to-screen test fails until they do. The chain maps to
+`LiveSetUiModel` (`.map { }` before `.launch { }`).
 
-1. Received before the first load has applied: kept, then applied in order right after it.
-   Applying a set the load already contains changes nothing. If the load fails, the kept writes are
-   discarded.
-2. The exercise is in `State.exercises`: `setMutator.applySetMarked(latest, performedExerciseUuid,
-   position, set)` (F14). If an undo window is open and its snapshot holds the exercise, the same
-   patch is applied to a state built from the snapshot (its exercises, drafts and overrides), and
-   the window keeps the result, so an undo restores the earlier screen plus the watch's set.
-3. The exercise is only in an open undo window's snapshot (a soft-deleted exercise, F15): applied
-   to the snapshot only.
-4. The exercise is in neither: ignored. The next `Init` shows the database.
+**Loads.** The `Init` load and `processReload` are covered the same way:
 
-Nothing else in `State` changes: dialogs, sheets, other drafts, row overrides, explicitly started
-exercises, expansions, the timer, the name draft and the in-flight flags stay as they are. No
-re-read of the session, no new Action, no Event, no haptic. Nothing here navigates; navigation stays
-the canonical pattern (`Action.Navigation` consumed by the feature's `NavigationHandler`, `Navigator`
-injected).
+1. Before a load's database read starts, the handler records how many writes it has received so
+   far.
+2. A write received while any load is in flight is applied at once (A to C below) and also kept.
+3. When a load's result is applied, the kept writes received after that load started are applied
+   again, in order, right after it and in the same state update. Applying a write the load
+   already contains changes nothing.
+4. A load that fails or is cancelled covers nothing. When no load is in flight, the kept writes
+   are cleared.
+
+This bookkeeping runs where the state updates run: on the store's main-immediate dispatcher (the
+subscription's per-item dispatcher and both loads' result callbacks), or inside `State` through
+`updateStateImmediate`. No mutable collection is shared across dispatchers.
+
+**Applying one write:**
+
+- **A.** The exercise is in `State.exercises`: `setMutator.applySetMarked(latest,
+  performedExerciseUuid, position, set)` (F14). If an undo window is open and its snapshot holds
+  the exercise, the same patch is applied to a state built from the snapshot (its exercises,
+  drafts and overrides), and the window keeps the result, so an undo restores the earlier screen
+  plus the watch's set.
+- **B.** The exercise is only in an open undo window's snapshot (a soft-deleted exercise, F15):
+  applied to the snapshot only.
+- **C.** The exercise is in neither: ignored. The next load shows the database.
+
+Applying a write changes nothing else in `State`: dialogs, sheets, other drafts, row overrides,
+explicitly started exercises, expansions, the timer, the name draft and the in-flight flags stay
+as they are. No re-read of the session, no new Action, no Event, no haptic. Nothing here
+navigates; navigation stays the canonical pattern (`Action.Navigation` consumed by the feature's
+`NavigationHandler`, `Navigator` injected).
 
 ## 7. Watch side
 
@@ -384,7 +421,7 @@ A Tile tap starts `MainActivity` with an explicit component and no action. When 
 root came from the launcher (MAIN, LAUNCHER) the two intents differ, and Android adds a second
 instance on top of the first. The ongoing indicator avoids that with `FLAG_ACTIVITY_SINGLE_TOP`; a
 protolayout `LaunchAction` cannot set flags (F19), so the manifest must. With `singleTop` the running
-instance receives `onNewIntent`, which already refreshes (F19).
+instance receives `onNewIntent` instead, and the handshake comes from O1 when it resumes (F19).
 
 A swipe back that closes the numeric editor and returns to the controller is by design (F20) and
 does not change.
@@ -427,10 +464,11 @@ It is `android:exported="true"`, neither it nor the application sets `android:en
 but `true`, neither declares an `android:permission`, and the filter's data is exactly scheme
 `wear`, host `*` and path `/workeeper/wear/v1/changed`, with no `pathPrefix`, `pathPattern` or other
 data attribute. Not applicable to phone. The change touches the module docstring, `CHECKS`,
-`evaluate`, the self-test cases (every phone case expects `"G12": "N/A"`; the Wear manifest fixture
-gains the listener) and the `ci-cd.md` table and its introduction (`:167`). Self-test fixtures follow
-G10's. G12 lands in the commit that adds the watch listener. G9's Wear GUARD comment points at
-`WearProtocol.WATCH_CAPABILITY`.
+`evaluate`, the self-test cases and the `ci-cd.md` table and its introduction (`:167`). In the
+self-test, G12 is `N/A` in every phone-role case and `SKIP` wherever G1 fails, as G10 is; the Wear
+manifest fixture gains the listener, and a phone bundle checked as Wear fails G12. Self-test
+fixtures follow G10's. G12 lands in the commit that adds the watch listener. G9's Wear GUARD
+comment points at `WearProtocol.WATCH_CAPABILITY`.
 
 ## 9. Privacy and copy
 
@@ -456,14 +494,19 @@ Phone (`:feature:wear-bridge`, `:app:app`, `:feature:live-workout`; the in-memor
 (F27); virtual time for the notifier):
 
 - key flow: a set insert, update and delete through the phone's repository each produce a new
-  distinct key for the active session (ASM-7); a handshake through the real `PhoneWorkoutBridgeImpl`
-  produces no new distinct key;
+  distinct key for the active session (ASM-7); a handshake that grants authority through the real
+  `PhoneWorkoutBridgeImpl` (only such a handshake writes, F2) produces no new distinct key;
 - notifier with a fake link: arming with an active session sends nothing; one set write sends
   exactly one signal, `CHANGE_SETTLE_MS` after it; three writes within 100 ms send one; a write
-  inside the minimum interval is sent once at its end; a handshake through the real bridge sends
-  nothing; an applied watch command sends nothing to the commanding node and one signal to a second
-  reachable watch that holds an older state; a session start and a finish each send one; a failing
-  link is logged by class and the next change still signals; cancelling the lifetime stops it;
+  inside the minimum interval is sent once at its end; a granting handshake through the real bridge
+  sends nothing; an applied watch command sends nothing to the commanding node and one signal to a
+  second reachable watch that holds an older state; a session start and a finish each send one; a
+  failing link is logged by class and the next change still signals; cancelling the lifetime stops
+  it; a key flow that throws (standing in for the closed database of F6) is logged by class and
+  ends the notifier, and nothing reaches a recording `CoroutineExceptionHandler` installed on its
+  scope. Closing the real in-memory database under a running notifier is also run once and its
+  outcome recorded (Room may throw or stay suspended); the same no-escape assertion holds either
+  way, but it is not a mutation target;
 - startup: armed for a generation that proceeds, not armed for one that routes to recovery;
 - bridge: every returned response records its snapshot's key for the source node, after the
   transaction and after any read-only refresh; `Applied` publishes exactly one write with the
@@ -471,11 +514,16 @@ Phone (`:feature:wear-bridge`, `:app:app`, `:feature:live-workout`; the in-memor
   that records whether a publication happened inside a transaction (the pattern of
   `PhoneWorkoutBridgeImplTest.kt:1570-1580`); an exact replay (`AlreadyApplied`) publishes nothing;
   every rejection and the write-failure path publish nothing;
-- live-workout store: each of rules 1 to 4 of §6.4; the first load starts only after the
-  subscription is active, and a write emitted between the two is applied; a write for another
-  session is filtered out by the interactor; after a patch the open dialog, the sheet, other rows'
-  drafts, row overrides, explicitly started exercises and expansions are unchanged, and the same
-  set's draft is replaced by the watch's values.
+- live-workout store: each of A to C of §6.4; every `Init` load starts only after the subscription
+  is active, and a write emitted between the two is applied; a write delivered between a load's
+  read and its apply is shown after the load, for the `Init` load and for `processReload`; a
+  return to the screen (dispose, then `Init` again) without a save, then a write, shows the write;
+  a return with a save, with the two loads applied in either order, keeps a write delivered during
+  them; a repeated `Init` without a dispose leaves one active subscription (the fake interactor
+  counts collectors); a write for another session is filtered out by the interactor; after a
+  patch the open dialog, the sheet, other rows' drafts, row overrides, explicitly started
+  exercises and expansions are unchanged, and the same set's draft is replaced by the watch's
+  values.
 
 Watch (`:app:wear`):
 
@@ -517,7 +565,7 @@ every gate reports its input count.
 | M-S7 | the bridge publishes inside the transaction | transition-wrapper test |
 | M-S8 | the bridge publishes for `AlreadyApplied` | replay test |
 | M-S9 | the interactor stops filtering by session | session-filter test |
-| M-S10 | the store drops writes received before the first load | load-race test |
+| M-S10 | the `Init` load does not apply again the writes received since it started | load-race test (`Init`) |
 | M-S11 | the store re-reads the session (`processReload`) instead of patching | unchanged-ephemeral-state test |
 | M-S12 | the patch skips the undo snapshot | undo test |
 | M-S13 | an O6 during an in-flight handshake is dropped | in-flight test |
@@ -535,8 +583,12 @@ every gate reports its input count.
 | M-S25 | the watch listener removed from a release-manifest fixture | G12 self-test |
 | M-S26 | the bridge does not record the key for command responses | echo test (the commanding node is signalled) |
 | M-S27 | the notifier ignores known keys | two-watch test |
-| M-S28 | the store starts the first load before the subscription is active | subscription-race test |
+| M-S28 | a load starts before the subscription is active | subscription-race test |
 | M-S29 | a blocked O6 is enqueued anyway | bucket test (the coordinator keeps running work while it waits) |
+| M-S30 | `processReload` does not apply again the writes received since it started | load-race test (`processReload`) and the return-with-save test |
+| M-S31 | the subscription starts only on the store's first `Init` | return-to-screen test |
+| M-S32 | the notifier's `catch` removed | key-flow-failure test (an exception reaches the handler) |
+| M-S33 | a running subscription is not cancelled before `Init` starts another | single-collector test |
 
 ### 10.3 Existing gates
 
@@ -568,14 +620,16 @@ STOP.
 | Signal during an in-flight handshake | one O6 handshake after it | — | none |
 | Sustained phone edits | ten O6 handshakes at once, then one per 10 s; the last change is always served | at most one signal per 2 s; the last change is always sent | none |
 | Set completed on the watch | no extra handshake (D7) | no signal to that watch; a second watch holding an older state is signalled | none |
+| Two Workeeper watches in one workout (D12) | each set completed on watch A signals watch B, whose handshake retires A's lease (F5); A's next Complete set fails once with an error haptic and keeps its values (F28), and the next tap succeeds; the same holds the other way | — | none |
 | An O6 handshake fails (unreachable, unanswered) | not retried; the next signal or O1–O5 recovers | — | none |
 | Process started by a signal is reclaimed before its handshake ends | Tile and indicator stale until the next origin | — | none |
-| Phone restores a backup | stale until the next origin, whose answer carries the rotated epoch | the new generation re-arms the notifier with empty known revisions; its first value is a baseline | none |
+| Phone restores a backup | stale until the next origin, whose answer carries the rotated epoch | the restore closes the database under the notifier (F6); its query may fail, which it logs by class, and the process restarts; the new generation re-arms the notifier with empty known revisions, and its first value is a baseline | none |
 | Phone routes to recovery | handshakes go unanswered, as today | notifier not armed | none |
 | Phone without Play services, or with no watch | — | lookup fails or finds no node; logged by class | none |
 | Notifications denied on the watch | controller and Tile update; no indicator | — | none |
 | The phone changes while the user edits on the watch | for one round trip the controls are disabled and an open editor closes (F25) | — | none |
 | A phone draft is in the set the watch completes | — | the row shows the watch's values | the watch's values |
+| The phone screen returns (from the plan editor or elsewhere) while the watch completes sets | — | the screen reloads as today (F12) and keeps every watch set received since the reload started (D10) | none |
 | Both devices complete the same set within about 100 ms | — | the screen may keep the earlier writer's values until re-entry | last writer wins, as today |
 | Watch set during an undo window, then Undo | — | the screen restores the earlier state plus the watch set; a re-upsert compensation of the same position overwrites it | last writer wins |
 | Watch set in an exercise soft-deleted on the phone | — | kept in the undo snapshot; closing the window deletes the exercise with it | deleted with the exercise |
@@ -630,9 +684,10 @@ The owner reports pass or fail per row with a note, and a screenshot for a failu
 
 Phase 2 watch UX (the exercise list, picking the exercise, skipping a set or an exercise) and its
 protocol v2; a revision inside the signal; keeping the watch controls enabled during a handshake;
-a watch status that tells "phone not found" from "phone didn't answer"; Wear production; measured
-constants; the release backlog (rulesets, signing of the bump commit, the fastlane `beta` lane, the
-Actions cache, Data safety review).
+a watch status that tells "phone not found" from "phone didn't answer"; the re-entry mechanism of
+`BaseStore` (`tech-debt.md`); the teardown order of the restore path; per-node lease retirement
+(D12); Wear production; measured constants; the release backlog (rulesets, signing of the bump
+commit, the fastlane `beta` lane, the Actions cache, Data safety review).
 
 ## 14. Discovery (before editing) and STOP conditions
 
@@ -641,7 +696,7 @@ Discovery rows, each with command, evidence and verdict:
 - **Q1** ASM-5 by `javap` on the resolved AAR's `classes.jar` (`MessageClient`,
   `WearableListenerService`, `MessageEvent`) and a string search for the action. No fallback.
 - **Q2** ASM-8 by the same means or the reference; otherwise the one-byte payload.
-- **Q3** F1 to F27 re-verified at the current `dev` head.
+- **Q3** F1 to F28 re-verified at the current `dev` head.
 - **Q4** The graph accessor `armPostPreflight` uses for the notifier, the application `Context`
   binding for the link (§6.3), and where the bridge maps into `SetsDataType` (§6.4).
 - **Q5** ASM-7: the key-flow test of §10.1 is written and run first; RED is a STOP.
