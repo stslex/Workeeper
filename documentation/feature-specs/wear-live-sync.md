@@ -722,6 +722,8 @@ Append-only. One row per PR, release step and acceptance item.
 
 | Date | Item | Commit or run | Evidence |
 |---|---|---|---|
+| 2026-10-02 | §12.1 step 1: this specification on `dev`, with the transport status paragraph of §9 | e8a9395f | Direct push. The copy's sha256 `65765213…` equals the approved source file; the transport specification changed only by the §9 paragraph. GitHub verified the signature. |
+| 2026-10-02 | Amendment after PR-S discovery: D10 to D12, the Q2 and Q4 answers, the G12 self-test SKIP rule | 1e663164 | Direct push. The copy's sha256 `97f90f8a…` equals the owner's file. GitHub verified the signature. |
 
 ## 16. Sources
 

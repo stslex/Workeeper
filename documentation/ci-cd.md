@@ -78,7 +78,8 @@ release runtime is the connected owner-backed runtime of
 acceptance receiver is reachable, and with an empty cache the Tile declares no freshness interval.
 The `Assert Wear transport privacy gate` step of the same job runs
 `.github/scripts/assert_wear_transport_gate.py` (self-test first): no tracked Kotlin source names
-the Data Layer outside the two allowlisted transport files (§8), matched as whole repository paths,
+the Data Layer outside the four allowlisted files
+([wear-live-sync.md](feature-specs/wear-live-sync.md) §8), matched as whole repository paths,
 and nothing suppresses the gate. The
 two Wear flavors differ only by `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance
 logcat meta-data entry); AGP does not create release unit-test tasks unless
@@ -164,7 +165,8 @@ per-task `test*/` output directories; the first is flat-file belt-and-braces).
 
 `.github/scripts/assert_play_bundle.py` proves that an AAB is the bundle its role claims before
 anything talks to Play ([wear-release-pipeline.md](feature-specs/wear-release-pipeline.md) §6; G8
-from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2; G9–G11 below). One
+from [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §9.2; G9–G11 below; G12
+from [wear-live-sync.md](feature-specs/wear-live-sync.md) §8). One
 bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml`.
 
 | Check | Rule |
@@ -180,6 +182,7 @@ bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml
 | G9 | Both roles: the base resource table has `array/android_wear_capabilities` with exactly one configuration, `(default)`, holding exactly one item: `workeeper_phone_active_workout_v1` (phone, `WearProtocol.PHONE_CAPABILITY`) or `workeeper_watch_active_workout_v1` (Wear). Google Play services reads the array by name, so nothing in code references it, and R8's resource shrinker (the default since AGP 9.0) drops it unless a keep file under `res/raw` names it: a `tools:keep` on the root of a values file is not read. Without it the phone advertises no capability, the watch finds no phone node, and the link reports the phone unreachable. Item escapes other than `\\` and `\"` (bundletool spells control characters, such as `\n`) make the item invalid. An absent array is a FAIL, not a gate error. |
 | G10 | Phone: exactly one `<service>` has an intent filter with the action `com.google.android.gms.wearable.REQUEST_RECEIVED`. It is `android:exported="true"`, neither it nor the application sets `android:enabled` to anything but `true`, neither declares an `android:permission` (Play services binds the listener, and an application permission applies to every component that sets none), and that filter's data is exactly scheme `wear`, host `*` and path `/workeeper/wear/v1/rpc` (`WearProtocol.RPC_PATH`), with no `pathPrefix`, `pathPattern` or other data attribute. Not applicable to Wear. |
 | G11 | Both roles: `application android:icon` is `@mipmap/ic_launcher`, there is no other `android:roundIcon`, and no launcher activity or `activity-alias` (MAIN + LAUNCHER) names another icon. `@mipmap/ic_launcher` has at least one `anydpi` entry (density 65534), and each one's compiled XML in the bundle is an `<adaptive-icon>` with a `<background>` and a `<foreground>`, each filled (an `android:drawable` or a child drawable): the adaptive icon the phone ships, with layers instead of a bare glyph. The gate reads that file's aapt2 proto XML with a stdlib wire-format reader (root element name, child element names and their `android:drawable`). |
+| G12 | Wear: exactly one `<service>` has an intent filter with the action `com.google.android.gms.wearable.MESSAGE_RECEIVED`: the watch's change listener ([wear-live-sync.md](feature-specs/wear-live-sync.md) §7.1). It is `android:exported="true"`, neither it nor the application sets `android:enabled` to anything but `true`, neither declares an `android:permission` (Play services binds the listener with the app closed too), and that filter's data is exactly scheme `wear`, host `*` and path `/workeeper/wear/v1/changed` (`WearProtocol.CHANGED_PATH`), with no `pathPrefix`, `pathPattern` or other data attribute. Not applicable to phone. |
 
 Every check prints what it read, and the last line is `RESULT PASS` or `RESULT FAIL <checks>` with
 the number of checks that ran. Exit 0: every check passed. Exit 1: a check failed. Exit 2: the gate
@@ -204,7 +207,7 @@ naming the module. And the positive control `string/app_name` is found. Either o
 error (exit 2). A configuration with several qualifiers prints one qualifier per line, which the
 parser joins back.
 
-`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 61 cases over two
+`--self-test` replays `.github/scripts/fixtures/assert_play_bundle/cases.json`: 70 cases over two
 manifests trimmed from real `bundletool dump manifest` output, the verbatim `dump resources` output
 of the two release bundles (`resources.json`), and four compiled launcher XML files
 (`ic_launcher.*.pb`: the release bundles' adaptive icon, and aapt2-compiled `<vector>`,

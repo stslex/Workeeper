@@ -278,10 +278,12 @@ re-read of this section first.
   the phone by default. The sole approved cross-device exception is Phase 1 of
   the personally paired Wear OS companion: after the required product and
   public privacy disclosures are live, it may transfer the minimum active
-  workout snapshot and completion commands between the user's phone and watch
-  and retain the bounded watch cache defined by its specification. The owner
-  authorized Google-owned end-to-end encrypted Data Layer relay transit for it
-  on 2026-09-29, together with its public disclosure
+  workout snapshot and completion commands between the user's phone and watch,
+  let the phone send the watch a content-free change signal so that the watch
+  asks again ([Wear live sync](feature-specs/wear-live-sync.md)), and retain
+  the bounded watch cache defined by its specification. The owner authorized
+  Google-owned end-to-end encrypted Data Layer relay transit for it on
+  2026-09-29, together with its public disclosure
   ([Wear paired transport](feature-specs/wear-paired-transport.md)); no other
   phone/watch route is authorized. Manual export / import may be added later,
   but is not a v1 commitment.
