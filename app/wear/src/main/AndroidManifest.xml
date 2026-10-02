@@ -41,9 +41,14 @@
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
 
+        <!-- singleTop: a Tile tap starts this activity through a protolayout LaunchAction, which
+             cannot set intent flags, so over a launcher-started task it would stack a second
+             instance and back would need two swipes (wear-live-sync.md §7.5). The running
+             instance gets onNewIntent instead. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
