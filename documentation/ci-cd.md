@@ -53,7 +53,7 @@ manual dispatch, or inside the production deploy — never on a PR.
 ### Verification steps
 
 ```bash
-./gradlew assembleDebug --full-stacktrace
+bash .github/scripts/run_with_resource_samples.sh ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
 python3 .github/scripts/assert_mvi_source_topology.py
 python3 .github/scripts/assert_kmp_ui_source_topology.py
@@ -105,15 +105,16 @@ Heap, `forkEvery` and timeouts are unchanged.
 
 For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores that PR's build cache and executes only what changed.
 
-The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
-block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
-`du -sh /tmp` under a 5 s `timeout` (the JVM's default temp dir on Linux; a local root gate wrote
-~7 GiB of transient temp, with Robolectric's native-runtime extraction as the candidate), PSI for
-cpu/memory/io, and the eight largest processes by RSS. A sample whose `du` exceeds 5 s has no
-`/tmp` line. It lives in the step log rather than an artifact because a runner that receives a
-shutdown signal cancels every later step and `failure()` is false on cancellation. The cause of the
-Wear stack's mid-step runner shutdowns is unmeasured; these samples are the instrument for the next
-occurrence.
+Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
+`Run Unit Tests`. The wrapper writes a `[res]` sample block into each step's log every 15 s:
+`uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`, `du -sh /tmp` under a 5 s
+`timeout` (the JVM's default temp dir on Linux; a local root gate wrote ~7 GiB of transient temp,
+with Robolectric's native-runtime extraction as the candidate), PSI for cpu/memory/io, and the
+eight largest processes by RSS. A sample whose `du` exceeds 5 s has no `/tmp` line. The samples
+live in the step log rather than an artifact because a runner that receives a shutdown signal
+cancels every later step and `failure()` is false on cancellation. The cause of the Wear stack's
+mid-step runner shutdowns is unmeasured; these samples are the instrument for the next occurrence.
+On `Build with Gradle` they are the dev baseline a new compile target's cost is read against.
 
 `:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
 plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
