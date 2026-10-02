@@ -4,7 +4,10 @@ package io.github.stslex.workeeper.feature.wear_bridge
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import kotlin.uuid.Uuid
 
 /** What a watch shows: the active session and its Wear revision. A null key means no session. */
@@ -18,6 +21,10 @@ internal data class WatchStateKey(val sessionUuid: CanonicalUuid, val revision: 
             WatchStateKey(CanonicalUuid.parse(sessionUuid.toString()), revision)
     }
 }
+
+/** The key of what a snapshot shows; null when it shows no session. */
+internal fun SnapshotData.watchStateKey(): WatchStateKey? =
+    payload.sessionIdentityOrNull()?.let { (session, revision) -> WatchStateKey(session, revision) }
 
 /**
  * Per watch node, the key of the last snapshot the bridge answered that node with
@@ -43,6 +50,17 @@ internal class WatchKnownRevisions @Inject constructor() {
             while (entries.size > MAX_ENTRIES) entries.remove(entries.keys.first())
         }
     }
+
+    /**
+     * wear-live-sync.md §6.4 change 1: the bridge passes every response it returns, cached or fresh,
+     * after any read-only refresh and never a prepared one, so [nodeId] is known to show its snapshot.
+     */
+    fun shown(nodeId: String, response: ActiveWorkoutSnapshotResponse): ActiveWorkoutSnapshotResponse =
+        response.also { record(nodeId, it.snapshot.watchStateKey()) }
+
+    /** As above, for a command or protocol-rejection response: [nodeId] shows its replacement. */
+    fun shown(nodeId: String, response: CompleteCurrentSetResponse): CompleteCurrentSetResponse =
+        response.also { record(nodeId, it.replacement.watchStateKey()) }
 
     /** True only when [nodeId] was last answered with exactly [key]; a node never answered is stale. */
     fun holds(nodeId: String, key: WatchStateKey?): Boolean = synchronized(lock) {

@@ -91,6 +91,7 @@ internal data class SignalSeed(
     val trainingUuid: Uuid,
     val sessionUuid: Uuid,
     val performedUuid: Uuid,
+    val exerciseUuid: Uuid,
 )
 
 /** One active workout with a planned set, so a handshake has a target and grants authority (F2). */
@@ -144,7 +145,7 @@ internal suspend fun AppDatabase.seedActiveWorkout(): SignalSeed {
         skipped = false,
     )
     performedExerciseDao.insert(listOf(performed))
-    return SignalSeed(training.uuid, session.uuid, performed.uuid)
+    return SignalSeed(training.uuid, session.uuid, performed.uuid, exercise.uuid)
 }
 
 private const val KEY_WAIT_NANOS = 10_000_000_000L

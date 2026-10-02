@@ -2,8 +2,11 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.coEvery
@@ -11,8 +14,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -21,8 +26,12 @@ import org.junit.jupiter.api.Test
 
 internal class CommonHandlerTest {
 
-    private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
+    private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
+        every { observeExternalSetWrites(any()) } returns emptyFlow()
+    }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))
+    private val dispatchers = StoreDispatchers(Dispatchers.Unconfined, Dispatchers.Unconfined)
 
     /**
      * The store mock runs `launch` synchronously and routes a throw to `onError`, because that
@@ -54,7 +63,7 @@ internal class CommonHandlerTest {
                 mockk<Job>(relaxed = true)
             }
         }
-        return Triple(stateFlow, CommonHandler(interactor, resourceWrapper, store), store)
+        return Triple(stateFlow, CommonHandler(interactor, resourceWrapper, setMutator, dispatchers, store), store)
     }
 
     /** The load-failure exit on both arms; both flags asserted, since either alone lies. */
@@ -101,6 +110,8 @@ internal class CommonHandlerTest {
         val handler = CommonHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            setMutator = setMutator,
+            storeDispatchers = dispatchers,
             store = store,
         )
 

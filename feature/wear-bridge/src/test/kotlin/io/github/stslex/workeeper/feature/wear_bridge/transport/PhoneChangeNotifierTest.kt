@@ -7,7 +7,13 @@ import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
+import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
@@ -63,6 +69,20 @@ internal class PhoneChangeNotifierTest {
     private val known = WatchKnownRevisions()
     private val link = FakeNudgeLink()
     private val logger = SignalLogger()
+
+    /** The real bridge, recording into the same known revisions the notifier reads (D7). */
+    private val bridge by lazy {
+        PhoneWorkoutBridgeImpl(
+            database = database,
+            transition = env.transition,
+            snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
+            leaseStore = WearMutationLeaseStore(env.transition),
+            clock = PhoneMonotonicClock { 0L },
+            mutationWriter = RoomWearSetMutationWriter(database),
+            knownRevisions = known,
+            externalSetWrites = ExternalSetWrites(),
+        )
+    }
 
     @BeforeEach
     fun setUp() {
@@ -265,6 +285,41 @@ internal class PhoneChangeNotifierTest {
     }
 
     @Test
+    fun `an applied watch command signals nothing back to the watch that wrote it`() = runTest {
+        database.seedActiveWorkout()
+        val shown = grantingHandshake(WATCH_A)
+        val tap = startNotifier()
+        awaitKeys(tap) { it.isNotEmpty() }
+
+        val response = completeShownSet(WATCH_A, shown)
+        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+        awaitDistinct(tap, 2)
+        advanceTimeBy(PAST_ONE_SIGNAL_MS)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), link.signals, "the bridge recorded what it answered the writer (D7)")
+    }
+
+    @Test
+    fun `an applied watch command signals a second watch that holds an older state`() = runTest {
+        link.watches = listOf(WATCH_A, WATCH_B)
+        database.seedActiveWorkout()
+        // B first: every handshake retires the other node's lease (F5), so A's must be the last.
+        grantingHandshake(WATCH_B)
+        val shown = grantingHandshake(WATCH_A)
+        val tap = startNotifier()
+        awaitKeys(tap) { it.isNotEmpty() }
+
+        val response = completeShownSet(WATCH_A, shown)
+        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+        awaitDistinct(tap, 2)
+        advanceTimeBy(PAST_ONE_SIGNAL_MS)
+        runCurrent()
+
+        assertEquals(listOf(WATCH_B), link.signals)
+    }
+
+    @Test
     fun `a key flow that throws is logged by class, ends the notifier and escapes nowhere`() = runTest {
         val escaped = mutableListOf<Throwable>()
         val handler = CoroutineExceptionHandler { _, failure -> escaped += failure }
@@ -353,22 +408,44 @@ internal class PhoneChangeNotifierTest {
         requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision
     }
 
-    private fun grantingHandshake() = runBlocking {
-        val bridge = PhoneWorkoutBridgeImpl(
-            database = database,
-            transition = env.transition,
-            snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
-            leaseStore = WearMutationLeaseStore(env.transition),
-            clock = PhoneMonotonicClock { 0L },
-            mutationWriter = RoomWearSetMutationWriter(database),
-        )
+    /** A handshake through the real bridge that grants authority: the only kind that writes (F2). */
+    private fun grantingHandshake(node: String = WATCH_A): ActiveWorkoutSnapshotResponse = runBlocking {
         val response = bridge.getActiveWorkout(
-            WATCH_A,
+            node,
             GetActiveWorkoutRequest(WearProtocol.SCHEMA_VERSION, CanonicalUuid.random()),
         )
         val payload = response.snapshot.payload as SnapshotPayload.ActiveWithTarget
         assertInstanceOf(MutationAuthority.Granted::class.java, payload.mutationAuthority, "the handshake granted")
+        response
     }
+
+    /** The watch completes the set its last handshake showed, through the real bridge. */
+    private fun completeShownSet(node: String, shown: ActiveWorkoutSnapshotResponse): CompleteCurrentSetResponse =
+        runBlocking {
+            val active = shown.snapshot.payload as SnapshotPayload.ActiveWithTarget
+            val authority = active.mutationAuthority as MutationAuthority.Granted
+            bridge.completeCurrentSet(
+                node,
+                CompleteCurrentSetRequest(
+                    schemaVersion = WearProtocol.SCHEMA_VERSION,
+                    correlationId = CanonicalUuid.random(),
+                    commandId = CanonicalUuid.random(),
+                    databaseEpoch = shown.snapshot.databaseEpoch,
+                    sessionUuid = active.sessionUuid,
+                    sessionRevision = active.sessionRevision,
+                    mutationLeaseId = authority.mutationLeaseId,
+                    mutationLeaseGeneration = authority.mutationLeaseGeneration,
+                    body = CompleteCurrentSetBody(
+                        performedExerciseUuid = active.target.performedExerciseUuid,
+                        setPosition = active.target.setPosition,
+                        reps = active.target.reps,
+                        weightHundredthsKg = active.target.weightHundredthsKg,
+                        exerciseType = active.target.exerciseType,
+                        setType = active.target.setType,
+                    ),
+                ),
+            )
+        }
 
     private companion object {
         /** Past the settle time and one minimum interval: any signal a change causes has gone out. */

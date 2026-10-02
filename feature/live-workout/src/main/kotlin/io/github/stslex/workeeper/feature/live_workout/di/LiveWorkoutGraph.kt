@@ -7,6 +7,7 @@ import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -26,6 +27,9 @@ interface LiveWorkoutGraph {
 
     /** Observability root: the session write path this extension inherits rather than rebuilds. */
     val sessionRepository: SessionRepository
+
+    /** Observability root: the bridge's watch-write signal, inherited from the parent (§6.4 of wear-live-sync.md). */
+    val externalSetWrites: ExternalSetWrites
 
     @DefaultDispatcher
     val defaultDispatcher: CoroutineDispatcher

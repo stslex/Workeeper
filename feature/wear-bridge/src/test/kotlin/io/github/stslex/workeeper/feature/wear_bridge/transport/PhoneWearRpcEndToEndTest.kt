@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTest
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
@@ -31,6 +32,7 @@ import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridge
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridgeImpl
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutSnapshotBuilder
 import io.github.stslex.workeeper.feature.wear_bridge.RoomWearSetMutationWriter
+import io.github.stslex.workeeper.feature.wear_bridge.WatchKnownRevisions
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkDepsHolder
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
@@ -70,6 +72,8 @@ internal class PhoneWearRpcEndToEndTest {
             leaseStore = WearMutationLeaseStore(env.transition),
             clock = PhoneMonotonicClock { 0L },
             mutationWriter = RoomWearSetMutationWriter(database),
+            knownRevisions = WatchKnownRevisions(),
+            externalSetWrites = ExternalSetWrites(),
         )
     }
 

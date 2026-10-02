@@ -25,6 +25,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -149,6 +150,12 @@ internal interface AppGraph :
      * `StartupProcessor.armPostPreflight`, which arms it on this generation's lifetime.
      */
     val phoneChangeNotifier: PhoneChangeNotifier
+
+    /**
+     * The in-process signal the phone bridge publishes a watch-written set into (wear-live-sync.md
+     * §6.4). Its only reader here is the live-workout extension identity test.
+     */
+    val externalSetWrites: ExternalSetWrites
 
     @Provides
     @SingleIn(AppScope::class)

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
@@ -94,6 +95,43 @@ internal class LiveSetMutator(
         ).let {
             statusMapper.recomputeStatuses(it)
         }
+    }
+
+    /**
+     * One set the paired watch wrote (wear-live-sync.md §6.4): A, the exercise is on screen, marked
+     * as the phone's own completion marks it, and also inside an open undo window that holds it;
+     * B, only inside the undo window (a soft-deleted exercise); C, in neither, ignored. Nothing else
+     * in [state] changes.
+     */
+    fun applyExternalSet(state: State, external: ExternalSetUiModel): State {
+        val uuid = external.performedExerciseUuid
+        val position = external.set.position
+        val shown = if (findExercise(state, uuid) != null) {
+            applySetMarked(state, uuid, position, external.set)
+        } else {
+            state
+        }
+        val undo = state.pendingUndo
+            ?.takeIf { pending -> pending.restoreExercises.any { it.performedExerciseUuid == uuid } }
+            ?: return shown
+        // The undo snapshot gets the same patch, so an undo restores the earlier screen plus this set.
+        val restored = applySetMarked(
+            state.copy(
+                exercises = undo.restoreExercises,
+                setDrafts = undo.restoreDrafts,
+                rowCountOverrides = undo.restoreOverrides,
+            ),
+            uuid,
+            position,
+            external.set,
+        )
+        return shown.copy(
+            pendingUndo = undo.copy(
+                restoreExercises = restored.exercises,
+                restoreDrafts = restored.setDrafts,
+                restoreOverrides = restored.rowCountOverrides,
+            ),
+        )
     }
 
     fun applySetUnchecked(state: State, performedExerciseUuid: String, position: Int): State {
