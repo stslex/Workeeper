@@ -77,6 +77,12 @@ internal fun WearSyncDao.activeWearKeys(): Flow<WatchStateKey?> = observeActiveW
 /**
  * §6.2, the notifier's whole behavior. The query re-emits the same key on every `session_table` write,
  * so only a new distinct key is a change, and the generation's first value is a baseline.
+ *
+ * GUARD: `catch` sits before `conflate`, not after it as §6.2 lists the chain. After `conflate`, a key
+ * query that fails while the collector is busy (a lookup, a send, the minimum interval) fails the
+ * channel's downstream too, and `catch` then rethrows the failure instead of handling it, so it
+ * escapes the notifier (D11). Before `conflate` it handles the failure inside the producer, whose
+ * emissions never suspend. The minimum-interval failure test pins this.
  */
 @OptIn(FlowPreview::class)
 internal suspend fun signalChanges(
@@ -88,8 +94,8 @@ internal suspend fun signalChanges(
     keys.distinctUntilChanged()
         .drop(1)
         .debounce(CHANGE_SETTLE_MS)
-        .conflate()
         .catch { failure -> logger.w { "signal stopped: ${failure::class.simpleName}" } }
+        .conflate()
         .collect { key ->
             signalStale(key, knownRevisions, link, logger)
             delay(CHANGE_MIN_INTERVAL_MS)

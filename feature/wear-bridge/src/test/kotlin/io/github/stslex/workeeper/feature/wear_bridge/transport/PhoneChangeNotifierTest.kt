@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
@@ -340,6 +341,34 @@ internal class PhoneChangeNotifierTest {
     }
 
     /**
+     * The same failure while the collector is busy: inside its minimum interval after a signal. The
+     * conflated chain then fails downstream too, and `catch` rethrows instead of handling (D11).
+     */
+    @Test
+    fun `a key flow that throws during the minimum interval still escapes nowhere`() = runTest {
+        val escaped = mutableListOf<Throwable>()
+        val handler = CoroutineExceptionHandler { _, failure -> escaped += failure }
+        val failure = SQLiteException("connection pool is closed")
+        val changed = WatchStateKey.of(Uuid.random(), revision = 2)
+        val keys = flow {
+            emit(null)
+            emit(changed)
+            delay(CHANGE_SETTLE_MS + MID_INTERVAL_MS)
+            throw failure
+        }
+
+        val notifier = CoroutineScope(StandardTestDispatcher(testScheduler) + SupervisorJob() + handler).launch {
+            signalChanges(keys, known, link, logger)
+        }
+        advanceUntilIdle()
+
+        assertEquals(listOf(WATCH_A), link.signals, "the change was signalled before the query failed")
+        assertTrue(notifier.isCompleted && !notifier.isCancelled, "the notifier ended normally")
+        assertEquals(emptyList<Throwable>(), escaped, "nothing reached the scope's exception handler (D11)")
+        assertEquals("signal stopped: ${failure::class.simpleName}", logger.lines.last())
+    }
+
+    /**
      * Not a mutation target (§10.1): Room may throw or stay suspended when the database closes under
      * the query. The outcome is printed into the test report, and nothing escapes either way.
      */
@@ -451,6 +480,9 @@ internal class PhoneChangeNotifierTest {
         /** Past the settle time and one minimum interval: any signal a change causes has gone out. */
         const val PAST_ONE_SIGNAL_MS = CHANGE_SETTLE_MS + CHANGE_MIN_INTERVAL_MS + 1
         const val BURST_STEP_MS = 50L
+
+        /** Well inside CHANGE_MIN_INTERVAL_MS after the signal. */
+        const val MID_INTERVAL_MS = 100L
         const val CLOSE_OBSERVATION_NANOS = 2_000_000_000L
         const val CLOSE_POLL_MS = 20L
         val UUID = Regex("[0-9a-f]{8}-[0-9a-f]{4}-")
