@@ -160,6 +160,30 @@ internal class WatchTransportPhoneChangeTest {
         assertEquals(AUTO_REFRESH_BUDGET + 1, h.link.handshakes.size, "O6 is neither counted nor limited by it")
     }
 
+    /** The other half of "neither counted nor limited": O6 handshakes leave the whole budget to O1–O4. */
+    @Test
+    fun `O6 handshakes do not count against the automatic budget`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        repeat(PHONE_CHANGE_BURST) {
+            h.runtime.onPhoneChanged()
+            runCurrent()
+        }
+        val afterPhoneChanges = h.link.handshakes.size
+
+        repeat(AUTO_REFRESH_BUDGET) {
+            h.runtime.onControllerInteractive(false)
+            h.runtime.onControllerInteractive(true)
+            runCurrent()
+        }
+
+        assertEquals(
+            afterPhoneChanges + AUTO_REFRESH_BUDGET,
+            h.link.handshakes.size,
+            "every O1 within the window still starts after the O6 handshakes",
+        )
+    }
+
     @Test
     fun `the bucket starts ten O6 handshakes at once and the eleventh one refill period after the first`() = runTest {
         val h = TransportHarness(this)
