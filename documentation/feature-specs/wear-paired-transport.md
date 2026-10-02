@@ -5,6 +5,11 @@
 **Amended on 2026-09-30** by owner decision after the PR-P review: store listing line 15 (D8, F19,
 Appendix B3/B4) and the Privacy Sandbox advertising permissions (F25, §9.2 item 4, §10.2, §14).
 
+**Amended on 2026-10-01** by owner decision after the 1.52.2 field test: D4; §8 and the clauses
+that call its two transport files the only Data Layer files (§4, §5.5, §6.1, §7.1); the phone-UI
+and bridge clauses of §6.4; the "no polling" invariant of §7.2; and the push item of §13 are
+superseded by [Wear live sync](wear-live-sync.md).
+
 - **Specification base:** `dev` at `e7e662442`. The release-pipeline stack (#297, #298, #299)
   merges before this work starts. It touches no protocol, runtime, bridge or gate source this
   specification relies on, but it shifts line numbers in `gradle/libs.versions.toml` (F2, F20) and
