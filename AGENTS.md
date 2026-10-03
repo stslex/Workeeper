@@ -217,6 +217,30 @@ in the lower PR, and that moves the base of everything above it.**
   the branch **below you**, not `dev` — see "Current focus". Rebasing changes that baseline too, so
   a shell-gate green from before the rebase is void with the rest.
 
+## Parallel work — one worktree per task, in `.claude/worktrees/`, gone once its PR closes
+
+A task that runs alongside another gets a **git worktree inside the main checkout**, in the
+gitignored `.claude/worktrees/`:
+
+```bash
+git worktree add -b <branch> .claude/worktrees/<name> origin/dev   # the branch below you, when stacking
+```
+
+Claude Code's own worktrees (desktop sessions, `claude -w`, `isolation: worktree` subagents) land
+there too. `claude -w` branches from `origin/HEAD`, which is `master` here — a `dev` task started
+that way is on the wrong base until rebased.
+
+- **Never a sibling copy (`../Workeeper-*`), never `/tmp`.** A sibling sits outside every cleanup;
+  `/tmp` is swept nightly, which deletes the files but leaves the worktree registered and its
+  branch behind.
+- **Every worktree carries its own `build/`, `.gradle/` and `.kotlin/` — 2–8 GB.** One left behind
+  is a disk leak, not a tidiness problem.
+- **Once the PR is merged or closed, remove it:** `git worktree remove .claude/worktrees/<name>`,
+  then `git worktree prune`. **No `--force`.** If git refuses, something is uncommitted or
+  unpushed — commit and push it, or report it; the refusal is the point.
+- **Do not walk away from a worktree that holds the only copy of anything.** Clean and pushed is
+  safe to sweep; dirty or unpushed is exactly what keeps a dead worktree on disk.
+
 ## Canonical project knowledge
 
 - [documentation/architecture.md](documentation/architecture.md) — modules, MVI, DI, data flow.
