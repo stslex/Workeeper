@@ -11,8 +11,8 @@ metro {
     }
 }
 
-// Layer 1 of the KMP cascade: android + iosSimulatorArm64. androidMain holds what must touch
-// android.* or bind into AppScope. See feature-specs/kmp-phase-3-core-collapse.md.
+// Layer 1 of the KMP cascade: android + iosArm64 + iosSimulatorArm64. androidMain holds what
+// must touch android.* or bind into AppScope. See feature-specs/kmp-phase-3-core-collapse.md.
 kotlin {
     sourceSets {
         commonMain.dependencies {

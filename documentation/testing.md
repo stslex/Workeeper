@@ -1078,6 +1078,18 @@ python3 .github/scripts/assert_mvi_host_identities.py
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
+# The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 8/8.
+./gradlew :core:ui:kit:linkDebugTestIosArm64 \
+  :core:ui:navigation:linkDebugTestIosArm64 \
+  :core:ui:mvi:linkDebugTestIosArm64 \
+  :core:ui:start-mode:linkDebugTestIosArm64 \
+  :core:ui:plan-editor:linkDebugTestIosArm64 \
+  :feature:image-viewer:linkDebugTestIosArm64 \
+  :feature:plan-editor:linkDebugTestIosArm64 \
+  :feature:archive:linkDebugTestIosArm64 \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+
 # Focused MVI device cases plus exact JUnit identities
 ./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
   -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \

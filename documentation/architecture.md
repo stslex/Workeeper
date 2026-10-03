@@ -35,7 +35,7 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 ### `core/`
 
-- `core/core` — KMP base module (android + iosSimulatorArm64). `commonMain`: `AppCoroutineScope`,
+- `core/core` — KMP base module (android + iosArm64 + iosSimulatorArm64). `commonMain`: `AppCoroutineScope`,
   dispatcher qualifiers (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`,
   `IODispatcher`), Firebase logging holders, the platform expect/actual seams
   (`PlatformInfoProvider`, `AppReinitializer`), `ResourceWrapper`/`ImageStorage` interfaces,
@@ -85,7 +85,7 @@ point. Current feature modules live under `feature/`, including `feature/home`,
 `feature/exercise`, `feature/live-workout`, `feature/past-session`,
 `feature/settings`, `feature/archive`, and `feature/image-viewer`. Image-viewer is the first shared
 feature entry: its Store, handlers, Metro extension, UI, and private resources compile from
-`commonMain` for Android and `iosSimulatorArm64`. Feature contents are detailed in
+`commonMain` for Android, `iosArm64` and `iosSimulatorArm64`. Feature contents are detailed in
 [features.md](features.md); their conventional layout is described under
 [Per-feature MVI layout](#per-feature-mvi-layout).
 
@@ -105,7 +105,8 @@ Custom Detekt rule set, centralized `detekt.yml` and `lint.xml`, single baseline
 ## MVI contract
 
 The MVI contract lives in the KMP module `core/ui/mvi`. Its Store runtime and processor are in
-`commonMain`; Android and `iosSimulatorArm64` supply only the platform telemetry and host seams.
+`commonMain`; Android and the two iOS targets (`iosArm64`, `iosSimulatorArm64`) supply only the
+platform telemetry and host seams.
 Three roles cooperate:
 
 1. UI dispatches an `Action` via the store's `consume` callback.
@@ -231,8 +232,8 @@ In both cases the helper:
 - Wires `init()` / `dispose()` to a `DisposableEffect` keyed on the Store and the
   current `LifecycleOwner` so the Store's `AppCoroutineScope` follows screen lifecycle.
 - Reports the Store's screen name to `FirebaseCrashlyticsHolder`, `FirebaseAnalyticsHolder`, and
-  the common `ScreenRenderRecorder` seam. Android supplies the real Firebase frame recorder; the
-  iOS simulator target supplies an explicit no-op recorder.
+  the common `ScreenRenderRecorder` seam. Android supplies the real Firebase frame recorder; both
+  iOS targets (`iosArm64`, `iosSimulatorArm64`) share an explicit no-op recorder from `iosMain`.
 - Returns a `StoreProcessor` exposing `state: ComposeState<S>`, `consume(action)`, and a
   `Handle { event -> ... }` composable for one-shot UI side effects.
 
