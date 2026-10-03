@@ -5,6 +5,11 @@
 **Amended on 2026-09-30** by owner decision after the PR-P review: store listing line 15 (D8, F19,
 Appendix B3/B4) and the Privacy Sandbox advertising permissions (F25, §9.2 item 4, §10.2, §14).
 
+**Amended on 2026-10-01** by owner decision after the 1.52.2 field test: D4; §8 and the clauses
+that call its two transport files the only Data Layer files (§4, §5.5, §6.1, §7.1); the phone-UI
+and bridge clauses of §6.4; the "no polling" invariant of §7.2; and the push item of §13 are
+superseded by [Wear live sync](wear-live-sync.md).
+
 - **Specification base:** `dev` at `e7e662442`. The release-pipeline stack (#297, #298, #299)
   merges before this work starts. It touches no protocol, runtime, bridge or gate source this
   specification relies on, but it shifts line numbers in `gradle/libs.versions.toml` (F2, F20) and
@@ -685,6 +690,17 @@ Append-only. One row per PR, release step and acceptance item.
 
 | Date | Item | Commit or run | Evidence |
 |---|---|---|---|
+| 2026-09-30 | Specification on `dev` | cb9ba666 | This file at sha256 `ebb75ccd…`, and Appendix D in the Phase 1 specification. The release-pipeline stack merged first: #297 → 8303c4ae, #298 → c128a3ca, #299 → 20dd4abd. |
+| 2026-09-30 | PR-L #300: telemetry hygiene | 9b900470 (head ac81cc56); run 36685260433 | Store actions and events reach telemetry as type names, with a local exact-text dedupe key. Action and event names are kept in R8. The `AD_ID` permission is removed and advertising-ID collection is off (G8). Every CI build-job gate passed without the build cache, and M-L1 to M-L13 went RED then GREEN. Codex raised three findings, all fixed: history in a comment, the debounce undercount, and the hash-collision key. |
+| 2026-09-30 | Owner amendment: listing line 15, Privacy Sandbox permissions | 5f71f53f | sha256 `841bd61b…`. Changes D8, F19, F25, §9.2 item 4, §10.2 (M-L5), §14 and Appendix B3/B4, after the PR-P review. |
+| 2026-09-30 | PR-P #301: policy, listing, product copy | 41bb0c85 (head 47737acc); run 36694784196 | Appendices A, B1 to B4 and C applied; every result hash matches. Codex: the `docs/index.md` lock was answered as already decided (D1, run authorization A2); listing line 15 led to the amendment. |
+| 2026-09-30 | PR-T #302: paired transport | 7237c12f (head c19e668a); run 36704826608 | §5 to §8 and the amended §9.2 item 4 (G8 checks all three advertising permissions). At the final head: 3050 unit tests, 93 lint tasks and 1707 screenshot tests green, and both bundles pass G8. 28 mutations (M-T1 to M-T25, M-T3b, M-L5) went RED then GREEN. The independent review's 18 findings were classified in the PR. Codex: four findings fixed (two on observer registration, the link status on capability loss, KDoc history); one answered as wrong, citing §7.7. |
+| 2026-09-30 | Release 1.52.0, phone | runs 36734395534, 36766141762, 36783501185; tag `release-v.1.52.0` → c019f701; #303 → cfbd1c8e | The production upload of versionCode 53 was committed at 22:17:23Z. Two earlier attempts stopped before any commit to Play. The UI-test SDK setup was fixed in #304; supply's memoized `metadata_path` was fixed in #305 and in c019f701 on the release branch. |
+| 2026-09-30 | Release 1.52.0, Wear | run 36783501185 (`deploy_wear`) | Failed before upload. Play lists `wear:internal` with no releases, which crashed `PlayState.tracks`; fixed in #307. The tag's commit could not carry the fix, so the owner chose a 1.52.1 hotfix. |
+| 2026-09-30 | Policy live (§9.1) | Pages builds of cfbd1c8e and 96a2588e | https://stslex.github.io/Workeeper/ served the three §9.1 headings at 22:23:28Z, 6 minutes after the master merge, and again at 2026-10-01 05:09Z. |
+| 2026-10-01 | Hotfix 1.52.1, phone and Wear | cut run 36809449963; deploy run 36811500839; Wear run 36817361794; tag `release-v.1.52.1` → 26ad9868; #308 → 96a2588e | The full pipeline ran, smoke UI tests included. Phone versionCode 54 was committed to production at 04:47:45Z. Wear 1000054 went to `wear:internal` at 05:03:24Z: DECISION UPLOAD, after the expected Wear DRIFT was overridden on the tag dispatch (run authorization A3, release-flow.md §8.10). Re-running the `deploy_wear` job (attempt 2) ended in DECISION SKIP. |
+| 2026-10-01 | PR #309: capability keep files, Wear launcher icon, gates G9–G11 | f664142a (head 0f61e1e9); runs 36824009514 (RED), 36830662724 | R8's optimized resource shrinking on AGP 9 ignores a values-file `tools:keep`; the keep files moved to `res/raw`; gates G9–G11 were added. Neither `android_wear_capabilities` array survived the release build: the 1.52.1 store APK has no `array` resource type, so the phone advertised no `workeeper_phone_active_workout_v1` and the watch showed "Couldn't reach your phone". The keep files are `feature/wear-bridge/src/main/res/raw/workeeper_wear_bridge_keep.xml` and `app/wear/src/main/res/raw/workeeper_wear_keep.xml`. The Wear launcher icon is now the phone's adaptive set, copied byte for byte (21 files) into `app/wear`; `ic_workeeper_wear` remains the notification, ongoing-activity and tile-preview glyph. Commit 1 alone went RED in CI (phone G9; Wear G9 and G11). An independent review found 9 gate gaps, all fixed; Codex found history in comments, fixed. |
+| 2026-10-01 | Hotfix 1.52.2, phone and Wear | cut run 36836452822; deploy run 36839141916; tag `release-v.1.52.2` → 0191a3eb; #310 → ad7142b7 | The full pipeline ran, smoke UI tests included. Phone versionCode 55 was committed to production at 09:40:17Z and Wear 1000055 to `wear:internal` at 09:45:25Z (DECISION UPLOAD, no listing drift). Both deploy lanes printed G9–G11 PASS. Re-running the `deploy_wear` job (attempt 2) ended in DECISION SKIP. The `release-v.1.52.2` store APK holds `array/android_wear_capabilities` = [`workeeper_phone_active_workout_v1`] (aapt2). Physical devices are unverified until the owner's check. |
 
 ## 16. Sources
 

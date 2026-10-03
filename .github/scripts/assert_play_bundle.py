@@ -2,8 +2,9 @@
 """Bundle identity gate: prove an AAB is the one its role claims before anything talks to Play.
 
 Spec: documentation/feature-specs/wear-release-pipeline.md §6 (G1–G7),
-documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8) and documentation/ci-cd.md
-§ "Bundle identity gate" (G9–G11). One bundle per run:
+documentation/feature-specs/wear-paired-transport.md §9.2 item 4 (G8), documentation/ci-cd.md
+§ "Bundle identity gate" (G9–G11) and documentation/feature-specs/wear-live-sync.md §8 (G12). One
+bundle per run:
 
     python3 .github/scripts/assert_play_bundle.py --aab <path> --role phone|wear \
         --toml gradle/libs.versions.toml
@@ -35,6 +36,11 @@ G11 both roles: application android:icon is @mipmap/ic_launcher, no android:roun
    launcher activity or activity-alias names another icon, and @mipmap/ic_launcher has an anydpi
    entry (density 65534) whose compiled XML in the bundle is an <adaptive-icon> with a
    <background> and a <foreground>, each filled (an android:drawable or a child drawable).
+G12 wear: exactly one <service> has an intent filter with the action
+   com.google.android.gms.wearable.MESSAGE_RECEIVED; it is android:exported="true", neither it nor
+   the application is android:enabled other than "true", neither declares an android:permission, and
+   that filter's data is exactly scheme wear, host * and path /workeeper/wear/v1/changed (no
+   pathPrefix, pathPattern or any other data attribute). Not applicable to phone.
 
 The manifest and the resources come from the catalog-pinned bundletool: `./gradlew
 :bundletoolClasspath` writes the classpath this script reads (ci-cd.md § "Bundle identity gate").
@@ -84,7 +90,8 @@ CAPABILITIES = {
     # GUARD: must equal WearProtocol.PHONE_CAPABILITY (core/wear-protocol) and the item of
     # feature/wear-bridge/src/main/res/values/wear_capabilities.xml.
     "phone": "workeeper_phone_active_workout_v1",
-    # GUARD: must equal the android_wear_capabilities item of app/wear/src/main/res/values/strings.xml.
+    # GUARD: must equal WearProtocol.WATCH_CAPABILITY (core/wear-protocol) and the item of
+    # app/wear/src/main/res/values/strings.xml.
     "wear": "workeeper_watch_active_workout_v1",
 }
 # GUARD: must equal WearRpcListenerService.REQUEST_ACTION (MessageClient.ACTION_REQUEST_RECEIVED) and
@@ -92,6 +99,11 @@ CAPABILITIES = {
 RPC_ACTION = "com.google.android.gms.wearable.REQUEST_RECEIVED"
 # GUARD: the path must equal WearProtocol.RPC_PATH (core/wear-protocol), matched exactly.
 RPC_DATA = {"host": ["*"], "path": ["/workeeper/wear/v1/rpc"], "scheme": ["wear"]}
+# GUARD: must equal PhoneChangeListenerService.MESSAGE_ACTION (MessageClient.ACTION_MESSAGE_RECEIVED)
+# and the action of the listener's intent filter in app/wear/src/main/AndroidManifest.xml.
+CHANGE_ACTION = "com.google.android.gms.wearable.MESSAGE_RECEIVED"
+# GUARD: the path must equal WearProtocol.CHANGED_PATH (core/wear-protocol), matched exactly.
+CHANGE_DATA = {"host": ["*"], "path": ["/workeeper/wear/v1/changed"], "scheme": ["wear"]}
 LAUNCHER_ICON = "@mipmap/ic_launcher"
 LAUNCHER_ICON_RESOURCE = "mipmap/ic_launcher"
 ICON_ATTRIBUTES = ("icon", "roundIcon")
@@ -106,7 +118,7 @@ ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
 ANDROID = "{" + ANDROID_NAMESPACE + "}"
 BUNDLETOOL_MAIN = "com.android.tools.build.bundletool.BundleToolMain"
 ROLES = ("phone", "wear")
-CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11")
+CHECKS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12")
 PASS, FAIL, SKIP, NOT_APPLICABLE = "PASS", "FAIL", "SKIP", "N/A"
 
 # `dump resources --values` output: "Package '<name>':", then per entry "0x<id> - <type>/<name>" and one
@@ -223,17 +235,8 @@ def parse_manifest(xml_text):
             if meta.get(ANDROID + "name") == ADID_COLLECTION_META
         ],
         "services": len(application.findall("service")) if application is not None else 0,
-        "rpc_services": [
-            {
-                "name": service.get(ANDROID + "name"),
-                "exported": service.get(ANDROID + "exported"),
-                "enabled": service.get(ANDROID + "enabled"),
-                "permission": service.get(ANDROID + "permission"),
-                "filters": [data_attributes(intent_filter) for intent_filter in rpc_filters(service)],
-            }
-            for service in (application.findall("service") if application is not None else [])
-            if rpc_filters(service)
-        ],
+        "rpc_services": listener_services(application, RPC_ACTION),
+        "change_services": listener_services(application, CHANGE_ACTION),
         "application_enabled": application.get(ANDROID + "enabled") if application is not None else None,
         "application_permission": application.get(ANDROID + "permission") if application is not None else None,
         "icons": {
@@ -258,12 +261,27 @@ def is_launcher(entry):
     )
 
 
-def rpc_filters(service):
-    """The service's intent filters that carry the Wear RPC action."""
+def action_filters(service, action_name):
+    """The service's intent filters that carry [action_name]."""
     return [
         intent_filter
         for intent_filter in service.findall("intent-filter")
-        if any(action.get(ANDROID + "name") == RPC_ACTION for action in intent_filter.findall("action"))
+        if any(action.get(ANDROID + "name") == action_name for action in intent_filter.findall("action"))
+    ]
+
+
+def listener_services(application, action_name):
+    """Every <service> with an intent filter for [action_name], with what G10 and G12 check."""
+    return [
+        {
+            "name": service.get(ANDROID + "name"),
+            "exported": service.get(ANDROID + "exported"),
+            "enabled": service.get(ANDROID + "enabled"),
+            "permission": service.get(ANDROID + "permission"),
+            "filters": [data_attributes(intent_filter) for intent_filter in action_filters(service, action_name)],
+        }
+        for service in (application.findall("service") if application is not None else [])
+        if action_filters(service, action_name)
     ]
 
 
@@ -277,7 +295,7 @@ def data_attributes(intent_filter):
 
 
 def check_manifest(manifest, role, code, name):
-    """G2..G6, G8 and G10 over a parsed manifest. Returns {check: (status, detail)}."""
+    """G2..G6, G8, G10 and G12 over a parsed manifest. Returns {check: (status, detail)}."""
     results = {}
     package = manifest["package"]
     results["G2"] = (PASS if package == PACKAGE else FAIL, f"package {package!r}, expected {PACKAGE!r}")
@@ -323,14 +341,25 @@ def check_manifest(manifest, role, code, name):
         f"meta-data {ADID_COLLECTION_META}: {collection}, expected exactly ['false']",
     )
     results["G10"] = check_rpc_listener(manifest, role)
+    results["G12"] = check_change_listener(manifest, role)
     return results
 
 
 def check_rpc_listener(manifest, role):
     """G10. The phone end of the Wear transport: the one service Play services delivers requests to."""
-    listeners = manifest["rpc_services"]
+    return check_listener(manifest, manifest["rpc_services"], RPC_ACTION, RPC_DATA, role == "phone", "phone")
+
+
+def check_change_listener(manifest, role):
+    """G12. The watch end of the change signal: the one service Play services delivers it to."""
+    return check_listener(manifest, manifest["change_services"], CHANGE_ACTION, CHANGE_DATA, role == "wear", "wear")
+
+
+def check_listener(manifest, listeners, action_name, expected_data, applicable, applicable_role):
+    """One exported, enabled, permission-free service for [action_name], whose filter data is exactly
+    [expected_data]. Play services binds it; anything else locks it out or widens what it accepts."""
     read = (
-        f"{manifest['services']} services, {len(listeners)} with action {RPC_ACTION}: "
+        f"{manifest['services']} services, {len(listeners)} with action {action_name}: "
         + (
             "; ".join(
                 f"{s['name']} exported={s['exported']!r} enabled={s['enabled']!r} permission={s['permission']!r} "
@@ -341,8 +370,8 @@ def check_rpc_listener(manifest, role):
         )
         + f"; application enabled={manifest['application_enabled']!r} permission={manifest['application_permission']!r}"
     )
-    if role != "phone":
-        return NOT_APPLICABLE, read + " (checked for phone only)"
+    if not applicable:
+        return NOT_APPLICABLE, read + f" (checked for {applicable_role} only)"
     problems = []
     if len(listeners) != 1:
         problems.append(f"expected exactly 1 such service, found {len(listeners)}")
@@ -361,8 +390,8 @@ def check_rpc_listener(manifest, role):
             problems.append(f"permission={listener['permission']!r}, expected none")
         if manifest["application_permission"] is not None:
             problems.append(f"application permission={manifest['application_permission']!r}, expected none")
-        if listener["filters"] != [RPC_DATA]:
-            problems.append(f"filter data {listener['filters']}, expected exactly [{RPC_DATA}]")
+        if listener["filters"] != [expected_data]:
+            problems.append(f"filter data {listener['filters']}, expected exactly [{expected_data}]")
     return (FAIL, read + "; " + "; ".join(problems)) if problems else (PASS, read)
 
 
@@ -610,7 +639,7 @@ def check_abi_parity(aab):
 
 
 def evaluate(aab_pattern, role, toml_path, reader):
-    """Run G1..G11 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
+    """Run G1..G12 and return {check: (status, detail)}. Raises GateError if the gate cannot run."""
     toml_name, toml_code = read_toml_identity(toml_path)
     code, name = expected_identity(role, toml_name, toml_code)
     print(f"role={role} toml={toml_path} versionName={toml_name!r} versionCode={toml_code}")

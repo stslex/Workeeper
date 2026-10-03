@@ -220,6 +220,66 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.8: the five portable suites (9/1/7/4/4) plus the one production scene, 26 exact.
+        "module": "feature:archive",
+        "results_dir": "feature/archive/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.archive.mvi.handler.ArchiveClickHandlerTest",
+                [
+                    "OnSegmentChange updates selectedSegment and emits SegmentTick haptic",
+                    "OnSegmentChange to current segment is no-op",
+                    "OnRestoreClick emits ContextClick haptic",
+                    "OnUndoRestore emits ContextClick haptic",
+                    "OnDeleteDismiss does not emit haptic",
+                    "OnDeleteDismiss clears pending delete state",
+                    "OnPermanentDeleteClick emits LongPress haptic and stores target",
+                    "OnDeleteConfirm emits LongPress haptic and clears target",
+                    "OnDeleteConfirm without target does nothing",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.archive.mvi.handler.ArchivePagingHandlerTest",
+                "placeholder",
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.archive.mvi.mapper.ArchiveMetaLineTest",
+                [
+                    "an exercise leads with its kind word",
+                    "a training leads with the other kind word",
+                    "the kind is first, ahead of the date",
+                    "tags come last, after the date",
+                    "no tags leaves no dangling separator",
+                    "the date is day-and-month, not a relative span",
+                    "a missing timestamp degrades to the bare word rather than a wrong date",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurfaceTest",
+                [
+                    "rows win over everything",
+                    "an unsettled refresh with no rows is loading, not empty",
+                    "a failed first page is its own verdict",
+                    "settled with no rows is the empty state",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKindTest",
+                [
+                    "appending draws the loading footer",
+                    "a failed page draws the error footer, not silence",
+                    "exhausted draws no footer at all",
+                    "idle mid-list draws no footer either",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest",
+                "resourcesPagingBranchesAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

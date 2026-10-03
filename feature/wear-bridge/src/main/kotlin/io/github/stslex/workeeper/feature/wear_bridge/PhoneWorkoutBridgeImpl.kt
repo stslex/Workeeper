@@ -9,6 +9,9 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CommandValidation
@@ -45,6 +48,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val leaseStore: WearMutationLeaseStore,
     private val clock: PhoneMonotonicClock,
     private val mutationWriter: WearSetMutationWriter,
+    private val knownRevisions: WatchKnownRevisions,
+    private val externalSetWrites: ExternalSetWrites,
 ) : PhoneWorkoutBridge {
 
     /** Empty: no owner gate is open (wear-phase-1-active-workout-tile.md §6.1). */
@@ -62,7 +67,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     ): ActiveWorkoutSnapshotResponse = coordinatorMutex.withLock {
         requireRequest(request.schemaVersion, authenticatedSourceNodeId)
         val key = SnapshotRequestKey(authenticatedSourceNodeId, request.correlationId)
-        snapshotResponses[key]?.let { return@withLock it }
+        snapshotResponses[key]?.let { return@withLock knownRevisions.shown(authenticatedSourceNodeId, it) }
         val prepared = transition.mutate {
             val epoch = currentEpoch()
             prepareSnapshotResponse(
@@ -73,7 +78,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         }
         val response = publishSnapshotOrRefreshReadOnly(request.correlationId, prepared)
         snapshotResponses.put(key, response)
-        response
+        knownRevisions.shown(authenticatedSourceNodeId, response)
     }
 
     override suspend fun completeCurrentSet(
@@ -95,7 +100,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             correlationId = request.correlationId,
             attemptFingerprint = attemptFingerprint,
         )
-        commandResponses[key]?.let { return@withLock it }
+        commandResponses[key]?.let { return@withLock knownRevisions.shown(authenticatedSourceNodeId, it) }
         val prepared = try {
             transition.mutate {
                 processCommand(
@@ -114,6 +119,9 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 )
             }
         }
+        // wear-live-sync.md §6.4: only after mutate returned an Applied write; in commit order,
+        // because this runs under coordinatorMutex.
+        prepared.applied?.let(externalSetWrites::publish)
         prepared.retire?.let { retired ->
             leaseStore.retireMatching(
                 sourceNodeId = retired.sourceNodeId,
@@ -124,7 +132,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         }
         val response = publishCommandOrRefreshReadOnly(prepared)
         commandResponses.put(key, response)
-        response
+        knownRevisions.shown(authenticatedSourceNodeId, response)
     }
 
     override suspend fun protocolRejected(
@@ -138,7 +146,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             routing = routing,
             reason = reason,
         )
-        commandResponses[key]?.let { return@withLock it }
+        commandResponses[key]?.let { return@withLock knownRevisions.shown(authenticatedSourceNodeId, it) }
         val response = transition {
             readOnlyCommandResponse(
                 correlationId = routing.correlationId,
@@ -154,7 +162,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             leaseGeneration = routing.mutationLeaseGeneration,
         )
         commandResponses.put(key, response)
-        response
+        knownRevisions.shown(authenticatedSourceNodeId, response)
     }
 
     // Keep the security-sensitive gateway order visible and contiguous with specification §5.2.
@@ -323,16 +331,15 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             return unavailableTargetRejection(request, invalid, base, retirement)
         }
 
-        mutationWriter.write(
-            WearSetWrite(
-                uuid = Uuid.random(),
-                performedExerciseUuid = Uuid.parse(request.body.performedExerciseUuid.value),
-                position = request.body.setPosition,
-                reps = request.body.reps,
-                weight = request.body.weightHundredthsKg?.toDouble()?.div(HUNDREDTHS_PER_KG),
-                type = request.body.setType.toEntity(),
-            ),
+        val written = WearSetWrite(
+            uuid = Uuid.random(),
+            performedExerciseUuid = Uuid.parse(request.body.performedExerciseUuid.value),
+            position = request.body.setPosition,
+            reps = request.body.reps,
+            weight = request.body.weightHundredthsKg?.toDouble()?.div(HUNDREDTHS_PER_KG),
+            type = request.body.setType.toEntity(),
         )
+        mutationWriter.write(written)
         val committedSync = requireNotNull(database.wearSyncDao.getSessionSync(sync.sessionUuid))
         check(committedSync.revision > sync.revision) { "Wear mutation did not advance revision" }
         val committedBase = snapshotBuilder.build(epoch)
@@ -352,7 +359,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 revision = committedSync.revision,
             ) == 1,
         ) { "Wear receipt did not bind to committed revision" }
-        return prepared
+        // Published by completeCurrentSet once this transaction has committed (§6.4 change 2).
+        return prepared.copy(applied = written.toExternal(sync.sessionUuid))
     }
 
     private suspend fun receiptOutcome(
@@ -687,6 +695,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val response: CompleteCurrentSetResponse,
         val lease: PendingMutationLease? = null,
         val retire: LeaseRetirement? = null,
+        /** The set an Applied command wrote; null on every other path. */
+        val applied: ExternalSetWrite? = null,
     )
 
     private class BoundedResponseMap<K, V> {
@@ -819,3 +829,24 @@ internal fun SetTypeWire.toEntity(): SetTypeEntity = when (this) {
     SetTypeWire.FAIL -> SetTypeEntity.FAIL
     SetTypeWire.DROP -> SetTypeEntity.DROP
 }
+
+/**
+ * The bridge's own map into the live-workout data type: core:data:exercise keeps its
+ * SetTypeEntity mapping internal (wear-live-sync.md §6.4, Q4). Pinned over every value by a test.
+ */
+internal fun SetTypeEntity.toSetsDataType(): SetsDataType = when (this) {
+    SetTypeEntity.WARM -> SetsDataType.WARM
+    SetTypeEntity.WORK -> SetsDataType.WORK
+    SetTypeEntity.FAIL -> SetsDataType.FAIL
+    SetTypeEntity.DROP -> SetsDataType.DROP
+}
+
+/** The values exactly as written (wear-live-sync.md §6.4). */
+internal fun WearSetWrite.toExternal(sessionUuid: Uuid): ExternalSetWrite = ExternalSetWrite(
+    sessionUuid = sessionUuid.toString(),
+    performedExerciseUuid = performedExerciseUuid.toString(),
+    position = position,
+    weight = weight,
+    reps = reps,
+    type = type.toSetsDataType(),
+)

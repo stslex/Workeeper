@@ -16,9 +16,10 @@ import kotlinx.coroutines.tasks.asTask
  * The phone end of the paired transport: answers the watch's `MessageClient.sendRequest` on
  * [WearProtocol.RPC_PATH] (wear-paired-transport.md §5.3, §6.1).
  *
- * GUARD: one of the two files allowed to name the Wearable Data Layer (§8); widening that
- * allowlist is a privacy decision. Everything here is plumbing: routing, admission and encoding
- * live in [PhoneWearRpcHandler], which is pure Kotlin and host-tested.
+ * GUARD: one of the files allowed to name the Wearable Data Layer (wear-live-sync.md §8), and one of
+ * the two that workout payloads cross; widening that allowlist is a privacy decision. Everything
+ * here is plumbing: routing, admission and encoding live in [PhoneWearRpcHandler], which is pure
+ * Kotlin and host-tested.
  *
  * The listener's binder accepts calls from Google Play services only (§3 ASM-2, verified in the
  * resolved play-services-wearable 20.0.1 bytecode), and Play services delivers only requests from

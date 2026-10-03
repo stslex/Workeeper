@@ -25,6 +25,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -35,6 +36,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
@@ -42,6 +44,7 @@ import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
+import io.github.stslex.workeeper.feature.wear_bridge.transport.PhoneChangeNotifier
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -85,6 +88,8 @@ internal interface AppGraph :
     override val imageViewerGraphFactory: ImageViewerGraph.Factory
 
     override val planEditorGraphFactory: PlanEditorGraph.Factory
+
+    override val archiveGraphFactory: ArchiveGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 
@@ -139,6 +144,18 @@ internal interface AppGraph :
     override val restoreStateRepository: RestoreStateRepository
 
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
+
+    /**
+     * The phone → watch change signal of this generation (wear-live-sync.md §6.3). Its reader is
+     * `StartupProcessor.armPostPreflight`, which arms it on this generation's lifetime.
+     */
+    val phoneChangeNotifier: PhoneChangeNotifier
+
+    /**
+     * The in-process signal the phone bridge publishes a watch-written set into (wear-live-sync.md
+     * §6.4). Its only reader here is the live-workout extension identity test.
+     */
+    val externalSetWrites: ExternalSetWrites
 
     @Provides
     @SingleIn(AppScope::class)

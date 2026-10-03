@@ -11,13 +11,18 @@ import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordin
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationFailureReason
+import io.github.stslex.workeeper.feature.wear_bridge.transport.PhoneChangeNotifier
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -58,11 +63,26 @@ internal class StartupProcessorTest {
         coEvery { cleanupTempFiles() } returns Unit
     }
     private val recoveryBootstrap = mockk<RecoveryBootstrap>()
+
+    // The notifier runs until its lifetime is cancelled; the finally block proves that it was.
+    private var notifierRuns = 0
+    private var notifierCancelled = false
+    private val phoneChangeNotifier = mockk<PhoneChangeNotifier> {
+        coEvery { run() } coAnswers {
+            notifierRuns++
+            try {
+                awaitCancellation()
+            } finally {
+                notifierCancelled = true
+            }
+        }
+    }
     private val graph = mockk<AppGraph> {
         every { restoreRecoveryCoordinator } returns this@StartupProcessorTest.restoreCoordinator
         every { startupMigrationCoordinator } returns this@StartupProcessorTest.migrationCoordinator
         every { imageStorage } returns this@StartupProcessorTest.imageStorage
         every { recoveryBootstrap } returns this@StartupProcessorTest.recoveryBootstrap
+        every { phoneChangeNotifier } returns this@StartupProcessorTest.phoneChangeNotifier
     }
     private val appDatabase = mockk<AppDatabase>()
     private val lifetime = AppScopeLifetime()
@@ -400,5 +420,62 @@ internal class StartupProcessorTest {
         // Caught, not propagated: a corrupt db must not take down the launch that needs recovery.
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+    }
+
+    @Test
+    fun `a proceeding generation arms the change notifier, low RAM or not`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        lowRam = true
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.Proceed, outcome)
+        assertEquals(1, notifierRuns, "wear-live-sync.md §6.3: armed once per generation")
+        assertEquals(0, plannerRuns, "the low-RAM check skips the planner only")
+    }
+
+    @Test
+    fun `suspend preflight - a proceeding candidate arms the change notifier`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.Proceed, outcome)
+            assertEquals(1, notifierRuns)
+        }
+
+    @Test
+    fun `a generation that routes to recovery does not arm the change notifier`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        peekDecision = StartupCheck.RouteToRecovery(StartupMigrationFailureReason.APP_DOWNGRADE)
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        assertEquals(0, notifierRuns, "the notifier reads the database; recovery arms nothing DB-bound")
+    }
+
+    @Test
+    fun `a first Room open that throws does not arm the change notifier`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        wearStorageError = IllegalStateException("registered migration threw on first open")
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        assertEquals(0, notifierRuns, "the open failure is recorded before arming (F6)")
+    }
+
+    @Test
+    fun `cancelling the generation lifetime stops the change notifier`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        coldStart()
+        assertEquals(1, notifierRuns)
+        assertFalse(notifierCancelled, "the notifier runs until its generation ends")
+
+        runBlocking { lifetime.cancelAndJoin() }
+
+        assertTrue(notifierCancelled, "the notifier lives on the generation lifetime (§6.3)")
     }
 }

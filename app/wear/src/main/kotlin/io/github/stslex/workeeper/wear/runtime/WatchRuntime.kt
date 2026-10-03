@@ -28,6 +28,13 @@ internal interface WatchRuntime {
      * an interaction signal.
      */
     fun onControllerInteractive(interactive: Boolean) = Unit
+
+    /**
+     * The phone signalled that its active workout may have changed (wear-live-sync.md §7.1, O6).
+     * Only the connected release runtime acts on it; debug runtimes keep this no-op, so no synthetic
+     * suite reacts to a signal.
+     */
+    fun onPhoneChanged() = Unit
 }
 
 /**

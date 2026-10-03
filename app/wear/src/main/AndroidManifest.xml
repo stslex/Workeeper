@@ -41,9 +41,14 @@
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
 
+        <!-- singleTop: a Tile tap starts this activity through a protolayout LaunchAction, which
+             cannot set intent flags, so over a launcher-started task it would stack a second
+             instance and back would need two swipes (wear-live-sync.md §7.5). The running
+             instance gets onNewIntent instead. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -62,6 +67,23 @@
             <meta-data
                 android:name="androidx.wear.tiles.PREVIEW"
                 android:resource="@drawable/ic_workeeper_wear" />
+        </service>
+
+        <!-- The watch end of the phone's change signal (wear-live-sync.md §7.1). Exported because
+             Google Play services binds it, with the app closed too; no permission, or Play services
+             could not. The filter matches the one change path exactly, never a prefix. The message
+             carries no workout data: the runtime asks the phone again. -->
+        <service
+            android:name=".transport.PhoneChangeListenerService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:path="/workeeper/wear/v1/changed"
+                    android:scheme="wear" />
+            </intent-filter>
         </service>
     </application>
 

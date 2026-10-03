@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.bestOfDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
@@ -18,6 +19,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
@@ -323,6 +325,18 @@ internal object LiveWorkoutMapper {
         weight = weight,
         reps = reps,
         type = type.toDomain(),
+    )
+
+    /** The watch's values, as the phone's own completion marks a set (wear-live-sync.md §6.4). */
+    fun ExternalSetDomain.toUi(): ExternalSetUiModel = ExternalSetUiModel(
+        performedExerciseUuid = performedExerciseUuid,
+        set = LiveSetUiModel(
+            position = position,
+            weight = set.weight,
+            reps = set.reps,
+            type = set.type.toUi(),
+            isDone = true,
+        ),
     )
 
     fun PlanSetDomain.toUi(): PlanSetUiModel = PlanSetUiModel(

@@ -384,6 +384,34 @@ Android keeps three `ImageViewerExtensionIdentityTest` cases, resolving the fact
 resolves app-root dependencies exactly once while both rejected paths resolve them zero times.
 The four existing image-viewer regression journeys remain unchanged.
 
+#### Shared archive feature
+
+`feature:archive` keeps its five portable suites in `commonTest`, so the same 25 exact identities
+execute through Android host and `iosSimulatorArm64Test`: click handler 9, paging-handler
+placeholder 1, meta line 7, list surface 4, and paging tail 4. The click-handler fake reproduces the
+old relaxed store — Store-scope `launch` work is not run — and fails fast on every member the
+handler must not touch. `ArchiveMetaLineTest` drives the pure `ArchiveUiMapper` seam with copy the
+paging handler has already resolved, so it needs no resources. Five inherited names contain commas,
+which Kotlin/Native rejects, so their three files carry
+`@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")`.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest.resourcesPagingBranchesAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` with deterministic `PagingData`. It resolves the
+private catalog, renders both segment labels, both empty branches, the cold-open loading and
+refresh-error verdicts, populated exercise and training rows, both append tails, and the
+permanent-delete dialog with its plural impact copy, and observes the exact segment, Back, restore,
+overflow-delete, confirm and dismiss actions. Paging hands each new list over on the main
+dispatcher and the kit holds a shown loading treatment for its minimum, so the scene settles each
+paging branch in bounded steps until that branch's production tag exists. Together with the 25
+portable cases, the archive Native XML contains exactly 26 passing cases with no skip, failure, or
+error. This is a headless Compose scene, not an iOS app, UIKit, or XCTest claim.
+
+The 14 archive goldens moved byte-identical to `androidHostTest`. Android keeps the four
+`ArchiveExtensionIdentityTest` cases, which resolve the factory through
+`appGraph.archiveGraphFactory`, and `ArchiveScreenTest.pendingFeatureRewrite` in
+`androidDeviceTest` as the one documented `@Smoke` skip.
+
 #### Shared MVI runtime
 
 `core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
@@ -869,11 +897,11 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 ## Visual gate — Paparazzi screenshot goldens
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
-`:core:ui:start-mode` (KMP), and `feature/`{`all-exercises`, `all-trainings`, `archive`, `exercise`,
-`exercise-chart`, `home`, `live-workout`, `past-session`, `settings`, `single-training`}. Goldens
-live in `src/test/snapshots/images/` in classic Android modules and in
+`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), and `feature/`{`all-exercises`,
+`all-trainings`, `exercise`, `exercise-chart`, `home`, `live-workout`, `past-session`, `settings`,
+`single-training`}. Goldens live in `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
-`:core:ui:plan-editor`, `:core:ui:start-mode`), and are committed. The shared harness
+`:core:ui:plan-editor`, `:core:ui:start-mode`, `:feature:archive`), and are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
@@ -1046,6 +1074,7 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :core:ui:plan-editor:iosSimulatorArm64Test \
   :feature:image-viewer:iosSimulatorArm64Test \
   :feature:plan-editor:iosSimulatorArm64Test \
+  :feature:archive:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
@@ -12,14 +13,18 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionStateDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -70,6 +75,7 @@ private fun loadWeightlessSessionThroughInit(): MutableStateFlow<State> {
     val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     coEvery { interactor.loadSession("session-1") } returns weightlessSnapshot()
+    every { interactor.observeExternalSetWrites(any()) } returns emptyFlow()
     val stateFlow = MutableStateFlow(
         State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
     )
@@ -98,7 +104,13 @@ private fun loadWeightlessSessionThroughInit(): MutableStateFlow<State> {
             mockk<Job>(relaxed = true)
         }
     }
-    CommonHandler(interactor, resourceWrapper, store).invoke(Action.Common.Init)
+    CommonHandler(
+        interactor = interactor,
+        resourceWrapper = resourceWrapper,
+        setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper)),
+        storeDispatchers = StoreDispatchers(Dispatchers.Unconfined, Dispatchers.Unconfined),
+        store = store,
+    ).invoke(Action.Common.Init)
     return stateFlow
 }
 
