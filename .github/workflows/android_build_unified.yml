@@ -121,7 +121,9 @@ jobs:
         run: python3 .github/scripts/assert_kmp_ui_source_topology.py
 
       - name: Build with Gradle
-        run: ./gradlew assembleDebug --full-stacktrace
+        run: >
+          bash .github/scripts/run_with_resource_samples.sh
+          ./gradlew assembleDebug --full-stacktrace
 
       # The `androidTest` variants had NO gate on any PR. `assembleDebug` does not build them,
       # and the only workflow that does — `ui_tests.yml` — is `workflow_dispatch`/`workflow_call`
