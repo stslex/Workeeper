@@ -6,6 +6,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
@@ -19,6 +20,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkout
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
@@ -28,7 +30,10 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnaps
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -42,6 +47,7 @@ class LiveWorkoutInteractorImpl internal constructor(
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     private val personalRecordRepository: PersonalRecordRepository,
+    private val externalSetWrites: ExternalSetWrites,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
 
@@ -167,6 +173,12 @@ class LiveWorkoutInteractorImpl internal constructor(
             preSessionPrSnapshot = preSessionPrs,
         )
     }
+
+    // GUARD: filter and map only, no dispatching operator (see the interface).
+    override fun observeExternalSetWrites(sessionUuid: String): Flow<ExternalSetDomain> =
+        externalSetWrites.writes
+            .filter { write -> write.sessionUuid == sessionUuid }
+            .map { write -> write.toDomain() }
 
     override suspend fun upsertSet(
         performedExerciseUuid: String,

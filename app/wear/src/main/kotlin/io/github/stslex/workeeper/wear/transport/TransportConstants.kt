@@ -24,3 +24,15 @@ internal const val AUTO_REFRESH_BUDGET: Int = 6
 
 /** PROVISIONAL, internal testing only (§7.8): the rolling window of [AUTO_REFRESH_BUDGET]. */
 internal const val AUTO_REFRESH_WINDOW_MS: Long = 60_000L
+
+/**
+ * PROVISIONAL, internal testing only (wear-live-sync.md §7.3, D9): O6's own token bucket holds this
+ * many tokens, so a burst of phone changes is served at once. Unmeasured.
+ */
+internal const val PHONE_CHANGE_BURST: Int = 10
+
+/**
+ * PROVISIONAL, internal testing only (wear-live-sync.md §7.3): one O6 token is regained every this
+ * many milliseconds. Unmeasured.
+ */
+internal const val PHONE_CHANGE_REFILL_MS: Long = 10_000L

@@ -5,6 +5,7 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
+import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
@@ -49,6 +50,15 @@ interface WearSyncDao {
         """,
     )
     suspend fun getActiveSessionSync(): SessionWearSyncRow?
+
+    /**
+     * The phone's change key for the paired watch (wear-live-sync.md §6.1). GUARD: exactly the
+     * active session's uuid and Wear revision. Room re-runs this on every `session_table` write, a
+     * watch handshake's lease write included, so any other column would turn every handshake into a
+     * change signal.
+     */
+    @Query("SELECT uuid AS session_uuid, wear_revision FROM session_table WHERE state = 'IN_PROGRESS' LIMIT 1")
+    fun observeActiveWearKey(): Flow<ActiveWearKeyRow?>
 
     @Query(
         """

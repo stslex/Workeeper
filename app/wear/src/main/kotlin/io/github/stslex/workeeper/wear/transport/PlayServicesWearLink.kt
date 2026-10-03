@@ -11,9 +11,10 @@ import kotlinx.coroutines.tasks.await
  * The watch end of the paired transport: `MessageClient.sendRequest` to the phone's listener on
  * [WearProtocol.RPC_PATH] (wear-paired-transport.md §5.2, §5.3).
  *
- * GUARD: one of the two files allowed to name the Wearable Data Layer (§8); widening that allowlist
- * is a privacy decision. Everything here is plumbing; sending rules live in
- * [WatchTransportCoordinator], which is pure Kotlin and host-tested.
+ * GUARD: one of the files allowed to name the Wearable Data Layer (wear-live-sync.md §8), and one of
+ * the two that workout payloads cross; widening that allowlist is a privacy decision. Everything
+ * here is plumbing; sending rules live in [WatchTransportCoordinator], which is pure Kotlin and
+ * host-tested.
  *
  * GUARD: no Google Play services call before the first request. The clients are lazy, so the
  * release factory constructs under Robolectric and on a watch without Play services, where every

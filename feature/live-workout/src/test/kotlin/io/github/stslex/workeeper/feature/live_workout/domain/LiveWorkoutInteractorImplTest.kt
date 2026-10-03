@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseType
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
@@ -22,6 +24,7 @@ import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.mockk.coEvery
@@ -34,6 +37,8 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -52,6 +57,7 @@ internal class LiveWorkoutInteractorImplTest {
     private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true).apply {
         every { observePersonalRecordsBatch(any()) } returns flowOf(emptyMap())
     }
+    private val externalSetWrites = ExternalSetWrites()
 
     private val interactor = LiveWorkoutInteractorImpl(
         sessionRepository = sessionRepository,
@@ -61,6 +67,7 @@ internal class LiveWorkoutInteractorImplTest {
         trainingRepository = trainingRepository,
         trainingExerciseRepository = trainingExerciseRepository,
         personalRecordRepository = personalRecordRepository,
+        externalSetWrites = externalSetWrites,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 
@@ -900,6 +907,37 @@ internal class LiveWorkoutInteractorImplTest {
         assertEquals(listOf("ex-1", "ex-2"), results.map { it.uuid })
         assertEquals(listOf("Bench Press", "Bench Press (Incline)"), results.map { it.name })
     }
+
+    @Test
+    fun `external set writes reach only the screen of their own session, mapped as written`() = runTest {
+        val received = mutableListOf<ExternalSetDomain>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            interactor.observeExternalSetWrites("session-1").collect { received += it }
+        }
+
+        externalSetWrites.publish(externalWrite(sessionUuid = "session-2", position = 0))
+        externalSetWrites.publish(externalWrite(sessionUuid = "session-1", position = 1))
+
+        assertEquals(
+            listOf(
+                ExternalSetDomain(
+                    performedExerciseUuid = "pe-1",
+                    position = 1,
+                    set = PlanSetDomain(weight = 82.5, reps = 6, type = SetTypeDomain.FAILURE),
+                ),
+            ),
+            received,
+        )
+    }
+
+    private fun externalWrite(sessionUuid: String, position: Int) = ExternalSetWrite(
+        sessionUuid = sessionUuid,
+        performedExerciseUuid = "pe-1",
+        position = position,
+        weight = 82.5,
+        reps = 6,
+        type = SetsDataType.FAIL,
+    )
 
     private fun adhocTraining(uuid: String, isAdhoc: Boolean): TrainingDataModel =
         TrainingDataModel(

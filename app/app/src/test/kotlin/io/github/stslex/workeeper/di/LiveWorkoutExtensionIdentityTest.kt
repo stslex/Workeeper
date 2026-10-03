@@ -94,6 +94,19 @@ internal class LiveWorkoutExtensionIdentityTest {
     }
 
     @Test
+    fun `the watch write signal is the parent's instance, the one the bridge publishes into`() {
+        val appGraph = buildAppGraph()
+
+        val extension = appGraph.liveWorkout(sessionUuid = "s-1")
+
+        assertSame(
+            appGraph.externalSetWrites,
+            extension.externalSetWrites,
+            "ExternalSetWrites in the extension must be the PARENT's instance, or no watch write reaches it",
+        )
+    }
+
+    @Test
     fun `the qualified dispatcher is inherited and is not the IO key`() {
         val appGraph = buildAppGraph()
 

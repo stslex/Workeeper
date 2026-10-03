@@ -17,7 +17,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 /**
  * wear-paired-transport.md §10.1: the service answers the one RPC path exactly, and the watch
  * discovers the phone by the capability this module advertises. Neither test spells the Data Layer
- * package: they use [WearRpcListenerService.REQUEST_ACTION] and [WearProtocol] constants (§8).
+ * package: they use [WearRpcListenerService.REQUEST_ACTION] and [WearProtocol] constants
+ * (wear-live-sync.md §8).
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])

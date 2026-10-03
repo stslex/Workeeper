@@ -31,7 +31,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
-/** What starts a request chain (wear-paired-transport.md §7.4). Every request has one; nothing polls. */
+/**
+ * What starts a request chain (wear-paired-transport.md §7.4, wear-live-sync.md §7.3). Every request
+ * has one; nothing polls.
+ */
 internal enum class RefreshOrigin {
     /** O1: the controller became interactive (resumed and not ambient, or ambient exit). */
     CONTROLLER_INTERACTIVE,
@@ -47,6 +50,16 @@ internal enum class RefreshOrigin {
 
     /** O5: the user's Complete set or Retry. Neither counted by nor limited by the budget. */
     USER,
+
+    /**
+     * O6: the phone's change signal (wear-live-sync.md §7.3), whether interactive, in ambient or with
+     * no Activity at all. Limited by its own bucket ([PhoneChangeLimiter]), never by the budget.
+     */
+    PHONE_CHANGED,
+    ;
+
+    /** The origin as the transport log lines name it: the enum name, except O6 (wear-live-sync.md §7.4). */
+    val label: String get() = if (this == PHONE_CHANGED) "phone_changed" else name
 }
 
 /** The watch's own node id, resolved by the first request and kept for the process (§5.2 step 4). */
@@ -72,8 +85,16 @@ internal class LocalNodeId {
  *   dropped;
  * - coalescing: a refresh is dropped while a handshake is queued or in flight; commands never are;
  * - finite follow-ups: at most one automatic follow-up handshake per chain, never from a follow-up;
- * - budget: at most [AUTO_REFRESH_BUDGET] automatic handshakes per [AUTO_REFRESH_WINDOW_MS];
- * - no polling: no timer, alarm, wake lock or loop issues a request.
+ * - budget: at most [AUTO_REFRESH_BUDGET] automatic handshakes per [AUTO_REFRESH_WINDOW_MS]. O6 is
+ *   neither counted nor limited by it; its own bucket limits it, and an O6 chain's follow-up is an
+ *   ordinary automatic follow-up under the budget (wear-live-sync.md §7.3);
+ * - phone change: a signal marks a change pending, and issuing any handshake token clears it. It is
+ *   served only while nothing is queued or in flight; when retry preservation or an empty bucket
+ *   blocks it, nothing is enqueued and the deferral is armed instead;
+ * - no polling: no alarm, wake lock or loop issues a request, and every request has an origin. The
+ *   only timer that can start one is the O6 deferral: at most one, armed only while a change is
+ *   pending, and it only delays an O6 that already arrived (wear-live-sync.md §7.3 amends
+ *   transport §7.2).
  */
 internal class WatchTransportCoordinator(
     private val owner: WatchRuntimeOwner,
@@ -92,6 +113,7 @@ internal class WatchTransportCoordinator(
     private var lastHandshakeCompletedAtMs: Long? = null
     private val automaticStartsMs = ArrayDeque<Long>()
     private var lastSnapshotFresh = false
+    private val phoneChange = PhoneChangeLimiter(scope)
 
     init {
         scope.launch { owner.snapshot.collect { snapshot -> onOwnerSnapshot(snapshot) } }
@@ -121,8 +143,35 @@ internal class WatchTransportCoordinator(
         }
     }
 
+    /**
+     * O6 (wear-live-sync.md §7.3): the phone signalled that its active workout may have changed.
+     * Runs whatever the controller is doing, in ambient and with no Activity at all.
+     */
+    fun onPhoneChanged() = post {
+        phoneChange.signal()
+        servePhoneChange()
+    }
+
     private fun post(block: () -> Unit) {
         scope.launch { guarded("event") { block() } }
+    }
+
+    /**
+     * §7.3 rules 3 and 5: a pending change waits while a refresh is queued (its token will clear the
+     * change) or any request is in flight. Otherwise retry preservation or an empty bucket arms the
+     * deferral and enqueues nothing; else one token buys one O6 refresh.
+     */
+    private fun servePhoneChange(pump: Boolean = true) {
+        if (!phoneChange.pending) return
+        if (inFlight != null || queue.any { it is Work.Refresh }) return
+        val now = clock.nowMs()
+        val waitMs = retryPreservedUntilMs()?.let { deadline -> deadline - now } ?: phoneChange.msUntilToken(now)
+        if (waitMs > 0L) {
+            phoneChange.defer(waitMs) { guarded("event") { servePhoneChange() } }
+            return
+        }
+        phoneChange.take(now)
+        enqueueRefresh(Chain(RefreshOrigin.PHONE_CHANGED), pump = pump)
     }
 
     private fun enqueueRefresh(chain: Chain, followUp: Boolean = false, pump: Boolean = true) {
@@ -130,7 +179,7 @@ internal class WatchTransportCoordinator(
         if (inFlight is Work.Refresh || queued != null) {
             // A user refresh folded into a queued automatic one keeps it unlimited (§7.2).
             if (chain.origin == RefreshOrigin.USER && !followUp) queued?.userRequested = true
-            logger.i { "refresh ${chain.origin} coalesced" }
+            logger.i { "refresh ${chain.origin.label} coalesced" }
             return
         }
         queue.addLast(Work.Refresh(chain, followUp))
@@ -165,7 +214,11 @@ internal class WatchTransportCoordinator(
                     // GUARD: cleared on every path, before the follow-up may start the next request.
                     inFlight = null
                 }
-                guarded("follow-up") { followUp(next, refreshRequiredAtStart, acceptedUnavailable) }
+                guarded("follow-up") {
+                    followUp(next, refreshRequiredAtStart, acceptedUnavailable)
+                    // wear-live-sync.md §7.3 rule 4: a change that arrived meanwhile, after the follow-up rule.
+                    servePhoneChange(pump = false)
+                }
                 pump()
             }
         }
@@ -200,13 +253,29 @@ internal class WatchTransportCoordinator(
             null
         }
         is Work.Refresh -> when {
-            work.automatic && retryPreserved() -> dropped(work, "retry preserved")
-            work.automatic && !budgetAvailable() -> dropped(work, "budget")
-            // Late token: issuing it retires the current authority, so it is issued only now.
-            else -> runCatching { owner.issueHandshake() }.getOrNull()?.also {
-                if (work.automatic) automaticStartsMs.addLast(clock.nowMs())
-            }
+            work.automatic && retryPreservedUntilMs() != null -> dropped(work, "retry preserved")
+            work.budgeted && !budgetAvailable() -> dropped(work, "budget")
+            else -> issueHandshake(work)
         }
+    }
+
+    /**
+     * Late token: issuing it retires the current authority, so it is issued only now. Any issued
+     * token also serves a pending phone change (wear-live-sync.md §7.3 rule 2): this request starts
+     * after the signal, and the phone signals only after its commit.
+     */
+    private fun issueHandshake(work: Work.Refresh): RequestToken? {
+        val token = runCatching { owner.issueHandshake() }.getOrNull()
+        if (token == null) {
+            // An O6 without a token gives its change up and says so; any other origin stays
+            // silent, as before, and leaves a pending change to be served.
+            if (work.isPhoneChange) return dropped(work, "no token")
+            servePhoneChange(pump = false)
+            return null
+        }
+        if (work.budgeted) automaticStartsMs.addLast(clock.nowMs())
+        phoneChange.clear()
+        return token
     }
 
     private fun attemptCurrent(work: Work.Command): Boolean {
@@ -222,17 +291,24 @@ internal class WatchTransportCoordinator(
         }
     }
 
-    private fun dropped(work: Work, reason: String): RequestToken? {
-        logger.i { "refresh ${work.chain.origin} dropped: $reason" }
+    /**
+     * A refresh dropped at start. A dropped O6 gives its change up: the next signal or O1–O5
+     * recovers it. Any other dropped refresh may leave a change pending, so it is served now
+     * (wear-live-sync.md §7.3 rules 3 and 4).
+     */
+    private fun dropped(work: Work.Refresh, reason: String): RequestToken? {
+        logger.i { "refresh ${work.chain.origin.label} dropped: $reason" }
+        if (work.isPhoneChange) phoneChange.clear() else servePhoneChange(pump = false)
         return null
     }
 
-    private fun retryPreserved(): Boolean {
+    /** While retry preservation holds (§7.2), the binding's deadline; otherwise null. */
+    private fun retryPreservedUntilMs(): Long? {
         val workout = owner.snapshot.value.workout
         val status = workout.command?.status
-        if (status != CommandStatus.TIMED_OUT_RETRYABLE && status != CommandStatus.RETRY_READY) return false
-        val binding = workout.authority as? LocalMutationAuthority.AttemptBound ?: return false
-        return clock.nowMs() < binding.effectiveDeadlineMs
+        if (status != CommandStatus.TIMED_OUT_RETRYABLE && status != CommandStatus.RETRY_READY) return null
+        val binding = workout.authority as? LocalMutationAuthority.AttemptBound ?: return null
+        return binding.effectiveDeadlineMs.takeIf { clock.nowMs() < it }
     }
 
     /** The slot itself is taken only once a token was issued ([start]). */
@@ -351,7 +427,10 @@ internal class WatchTransportCoordinator(
         }
     }
 
-    /** §7.4: one automatic follow-up per chain, never from a follow-up. */
+    /**
+     * §7.4: one automatic follow-up per chain, never from a follow-up. A chain started by O2, O4 or
+     * O6 gets none once the controller is not interactive (wear-live-sync.md §7.3 rule 6).
+     */
     private fun followUp(
         work: Work,
         refreshRequiredAtStart: Boolean,
@@ -361,8 +440,7 @@ internal class WatchTransportCoordinator(
         if (work.followUp || work.chain.followUpUsed) return
         val workout = owner.snapshot.value.workout
         if (workout.display is WatchDisplayState.ProtocolMismatch) return
-        val origin = work.chain.origin
-        if ((origin == RefreshOrigin.TILE || origin == RefreshOrigin.AUTHORITY_EXPIRED) && !interactive) return
+        if (work.chain.origin in INTERACTIVE_ONLY_FOLLOW_UPS && !interactive) return
         val refreshTurnedTrue = !refreshRequiredAtStart && workout.refreshRequired
         if (!refreshTurnedTrue && !acceptedUnavailable) return
         work.chain.followUpUsed = true
@@ -422,6 +500,12 @@ internal class WatchTransportCoordinator(
 
             /** Every refresh but a user's; a follow-up of a user chain is automatic too. */
             val automatic: Boolean get() = !userRequested
+
+            /** The O6 refresh itself, not its follow-up (wear-live-sync.md §7.3). */
+            val isPhoneChange: Boolean get() = chain.origin == RefreshOrigin.PHONE_CHANGED && !followUp
+
+            /** Counted against and limited by the budget: every automatic refresh but an O6. */
+            val budgeted: Boolean get() = automatic && !isPhoneChange
         }
 
         class Command(
@@ -444,6 +528,13 @@ internal class WatchTransportCoordinator(
 
     private companion object {
         const val LOG_TAG = "WearTransport"
+
+        /** Origins whose chain gets no follow-up once the controller is not interactive. */
+        val INTERACTIVE_ONLY_FOLLOW_UPS = setOf(
+            RefreshOrigin.TILE,
+            RefreshOrigin.AUTHORITY_EXPIRED,
+            RefreshOrigin.PHONE_CHANGED,
+        )
     }
 }
 

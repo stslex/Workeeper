@@ -21,4 +21,16 @@ object WearProtocol {
 
     /** The one request/response path, matched exactly on both sides. wear-paired-transport.md §5.1. */
     const val RPC_PATH: String = "/workeeper/wear/v1/rpc"
+
+    /**
+     * The capability the watch advertises (app/wear `strings.xml`, pinned by a watch test) and the
+     * phone finds it by to send the change signal. wear-live-sync.md §5.1.
+     */
+    const val WATCH_CAPABILITY: String = "workeeper_watch_active_workout_v1"
+
+    /**
+     * The phone-to-watch change signal's path, matched exactly by the watch's listener. The signal
+     * carries no workout data. wear-live-sync.md §5.1, §5.2.
+     */
+    const val CHANGED_PATH: String = "/workeeper/wear/v1/changed"
 }
