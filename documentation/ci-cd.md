@@ -373,6 +373,25 @@ portable tuples and
 exactly once, for exactly 26 target tuples. All eight result directories upload under
 `if: always()` regardless.
 
+The same eight modules' iosArm64 (device) test binaries are then linked in one forced invocation
+(`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
+started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
+each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/8 linked`, and fails naming every
+module without a binary. Device tests are compiled and linked, never run: CI has no device. The
+Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
+`assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
+happens only here.
+
+Both jobs' `~/.konan` caches use the key `konan-<os>-iosArm64-iosSimulatorArm64-<catalog hash>`;
+the restore key `konan-<os>-` is unchanged, so the toolchain still restores. The token names the
+target set because Kotlin/Native writes per-target content into that directory: the commonized
+platform libraries for the two iOS targets under
+`klib/commonized/<version>/(ios_arm64, ios_simulator_arm64)`, and on macOS the per-dependency
+compiler caches the device link writes under `klib/cache/ios_arm64-gSTATIC-user-pl/` (about 1.1 GB
+for 70 dependencies, measured locally). `actions/cache` saves only on a primary-key miss, so a key
+that ignored the target set would hit the older cache and never save that content. The token
+changes together with `KmpLibraryConventionPlugin.configureTargets()`.
+
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
 required-ruleset status, and
