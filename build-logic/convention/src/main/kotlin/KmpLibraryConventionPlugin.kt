@@ -75,6 +75,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureLintOptions(lint)
         }
 
+        // GUARD: the ~/.konan cache keys in android_build_unified.yml name this target set;
+        // change both together.
+        kmpExtension.iosArm64()
         kmpExtension.iosSimulatorArm64()
     }
 
