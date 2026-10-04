@@ -139,6 +139,7 @@ jobs:
           targets="$(awk '
             /fun Project\.configureTargets\(/ { inside = 1 }
             inside {
+              gsub(/"([^"\\]|\\.)*"/, "\"\"")
               sub(/\/\/.*/, "")
               print
               depth += gsub(/\{/, "{") - gsub(/\}/, "}")
@@ -629,6 +630,7 @@ jobs:
           targets="$(awk '
             /fun Project\.configureTargets\(/ { inside = 1 }
             inside {
+              gsub(/"([^"\\]|\\.)*"/, "\"\"")
               sub(/\/\/.*/, "")
               print
               depth += gsub(/\{/, "{") - gsub(/\}/, "}")
