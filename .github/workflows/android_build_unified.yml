@@ -2,7 +2,8 @@ name: Android CI/CD - Unified Build and Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
+    paths-ignore: [ '**/*.md' ]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -54,7 +55,19 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+
+      # Caches Gradle User Home, caches/build-cache-1 included. Only push runs on master and dev
+      # write; every other run reads. The action's own default writes from the default branch
+      # alone, so dev needs the expression. Nothing may touch ~/.gradle before this step: the
+      # action skips its restore when it finds a pre-existing Gradle User Home.
+      # GUARD: v5 is the last major whose caching is MIT. v6's default provider (`enhanced`) is
+      # the proprietary gradle-actions-caching component under Gradle's Terms of Use, and v6's
+      # `basic` provider has no restore keys, cleanup or deduplication, so it reproduces the
+      # per-key setup-java cache this replaced. Moving to v6 is a maintainer decision.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')) }}
 
       - name: Configure Keystore
         env:
@@ -90,32 +103,69 @@ jobs:
       - name: Use CI-optimized Convention Gradle properties
         run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
 
-      - name: Restore Gradle build cache
-        id: gradle-build-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches/build-cache-*
-          key: gradle-build-cache-${{ runner.os }}-${{ hashFiles('settings.gradle.kts', '**/build.gradle.kts', 'gradle/libs.versions.toml', 'gradle.properties') }}
-          restore-keys: |
-            gradle-build-cache-${{ runner.os }}-
-          save-always: true
-
       # The KMP convention aliases assembleDebug -> assemble, which puts every KMP module's
       # iOS klib compilation into this step's task graph. The build cache cannot mask a
       # break: a changed iosMain input misses the cache key and must compile here, and
       # failed compilations never populate the cache — so a FROM-CACHE hit is a
       # verification of identical previously-green inputs, same as for the Android compile
       # tasks in this step. Kotlin/Native downloads its toolchain to ~/.konan on first use
-      # (~1GB); cache it or every uncached run pays the download. Keyed on the catalog
-      # because the K/N compiler version moves with the kotlin pin there.
+      # (~1GB); cache it or every uncached run pays the download.
+      # GUARD: the key is konan-<os>-kotlin-<kotlin>-<targets>. ~/.konan holds one Kotlin
+      # version's compiler plus content per native target: the commonized platform libraries
+      # (klib/commonized/) and, on macOS, the per-dependency compiler caches that linking writes
+      # (klib/cache/<target>-gSTATIC-*/, ~1.1 GB for ios_arm64 as measured in #317). An exact
+      # hit is never saved again, so a key without the target set would keep hitting the older
+      # entry and never store a new target's content. Not the catalog hash: the catalog holds
+      # versionCode, so every release would re-key an unchanged toolchain. The targets are read
+      # from KmpLibraryConventionPlugin.configureTargets(), so a new target re-keys by itself,
+      # and the prefix restore still hands that run the same Kotlin version's compiler. Only
+      # master and dev pushes save (this job's last step): a PR's entry is visible to that PR
+      # alone, and on a full cache it evicts the entries every PR restores. The macOS job runs
+      # the same script; keep the two copies identical.
+      - name: Compute the Kotlin/Native cache key
+        id: konan_key
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          catalog=gradle/libs.versions.toml
+          convention=build-logic/convention/src/main/kotlin/KmpLibraryConventionPlugin.kt
+          kotlin_lines="$(grep -E '^kotlin = "[^"]+"$' "$catalog" || true)"
+          kotlin_count="$(printf '%s' "$kotlin_lines" | grep -c . || true)"
+          if [ "$kotlin_count" -ne 1 ]; then
+            echo "::error::kotlin is empty or ambiguous: expected exactly one 'kotlin = \"<v>\"' line in $catalog, found $kotlin_count"
+            exit 1
+          fi
+          kotlin="$(printf '%s\n' "$kotlin_lines" | sed -E 's/^kotlin = "([^"]+)"$/\1/')"
+          targets="$(awk '
+            /fun Project\.configureTargets\(/ { inside = 1 }
+            inside {
+              gsub(/"([^"\\]|\\.)*"/, "\"\"")
+              sub(/\/\/.*/, "")
+              print
+              depth += gsub(/\{/, "{") - gsub(/\}/, "}")
+              if (depth > 0) opened = 1
+              if (opened && depth == 0) exit
+            }' "$convention" \
+            | grep -oE 'kmpExtension\.(ios|macos|tvos|watchos|linux|mingw|androidNative)[A-Z][A-Za-z0-9]*\(\)' \
+            | sed -E 's/^kmpExtension\.([A-Za-z0-9]+)\(\)$/\1/' \
+            | sort -u | tr '\n' '-' || true)"
+          targets="${targets%-}"
+          if [ -z "$targets" ]; then
+            echo "::error::targets is empty: no native kmpExtension.<target>() call in configureTargets() of $convention"
+            exit 1
+          fi
+          echo "key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}" >> "$GITHUB_OUTPUT"
+          echo "prefix=konan-${RUNNER_OS}-kotlin-${kotlin}-" >> "$GITHUB_OUTPUT"
+          echo "kotlin=${kotlin} targets=${targets} key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}"
+
       - name: Restore Kotlin/Native toolchain
-        uses: actions/cache@v4
+        id: konan
+        uses: actions/cache/restore@v4
         with:
           path: ~/.konan
-          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          key: ${{ steps.konan_key.outputs.key }}
           restore-keys: |
-            konan-${{ runner.os }}-
+            ${{ steps.konan_key.outputs.prefix }}
 
       - name: Assert shared KMP UI source-set topology
         run: python3 .github/scripts/assert_kmp_ui_source_topology.py
@@ -354,6 +404,14 @@ jobs:
         with:
           report-path: "**/build/reports/lint-results-*.xml"
 
+      # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.
+      - name: Save Kotlin/Native toolchain
+        if: ${{ success() && github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev') && steps.konan.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan_key.outputs.key }}
+
   # The pull-request half of the bundle identity gate (wear-release-pipeline.md §6; ci-cd.md
   # § "Bundle identity gate"): both release bundles are built and the gate the deploy lanes run
   # before any Play call is run on the real AABs. A job of its own because the phone release bundle
@@ -361,9 +419,10 @@ jobs:
   # minutes) has no room for.
   #
   # GUARD: no Gradle caching here, neither `setup-java`'s nor the build cache. The repository's
-  # Actions cache is near its limit, and on a key change this job would race the build job to save
-  # `setup-java`'s entry with a dependency set that lacks every test library. So every run is a
-  # clean, executed build; `--no-build-cache` keeps it that way if a cache is ever added back.
+  # Actions cache is near its limit, and setup-gradle keys its Gradle User Home entry by job, so
+  # caching here would add a second entry beside the build job's on every master and dev push.
+  # So every run is a clean, executed build; `--no-build-cache` keeps it that way if a cache is
+  # ever added back.
   release-bundles:
     name: Release bundle identity
     runs-on: ubuntu-latest
@@ -525,7 +584,17 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+
+      # Same write rule as the build job's setup-gradle step, and likewise no step before it may
+      # touch ~/.gradle.
+      # GUARD: v5 is the last major whose caching is MIT. v6's default provider (`enhanced`) is
+      # the proprietary gradle-actions-caching component under Gradle's Terms of Use, and v6's
+      # `basic` provider has no restore keys, cleanup or deduplication, so it reproduces the
+      # per-key setup-java cache this replaced. Moving to v6 is a maintainer decision.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')) }}
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -537,13 +606,57 @@ jobs:
         run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
 
       # Same rationale as the Linux job's ~/.konan cache; macOS downloads its own K/N toolchain.
+      # GUARD: same key script as the build job's, whose GUARD explains the key; keep the two
+      # copies identical. Here the target token also covers linking, which writes per-dependency
+      # compiler caches per target under klib/cache/ next to the commonized platform libraries.
+      # Only master and dev pushes save, in this job's last step. The key carries no dependency
+      # fingerprint (maintainer decision, 2026-10-03): a dependency bump on the same Kotlin version
+      # and target set hits the older entry exactly, so the bumped dependencies' compiler caches
+      # are rebuilt on every run until the Kotlin version or the target set changes.
+      - name: Compute the Kotlin/Native cache key
+        id: konan_key
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          catalog=gradle/libs.versions.toml
+          convention=build-logic/convention/src/main/kotlin/KmpLibraryConventionPlugin.kt
+          kotlin_lines="$(grep -E '^kotlin = "[^"]+"$' "$catalog" || true)"
+          kotlin_count="$(printf '%s' "$kotlin_lines" | grep -c . || true)"
+          if [ "$kotlin_count" -ne 1 ]; then
+            echo "::error::kotlin is empty or ambiguous: expected exactly one 'kotlin = \"<v>\"' line in $catalog, found $kotlin_count"
+            exit 1
+          fi
+          kotlin="$(printf '%s\n' "$kotlin_lines" | sed -E 's/^kotlin = "([^"]+)"$/\1/')"
+          targets="$(awk '
+            /fun Project\.configureTargets\(/ { inside = 1 }
+            inside {
+              gsub(/"([^"\\]|\\.)*"/, "\"\"")
+              sub(/\/\/.*/, "")
+              print
+              depth += gsub(/\{/, "{") - gsub(/\}/, "}")
+              if (depth > 0) opened = 1
+              if (opened && depth == 0) exit
+            }' "$convention" \
+            | grep -oE 'kmpExtension\.(ios|macos|tvos|watchos|linux|mingw|androidNative)[A-Z][A-Za-z0-9]*\(\)' \
+            | sed -E 's/^kmpExtension\.([A-Za-z0-9]+)\(\)$/\1/' \
+            | sort -u | tr '\n' '-' || true)"
+          targets="${targets%-}"
+          if [ -z "$targets" ]; then
+            echo "::error::targets is empty: no native kmpExtension.<target>() call in configureTargets() of $convention"
+            exit 1
+          fi
+          echo "key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}" >> "$GITHUB_OUTPUT"
+          echo "prefix=konan-${RUNNER_OS}-kotlin-${kotlin}-" >> "$GITHUB_OUTPUT"
+          echo "kotlin=${kotlin} targets=${targets} key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}"
+
       - name: Restore Kotlin/Native toolchain
-        uses: actions/cache@v4
+        id: konan
+        uses: actions/cache/restore@v4
         with:
           path: ~/.konan
-          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          key: ${{ steps.konan_key.outputs.key }}
           restore-keys: |
-            konan-${{ runner.os }}-
+            ${{ steps.konan_key.outputs.prefix }}
 
       # Repository configuration reads a signing keystore at configuration time. This job holds
       # no production secret by design: an ephemeral throwaway JKS satisfies configuration and
@@ -614,3 +727,11 @@ jobs:
             feature/plan-editor/build/test-results/iosSimulatorArm64Test/
             feature/archive/build/test-results/iosSimulatorArm64Test/
           retention-days: 30
+
+      # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.
+      - name: Save Kotlin/Native toolchain
+        if: ${{ success() && github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev') && steps.konan.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan_key.outputs.key }}
