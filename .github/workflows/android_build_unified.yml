@@ -608,7 +608,10 @@ jobs:
       # GUARD: same key script as the build job's, whose GUARD explains the key; keep the two
       # copies identical. Here the target token also covers linking, which writes per-dependency
       # compiler caches per target under klib/cache/ next to the commonized platform libraries.
-      # Only master and dev pushes save, in this job's last step.
+      # Only master and dev pushes save, in this job's last step. The key carries no dependency
+      # fingerprint (maintainer decision, 2026-10-03): a dependency bump on the same Kotlin version
+      # and target set hits the older entry exactly, so the bumped dependencies' compiler caches
+      # are rebuilt on every run until the Kotlin version or the target set changes.
       - name: Compute the Kotlin/Native cache key
         id: konan_key
         run: |

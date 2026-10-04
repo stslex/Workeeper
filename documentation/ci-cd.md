@@ -68,6 +68,9 @@ manual dispatch, or inside the production deploy — never on a PR.
    saved again; it does not hash the whole catalog, which holds `versionCode` and would re-key the
    toolchain on every release. The job's last step saves the entry, only on a `master` or `dev`
    push that missed the exact key. The `KMP iOS kit smoke` job runs the same script and save rule.
+   The key carries no dependency fingerprint, so after a dependency bump on the same Kotlin version
+   and target set the macOS job rebuilds the bumped dependencies' compiler caches on every run
+   until the Kotlin version or the target set changes.
 
 ### Verification steps
 
