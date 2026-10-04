@@ -130,7 +130,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Set up Ruby 3.3
         uses: ruby/setup-ruby@v1
