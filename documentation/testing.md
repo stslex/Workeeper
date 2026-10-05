@@ -1078,6 +1078,18 @@ python3 .github/scripts/assert_mvi_host_identities.py
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
+# The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 8/8.
+./gradlew :core:ui:kit:linkDebugTestIosArm64 \
+  :core:ui:navigation:linkDebugTestIosArm64 \
+  :core:ui:mvi:linkDebugTestIosArm64 \
+  :core:ui:start-mode:linkDebugTestIosArm64 \
+  :core:ui:plan-editor:linkDebugTestIosArm64 \
+  :feature:image-viewer:linkDebugTestIosArm64 \
+  :feature:plan-editor:linkDebugTestIosArm64 \
+  :feature:archive:linkDebugTestIosArm64 \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+
 # Focused MVI device cases plus exact JUnit identities
 ./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
   -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
@@ -1126,7 +1138,8 @@ in [ci-cd.md](ci-cd.md).
 
 ## CI behavior
 
-- **Unit tests run on every PR and on pushes to `master`** as part of `android_build_unified.yml`.
+- **Unit tests run on every PR and on pushes to `master` and `dev`** as part of
+  `android_build_unified.yml`; a push whose changed files are all Markdown skips the workflow.
 - **UI tests do not gate PRs.** The `ui_tests.yml` workflow runs weekly (Mondays
   05:00 UTC, against `dev`; the cron only evaluates from the default branch, so it
   activates once the workflow reaches `master` with a release) and on manual dispatch

@@ -104,12 +104,13 @@ jobs:
         run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
 
       # The KMP convention aliases assembleDebug -> assemble, which puts every KMP module's
-      # iOS klib compilation into this step's task graph. The build cache cannot mask a
-      # break: a changed iosMain input misses the cache key and must compile here, and
-      # failed compilations never populate the cache — so a FROM-CACHE hit is a
-      # verification of identical previously-green inputs, same as for the Android compile
-      # tasks in this step. Kotlin/Native downloads its toolchain to ~/.konan on first use
-      # (~1GB); cache it or every uncached run pays the download.
+      # iOS klib compilation, for both iosArm64 and iosSimulatorArm64, into this step's task
+      # graph. It links nothing: Apple binaries link only on macOS, in the KMP iOS kit smoke
+      # job. The build cache cannot mask a break: a changed iosMain input misses the cache key
+      # and must compile here, and failed compilations never populate the cache — so a
+      # FROM-CACHE hit is a verification of identical previously-green inputs, same as for the
+      # Android compile tasks in this step. Kotlin/Native downloads its toolchain to ~/.konan
+      # on first use (~1GB); cache it or every uncached run pays the download.
       # GUARD: the key is konan-<os>-kotlin-<kotlin>-<targets>. ~/.konan holds one Kotlin
       # version's compiler plus content per native target: the commonized platform libraries
       # (klib/commonized/) and, on macOS, the per-dependency compiler caches that linking writes
@@ -557,13 +558,21 @@ jobs:
   # Gradle invocation executes the kit, navigation, MVI, start-mode, plan-editor and image-viewer
   # Phase-7 Native tests on the iOS simulator, then a checked-in script requires every exact
   # per-module XML identity.
+  # A second forced invocation links the same eight modules' iosArm64 device test binaries and a
+  # check requires each executable; device tests are compiled and linked, never run.
   # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
   # secrets. See
   # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
   kmp-ios-kit-smoke:
     name: KMP iOS kit smoke
     runs-on: macos-26
-    timeout-minutes: 60
+    # GUARD: 120 minutes, not the Linux jobs' 60 (maintainer decision, 2026-10-05). PR runs never
+    # save ~/.konan, so every run of a PR that changes the Kotlin version starts without it.
+    # Without the device link this job took 33.7–39.8 min cold (runs 37241235866, 37198040443);
+    # the device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min
+    # together, an upper estimate since those runs also had a cold Gradle home. That attempt's
+    # whole job, link included, took 55.2 min. Warm with the link: 10m35s (attempt 2).
+    timeout-minutes: 120
 
     steps:
       - name: Checkout branch
@@ -711,6 +720,46 @@ jobs:
       - name: Assert exact native test identities
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
+
+      # The device half of the target pair: the same eight modules' iosArm64 test binaries,
+      # forced like the simulator step, compiled and linked but never run (no device here).
+      - name: Link the iOS device test binaries
+        id: device_link
+        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
+        run: >
+          ./gradlew
+          :core:ui:kit:linkDebugTestIosArm64
+          :core:ui:navigation:linkDebugTestIosArm64
+          :core:ui:mvi:linkDebugTestIosArm64
+          :core:ui:start-mode:linkDebugTestIosArm64
+          :core:ui:plan-editor:linkDebugTestIosArm64
+          :feature:image-viewer:linkDebugTestIosArm64
+          :feature:plan-editor:linkDebugTestIosArm64
+          :feature:archive:linkDebugTestIosArm64
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --continue --full-stacktrace --console=plain
+
+      # An exit code is not evidence: each module's executable must exist where Kotlin/Native
+      # links it. Runs whenever the link step started, so a red link still names every module
+      # that produced no binary.
+      - name: Assert the device test binaries
+        if: ${{ !cancelled() && steps.device_link.outcome != 'skipped' }}
+        run: |
+          missing=()
+          linked=0
+          for module in core/ui/kit core/ui/navigation core/ui/mvi core/ui/start-mode \
+              core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive; do
+            if [ -f "$module/build/bin/iosArm64/debugTest/test.kexe" ]; then
+              linked=$((linked + 1))
+            else
+              missing+=("$module")
+            fi
+          done
+          echo "$linked/8 linked"
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::no iosArm64 test binary for: ${missing[*]}"
+            exit 1
+          fi
 
       - name: Upload native test results
         uses: actions/upload-artifact@v4
