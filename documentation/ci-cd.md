@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -37,7 +37,19 @@ manual dispatch, or inside the production deploy — never on a PR.
 1. **Checkout** with `actions/checkout@v4`.
 2. **Decrypt the keystore.** The `KEYSTORE` secret is a GPG-encrypted blob; the workflow pipes
    it through `gpg -d --passphrase "$KEYSTORE_PASSPHRASE" --batch keystore.jks.asc`.
-3. **Java 21 (Temurin)** with `actions/setup-java@v4` and Gradle cache enabled.
+3. **Java 21 (Temurin)** with `actions/setup-java@v4`, without its Gradle cache, then **Gradle
+   User Home caching** with `gradle/actions/setup-gradle@v5`, which also covers the local build
+   cache (`caches/build-cache-1`). Only push runs on `master` and `dev` write; pull requests,
+   `workflow_dispatch` and `workflow_call` runs restore the closest entry they can read (for a
+   pull request: its own ref, its base branch and `master`) and save nothing. The action's own
+   default lets only the default branch write, hence the `cache-read-only` expression. A pull
+   request's entry is visible to that pull request alone, and setup-java's cache — one exact-key
+   entry per hash of every Gradle file and the version catalog, saved on every miss — wrote a
+   4–5 GB entry for each such pull request and pushed the repository past its 10 GB cache limit. The
+   major is pinned on purpose: v5 is the last whose caching is MIT. v6's default provider
+   (`enhanced`) is the proprietary `gradle-actions-caching` component under Gradle's Terms of Use,
+   and v6's `basic` provider has no restore keys, cleanup or deduplication, so it reproduces the
+   setup-java behavior above. Moving to v6 is a maintainer decision.
 4. **Generate `keystore.properties`** from the `KEYSTORE_KEY_ALIAS`,
    `KEYSTORE_KEY_PASSWORD`, and `KEYSTORE_STORE_PASSWORD` secrets so Gradle can sign the dev
    debug builds it needs for testing.
@@ -46,9 +58,19 @@ manual dispatch, or inside the production deploy — never on a PR.
 6. **Copy CI-tuned Gradle properties** from `.github/properties/gradle-ci.properties` to
    `gradle.properties` and `.github/properties/gradle-convention-ci.properties` to
    `build-logic/gradle.properties`. These override local memory settings for CI.
-7. **Restore Gradle build cache** via `actions/cache@v4` keyed on
-   `settings.gradle.kts`, every `**/build.gradle.kts`, `gradle/libs.versions.toml`, and
-   `gradle.properties`.
+7. **Restore the Kotlin/Native toolchain** (`~/.konan`, ~1 GB) with `actions/cache/restore@v4`.
+   A script step computes the key `konan-<RUNNER_OS>-kotlin-<kotlin>-<targets>` from the catalog's
+   `kotlin = "<v>"` line and the native `kmpExtension.<target>()` calls in
+   `KmpLibraryConventionPlugin.configureTargets()` (sorted, joined with `-`), and fails when either
+   is empty. The restore falls back to the newest entry with the same Kotlin version. The key names
+   the target set because Kotlin/Native writes per-target content into `~/.konan` (the commonized
+   platform libraries and, on macOS, per-dependency compiler caches) and an exact hit is never
+   saved again; it does not hash the whole catalog, which holds `versionCode` and would re-key the
+   toolchain on every release. The job's last step saves the entry, only on a `master` or `dev`
+   push that missed the exact key. The `KMP iOS kit smoke` job runs the same script and save rule.
+   The key carries no dependency fingerprint, so after a dependency bump on the same Kotlin version
+   and target set the macOS job rebuilds the bumped dependencies' compiler caches on every run
+   until the Kotlin version or the target set changes.
 
 ### Verification steps
 
@@ -98,13 +120,13 @@ The Wear module runs its host tests once per flavor. Its two flavors differ by o
 meta-data line, and the second run doubled the module's share of the unit-test step, so
 `pull_request` passes `-PwearUnitTestFlavors=store` and runs the shipping flavor only. The
 property defaults to `dev,store`, an unknown value fails the build, and the dev-flavor Wear unit
-tests keep running on `master` pushes, `workflow_dispatch`, `workflow_call` and in every local
-root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
+tests keep running on `master` and `dev` pushes, `workflow_dispatch`, `workflow_call` and in every
+local root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
 name and **runs** by execution. The two Wear flavors share test names, so on pull requests
 **tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
 Heap, `forkEvery` and timeouts are unchanged.
 
-For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores that PR's build cache and executes only what changed.
+For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores the build cache the latest `master` or `dev` push saved (pull-request runs save none) and executes whatever that cache does not cover.
 
 Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
 `Run Unit Tests`. The wrapper writes a `[res]` sample block into each step's log every 15 s:
@@ -235,9 +257,9 @@ so one run reports both, but not when the bundle build failed), and runs the swa
 mismatch alone. It is a job of its own because the phone release bundle compiles every module's
 release variant and the build job's worst green run took 47.1 of its 60 minutes. It uses no Gradle
 caching, neither `setup-java`'s nor the build cache: the repository's Actions cache is near its
-10 GB limit, and on a key change this job would race the build job to save `setup-java`'s entry with
-a dependency set that lacks every test library. Every run is therefore a clean, executed build, and
-`--no-build-cache` keeps it so if a cache is ever added back.
+10 GB limit, and setup-gradle keys its Gradle User Home entry by job, so caching here would add a
+second entry beside the build job's on every `master` and `dev` push. Every run is therefore a
+clean, executed build, and `--no-build-cache` keeps it so if a cache is ever added back.
 
 PR CI must not upload mapping files (F07 above). The phone release variant uploads its mapping
 unconditionally, so the job's task list carries `-x :app:store:uploadCrashlyticsMappingFileRelease`,
@@ -727,7 +749,9 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
 
 ## Branch model
 
-- `master` is the long-lived main branch. Pushes to `master` retrigger the unified build.
+- `master` is the long-lived main branch. Pushes to `master` and `dev` retrigger the unified build,
+  unless every changed file is Markdown; only those push runs write the Gradle and Kotlin/Native
+  caches.
 - `dev` is used for ongoing development; PRs typically open against `dev`. The unified build
   runs for any PR target.
 - Release tags follow `beta-v<version>` and `release-v<version>` and are produced by the deploy

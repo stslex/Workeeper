@@ -90,7 +90,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Grant Permission to Execute
         run: chmod +x gradlew
