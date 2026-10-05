@@ -566,7 +566,13 @@ jobs:
   kmp-ios-kit-smoke:
     name: KMP iOS kit smoke
     runs-on: macos-26
-    timeout-minutes: 60
+    # GUARD: 120 minutes, not the Linux jobs' 60 (maintainer decision, 2026-10-05). PR runs never
+    # save ~/.konan, so every run of a PR that changes the Kotlin version starts without it.
+    # Without the device link this job took 33.7–39.8 min cold (runs 37241235866, 37198040443);
+    # the device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min
+    # together, an upper estimate since those runs also had a cold Gradle home. That attempt's
+    # whole job, link included, took 55.2 min. Warm with the link: 10m35s (attempt 2).
+    timeout-minutes: 120
 
     steps:
       - name: Checkout branch
