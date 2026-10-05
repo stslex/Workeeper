@@ -1138,7 +1138,8 @@ in [ci-cd.md](ci-cd.md).
 
 ## CI behavior
 
-- **Unit tests run on every PR and on pushes to `master`** as part of `android_build_unified.yml`.
+- **Unit tests run on every PR and on pushes to `master` and `dev`** as part of
+  `android_build_unified.yml`; a push whose changed files are all Markdown skips the workflow.
 - **UI tests do not gate PRs.** The `ui_tests.yml` workflow runs weekly (Mondays
   05:00 UTC, against `dev`; the cron only evaluates from the default branch, so it
   activates once the workflow reaches `master` with a release) and on manual dispatch

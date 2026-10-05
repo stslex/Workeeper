@@ -75,8 +75,11 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureLintOptions(lint)
         }
 
-        // GUARD: the ~/.konan cache keys in android_build_unified.yml name this target set;
-        // change both together.
+        // GUARD: both jobs' Kotlin/Native cache key in android_build_unified.yml is parsed from
+        // the literal kmpExtension.<target>() calls in this function. A native target declared
+        // any other way (the lambda form kmpExtension.iosArm64 { }, a loop, a helper, a variable)
+        // is invisible to that parse, so the key would omit it and its ~/.konan content would
+        // never be saved.
         kmpExtension.iosArm64()
         kmpExtension.iosSimulatorArm64()
     }

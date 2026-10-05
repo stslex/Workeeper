@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`, then links the same eight modules' iosArm64 test binaries, never run). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -404,15 +404,23 @@ Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through
 `assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
 happens only here.
 
-Both jobs' `~/.konan` caches use the key `konan-<os>-iosArm64-iosSimulatorArm64-<catalog hash>`;
-the restore key `konan-<os>-` is unchanged, so the toolchain still restores. The token names the
-target set because Kotlin/Native writes per-target content into that directory: the commonized
-platform libraries for the two iOS targets under
-`klib/commonized/<version>/(ios_arm64, ios_simulator_arm64)`, and on macOS the per-dependency
-compiler caches the device link writes under `klib/cache/ios_arm64-gSTATIC-user-pl/` (about 1.1 GB
-for 70 dependencies, measured locally). `actions/cache` saves only on a primary-key miss, so a key
-that ignored the target set would hit the older cache and never save that content. The token
-changes together with `KmpLibraryConventionPlugin.configureTargets()`.
+Both jobs' `~/.konan` caches use the computed key from [setup step 7](#setup-steps); with iosArm64
+declared it is `konan-<os>-kotlin-<kotlin>-iosArm64-iosSimulatorArm64`. The target token matters
+because Kotlin/Native writes per-target content into that directory: the commonized platform
+libraries for the two iOS targets under `klib/commonized/<version>/(ios_arm64, ios_simulator_arm64)`,
+and on macOS the per-dependency compiler caches the device link writes under
+`klib/cache/ios_arm64-gSTATIC-user-pl/` (about 1.1 GB for 70 dependencies, measured locally). Only
+`master` and `dev` pushes save the key. Until the first `dev` push after the device target landed
+saves it, pull-request runs restore the older iosSimulatorArm64-only entry through the
+`konan-<os>-kotlin-<kotlin>-` prefix, so on every pull-request run the Linux job runs the commonizer
+and the macOS job builds the ios_arm64 compiler caches cold.
+
+The job's timeout is 120 minutes, against 60 for the Linux jobs. Pull-request runs never save
+`~/.konan`, so every run of a pull request that changes the Kotlin version starts without it.
+Without the device link the job took 33.7–39.8 min cold (runs 37241235866 and 37198040443); the
+device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min together,
+an upper estimate since those runs also had a cold Gradle home. That attempt's whole job, link
+included, took 55.2 min; warm with the link it took 10m35s (attempt 2).
 
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
