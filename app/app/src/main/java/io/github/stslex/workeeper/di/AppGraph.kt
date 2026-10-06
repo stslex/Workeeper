@@ -43,6 +43,7 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.wear_bridge.WatchKnownRevisions
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
 import io.github.stslex.workeeper.feature.wear_bridge.transport.PhoneChangeNotifier
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
@@ -156,6 +157,13 @@ internal interface AppGraph :
      * §6.4). Its only reader here is the live-workout extension identity test.
      */
     val externalSetWrites: ExternalSetWrites
+
+    /**
+     * The per-watch keys the phone bridge records and the change notifier reads (wear-live-sync.md
+     * §6.2, D7); both must hold this one instance. Its only reader here is the graph identity test,
+     * `WatchKnownRevisionsIdentityTest`.
+     */
+    val watchKnownRevisions: WatchKnownRevisions
 
     @Provides
     @SingleIn(AppScope::class)
