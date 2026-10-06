@@ -6,9 +6,15 @@
 and F25 are corrected and F28 is added; D10 to D12 record the decisions; the problem table, §4,
 §5.2, §6.2 to §6.4, §7.5, §8, §10, §11, §13 and §14 follow from them.
 
+**Amended on 2026-10-03** by owner decision after the PR #313 review: F29 to F31 are added; D13 and
+D14 record the decisions; §1, §5.3, §6.2, §6.4, §7.3, §10, §11, §12.4, §13 and §14 follow from
+them. PR-S2 delivers them (§12.4).
+
 - **Specification base:** `dev` at `b1945ee1` (hotfix 1.52.2 merged, `master` synced). Evidence
   is `path:line` there. The facts the 2026-10-02 amendment corrects or adds were verified at
-  `481ee294`, which moves none of the lines this document cites.
+  `481ee294`, which moves none of the lines this document cites. The facts the 2026-10-03
+  amendment adds, and every line it cites, were verified at `4c1d5217` (`dev` after release 1.53.0,
+  PR-S merged).
 - **Amends:** [Wear OS paired transport](wear-paired-transport.md) (increment 5a). Superseded
   there, as §2 states: D4 ("pull only"); §8 and the clauses that call its two transport files the
   only Data Layer files (§4, §5.5, §6.1, §7.1); the phone-UI and bridge clauses of §6.4 ("no
@@ -19,7 +25,8 @@ and F25 are corrected and F28 is added; D10 to D12 record the decisions; the pro
   this document and either of those disagree about protocol semantics, they win and the
   implementation stops.
 - **Delivery:** one Android-only PR into `dev` (PR-S), then release 1.53.0 through the existing
-  pipeline: phone to production, watch to `wear:internal`.
+  pipeline: phone to production, watch to `wear:internal`. The 2026-10-03 amendment adds PR-S2
+  into `dev`; the owner picks its release after the field test (§12.4).
 
 The owner's field test of 1.52.2 on 2026-10-01 found four problems. This increment fixes three:
 
@@ -43,8 +50,8 @@ With phone 1.53.0 and watch 1.53.0-wear, during an active workout:
 
 Success means all of:
 
-1. every host gate of §10 is green at each commit of PR-S, and each named mutation went RED, then
-   GREEN;
+1. every host gate of §10 is green at each commit of PR-S and of PR-S2, and each named mutation went
+   RED, then GREEN;
 2. release 1.53.0 is live on both tracks through the existing pipeline, and both deploy lanes end
    in `RESULT PASS` with every applicable check of G1–G12 passing;
 3. the owner's physical checklist (§12.3) passes, or its failures are reported with evidence.
@@ -54,8 +61,10 @@ increment.
 
 ## 2. Owner decisions
 
-L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis, or of 2026-10-02 on the PR-S
-discovery (D10 to D12). P: proposed by this specification and approved with it on 2026-10-01.
+L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis, of 2026-10-02 on the PR-S
+discovery (D10 to D12), or of 2026-10-03 on the PR #313 review (D13, D14). P: proposed by this
+specification and approved with it on 2026-10-01, or with its 2026-10-03 amendment (the extension of
+D14).
 
 | Id | | Decision |
 |---|---|---|
@@ -71,6 +80,8 @@ discovery (D10 to D12). P: proposed by this specification and approved with it o
 | D10 | L | **Every load of the live-workout screen keeps the watch's sets** (§6.4). The screen reloads the session each time it returns to composition, and after a plan-editor save `processReload` runs alongside that reload (F12). Each load applies again the watch writes received since it started, and every `Init` restarts the subscription. `processReload` stays: removing it would make correctness depend on `Init` re-running, which `tech-debt.md` proposes to stop. |
 | D11 | L | **The notifier survives its database closing** (§6.2, §6.3). The Android restore path closes the database while the generation, and so the notifier, is still alive (F6); the notifier catches the failure of its query, logs it by class and ends. The restore path does not change. |
 | D12 | L | **Two Workeeper watches in one workout remain a known residual** (§11). A handshake from either watch retires the other's lease (F5), so its next Complete set fails once (F28); D7 makes this follow every set. Lease rules stay as Phase 1 defines them; Phase 2's lease rework is where to revisit it. |
+| D13 | L | **The notifier's failure handling is one guard around its whole collection, not a `catch` operator in the chain** (§6.2). A `catch` operator handles an upstream failure only while the downstream has not failed (F30): after `conflate` it rethrew a query failure that arrived while the collector was busy (a lookup, a send, the minimum interval), and before `conflate`, where PR-S put it as an accepted deviation, it is correct only through a library internal: the conflated channel's send never fails while its producer runs. The guard lets only the notifier's own cancellation propagate and logs any other failure by class, so D11 holds by construction. |
+| D14 | L, extension P | **No state write of the live-workout screen erases another** (§6.4). The timer ticks on the work dispatcher with a read of the state followed by a write, so a tick that read the state before the main thread applied a watch set writes that set away, and nothing shows it again until the screen is re-entered (F29). The owner's GO makes the tick atomic (`updateState`, a compare-and-set that retries on the newer state). Proposed with this amendment: the store's other three read-then-write updates (a watch write, a load's result, the load-failure flags) become atomic too, because on the main thread they can erase an update the exercise picker makes on the work dispatcher (F29). No non-atomic write then remains in the store. |
 
 ## 3. Verified facts at the specification base
 
@@ -107,6 +118,9 @@ contradiction that changes the design is a STOP.
 | F26 | Every bridge call carries the authenticated source node id, and every bridge response carries a snapshot whose `sessionIdentityOrNull()` gives the session and revision it shows (null for no session). | `PhoneWorkoutBridgeImpl.kt:59-62,79-82`; `feature/wear-bridge/.../PhoneWorkoutSnapshotBuilder.kt:248` |
 | F27 | The in-memory database of `RepositoryTestEnv` installs no Wear triggers; tests that need them call `prepareWearSyncStorage`. | `core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt:25-31`; `feature/wear-bridge/src/test/.../PhoneWorkoutBridgeImplTest.kt:81` |
 | F28 | On `AuthorizationExpired` the phone answers with a replacement snapshot that grants a fresh lease when the target exists and the response fits. The watch closes the command with an error haptic and keeps the draft while the target is unchanged, so the next tap can succeed. | `PhoneWorkoutBridgeImpl.kt:269-272,466-516`; `app/wear/.../state/WatchWorkoutReducer.kt:464-465,488-490` |
+| F29 | The live-workout timer runs on the store's work dispatcher, `Dispatchers.Default` in production, and each tick writes through `updateStateImmediate`: a read of the state, then an emit, with no compare-and-set. Watch writes, load results and the load-failure flags apply on the main thread through the same call. `updateState` is a compare-and-set (`MutableStateFlow.update`). The four `updateStateImmediate` calls are all in `CommonHandler`, and only the timer's runs off the main thread; everything else in `mvi/handler/` writes through `updateState` (57 calls in five files), some of it on the work dispatcher inside `launch` bodies, such as the exercise picker's updates. | `feature/live-workout/.../mvi/handler/CommonHandler.kt:85,133,167,173-189`; `.../mvi/handler/ExercisePickerHandler.kt:155-182,262-273`; `core/ui/mvi/.../BaseStore.kt:92-98,144-150`; `core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:47-72`; `core/core/src/androidMain/kotlin/io/github/stslex/workeeper/core/core/di/DispatchersBindingContainer.kt:29-32` |
+| F30 | In kotlinx.coroutines 1.11.0, `catch` handles an upstream failure only when the downstream recorded no failure of its own; when the downstream failed first or concurrently, a cancellation of its scope included, `catch` rethrows the upstream failure, or the downstream one when the upstream failure is a cancellation. | `gradle/libs.versions.toml:23`; kotlinx.coroutines 1.11.0 `kotlinx-coroutines-core/common/src/flow/operators/Errors.kt:146-208` (`catchImpl`) |
+| F31 | The store's `Flow.launch` helper collects through `flowOn(work dispatcher)`, so a collection started through it becomes active only after a dispatch. The live-workout subscription is instead a child coroutine started undispatched on the main-immediate dispatcher. | `core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:74-86`; `CommonHandler.kt:152-162` |
 
 Assumptions the implementer verifies in discovery (§14) before writing code:
 
@@ -166,10 +180,11 @@ Added to `core/wear-protocol` `WearProtocol`:
 | Constant | Value | Meaning |
 |---|---|---|
 | `CHANGE_SETTLE_MS` | 500 | Quiet time after the last key change before a signal; one user action that commits in several transactions sends one signal. |
-| `CHANGE_MIN_INTERVAL_MS` | 2,000 | Minimum time between two signals; changes inside it go out as one signal at its end. |
+| `CHANGE_MIN_INTERVAL_MS` | 2,000 | Minimum time between two rounds (§6.2), a round that signals no watch included; changes inside it go out in one round at its end. |
 
-An isolated change is signalled about 0.5 s after its commit, and a burst about 0.5 s after its
-last change. There is at most one signal per 2 s, and the last change is always sent.
+An isolated change is signalled about 0.5 s after its commit, or at the end of a running interval
+if that is later, and a burst about 0.5 s after its last change. There is at most one round per
+2 s, and the last change is always sent.
 
 ### 5.4 Compatibility
 
@@ -221,27 +236,39 @@ interface WatchNudgeLink {
 }
 ```
 
-The notifier's whole behavior:
+The notifier's whole behavior (D13):
 
 ```kotlin
-keys.distinctUntilChanged()
-    .drop(1)                       // the generation's first value is a baseline, not a change
-    .debounce(CHANGE_SETTLE_MS)
-    .conflate()
-    .catch { failure -> stopped(failure) } // the key query failed, e.g. its database closed (F6)
-    .collect { key ->
-        signalStale(key)           // every reachable watch whose known key differs from key
-        delay(CHANGE_MIN_INTERVAL_MS)
-    }
+guarded {                      // only the notifier's own cancellation propagates
+    keys.distinctUntilChanged()
+        .drop(1)               // the generation's first value is a baseline, not a change
+        .debounce(CHANGE_SETTLE_MS)
+        .conflate()
+        .collect { key ->
+            signalStale(key)   // one round: every reachable watch whose known key differs
+            delay(CHANGE_MIN_INTERVAL_MS)
+        }
+}                              // any other failure: stopped(failure), e.g. a closed database (F6)
 ```
 
 - A node with no known entry counts as stale. The known entries are read when the signal is sent,
   not when the change arrived.
+- A round is one call of `signalStale`. The minimum interval follows every round, one that signals
+  no watch included (§5.3).
 - A failed lookup or send is logged by exception class only and is not retried; the next change
   signals again.
-- No exception leaves the notifier (D11). A failure of the key query ends the notifier for its
-  generation and is logged by class (`stopped`); `signalStale` catches and logs its own failures.
-  The Android restore path closes the database under the query (F6), so this end is expected.
+- No exception leaves the notifier (D11, D13). The guard around the whole collection is its only
+  failure handling; the chain has no `catch` operator (F30). The notifier's own cancellation
+  propagates as cancellation. Any other failure ends the notifier for its generation and is logged
+  by class (`stopped`, the line `signal stopped: <class>`). A key-query failure that is not a
+  cancellation ends it at once, wherever it arrives: before the first value, while a change
+  settles, during a round, or inside the minimum interval. A `CancellationException` from the key
+  query that is not the notifier's own cancels no running round or interval: the notifier ends
+  when it next asks for a key, after a key already waiting is signalled. `signalStale` catches and
+  logs its own failures. The guard catches through `runCatching`, as the file's `attempt` helper
+  does with the same cancellation rule, because detekt's `TooGenericExceptionCaught` is active and
+  nothing is suppressed. The Android restore path closes the database under the query (F6), so
+  this end is expected.
 - Logs carry only the word `signal`, the result class, the counts of reachable and signalled nodes,
   and elapsed milliseconds. Never a node id (transport §7.9).
 
@@ -299,8 +326,10 @@ when the screen creates the session) and starts its load only once the subscript
 (`onSubscription`, or a collector started undispatched), so no write can fall between a load's
 read and the subscription. A GUARD comment at the subscription says: if `Init` stops running on
 each return (the latch `tech-debt.md` proposes), the subscription and the timer must move to the
-return path, and the return-to-screen test fails until they do. The chain maps to
-`LiveSetUiModel` (`.map { }` before `.launch { }`).
+return path, and the return-to-screen test fails until they do. The chain maps each write to its
+UI model (`ExternalSetUiModel`) and is collected in a child coroutine started undispatched on the
+main-immediate dispatcher, not through the store's `Flow.launch` helper, which collects on the work
+dispatcher and so becomes active only after a dispatch (F31).
 
 **Loads.** The `Init` load and `processReload` are covered the same way:
 
@@ -314,8 +343,8 @@ return path, and the return-to-screen test fails until they do. The chain maps t
    are cleared.
 
 This bookkeeping runs where the state updates run: on the store's main-immediate dispatcher (the
-subscription's per-item dispatcher and both loads' result callbacks), or inside `State` through
-`updateStateImmediate`. No mutable collection is shared across dispatchers.
+subscription, which is collected there, and both loads' result callbacks), or inside a state
+update (`updateState`, D14). No mutable collection is shared across dispatchers.
 
 **Applying one write:**
 
@@ -333,6 +362,13 @@ explicitly started exercises, expansions, the timer, the name draft and the in-f
 as they are. No re-read of the session, no new Action, no Event, no haptic. Nothing here
 navigates; navigation stays the canonical pattern (`Action.Navigation` consumed by the feature's
 `NavigationHandler`, `Navigator` injected).
+
+**Atomic writes (D14).** Every state write of the live-workout store goes through `updateState`:
+the timer's tick, a watch write, a load's result and the load-failure flags included. A
+compare-and-set retries on the newer state, so no write erases one made meanwhile on another thread
+(F29). No update function has a side effect, so a retry repeats nothing: `coverage.receive` stays
+outside it, and `coverage.since` only reads. No `updateStateImmediate` remains in the store, and a
+GUARD in `CommonHandler` says why.
 
 ## 7. Watch side
 
@@ -384,7 +420,11 @@ O6 has its own token bucket (PROVISIONAL): `PHONE_CHANGE_BURST` = 10 tokens, one
    timer and exists only while a change is pending. This amends transport §7.2 "No polling": every
    request still has an origin, and the deferral only delays an O6 that already arrived. Its delay
    is derived from the coordinator's `clock`, so tests drive it with the existing test clock. The
-   coordinator's KDoc invariants are updated to say so.
+   coordinator's KDoc invariants are updated to say so. The wait is computed from `clock` (elapsed
+   real time), while the deferral's timer stops when the watch sleeps: after a sleep the deferral
+   fires late, never early, and serves at once, because serving computes the wait again; a signal,
+   a completion or a drop meanwhile serves it sooner. A process reclaimed meanwhile loses the
+   deferral, and the next signal or O1–O5 recovers (§11).
 6. Follow-up: as transport §7.4; an O6 chain's follow-up is an ordinary automatic follow-up under
    the existing budget, and an O6 chain gets none while the controller is not interactive, like
    TILE and AUTHORITY_EXPIRED.
@@ -544,6 +584,65 @@ Watch (`:app:wear`):
 - capability: `R.array.android_wear_capabilities` equals `[WearProtocol.WATCH_CAPABILITY]`;
 - launch mode: `MainActivity`'s `ActivityInfo.launchMode` is `LAUNCH_SINGLE_TOP`.
 
+Added by the 2026-10-03 amendment (PR-S2), phone:
+
+- notifier guard (D13): the key flow fails before its first value, while a change settles, while a
+  lookup is suspended, while a send is suspended, and inside the minimum interval; each time
+  exactly one `signal stopped: <class>` line is logged, nothing reaches the recording handler, and
+  nothing is signalled afterwards. A `CancellationException` thrown by the key flow while the
+  notifier is active, before its first value or while a change settles, is logged and ends it the
+  same way. Cancelling the generation lifetime ends the notifier with no `signal stopped` line;
+- bridge, cache hits: for each entry point (handshake, command, protocol rejection), record another
+  key for the source node, send the identical request again, and the node holds the cached
+  response's key;
+- bridge, command refresh: a command whose lease publication loses a race to a phone edit, set up
+  as the handshake case at `PhoneWorkoutBridgeSignalTest.kt:107` but armed after the handshake that
+  grants the command's lease (the hook fires at the first plain transaction), records the key of
+  the read-only refresh it returns, never the prepared one;
+- bridge, rejections: one case per rejection outcome `completeCurrentSet` can return, each
+  asserting its exact outcome and that nothing is published: `StaleRevision`, `NoActiveSession`,
+  `TargetChanged` (a lease bound to the moved target, as `bindSyntheticLease` binds one in
+  `PhoneWorkoutBridgeImplTest`), `AuthorizationExpired`, `ProtocolRejected` (for example the same
+  command id with another attempt fingerprint after an Applied write), `InvalidValues` and
+  `ImmutableTypeMismatch`. The existing test (`PhoneWorkoutBridgeSignalTest.kt:217-233`) covers
+  `StaleRevision` and, through its moved position, `AuthorizationExpired`, without asserting
+  either outcome;
+- graph: two reads of `AppGraph.watchKnownRevisions` give the same instance, so the bridge and the
+  notifier share one (the pattern of `LiveWorkoutExtensionIdentityTest.kt:97`). For this,
+  `WatchKnownRevisions` may become a public class whose members stay internal, and `AppGraph`
+  exposes it with a KDoc naming this test as its only reader, as it does `externalSetWrites`
+  (`AppGraph.kt:154-158`). No reflection;
+- live-workout store, session creation: `Init` with no session in the route subscribes once the
+  session exists and before its load reads, and shows a later write, for both creation paths (a
+  plan's `startSession` and Quick start's `createAdhocSession`);
+- live-workout store, atomic writes (D14): a recording store (for example the test's `BaseStore`
+  overriding `updateStateImmediate`) records no `updateStateImmediate` call across `Init`, a load, a
+  watch write, a failed load and at least two timer ticks, and the state's `nowMillis` advances at
+  least twice;
+- test infrastructure: a real-time thread can no longer corrupt the queue of the `ManualDispatcher`
+  at `CommonHandlerExternalWritesTest.kt:352-358`: the queue is thread-safe (preferred), or the
+  dispatcher implements `Delay` on the test dispatcher.
+
+Watch:
+
+- coordinator, rule 4: a signal arrives while a command is in flight and an O1 is queued behind
+  it; the command times out, the O1 is dropped as retry-preserved, and exactly one O6 handshake
+  starts at the binding's deadline;
+- coordinator, rule 3: with the controller not interactive, an O6 whose token cannot be issued (the
+  owner's token issue fails once, through a test-only hook of `RuntimeTestEnvironment` like its
+  `failNextRead`) is dropped once with `no token`; no handshake starts until the next signal, which
+  starts one;
+- coordinator, rule 6: with the automatic budget spent, an O6 chain answered `Unavailable` while
+  interactive gets no follow-up;
+- coordinator, rule 5: while an O6 waits for a token and nothing else is due, the coordinator does
+  no work until the deferral fires, once: counted, for example, by a clock that counts its reads (a
+  deferral that polls reads it on every wake-up) or by a dispatcher that counts dispatches;
+- coordinator, refill start: one O6 at t0 and nine more 4 s later, each after the previous
+  handshake completed, empty the bucket; an eleventh signal right after them starts at t0 + 10 s,
+  not at t0 + 14 s;
+- limiter (`PhoneChangeLimiter`, unit): a partial refill period is kept: after ten takes at t0, a
+  token taken at t0 + 15 s leaves the next one at t0 + 20 s.
+
 Gates: `assert_wear_transport_gate.py --self-test` covers all four paths with the existing cases
 (allowlisted file passes; sibling, path-suffix and directory-prefix fail; a suppression inside an
 allowlisted file fails); `assert_play_bundle.py --self-test` gains the G12 fixtures.
@@ -587,8 +686,19 @@ every gate reports its input count.
 | M-S29 | a blocked O6 is enqueued anyway | bucket test (the coordinator keeps running work while it waits) |
 | M-S30 | `processReload` does not apply again the writes received since it started | load-race test (`processReload`) and the return-with-save test |
 | M-S31 | the subscription starts only on the store's first `Init` | return-to-screen test |
-| M-S32 | the notifier's `catch` removed | key-flow-failure test (an exception reaches the handler) |
+| M-S32 | the notifier's guard removed; the chain has no `catch` operator (D13) | key-flow-failure tests (an exception reaches the handler; for the foreign cancellation, no `signal stopped` line) |
 | M-S33 | a running subscription is not cancelled before `Init` starts another | single-collector test |
+| M-S34 | a dedupe-cache hit returns without recording its key; applied at each of the three cache-hit returns (`PhoneWorkoutBridgeImpl.kt:70,103,149`) in turn | the cache-hit test of that entry point |
+| M-S35 | a command records its prepared response instead of the one it returns (`PhoneWorkoutBridgeImpl.kt:135`) | command-refresh test |
+| M-S36 | `@SingleIn` removed from `WatchKnownRevisions` | graph identity test |
+| M-S37 | a refresh of another origin dropped at start does not serve the pending change (the `else` branch at `WatchTransportCoordinator.kt:301` removed) | rule 4 test |
+| M-S38 | an O6 whose token cannot be issued keeps its change pending (`WatchTransportCoordinator.kt:272` removed) | rule 3 test |
+| M-S39 | an O6 chain's follow-up is exempt from the budget (`&& !followUp` removed at `WatchTransportCoordinator.kt:505`) | rule 6 test |
+| M-S40 | the deferral re-arms every millisecond (`PhoneChangeLimiter.kt:45` returns 1 while the bucket is empty) | rule 5 test |
+| M-S41 | the refill period restarts at every take (`PhoneChangeLimiter.kt:52` without its condition) | refill-start test and the limiter test |
+| M-S42 | `Init` subscribes only when the route carries a session | session-creation test |
+| M-S43 | a state write of the store goes back to `updateStateImmediate`; applied to the timer's tick and to the watch write in turn | atomic-writes test |
+| M-S44 | the notifier's guard treats its own cancellation as a failure | guard test (cancelling the lifetime logs `signal stopped`) |
 
 ### 10.3 Existing gates
 
@@ -633,6 +743,11 @@ STOP.
 | Both devices complete the same set within about 100 ms | — | the screen may keep the earlier writer's values until re-entry | last writer wins, as today |
 | Watch set during an undo window, then Undo | — | the screen restores the earlier state plus the watch set; a re-upsert compensation of the same position overwrites it | last writer wins |
 | Watch set in an exercise soft-deleted on the phone | — | kept in the undo snapshot; closing the window deletes the exercise with it | deleted with the exercise |
+| Three sets completed on one watch within about 2.5 s | the watch may be signalled once anyway: for that handshake's round trip the controls are disabled and an open editor closes (F25) | the second set's key waits out the interval that the first set's round started; the third set makes the bridge record a newer key for the watch, so the waiting round, which compares with the second key, signals it (D7 compares with the round's key, not the newest; §13) | none |
+| A signal arrives after the watch issued a command and before the coordinator received it, and the command then times out | the O6 is dropped as retry-preserved instead of waiting for the binding's deadline (§7.3 rule 3; an exception to D6); Retry, the next signal or O1–O5 recovers | — | none |
+| The phone's signal is served while the watch issues a command (any origin can do this; O6 arrives unprompted, so it is likelier) | the handshake token retires the attempt just issued, so the set is not sent; the next tap succeeds after the answer | — | none |
+| The watch sleeps while an O6 waits for its deferral | served when the deferral fires after that much awake time, or sooner at the next signal, completion or O1–O5; never early (§7.3 rule 5); a process reclaimed meanwhile loses it until the next signal or O1–O5; no alarm or wake lock | — | none |
+| Discard on the empty-finish dialog after the watch completed a set | — | the dialog was decided at Finish, before the watch set; Discard deletes the session with that set (since 1.52; §13) | the watch set is deleted |
 
 ## 12. Release and acceptance
 
@@ -680,14 +795,57 @@ Setup as transport §12.3: Play installs only (D7 there), notifications allowed 
 The owner reports pass or fail per row with a note, and a screenshot for a failure. Failures feed a
 1.53.x fix.
 
+### 12.4 PR-S2 (amendment of 2026-10-03)
+
+1. This amendment lands on `dev` (a direct push; specifications take no PR).
+2. PR-S2 into `dev`, bisect-green per commit: D13 and its tests, D14 and its test, the other tests
+   §10.1 adds for PR-S2, and the documentation below. Its new named mutations are M-S32 as
+   redefined and M-S34 to M-S44; every other named mutation whose test or production file PR-S2
+   changes runs again.
+3. PR-S2 has no release step. After the §12.3 field test the owner decides whether it ships as
+   1.53.1 or with the next release, together with any fix the field test calls for; §12.1 steps 3
+   and 4 then apply with that version, except the approval: the `production` environment has no
+   protection rule (§15, 2026-10-03), so the deploy does not wait for one. §12.2's evidence and
+   ledger rows follow.
+
+Documentation and comments in PR-S2, none of which changes behavior:
+
+- `PhoneChangeNotifier.kt:32-36`: the `CHANGE_MIN_INTERVAL_MS` KDoc speaks of rounds (§5.3);
+  `:77-86`: the KDoc describes the guard (D13), not the place of a `catch`;
+- `WatchTransportCoordinator.kt:91-97`: "served only while nothing is queued or in flight" becomes
+  "served only while no refresh is queued and no request is in flight", and the awake-time clause of
+  §7.3 rule 5 is added;
+- `ReleaseRuntimeBoundaryTest.kt`: the class KDoc (`:37-38`) no longer says that nothing asserts on
+  the link, and names the O6 test's dependence on `@Order(1)` and on the runtime the factory keeps
+  for the process; one blank line separates the two tests (`:64-65`);
+- `documentation/ci-cd.md:75-78`: the storeRelease boundary step also proves that the release
+  factory's runtime forwards the phone's change signal (the release boundary test, M-S20's named
+  test, runs only there); `:183`, G9: the Wear item names `WearProtocol.WATCH_CAPABILITY`;
+- `assert_wear_transport_gate.py`: the messages at `:615-616` and `:634` say "Data Layer
+  allowlist" and the one at `:631` says "on the Data Layer allowlist", instead of "transport
+  allowlist" and "transport-allowlisted"; the docstring's short line at `:52` is rewrapped;
+- `WearDataLayerApiRule.kt`: the issue description (`:41-43`) and the report message (`:109-111`)
+  say that only the allowlisted files of §8 may name the Data Layer, instead of citing a privacy
+  review that has not happened; the report message keeps `$FORBIDDEN_PACKAGE`, which
+  `WearDataLayerApiRuleTest.kt:29` pins;
+- the PR-S2 body lists the compiler suppression PR-S added in a test
+  (`CommonHandlerExternalWritesTest.kt:101`, the idiom of `BaseStore.kt:122`). PR-S2 adds no
+  suppression of any kind; an `@OptIn` in a test, for example to `InternalCoroutinesApi` for a
+  `Delay`, is not one.
+
 ## 13. Out of scope
 
 Phase 2 watch UX (the exercise list, picking the exercise, skipping a set or an exercise) and its
 protocol v2; a revision inside the signal; keeping the watch controls enabled during a handshake;
 a watch status that tells "phone not found" from "phone didn't answer"; the re-entry mechanism of
 `BaseStore` (`tech-debt.md`); the teardown order of the restore path; per-node lease retirement
-(D12); Wear production; measured constants; the release backlog (rulesets, signing of the bump
-commit, the fastlane `beta` lane, the Actions cache, Data safety review).
+(D12); skipping a watch that already holds the newest key, which would end the rapid-set signal of
+§11; making the in-flight-command check atomic with issuing a handshake token, for every origin
+(the two command races of §11); Discard on the empty-finish dialog after a watch set (§11), where
+re-checking that the session is still empty or closing the dialog when a watch write lands is the
+owner's choice; Wear production; measured constants; the release backlog (rulesets, signing of the
+bump commit, the fastlane `beta` lane, the Actions cache, Data safety review, the `production`
+approval that `release-flow.md` §6.1 describes and the environment does not enforce).
 
 ## 14. Discovery (before editing) and STOP conditions
 
@@ -700,6 +858,8 @@ Discovery rows, each with command, evidence and verdict:
 - **Q4** The graph accessor `armPostPreflight` uses for the notifier, the application `Context`
   binding for the link (§6.3), and where the bridge maps into `SetsDataType` (§6.4).
 - **Q5** ASM-7: the key-flow test of §10.1 is written and run first; RED is a STOP.
+- **Q6** (PR-S2) F29 to F31, and every line the 2026-10-03 amendment cites, re-verified at the
+  current `dev` head; pure line drift is recorded.
 
 STOP and report when:
 
@@ -710,6 +870,9 @@ STOP and report when:
 - a gate can only be opened by a wildcard other than detekt's leading `**/`, a directory prefix or
   a suppression;
 - a named mutation cannot be made RED;
+- a PR-S2 test needs reflection, or a production change beyond D13, D14, the documentation of
+  §12.4 and the graph item of §10.1 (`WatchKnownRevisions` public with internal members, the
+  `AppGraph.watchKnownRevisions` accessor and its KDoc);
 - a Paparazzi golden changes;
 - a bundle identity gate fails;
 - the `product.md` OLD block of Appendix A does not occur exactly once, or the result hash differs
