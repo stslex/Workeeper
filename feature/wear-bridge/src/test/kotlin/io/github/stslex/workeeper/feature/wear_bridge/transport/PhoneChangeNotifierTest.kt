@@ -41,6 +41,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -151,6 +152,24 @@ internal class PhoneChangeNotifierTest {
         advanceTimeBy(PAST_ONE_SIGNAL_MS)
         runCurrent()
         assertEquals(listOf(WATCH_A), link.signals, "one change, one signal")
+    }
+
+    /** D15 (§10.1): both times are literals, so the test pins the value itself, not the constant. */
+    @Test
+    fun `one set write sends no signal 149 ms after it and exactly one 150 ms after it`() = runTest {
+        val seed = database.seedActiveWorkout()
+        val tap = startNotifier()
+        awaitKeys(tap) { it.isNotEmpty() }
+
+        writeSet(seed, position = 0)
+        awaitDistinct(tap, 2)
+        val written = currentTime
+        advanceTimeBy(written + 149 - currentTime)
+        runCurrent()
+        assertEquals(emptyList<String>(), link.signals, "149 ms after the write the change still settles")
+        advanceTimeBy(written + 150 - currentTime)
+        runCurrent()
+        assertEquals(listOf(WATCH_A), link.signals, "150 ms after the write exactly one signal went out")
     }
 
     @Test
