@@ -23,10 +23,11 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
 
 /**
- * PROVISIONAL, internal testing only (wear-live-sync.md §5.3, D9): the quiet time after the last key
- * change before a signal, so one action that commits in several transactions sends one. Unmeasured.
+ * PROVISIONAL, internal testing only (wear-live-sync.md §5.3, D9, D15): the quiet time after the last
+ * key change before a signal, so one action that commits in several transactions sends one. Not
+ * measured on a physical device.
  */
-internal const val CHANGE_SETTLE_MS: Long = 500L
+internal const val CHANGE_SETTLE_MS: Long = 150L
 
 /**
  * PROVISIONAL, internal testing only (§5.3): the minimum time between two rounds (§6.2), a round that
