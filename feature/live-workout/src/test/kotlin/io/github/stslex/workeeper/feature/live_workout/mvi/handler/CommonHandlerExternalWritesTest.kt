@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStoreImpl
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
@@ -36,6 +37,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.collections.immutable.persistentMapOf
@@ -59,6 +61,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.Collections
+import java.util.concurrent.BlockingDeque
+import java.util.concurrent.LinkedBlockingDeque
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -87,6 +92,12 @@ internal class CommonHandlerExternalWritesTest {
 
     /** The store's work dispatcher; one test swaps it for [ManualDispatcher] before first use. */
     private var workDispatcher: CoroutineDispatcher = dispatcher
+
+    /** The route's state; the session-creation tests clear its session before first use. */
+    private var route: State = State.create(sessionUuid = SESSION, trainingUuid = TRAINING)
+
+    /** Every `updateStateImmediate` call the store received: a read then a write (D14). */
+    private val immediateWrites: MutableList<String> = Collections.synchronizedList(mutableListOf())
     private val storeDispatchers by lazy { StoreDispatchers(workDispatcher, dispatcher) }
     private val handler by lazy {
         CommonHandler(
@@ -102,7 +113,7 @@ internal class CommonHandlerExternalWritesTest {
     private val store by lazy {
         object : BaseStore<State, Action, Event>(
             name = "LiveWorkoutExternalWritesTest",
-            initialState = State.create(sessionUuid = SESSION, trainingUuid = TRAINING),
+            initialState = route,
             storeEmitter = handlerStore,
             handlerCreator = { handler as Handler<Action> },
             initialActions = listOf(Action.Common.Init),
@@ -110,7 +121,17 @@ internal class CommonHandlerExternalWritesTest {
             appScopeLifetime = lifetime,
             analyticsHolder = AnalyticsHolder(),
             loggerHolder = LoggerHolder(),
-        ) {}
+        ) {
+            override suspend fun updateStateImmediate(update: suspend (State) -> State) {
+                immediateWrites += "update"
+                super.updateStateImmediate(update)
+            }
+
+            override suspend fun updateStateImmediate(state: State) {
+                immediateWrites += "state"
+                super.updateStateImmediate(state)
+            }
+        }
     }
 
     private val owner = object : LifecycleOwner {
@@ -336,21 +357,75 @@ internal class CommonHandlerExternalWritesTest {
         assertEquals(listOf(1, 1), loads.subscribersAtRead, "each read started with the subscription active")
     }
 
+    @Test
+    fun `Init with a plan's training starts the session, subscribes before its load and shows a later write`() {
+        route = State.create(sessionUuid = null, trainingUuid = TRAINING)
+        coEvery { interactor.startSession(TRAINING) } returns SESSION
+
+        open()
+
+        coVerify(exactly = 1) { interactor.startSession(TRAINING) }
+        assertCreatedSessionShowsWrites()
+    }
+
+    @Test
+    fun `Init from Quick start creates the ad-hoc session, subscribes before its load and shows a later write`() {
+        route = State.create(sessionUuid = null, trainingUuid = null)
+        coEvery { interactor.createAdhocSession(name = "", exerciseUuids = emptyList()) } returns
+            AdhocSessionResult(sessionUuid = SESSION, trainingUuid = TRAINING)
+
+        open()
+
+        coVerify(exactly = 1) { interactor.createAdhocSession(name = "", exerciseUuids = emptyList()) }
+        assertCreatedSessionShowsWrites()
+    }
+
+    // endregion
+
+    // region atomic writes (D14)
+
+    @Test
+    fun `no store write reads then writes across Init, a load, a watch write, timer ticks and a failed load`() {
+        open()
+        emit(watchSet(PE_1, position = 0))
+        val shown = mutableListOf(store.state.value.nowMillis)
+        repeat(TIMER_TICKS) {
+            // Each tick reads the wall clock; let it move before the next one.
+            Thread.sleep(WALL_CLOCK_STEP_MS)
+            scheduler.advanceTimeBy(TIMER_TICK_MS)
+            scheduler.runCurrent()
+            shown += store.state.value.nowMillis
+        }
+        store.dispose()
+        scheduler.runCurrent()
+        coEvery { interactor.loadSession(SESSION) } returns null
+        store.init(owner)
+        scheduler.runCurrent()
+
+        assertTrue(store.state.value.loadFailed, "the failed load set its flags")
+        assertEquals(emptyList<String>(), immediateWrites, "every store write is a compare-and-set (D14)")
+        assertTrue(shown.zipWithNext().count { (before, after) -> after > before } >= TIMER_TICKS, "$shown")
+    }
+
     // endregion
 
     /** Runs both dispatchers until neither has work, the work queue in its current order. */
     private fun drain(work: ManualDispatcher) {
         while (true) {
             scheduler.runCurrent()
-            val next = work.queue.removeFirstOrNull() ?: break
+            val next = work.queue.pollFirst() ?: break
             next.run()
         }
         scheduler.runCurrent()
     }
 
-    /** A work dispatcher the test runs by hand, so it can choose which coroutine a thread runs first. */
+    /**
+     * A work dispatcher the test runs by hand, so it can choose which coroutine a thread runs first.
+     * It is no `Delay`, so a delay on it resumes from the default executor's thread in real time: the
+     * queue is thread-safe for that dispatch.
+     */
     private class ManualDispatcher : CoroutineDispatcher() {
-        val queue = ArrayDeque<Runnable>()
+        val queue: BlockingDeque<Runnable> = LinkedBlockingDeque()
 
         override fun dispatch(context: CoroutineContext, block: Runnable) {
             queue.addLast(block)
@@ -381,6 +456,14 @@ internal class CommonHandlerExternalWritesTest {
     private fun open() {
         store.init(owner)
         scheduler.runCurrent()
+    }
+
+    /** The created session was subscribed to before its load read, and a later write is shown. */
+    private fun assertCreatedSessionShowsWrites() {
+        assertEquals(SESSION, store.state.value.sessionUuid, "the created session loaded")
+        assertEquals(listOf(1), loads.subscribersAtRead, "subscribed once the session existed, before its read")
+        emit(watchSet(PE_1, position = 0))
+        assertShowsWatchSet(store.state.value, PE_1, position = 0)
     }
 
     /** The bridge's order: the write commits, then it is published. */
@@ -449,6 +532,9 @@ internal class CommonHandlerExternalWritesTest {
         const val WATCH_WEIGHT = 105.0
         const val WATCH_REPS = 8
         const val WRITE_BUFFER = 16
+        const val TIMER_TICK_MS = 1_000L
+        const val TIMER_TICKS = 2
+        const val WALL_CLOCK_STEP_MS = 2L
 
         fun watchSet(exercise: String, position: Int) = ExternalSetDomain(
             performedExerciseUuid = exercise,
