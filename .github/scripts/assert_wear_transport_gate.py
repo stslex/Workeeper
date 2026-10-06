@@ -49,10 +49,10 @@ files from check 1, and only check 1: the phone's RPC listener service and the
 watch's Play services link, the only files workout payloads cross through, and
 the phone's change-signal link and the watch's change listener, whose message
 carries no workout data. They are the only sources allowed to name the Data
-Layer. This script is the exact-path
-authority for that list: whole repository paths compared as strings, no prefix,
-no glob. Check 2 still runs on every allowlisted file, so a suppression inside
-one fails like one anywhere else. Widening the list is a privacy decision.
+Layer. This script is the exact-path authority for that list: whole repository
+paths compared as strings, no prefix, no glob. Check 2 still runs on every
+allowlisted file, so a suppression inside one fails like one anywhere else.
+Widening the list is a privacy decision.
 
 Run from the repository root:
 
@@ -612,7 +612,7 @@ def self_test() -> int:
     if failures:
         print(f"\nself-test FAILED: {failures} of {total} case(s) disagree")
         return 1
-    print(f"\nself-test passed: {total} cases ({len(path_cases)} over the {len(listed)}-file transport "
+    print(f"\nself-test passed: {total} cases ({len(path_cases)} over the {len(listed)}-file Data Layer "
           f"allowlist), both anchors exercised")
     return 0
 
@@ -628,10 +628,10 @@ def main() -> int:
     allowlisted = [path for path in scanned if is_transport_allowlisted(path)]
     print(f"wear transport gate: {len(scanned)} tracked Kotlin file(s) scanned, "
           f"{len(paths) - len(scanned)} exempt under {', '.join(EXEMPT_PREFIXES)}, "
-          f"{len(allowlisted)} of {len(TRANSPORT_ALLOWLIST)} transport-allowlisted file(s) present "
+          f"{len(allowlisted)} of {len(TRANSPORT_ALLOWLIST)} file(s) on the Data Layer allowlist present "
           f"(exempt from check 1 only)")
     if not violations:
-        print(f"no reference to {FORBIDDEN_PACKAGE} outside the transport allowlist, nothing suppresses "
+        print(f"no reference to {FORBIDDEN_PACKAGE} outside the Data Layer allowlist, nothing suppresses "
               f"the gate, no Java sources")
         return 0
 
