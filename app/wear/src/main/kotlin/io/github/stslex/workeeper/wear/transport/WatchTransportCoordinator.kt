@@ -89,12 +89,14 @@ internal class LocalNodeId {
  *   neither counted nor limited by it; its own bucket limits it, and an O6 chain's follow-up is an
  *   ordinary automatic follow-up under the budget (wear-live-sync.md §7.3);
  * - phone change: a signal marks a change pending, and issuing any handshake token clears it. It is
- *   served only while nothing is queued or in flight; when retry preservation or an empty bucket
- *   blocks it, nothing is enqueued and the deferral is armed instead;
+ *   served only while no refresh is queued and no request is in flight; when retry preservation or
+ *   an empty bucket blocks it, nothing is enqueued and the deferral is armed instead;
  * - no polling: no alarm, wake lock or loop issues a request, and every request has an origin. The
  *   only timer that can start one is the O6 deferral: at most one, armed only while a change is
  *   pending, and it only delays an O6 that already arrived (wear-live-sync.md §7.3 amends
- *   transport §7.2).
+ *   transport §7.2). Its wait comes from [clock], elapsed real time, while its timer runs on awake
+ *   time only: after a sleep it fires late, never early, and serves at once, because serving
+ *   computes the wait again.
  */
 internal class WatchTransportCoordinator(
     private val owner: WatchRuntimeOwner,

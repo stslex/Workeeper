@@ -145,7 +145,13 @@ internal class CapturingLogger : Logger {
  * time and the request timeouts both follow `advanceTimeBy`.
  */
 internal class TransportHarness(scope: TestScope, nodeId: LocalNodeId? = null) {
-    val clock = ElapsedRealtimeClock { BASE_MS + scope.testScheduler.currentTime }
+    /** Every read of [clock], the owner's and the coordinator's: work that polls reads it each time. */
+    var clockReads = 0
+        private set
+    val clock = ElapsedRealtimeClock {
+        clockReads += 1
+        BASE_MS + scope.testScheduler.currentTime
+    }
     val localNode = nodeId ?: LocalNodeId()
     val env = RuntimeTestEnvironment(
         transformClock = { clock },
