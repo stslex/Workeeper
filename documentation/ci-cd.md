@@ -455,8 +455,12 @@ Two parallel jobs (`smoke-tests` and `regression-tests`) gate their own executio
 2. Set up JDK 21 and the Android SDK via `android-actions/setup-android@v3`.
 3. Decrypt the keystore, write `keystore.properties`, decode both `google-services.json` files.
 4. Restore the Gradle build cache (with `save-always: true`, so a run warms the cache it
-   depends on even when a test goes red) and the AVD snapshot cache (keyed on
-   `api-level/target/arch`).
+   depends on even when a test goes red). There is no AVD snapshot cache: its 2.85 GB
+   `avd-34-google_apis-x86_64` entry evicted dev's caches under the repository's 10 GB cache
+   limit, so the emulator step creates the AVD and the emulator cold-boots on every run. The
+   scheduled run reads `ui_tests.yml` from `master` and `android_deploy_prod.yml` calls it from
+   the ref the deploy runs on, so the change takes effect with the next release; a manual
+   dispatch uses the file on the ref it is dispatched on.
 5. Assemble everything **before the emulator exists** (`./gradlew assembleDebug
    assembleDebugAndroidTest`), then stop the Gradle daemons — compiling the androidTest
    legs concurrently with a 4 GB emulator is what killed runners; with the APKs prebuilt,
