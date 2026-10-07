@@ -37,7 +37,16 @@ internal class RuntimeTestEnvironment(
     val adapter = decorateNotification(notification)
     val scheduler = RecordingDeadlineScheduler()
     var idCounter = 0
-    val ids = RuntimeIdSource { ReducerTestFixtures.id(++idCounter) }
+
+    /** Fails the next id, so the next token issue fails once, as [failNextRead] fails a cache read. */
+    var failNextId = false
+    val ids = RuntimeIdSource {
+        if (failNextId) {
+            failNextId = false
+            throw IllegalStateException("Transient id source failure")
+        }
+        ReducerTestFixtures.id(++idCounter)
+    }
     val countedStorage = object : AtomicRecordStorage {
         override fun read(): ByteArray? {
             reads += 1

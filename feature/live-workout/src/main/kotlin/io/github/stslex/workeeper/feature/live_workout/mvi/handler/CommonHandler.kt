@@ -35,6 +35,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 
+/**
+ * GUARD (D14, wear-live-sync.md §6.4): every state write here goes through `updateState`, a
+ * compare-and-set that retries on the newer state, never `updateStateImmediate`, a read then a write.
+ * The timer ticks on the work dispatcher while watch writes and load results land on the main thread
+ * and the exercise picker writes from the work dispatcher, so a read then a write could erase a write
+ * made in between, and nothing would show it again until the screen is re-entered (F29). No update
+ * function has a side effect, so a retry repeats nothing: `coverage.receive` stays outside them, and
+ * `coverage.since` only reads.
+ */
 @SingleIn(LiveWorkoutScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
@@ -81,8 +90,8 @@ internal class CommonHandler @Inject constructor(
      * The only honest exit when the session did not load. GUARD: set both flags, and record the
      * failure in State, never as an event. See documentation/architecture.md.
      */
-    private suspend fun abandonUnloadedSession() {
-        updateStateImmediate { it.copy(isLoading = false, loadFailed = true) }
+    private fun abandonUnloadedSession() {
+        updateState { it.copy(isLoading = false, loadFailed = true) }
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {
@@ -130,7 +139,7 @@ internal class CommonHandler @Inject constructor(
             val loaded = read() ?: return false
             onMain {
                 // A plan-editor round-trip is not leaving the session (§7); expansions survive.
-                updateStateImmediate { previous ->
+                updateState { previous ->
                     coverage.since(load).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalSet)
                 }
             }
@@ -162,9 +171,9 @@ internal class CommonHandler @Inject constructor(
     }
 
     /** Applied at once (§6.4 A to C), and kept while a load is in flight. */
-    private suspend fun applyExternalWrite(write: ExternalSetUiModel) {
+    private fun applyExternalWrite(write: ExternalSetUiModel) {
         coverage.receive(write)
-        updateStateImmediate { latest -> setMutator.applyExternalSet(latest, write) }
+        updateState { latest -> setMutator.applyExternalSet(latest, write) }
     }
 
     private suspend fun <T> onMain(block: suspend () -> T): T =
@@ -174,10 +183,10 @@ internal class CommonHandler @Inject constructor(
         startTimerJob?.cancel()
         startTimerJob = launch {
             while (isActive) {
-                updateStateImmediate { current ->
+                val now = System.currentTimeMillis()
+                updateState { current ->
                     if (current.startedAt <= 0L) current
                     else {
-                        val now = System.currentTimeMillis()
                         current.copy(
                             nowMillis = now,
                             elapsedDurationLabel = formatElapsedDuration(now - current.startedAt),

@@ -14,7 +14,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -24,14 +23,15 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
 
 /**
- * PROVISIONAL, internal testing only (wear-live-sync.md §5.3, D9): the quiet time after the last key
- * change before a signal, so one action that commits in several transactions sends one. Unmeasured.
+ * PROVISIONAL, internal testing only (wear-live-sync.md §5.3, D9, D15): the quiet time after the last
+ * key change before a signal, so one action that commits in several transactions sends one. Not
+ * measured on a physical device.
  */
-internal const val CHANGE_SETTLE_MS: Long = 500L
+internal const val CHANGE_SETTLE_MS: Long = 150L
 
 /**
- * PROVISIONAL, internal testing only (§5.3): the minimum time between two signals; changes inside it
- * go out as one signal at its end. Unmeasured.
+ * PROVISIONAL, internal testing only (§5.3): the minimum time between two rounds (§6.2), a round that
+ * signals no watch included; changes inside it go out in one round at its end. Unmeasured.
  */
 internal const val CHANGE_MIN_INTERVAL_MS: Long = 2_000L
 
@@ -78,11 +78,12 @@ internal fun WearSyncDao.activeWearKeys(): Flow<WatchStateKey?> = observeActiveW
  * §6.2, the notifier's whole behavior. The query re-emits the same key on every `session_table` write,
  * so only a new distinct key is a change, and the generation's first value is a baseline.
  *
- * GUARD: `catch` sits before `conflate`, not after it as §6.2 lists the chain. After `conflate`, a key
- * query that fails while the collector is busy (a lookup, a send, the minimum interval) fails the
- * channel's downstream too, and `catch` then rethrows the failure instead of handling it, so it
- * escapes the notifier (D11). Before `conflate` it handles the failure inside the producer, whose
- * emissions never suspend. The minimum-interval failure test pins this.
+ * GUARD (D13): one guard around the whole collection is the notifier's only failure handling, and the
+ * chain has no `catch` operator: `catch` handles an upstream failure only while the downstream has not
+ * failed (F30), so a query failure during a lookup, a send or the minimum interval would escape (D11).
+ * The guard catches through `runCatching` with [attempt]'s cancellation rule: the notifier's own
+ * cancellation propagates, and any other failure ends the notifier, logged by class. A foreign
+ * `CancellationException` from the query ends it when it next asks for a key.
  */
 @OptIn(FlowPreview::class)
 internal suspend fun signalChanges(
@@ -91,15 +92,18 @@ internal suspend fun signalChanges(
     link: WatchNudgeLink,
     logger: Logger,
 ) {
-    keys.distinctUntilChanged()
-        .drop(1)
-        .debounce(CHANGE_SETTLE_MS)
-        .catch { failure -> logger.w { "signal stopped: ${failure::class.simpleName}" } }
-        .conflate()
-        .collect { key ->
-            signalStale(key, knownRevisions, link, logger)
-            delay(CHANGE_MIN_INTERVAL_MS)
-        }
+    val stopped = runCatching {
+        keys.distinctUntilChanged()
+            .drop(1)
+            .debounce(CHANGE_SETTLE_MS)
+            .conflate()
+            .collect { key ->
+                signalStale(key, knownRevisions, link, logger)
+                delay(CHANGE_MIN_INTERVAL_MS)
+            }
+    }.exceptionOrNull() ?: return
+    if (stopped is CancellationException) currentCoroutineContext().ensureActive()
+    logger.w { "signal stopped: ${stopped::class.simpleName}" }
 }
 
 /**
