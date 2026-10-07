@@ -127,19 +127,25 @@ internal class PhoneChangeNotifierGuardTest {
     }
 
     @Test
-    fun `a key query that fails inside the minimum interval ends the notifier after its one signal`() = runTest {
-        val notifier = launchNotifier(
-            flow {
-                emit(null)
-                emit(changed)
-                delay(CHANGE_SETTLE_MS + CHANGE_MIN_INTERVAL_MS / 2)
-                throw failure
-            },
-        )
-        advanceUntilIdle()
+    fun `a key query that fails inside the minimum interval ends the notifier and drops the waiting change`() =
+        runTest {
+            val waiting = WatchStateKey.of(Uuid.random(), revision = 3)
+            val notifier = launchNotifier(
+                flow {
+                    emit(null)
+                    emit(changed)
+                    // The first round runs at CHANGE_SETTLE_MS, then its minimum interval.
+                    delay(CHANGE_SETTLE_MS + CHANGE_MIN_INTERVAL_MS / 4)
+                    // A second change settles inside that interval and waits for its end.
+                    emit(waiting)
+                    delay(CHANGE_SETTLE_MS + CHANGE_MIN_INTERVAL_MS / 4)
+                    throw failure
+                },
+            )
+            advanceUntilIdle()
 
-        assertStoppedBy(failure, notifier, signalled = listOf(WATCH_A))
-    }
+            assertStoppedBy(failure, notifier, signalled = listOf(WATCH_A))
+        }
 
     // endregion
 
