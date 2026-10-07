@@ -360,8 +360,9 @@ internal class PhoneChangeNotifierTest {
     }
 
     /**
-     * The same failure while the collector is busy: inside its minimum interval after a signal. The
-     * conflated chain then fails downstream too, and `catch` rethrows instead of handling (D11).
+     * The same failure while the collector is busy: inside its minimum interval after a signal. A
+     * `catch` operator after `conflate` would rethrow it instead of handling it (F30); the notifier's
+     * one guard (D13) ends the notifier instead.
      */
     @Test
     fun `a key flow that throws during the minimum interval still escapes nowhere`() = runTest {
