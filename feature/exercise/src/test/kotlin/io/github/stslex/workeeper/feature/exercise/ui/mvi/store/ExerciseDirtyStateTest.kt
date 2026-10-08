@@ -69,7 +69,7 @@ internal class ExerciseDirtyStateTest {
     }
 
     @Test
-    fun `ONLY the plan term - create mode, where there is no snapshot to compare against`() {
+    fun `ONLY the plan term - create mode where there is no snapshot to compare against`() {
         // `originalSnapshot` is null until the first save, so the first term is false here.
         val state = ExerciseStore.State
             .create(uuid = null)

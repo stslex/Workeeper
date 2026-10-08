@@ -48,7 +48,7 @@ internal class StartBlankGateTest {
      * withholding it for a frame costs nothing, offering it for a frame costs a session.
      */
     @Test
-    fun `before the first emission the CTA is withheld, not offered`() {
+    fun `before the first emission the CTA is withheld not offered`() {
         val initial = State.init(
             pagingUiState = PagingUiState { flowOf(PagingData.empty<TrainingListItemUi>()) },
         )

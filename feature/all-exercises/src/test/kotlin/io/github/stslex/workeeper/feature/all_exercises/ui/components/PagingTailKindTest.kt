@@ -17,7 +17,7 @@ internal class PagingTailKindTest {
     }
 
     @Test
-    fun `a failed page draws the error footer, not silence`() {
+    fun `a failed page draws the error footer not silence`() {
         assertEquals(
             PagingTailKind.ERROR,
             pagingTailKind(LoadState.Error(IllegalStateException("page failed"))),

@@ -41,7 +41,7 @@ internal class ListSurfaceTest {
 
     /** B22's fix: an unsettled refresh with no rows used to draw nothing at all. */
     @Test
-    fun `an unsettled refresh with no rows is loading, not empty`() {
+    fun `an unsettled refresh with no rows is loading not empty`() {
         assertEquals(ListSurface.LOADING, surface(refresh = LoadState.Loading))
     }
 
@@ -68,17 +68,17 @@ internal class ListSurfaceTest {
     }
 
     @Test
-    fun `no rows, nothing done, is the first-run empty`() {
+    fun `no rows nothing done is the first-run empty`() {
         assertEquals(ListSurface.FIRST_RUN, surface())
     }
 
     @Test
-    fun `a filter that matches nothing is its own state, not the first-run empty`() {
+    fun `a filter that matches nothing is its own state not the first-run empty`() {
         assertEquals(ListSurface.FILTERED_EMPTY, surface(filterActive = true))
     }
 
     @Test
-    fun `selection outranks the filter, because the selection block carries the filter recovery`() {
+    fun `selection outranks the filter because the selection block carries the filter recovery`() {
         assertEquals(ListSurface.SELECTION_EMPTY, surface(selecting = true))
         assertEquals(
             ListSurface.SELECTION_EMPTY,
@@ -102,7 +102,7 @@ internal class ListSurfaceTest {
 
     /** The pair §26's row actually named: one block replaces the other on the user's gesture. */
     @Test
-    fun `selection empty and filtered empty are both in the crossfade, so the pair transits`() {
+    fun `selection empty and filtered empty are both in the crossfade so the pair transits`() {
         assertEquals(true, ListSurface.SELECTION_EMPTY.crossfades)
         assertEquals(true, ListSurface.FILTERED_EMPTY.crossfades)
     }

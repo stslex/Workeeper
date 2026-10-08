@@ -203,7 +203,7 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
-    fun `SignIn Success when not bootstrapped triggers bootstrap (snackbar + one-time)`() =
+    fun `SignIn Success when not bootstrapped triggers bootstrap — snackbar + one-time`() =
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
             coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
@@ -378,7 +378,7 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
-    fun `HandleAuthResult Failure(MissingRequiredScope) emits MISSING_REQUIRED_SCOPE`() =
+    fun `HandleAuthResult Failure MissingRequiredScope emits MISSING_REQUIRED_SCOPE`() =
         runTest(testDispatcher) {
             val intent = mockk<Intent>(relaxed = true)
             coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(

@@ -81,7 +81,7 @@ internal class ObserveStartCardReadoutUseCaseTest {
     }
 
     @Test
-    fun `WEEK with no session ever is the mode's own empty state, even at count zero`() = runTest {
+    fun `WEEK with no session ever is the mode's own empty state even at count zero`() = runTest {
         every { observeWeekReadoutUseCase(now, zone) } returns
             flowOf(WeekReadoutDomain(sessionsThisWeek = 0, trainedDayIndexes = emptySet()))
         every { sessionRepository.observeLastFinishedSession() } returns flowOf(null)
