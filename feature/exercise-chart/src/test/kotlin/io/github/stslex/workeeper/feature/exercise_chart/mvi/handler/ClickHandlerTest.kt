@@ -73,7 +73,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPresetSelect changes state, KEEPS emptyReason, and delegates load`() {
+    fun `OnPresetSelect changes state KEEPS emptyReason and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
@@ -93,7 +93,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnMetricSelect changes metric, KEEPS emptyReason, and delegates load`() {
+    fun `OnMetricSelect changes metric KEEPS emptyReason and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )

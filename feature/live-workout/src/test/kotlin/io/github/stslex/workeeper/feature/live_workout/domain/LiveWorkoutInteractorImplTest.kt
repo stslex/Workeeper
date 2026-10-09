@@ -359,7 +359,7 @@ internal class LiveWorkoutInteractorImplTest {
         }
 
     @Test
-    fun `loadSession reads isPlanAttached from key presence, not from plan nullability`() =
+    fun `loadSession reads isPlanAttached from key presence not from plan nullability`() =
         runTest {
             // Only key presence tells them apart: `attached` has a NULL-plan row, `oneOff` none.
             val sessionUuid = "session-1"
@@ -909,7 +909,7 @@ internal class LiveWorkoutInteractorImplTest {
     }
 
     @Test
-    fun `external set writes reach only the screen of their own session, mapped as written`() = runTest {
+    fun `external set writes reach only the screen of their own session mapped as written`() = runTest {
         val received = mutableListOf<ExternalSetDomain>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             interactor.observeExternalSetWrites("session-1").collect { received += it }

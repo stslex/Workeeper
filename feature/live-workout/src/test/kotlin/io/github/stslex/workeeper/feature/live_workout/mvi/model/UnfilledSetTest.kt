@@ -34,7 +34,7 @@ internal class UnfilledSetTest {
     }
 
     @Test
-    fun `a negative rep count is treated as unfilled, not as work`() {
+    fun `a negative rep count is treated as unfilled not as work`() {
         assertTrue(setRow(reps = -1, isDone = false).isUnfilled)
     }
 

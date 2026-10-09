@@ -35,7 +35,7 @@ internal class TrailingSlotKindTest {
     }
 
     @Test
-    fun `selected outranks selecting, so the mark never blanks`() {
+    fun `selected outranks selecting so the mark never blanks`() {
         // The flags arrive independently; testing `isSelecting` first would blank the mark on the
         // row the user just tapped.
         assertEquals(

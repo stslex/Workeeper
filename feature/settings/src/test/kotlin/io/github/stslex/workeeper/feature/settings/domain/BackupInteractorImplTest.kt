@@ -449,7 +449,7 @@ internal class BackupInteractorImplTest {
     }
 
     @Test
-    fun `committed without a durable record is reported as FAILURE, never success`() =
+    fun `committed without a durable record is reported as FAILURE never success`() =
         runTest(testDispatcher) {
             // The swap committed but the journal still reads Prepared, so the next launch rolls
             // this restore back — Success here would be a false success.

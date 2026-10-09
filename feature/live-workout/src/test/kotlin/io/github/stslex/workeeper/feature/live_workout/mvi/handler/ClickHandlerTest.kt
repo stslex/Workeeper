@@ -123,7 +123,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnExerciseHeaderClick collapse is pure — sets, statuses and siblings untouched`() {
+    fun `OnExerciseHeaderClick collapse is pure — sets statuses and siblings untouched`() {
         val stateFlow = MutableStateFlow(
             baseState(loggedExercise()).copy(
                 expandedExerciseUuids = persistentSetOf("pe-1"),

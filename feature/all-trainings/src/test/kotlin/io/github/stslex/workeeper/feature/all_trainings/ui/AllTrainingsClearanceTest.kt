@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 internal class AllTrainingsClearanceTest {
 
     @Test
-    fun `list bottom clearance is the drawn 88, not the 72 it shipped with`() {
+    fun `list bottom clearance is the drawn 88 not the 72 it shipped with`() {
         assertEquals(88.dp, LIST_BOTTOM_CLEARANCE)
     }
 

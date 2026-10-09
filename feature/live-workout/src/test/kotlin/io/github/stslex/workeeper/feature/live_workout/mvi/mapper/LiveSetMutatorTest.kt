@@ -393,7 +393,7 @@ internal class LiveSetMutatorTest {
     }
 
     @Test
-    fun `nextSetPosition is one past the highest of plan, performed, and draft positions`() {
+    fun `nextSetPosition is one past the highest of plan performed and draft positions`() {
         val state = stateWith(
             exerciseWithPlan(
                 plan = persistentListOf(

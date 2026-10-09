@@ -26,7 +26,7 @@ internal class TopBarModeTest {
     }
 
     @Test
-    fun `different selections are one mode, so the count cannot drive the crossfade`() {
+    fun `different selections are one mode so the count cannot drive the crossfade`() {
         val one = topBarMode(SelectionMode.On(persistentSetOf("a")))
         val three = topBarMode(SelectionMode.On(persistentSetOf("a", "b", "c")))
         assertEquals(one, three)
