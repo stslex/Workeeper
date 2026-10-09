@@ -115,7 +115,7 @@ internal class LiveWorkoutMapperTest {
     }
 
     @Test
-    fun `withExpansionCarriedFrom keeps the previous open set, pruned to live cards`() {
+    fun `withExpansionCarriedFrom keeps the previous open set pruned to live cards`() {
         val snapshot = SessionSnapshotDomain(
             session = sessionAt(1000L),
             trainingName = "Push Day",
@@ -164,7 +164,7 @@ internal class LiveWorkoutMapperTest {
     }
 
     @Test
-    fun `REPRO a weighted plan set with no weight renders reps-only, never a fake zero`() {
+    fun `REPRO a weighted plan set with no weight renders reps-only never a fake zero`() {
         // Null weights are real: `PlanDraftReducer` writes them and a cleared weight field
         // parses to null, so a WEIGHTED exercise can legitimately carry reps-only plan
         // sets. The card subtitle must not invent a 0 kg target for them — the app's

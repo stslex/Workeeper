@@ -11,6 +11,7 @@ import org.gradle.api.plugins.ExtensionAware
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
@@ -74,6 +75,12 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureLintOptions(lint)
         }
 
+        // GUARD: both jobs' Kotlin/Native cache key in android_build_unified.yml is parsed from
+        // the literal kmpExtension.<target>() calls in this function. A native target declared
+        // any other way (the lambda form kmpExtension.iosArm64 { }, a loop, a helper, a variable)
+        // is invisible to that parse, so the key would omit it and its ~/.konan content would
+        // never be saved.
+        kmpExtension.iosArm64()
         kmpExtension.iosSimulatorArm64()
     }
 
@@ -90,6 +97,11 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         }
         tasks.withType<KotlinJvmCompile>().configureEach {
             compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+            // GUARD: the classic convention's -Xjvm-default=all ABI — `$default` helpers stay on
+            // the interface and no DefaultImpls holder is emitted. Kotlin 2.4's default ENABLE
+            // adds those holders without failing a compile. Proof that it reaches the module:
+            // MviJvmAbiTest (core:ui:mvi) and ScreenSerializationTest (core:ui:navigation).
+            compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         }
     }
 

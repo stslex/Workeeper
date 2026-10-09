@@ -91,7 +91,7 @@ internal class LiveWorkoutMapperReloadTest {
     }
 
     @Test
-    fun `adhoc partial - empty plan, single done at position 0, status is DONE`() {
+    fun `adhoc partial - empty plan single done at position 0 status is DONE`() {
         // Reload has no drafts, so expectedPositions is the performed positions only.
         val performed = listOf(
             SetDomain(
@@ -110,7 +110,7 @@ internal class LiveWorkoutMapperReloadTest {
     }
 
     @Test
-    fun `adhoc full sparse - empty plan, performed positions 2 and 4, status is DONE`() {
+    fun `adhoc full sparse - empty plan performed positions 2 and 4 status is DONE`() {
         val performed = listOf(
             SetDomain(
                 uuid = "set-2",

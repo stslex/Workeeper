@@ -351,7 +351,7 @@ internal class ClickHandlerTest {
 
     /** A long press inside selection is a toggle: `ContextClick` and nothing else, exactly once. */
     @Test
-    fun `long press inside selection fires ContextClick, not a second LongPress`() {
+    fun `long press inside selection fires ContextClick not a second LongPress`() {
         stateFlow.value = stateFlow.value.copy(
             selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
         )

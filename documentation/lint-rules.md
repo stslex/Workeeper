@@ -77,9 +77,10 @@ stdlib, with `detekt.test` and JUnit Jupiter available for rule unit tests.
 The rules live under
 `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/`. The rule set provider is
 `MviArchitectureRules.kt`, which constructs `MviArchitectureRuleSet` with id `mvi-architecture`
-and registers every rule in `listOf(...)` (one file in the directory is not a rule: the
+and registers every rule in `listOf(...)` (two files in the directory are not rules: the
 `ScopedClassNames` object, whose class-name predicates are shared by `MetroScopeRule` and
-`ScreenInjectionRule`). `MviArchitectureRules.kt` is the authoritative
+`ScreenInjectionRule`, and the `TestSourceSets` object, whose test-source predicate is shared by
+`DomainLayerPurityRule` and `UiLayerNoDataRule`). `MviArchitectureRules.kt` is the authoritative
 list; the sections below document a subset.
 
 A class is considered "in an MVI module" when its package contains `mvi` or its file path
@@ -524,6 +525,17 @@ as data-shape leaks. Repository / Storage / Dao / Dispatcher imports under
 `core.data.*` are intentionally permitted — they are abstractions, not data
 shapes.
 
+**Test sources are skipped entirely.** A file is test code when the directory
+right after the last `/src/` segment of its path names a test source set:
+`test`, `test` followed by an uppercase letter (`testDebug`, `testRelease`), or
+any name containing `Test` (`androidTest`, `commonTest`, `iosTest`,
+`androidHostTest`, `androidDeviceTest`, `jvmTest`). No production source set
+matches (`main`, `commonMain`, `androidMain`, `iosMain`, `debug`, `release`,
+`dev`). Only the last `src` counts because detekt passes the absolute path: a
+checkout under, say, `~/src/testProjects/` must not exempt the whole
+repository. The predicate is `TestSourceSets.isTestFile`, shared with
+`UiLayerNoDataRule`.
+
 Two exemptions apply:
 
 1. **`domain/mapper/`** — files inside `feature/<X>/domain/mapper/` are exempt;
@@ -597,6 +609,14 @@ sealed interface ArchivedItem { ... }
 Flags `core.data.*` data-shape imports under a `/ui/` path — `core/ui/*` kit modules and any feature
 `ui/` subtree. Repository, dispatcher and other infrastructure imports from `core.data.*` are
 intentionally permitted; they are abstractions, not data models.
+
+**Test sources are skipped**, by the same `TestSourceSets.isTestFile` predicate as
+`DomainLayerPurityRule`: a file is test code when the directory right after the last `/src/` segment
+of its path is `test`, `test` followed by an uppercase letter (`testDebug`, `testRelease`), or any
+name containing `Test` (`androidTest`, `commonTest`, `iosTest`, `androidHostTest`,
+`androidDeviceTest`, `jvmTest`). Only that directory counts, so `core/ui/test-utils`' production
+sources (`src/main/…/core/ui/test/`) are still inspected, and so is a checkout that sits under a
+directory such as `~/src/testProjects/`.
 
 Two asymmetries with `DomainLayerPurityRule`, both deliberate:
 
@@ -1039,7 +1059,7 @@ Android Lint half, which stays CI-enforced (`lintDebug` in the unified workflow)
 ### A path-keyed rule cannot be tested with `Rule.lint(String)`
 
 `Rule.lint(String)` synthesises a virtual file at an internal location, so a rule's path-based
-predicates (`/feature/...`, `/domain/mapper/`, `/src/test/`) never match and the test passes for the
+predicates (`/feature/...`, `/domain/mapper/`, `src/<test set>/`) never match and the test passes for the
 wrong reason. Use detekt-test's `compileContentForTest(content, filename)` instead: the filename lands
 as the resulting `KtFile.virtualFilePath`, which is what such rules read via
 `importDirective.containingKtFile.virtualFilePath`. `DomainLayerPurityRuleTest.lintForPath`

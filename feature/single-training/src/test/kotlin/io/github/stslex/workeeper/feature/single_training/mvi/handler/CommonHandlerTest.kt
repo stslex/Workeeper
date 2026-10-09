@@ -66,7 +66,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `a load that throws clears isLoading, or the route is composed on nothing forever`() {
+    fun `a load that throws clears isLoading or the route is composed on nothing forever`() {
         coEvery { interactor.getTraining(any()) } throws IllegalStateException("db down")
         val (stateFlow, handler) = setup(State.create(uuid = "training-1"))
         // Precondition rather than assertion: a route with a uuid starts loading by construction.
@@ -89,7 +89,7 @@ internal class CommonHandlerTest {
 
     /** §3.3: the head's count is the total of finished sessions, not the visible page. */
     @Test
-    fun `the История count is the total, not the visible page`() {
+    fun `the История count is the total not the visible page`() {
         coEvery { interactor.getTraining(any()) } returns mockk(relaxed = true)
         coEvery { interactor.getTrainingExercises(any()) } returns emptyList()
         coEvery { interactor.getRecentSessions(any(), any()) } returns emptyList()
@@ -102,7 +102,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `a create route never loads, so it is never withheld, and it opens clean`() {
+    fun `a create route never loads so it is never withheld and it opens clean`() {
         val (stateFlow, handler) = setup(State.create(uuid = null))
 
         handler.invoke(Action.Common.Init)

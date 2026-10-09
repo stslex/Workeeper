@@ -163,7 +163,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `A - an open undo window that holds the exercise gets the same patch, so undo keeps the set`() {
+    fun `A - an open undo window that holds the exercise gets the same patch so undo keeps the set`() {
         open()
         val before = store.state.value
         store.updateState {
@@ -255,7 +255,7 @@ internal class CommonHandlerExternalWritesTest {
     // region loads (D10)
 
     @Test
-    fun `Init starts its load only once the subscription is active, and a write between them is applied`() {
+    fun `Init starts its load only once the subscription is active and a write between them is applied`() {
         // Committed and published just after the load's read began: the read does not hold it.
         loads.onRead = {
             loads.committed += watchSet(PE_1, position = 0)
@@ -294,7 +294,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `a return to the screen without a save, then a write, shows the write`() {
+    fun `a return to the screen without a save then a write shows the write`() {
         open()
         store.dispose()
         scheduler.runCurrent()
@@ -309,12 +309,12 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `a return with a save keeps a write delivered during both loads, the Init load applied last`() {
+    fun `a return with a save keeps a write delivered during both loads the Init load applied last`() {
         returnWithSave(initLoadLast = true)
     }
 
     @Test
-    fun `a return with a save keeps a write delivered during both loads, the reload applied last`() {
+    fun `a return with a save keeps a write delivered during both loads the reload applied last`() {
         returnWithSave(initLoadLast = false)
     }
 
@@ -358,7 +358,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `Init with a plan's training starts the session, subscribes before its load and shows a later write`() {
+    fun `Init with a plan's training starts the session subscribes before its load and shows a later write`() {
         route = State.create(sessionUuid = null, trainingUuid = TRAINING)
         coEvery { interactor.startSession(TRAINING) } returns SESSION
 
@@ -369,7 +369,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `Init from Quick start creates the ad-hoc session, subscribes before its load and shows a later write`() {
+    fun `Init from Quick start creates the ad-hoc session subscribes before its load and shows a later write`() {
         route = State.create(sessionUuid = null, trainingUuid = null)
         coEvery { interactor.createAdhocSession(name = "", exerciseUuids = emptyList()) } returns
             AdhocSessionResult(sessionUuid = SESSION, trainingUuid = TRAINING)
@@ -385,7 +385,7 @@ internal class CommonHandlerExternalWritesTest {
     // region atomic writes (D14)
 
     @Test
-    fun `no store write reads then writes across Init, a load, a watch write, timer ticks and a failed load`() {
+    fun `no store write reads then writes across Init a load a watch write timer ticks and a failed load`() {
         open()
         emit(watchSet(PE_1, position = 0))
         val shown = mutableListOf(store.state.value.nowMillis)

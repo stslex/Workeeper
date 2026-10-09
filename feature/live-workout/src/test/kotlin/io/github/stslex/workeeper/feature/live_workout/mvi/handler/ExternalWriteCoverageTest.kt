@@ -13,7 +13,7 @@ internal class ExternalWriteCoverageTest {
     private val coverage = ExternalWriteCoverage()
 
     @Test
-    fun `a load applies again exactly the writes received after it began, in order`() {
+    fun `a load applies again exactly the writes received after it began in order`() {
         coverage.receive(write(0))
         val load = ExternalWriteCoverage.Load()
         coverage.begin(load)

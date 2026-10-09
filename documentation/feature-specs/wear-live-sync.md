@@ -1,4 +1,4 @@
-# Wear OS live sync — Phase 1 increment 5b (release 1.53.0)
+# Wear OS live sync — Phase 1 increment 5b (releases 1.53.0 and 1.53.1)
 
 **Status:** approved by the owner on 2026-10-01, ready for implementation.
 
@@ -6,9 +6,21 @@
 and F25 are corrected and F28 is added; D10 to D12 record the decisions; the problem table, §4,
 §5.2, §6.2 to §6.4, §7.5, §8, §10, §11, §13 and §14 follow from them.
 
+**Amended on 2026-10-03** by owner decision after the PR #313 review: F29 to F31 are added; D13 and
+D14 record the decisions; §1, §5.3, §6.2, §6.4, §7.3, §10, §11, §12.4, §13 and §14 follow from
+them. PR-S2 delivers them (§12.4).
+
+**Amended on 2026-10-06** by owner decision after the owner's field test of 1.53.0 and a paired
+emulator run of its code: F32 is added; D15 records the decision; the title, §1, §2, §5.3, §5.4,
+§10, §11, §12.3, §12.4, §14 and §15 follow from it. PR-S2 delivers it, and hotfix 1.53.1 ships
+PR-S2 (§12.4).
+
 - **Specification base:** `dev` at `b1945ee1` (hotfix 1.52.2 merged, `master` synced). Evidence
   is `path:line` there. The facts the 2026-10-02 amendment corrects or adds were verified at
-  `481ee294`, which moves none of the lines this document cites.
+  `481ee294`, which moves none of the lines this document cites. The facts the 2026-10-03
+  amendment adds, and every line it cites, were verified at `4c1d5217` (`dev` after release 1.53.0,
+  PR-S merged). F32, and every line the 2026-10-06 amendment cites, were verified at `f64e13f3`
+  (`dev` on 2026-10-06).
 - **Amends:** [Wear OS paired transport](wear-paired-transport.md) (increment 5a). Superseded
   there, as §2 states: D4 ("pull only"); §8 and the clauses that call its two transport files the
   only Data Layer files (§4, §5.5, §6.1, §7.1); the phone-UI and bridge clauses of §6.4 ("no
@@ -19,7 +31,8 @@ and F25 are corrected and F28 is added; D10 to D12 record the decisions; the pro
   this document and either of those disagree about protocol semantics, they win and the
   implementation stops.
 - **Delivery:** one Android-only PR into `dev` (PR-S), then release 1.53.0 through the existing
-  pipeline: phone to production, watch to `wear:internal`.
+  pipeline: phone to production, watch to `wear:internal`. The 2026-10-03 amendment adds PR-S2
+  into `dev`; the 2026-10-06 amendment ships it as hotfix 1.53.1, cut from `master` (§12.4).
 
 The owner's field test of 1.52.2 on 2026-10-01 found four problems. This increment fixes three:
 
@@ -32,7 +45,7 @@ The owner's field test of 1.52.2 on 2026-10-01 found four problems. This increme
 
 ## 1. Goal and success criteria
 
-With phone 1.53.0 and watch 1.53.0-wear, during an active workout:
+With phone 1.53.0 or later and watch 1.53.0-wear or later, during an active workout:
 
 - a set completed on the phone shows on the watch within a few seconds, whether the watch app is
   open, in ambient, or closed (Tile and ongoing indicator);
@@ -43,10 +56,11 @@ With phone 1.53.0 and watch 1.53.0-wear, during an active workout:
 
 Success means all of:
 
-1. every host gate of §10 is green at each commit of PR-S, and each named mutation went RED, then
-   GREEN;
-2. release 1.53.0 is live on both tracks through the existing pipeline, and both deploy lanes end
-   in `RESULT PASS` with every applicable check of G1–G12 passing;
+1. every host gate of §10 is green at each commit of PR-S, of PR-S2 and of the hotfix branch
+   (§12.4), and each named mutation went RED, then GREEN;
+2. release 1.53.0, and hotfix 1.53.1 after it, are live on both tracks through the existing
+   pipeline, and their deploy lanes end in `RESULT PASS` with every applicable check of G1–G12
+   passing;
 3. the owner's physical checklist (§12.3) passes, or its failures are reported with evidence.
 
 Items 1 and 2 are the implementer's. Item 3 is the owner's and is the only evidence that closes this
@@ -54,8 +68,11 @@ increment.
 
 ## 2. Owner decisions
 
-L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis, or of 2026-10-02 on the PR-S
-discovery (D10 to D12). P: proposed by this specification and approved with it on 2026-10-01.
+L: locked by the owner's GO of 2026-10-01 on the field-test diagnosis, of 2026-10-02 on the PR-S
+discovery (D10 to D12), of 2026-10-03 on the PR #313 review (D13, D14), or of 2026-10-04 on the
+1.53.0 field test (D15, whose value the emulator run of 2026-10-06 backs). P: proposed by this
+specification and approved with it on 2026-10-01, or with its 2026-10-03 amendment (the extension
+of D14).
 
 | Id | | Decision |
 |---|---|---|
@@ -65,12 +82,15 @@ discovery (D10 to D12). P: proposed by this specification and approved with it o
 | D4 | L, mechanism P | **The phone live-workout screen shows a set the watch completed without re-entry.** Expanded cards and the drafts of other sets stay; a draft of the same set yields to the watch's values. Mechanism (P): the screen applies the set the bridge wrote, through the mutator the phone's own completion uses (F14), and does not re-read the session. A re-read replaces the whole state (every reload keeps only expansions, F12) and would overwrite an optimistic phone mark whose write is still in flight (F13). |
 | D5 | L | **The watch `MainActivity` gets `android:launchMode="singleTop"`** (§7.5). |
 | D6 | P | **The new origin O6 has its own limiter instead of `AUTO_REFRESH_BUDGET`, and an O6 that cannot start yet waits instead of being dropped** (§7.3). The budget drops what it refuses (F16): under rapid phone edits a dropped last change leaves the watch stale until some other origin, which is field-test problem 2 again. O6 cannot loop, because a handshake never changes `wear_revision` (F2); M-S1 proves it. An O6 handshake that fails (phone unreachable or silent) is not retried, as for every other origin; the next signal or O1–O5 recovers. |
-| D7 | P | **The phone does not signal a watch that already holds the current state.** The bridge remembers, per watch node, the session and revision of the last snapshot it answered that node with (F26), and the notifier skips such nodes. Without this, every set completed on the watch would be signalled back to the same watch, and the handshake that answers a signal retires the watch's authority for one round trip (F25): about half a second after Complete set, the controls would go disabled and an open editor of the next set would close. A per-node entry in phone memory is cheaper than a revision inside the signal, which would need a new wire model. |
+| D7 | P | **The phone does not signal a watch that already holds the current state.** The bridge remembers, per watch node, the session and revision of the last snapshot it answered that node with (F26), and the notifier skips such nodes. Without this, every set completed on the watch would be signalled back to the same watch, and the handshake that answers a signal retires the watch's authority for one round trip (F25): a moment after Complete set, the controls would go disabled and an open editor of the next set would close. A per-node entry in phone memory is cheaper than a revision inside the signal, which would need a new wire model. |
 | D8 | P | **`documentation/product.md` gains one clause**, so the non-goal's Wear exception names the signal (Appendix A). |
 | D9 | P | **The new constants are provisional** (§5.3, §7.3) and follow the labelling rule of transport §7.8. |
 | D10 | L | **Every load of the live-workout screen keeps the watch's sets** (§6.4). The screen reloads the session each time it returns to composition, and after a plan-editor save `processReload` runs alongside that reload (F12). Each load applies again the watch writes received since it started, and every `Init` restarts the subscription. `processReload` stays: removing it would make correctness depend on `Init` re-running, which `tech-debt.md` proposes to stop. |
 | D11 | L | **The notifier survives its database closing** (§6.2, §6.3). The Android restore path closes the database while the generation, and so the notifier, is still alive (F6); the notifier catches the failure of its query, logs it by class and ends. The restore path does not change. |
 | D12 | L | **Two Workeeper watches in one workout remain a known residual** (§11). A handshake from either watch retires the other's lease (F5), so its next Complete set fails once (F28); D7 makes this follow every set. Lease rules stay as Phase 1 defines them; Phase 2's lease rework is where to revisit it. |
+| D13 | L | **The notifier's failure handling is one guard around its whole collection, not a `catch` operator in the chain** (§6.2). A `catch` operator handles an upstream failure only while the downstream has not failed (F30): after `conflate` it rethrew a query failure that arrived while the collector was busy (a lookup, a send, the minimum interval), and before `conflate`, where PR-S put it as an accepted deviation, it is correct only through a library internal: the conflated channel's send never fails while its producer runs. The guard lets only the notifier's own cancellation propagate and logs any other failure by class, so D11 holds by construction. |
+| D14 | L, extension P | **No state write of the live-workout screen erases another** (§6.4). The timer ticks on the work dispatcher with a read of the state followed by a write, so a tick that read the state before the main thread applied a watch set writes that set away, and nothing shows it again until the screen is re-entered (F29). The owner's GO makes the tick atomic (`updateState`, a compare-and-set that retries on the newer state). Proposed with this amendment: the store's other three read-then-write updates (a watch write, a load's result, the load-failure flags) become atomic too, because on the main thread they can erase an update the exercise picker makes on the work dispatcher (F29). No non-atomic write then remains in the store. |
+| D15 | L | **The phone's settle time drops from 500 ms to 150 ms (§5.3), and PR-S2 ships as hotfix 1.53.1 (§12.4).** In the owner's field test of 1.53.0 the watch followed the phone only after the owner's own action; a paired-emulator run of the same code then passed S1, S2, S3, S7 and S8 (§15, 2026-10-06), so under emulator conditions the code does not explain the field result, and the watch's installed version was not recorded (§12.3 now records it). In that run each phone action measured (start, complete a set, skip, return, add an exercise, finish) produced exactly one distinct key in each of three runs, and editing a completed set one key per step: no measured action needs the settle to merge keys. The settle was 500 of the 894 ms from a phone tap to the watch's accepted snapshot. 150 ms keeps a margin for an action that commits in several transactions. The constant stays provisional (D9): an emulator run is not a physical measurement. |
 
 ## 3. Verified facts at the specification base
 
@@ -107,6 +127,10 @@ contradiction that changes the design is a STOP.
 | F26 | Every bridge call carries the authenticated source node id, and every bridge response carries a snapshot whose `sessionIdentityOrNull()` gives the session and revision it shows (null for no session). | `PhoneWorkoutBridgeImpl.kt:59-62,79-82`; `feature/wear-bridge/.../PhoneWorkoutSnapshotBuilder.kt:248` |
 | F27 | The in-memory database of `RepositoryTestEnv` installs no Wear triggers; tests that need them call `prepareWearSyncStorage`. | `core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt:25-31`; `feature/wear-bridge/src/test/.../PhoneWorkoutBridgeImplTest.kt:81` |
 | F28 | On `AuthorizationExpired` the phone answers with a replacement snapshot that grants a fresh lease when the target exists and the response fits. The watch closes the command with an error haptic and keeps the draft while the target is unchanged, so the next tap can succeed. | `PhoneWorkoutBridgeImpl.kt:269-272,466-516`; `app/wear/.../state/WatchWorkoutReducer.kt:464-465,488-490` |
+| F29 | The live-workout timer runs on the store's work dispatcher, `Dispatchers.Default` in production, and each tick writes through `updateStateImmediate`: a read of the state, then an emit, with no compare-and-set. Watch writes, load results and the load-failure flags apply on the main thread through the same call. `updateState` is a compare-and-set (`MutableStateFlow.update`). The four `updateStateImmediate` calls are all in `CommonHandler`, and only the timer's runs off the main thread; everything else in `mvi/handler/` writes through `updateState` (57 calls in five files), some of it on the work dispatcher inside `launch` bodies, such as the exercise picker's updates. | `feature/live-workout/.../mvi/handler/CommonHandler.kt:85,133,167,173-189`; `.../mvi/handler/ExercisePickerHandler.kt:155-182,262-273`; `core/ui/mvi/.../BaseStore.kt:92-98,144-150`; `core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:47-72`; `core/core/src/androidMain/kotlin/io/github/stslex/workeeper/core/core/di/DispatchersBindingContainer.kt:29-32` |
+| F30 | In kotlinx.coroutines 1.11.0, `catch` handles an upstream failure only when the downstream recorded no failure of its own; when the downstream failed first or concurrently, a cancellation of its scope included, `catch` rethrows the upstream failure, or the downstream one when the upstream failure is a cancellation. | `gradle/libs.versions.toml:23`; kotlinx.coroutines 1.11.0 `kotlinx-coroutines-core/common/src/flow/operators/Errors.kt:146-208` (`catchImpl`) |
+| F31 | The store's `Flow.launch` helper collects through `flowOn(work dispatcher)`, so a collection started through it becomes active only after a dispatch. The live-workout subscription is instead a child coroutine started undispatched on the main-immediate dispatcher. | `core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:74-86`; `CommonHandler.kt:152-162` |
+| F32 | `CHANGE_SETTLE_MS` is 500, and its KDoc calls it unmeasured. Every notifier test reads it through the constant; the only fixed timings in those tests are `BURST_STEP_MS` (50 ms, two steps in the three-writes test) and `MID_INTERVAL_MS` (100 ms, a point inside the minimum interval). | `feature/wear-bridge/src/main/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/PhoneChangeNotifier.kt:26-30`; `feature/wear-bridge/src/test/kotlin/io/github/stslex/workeeper/feature/wear_bridge/transport/PhoneChangeNotifierTest.kt:137-198,480-485` |
 
 Assumptions the implementer verifies in discovery (§14) before writing code:
 
@@ -165,11 +189,12 @@ Added to `core/wear-protocol` `WearProtocol`:
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `CHANGE_SETTLE_MS` | 500 | Quiet time after the last key change before a signal; one user action that commits in several transactions sends one signal. |
-| `CHANGE_MIN_INTERVAL_MS` | 2,000 | Minimum time between two signals; changes inside it go out as one signal at its end. |
+| `CHANGE_SETTLE_MS` | 150 (500 in 1.53.0; D15) | Quiet time after the last key change before a signal; one user action that commits in several transactions sends one signal. |
+| `CHANGE_MIN_INTERVAL_MS` | 2,000 | Minimum time between two rounds (§6.2), a round that signals no watch included; changes inside it go out in one round at its end. |
 
-An isolated change is signalled about 0.5 s after its commit, and a burst about 0.5 s after its
-last change. There is at most one signal per 2 s, and the last change is always sent.
+An isolated change is signalled about 0.15 s after its commit, or at the end of a running interval
+if that is later, and a burst about 0.15 s after its last change. There is at most one round per
+2 s, and the last change is always sent.
 
 ### 5.4 Compatibility
 
@@ -178,7 +203,7 @@ last change. There is at most one signal per 2 s, and the last change is always 
 | 1.53.0 | 1.52.2 | The watch has no listener for the path; nothing happens. Pull only, as today. |
 | 1.52.2 | 1.53.0 | No signals. Pull only, as today. |
 
-No protocol or schema version changes.
+1.53.1 behaves as 1.53.0 in this table, on either device. No protocol or schema version changes.
 
 ## 6. Phone side
 
@@ -221,27 +246,39 @@ interface WatchNudgeLink {
 }
 ```
 
-The notifier's whole behavior:
+The notifier's whole behavior (D13):
 
 ```kotlin
-keys.distinctUntilChanged()
-    .drop(1)                       // the generation's first value is a baseline, not a change
-    .debounce(CHANGE_SETTLE_MS)
-    .conflate()
-    .catch { failure -> stopped(failure) } // the key query failed, e.g. its database closed (F6)
-    .collect { key ->
-        signalStale(key)           // every reachable watch whose known key differs from key
-        delay(CHANGE_MIN_INTERVAL_MS)
-    }
+guarded {                      // only the notifier's own cancellation propagates
+    keys.distinctUntilChanged()
+        .drop(1)               // the generation's first value is a baseline, not a change
+        .debounce(CHANGE_SETTLE_MS)
+        .conflate()
+        .collect { key ->
+            signalStale(key)   // one round: every reachable watch whose known key differs
+            delay(CHANGE_MIN_INTERVAL_MS)
+        }
+}                              // any other failure: stopped(failure), e.g. a closed database (F6)
 ```
 
 - A node with no known entry counts as stale. The known entries are read when the signal is sent,
   not when the change arrived.
+- A round is one call of `signalStale`. The minimum interval follows every round, one that signals
+  no watch included (§5.3).
 - A failed lookup or send is logged by exception class only and is not retried; the next change
   signals again.
-- No exception leaves the notifier (D11). A failure of the key query ends the notifier for its
-  generation and is logged by class (`stopped`); `signalStale` catches and logs its own failures.
-  The Android restore path closes the database under the query (F6), so this end is expected.
+- No exception leaves the notifier (D11, D13). The guard around the whole collection is its only
+  failure handling; the chain has no `catch` operator (F30). The notifier's own cancellation
+  propagates as cancellation. Any other failure ends the notifier for its generation and is logged
+  by class (`stopped`, the line `signal stopped: <class>`). A key-query failure that is not a
+  cancellation ends it at once, wherever it arrives: before the first value, while a change
+  settles, during a round, or inside the minimum interval. A `CancellationException` from the key
+  query that is not the notifier's own cancels no running round or interval: the notifier ends
+  when it next asks for a key, after a key already waiting is signalled. `signalStale` catches and
+  logs its own failures. The guard catches through `runCatching`, as the file's `attempt` helper
+  does with the same cancellation rule, because detekt's `TooGenericExceptionCaught` is active and
+  nothing is suppressed. The Android restore path closes the database under the query (F6), so
+  this end is expected.
 - Logs carry only the word `signal`, the result class, the counts of reachable and signalled nodes,
   and elapsed milliseconds. Never a node id (transport §7.9).
 
@@ -299,8 +336,10 @@ when the screen creates the session) and starts its load only once the subscript
 (`onSubscription`, or a collector started undispatched), so no write can fall between a load's
 read and the subscription. A GUARD comment at the subscription says: if `Init` stops running on
 each return (the latch `tech-debt.md` proposes), the subscription and the timer must move to the
-return path, and the return-to-screen test fails until they do. The chain maps to
-`LiveSetUiModel` (`.map { }` before `.launch { }`).
+return path, and the return-to-screen test fails until they do. The chain maps each write to its
+UI model (`ExternalSetUiModel`) and is collected in a child coroutine started undispatched on the
+main-immediate dispatcher, not through the store's `Flow.launch` helper, which collects on the work
+dispatcher and so becomes active only after a dispatch (F31).
 
 **Loads.** The `Init` load and `processReload` are covered the same way:
 
@@ -314,8 +353,8 @@ return path, and the return-to-screen test fails until they do. The chain maps t
    are cleared.
 
 This bookkeeping runs where the state updates run: on the store's main-immediate dispatcher (the
-subscription's per-item dispatcher and both loads' result callbacks), or inside `State` through
-`updateStateImmediate`. No mutable collection is shared across dispatchers.
+subscription, which is collected there, and both loads' result callbacks), or inside a state
+update (`updateState`, D14). No mutable collection is shared across dispatchers.
 
 **Applying one write:**
 
@@ -333,6 +372,13 @@ explicitly started exercises, expansions, the timer, the name draft and the in-f
 as they are. No re-read of the session, no new Action, no Event, no haptic. Nothing here
 navigates; navigation stays the canonical pattern (`Action.Navigation` consumed by the feature's
 `NavigationHandler`, `Navigator` injected).
+
+**Atomic writes (D14).** Every state write of the live-workout store goes through `updateState`:
+the timer's tick, a watch write, a load's result and the load-failure flags included. A
+compare-and-set retries on the newer state, so no write erases one made meanwhile on another thread
+(F29). No update function has a side effect, so a retry repeats nothing: `coverage.receive` stays
+outside it, and `coverage.since` only reads. No `updateStateImmediate` remains in the store, and a
+GUARD in `CommonHandler` says why.
 
 ## 7. Watch side
 
@@ -384,7 +430,11 @@ O6 has its own token bucket (PROVISIONAL): `PHONE_CHANGE_BURST` = 10 tokens, one
    timer and exists only while a change is pending. This amends transport §7.2 "No polling": every
    request still has an origin, and the deferral only delays an O6 that already arrived. Its delay
    is derived from the coordinator's `clock`, so tests drive it with the existing test clock. The
-   coordinator's KDoc invariants are updated to say so.
+   coordinator's KDoc invariants are updated to say so. The wait is computed from `clock` (elapsed
+   real time), while the deferral's timer stops when the watch sleeps: after a sleep the deferral
+   fires late, never early, and serves at once, because serving computes the wait again; a signal,
+   a completion or a drop meanwhile serves it sooner. A process reclaimed meanwhile loses the
+   deferral, and the next signal or O1–O5 recovers (§11).
 6. Follow-up: as transport §7.4; an O6 chain's follow-up is an ordinary automatic follow-up under
    the existing budget, and an O6 chain gets none while the controller is not interactive, like
    TILE and AUTHORITY_EXPIRED.
@@ -544,6 +594,71 @@ Watch (`:app:wear`):
 - capability: `R.array.android_wear_capabilities` equals `[WearProtocol.WATCH_CAPABILITY]`;
 - launch mode: `MainActivity`'s `ActivityInfo.launchMode` is `LAUNCH_SINGLE_TOP`.
 
+Added by the 2026-10-03 amendment (PR-S2), phone:
+
+- notifier guard (D13): the key flow fails before its first value, while a change settles, while a
+  lookup is suspended, while a send is suspended, and inside the minimum interval; each time
+  exactly one `signal stopped: <class>` line is logged, nothing reaches the recording handler, and
+  nothing is signalled afterwards. A `CancellationException` thrown by the key flow while the
+  notifier is active, before its first value or while a change settles, is logged and ends it the
+  same way. Cancelling the generation lifetime ends the notifier with no `signal stopped` line;
+- bridge, cache hits: for each entry point (handshake, command, protocol rejection), record another
+  key for the source node, send the identical request again, and the node holds the cached
+  response's key;
+- bridge, command refresh: a command whose lease publication loses a race to a phone edit, set up
+  as the handshake case at `PhoneWorkoutBridgeSignalTest.kt:107` but armed after the handshake that
+  grants the command's lease (the hook fires at the first plain transaction), records the key of
+  the read-only refresh it returns, never the prepared one;
+- bridge, rejections: one case per rejection outcome `completeCurrentSet` can return, each
+  asserting its exact outcome and that nothing is published: `StaleRevision`, `NoActiveSession`,
+  `TargetChanged` (a lease bound to the moved target, as `bindSyntheticLease` binds one in
+  `PhoneWorkoutBridgeImplTest`), `AuthorizationExpired`, `ProtocolRejected` (for example the same
+  command id with another attempt fingerprint after an Applied write), `InvalidValues` and
+  `ImmutableTypeMismatch`. The existing test (`PhoneWorkoutBridgeSignalTest.kt:217-233`) covers
+  `StaleRevision` and, through its moved position, `AuthorizationExpired`, without asserting
+  either outcome;
+- graph: two reads of `AppGraph.watchKnownRevisions` give the same instance, so the bridge and the
+  notifier share one (the pattern of `LiveWorkoutExtensionIdentityTest.kt:97`). For this,
+  `WatchKnownRevisions` may become a public class whose members stay internal, and `AppGraph`
+  exposes it with a KDoc naming this test as its only reader, as it does `externalSetWrites`
+  (`AppGraph.kt:154-158`). No reflection;
+- live-workout store, session creation: `Init` with no session in the route subscribes once the
+  session exists and before its load reads, and shows a later write, for both creation paths (a
+  plan's `startSession` and Quick start's `createAdhocSession`);
+- live-workout store, atomic writes (D14): a recording store (for example the test's `BaseStore`
+  overriding `updateStateImmediate`) records no `updateStateImmediate` call across `Init`, a load, a
+  watch write, a failed load and at least two timer ticks, and the state's `nowMillis` advances at
+  least twice;
+- test infrastructure: a real-time thread can no longer corrupt the queue of the `ManualDispatcher`
+  at `CommonHandlerExternalWritesTest.kt:352-358`: the queue is thread-safe (preferred), or the
+  dispatcher implements `Delay` on the test dispatcher.
+
+Watch:
+
+- coordinator, rule 4: a signal arrives while a command is in flight and an O1 is queued behind
+  it; the command times out, the O1 is dropped as retry-preserved, and exactly one O6 handshake
+  starts at the binding's deadline;
+- coordinator, rule 3: with the controller not interactive, an O6 whose token cannot be issued (the
+  owner's token issue fails once, through a test-only hook of `RuntimeTestEnvironment` like its
+  `failNextRead`) is dropped once with `no token`; no handshake starts until the next signal, which
+  starts one;
+- coordinator, rule 6: with the automatic budget spent, an O6 chain answered `Unavailable` while
+  interactive gets no follow-up;
+- coordinator, rule 5: while an O6 waits for a token and nothing else is due, the coordinator does
+  no work until the deferral fires, once: counted, for example, by a clock that counts its reads (a
+  deferral that polls reads it on every wake-up) or by a dispatcher that counts dispatches;
+- coordinator, refill start: one O6 at t0 and nine more 4 s later, each after the previous
+  handshake completed, empty the bucket; an eleventh signal right after them starts at t0 + 10 s,
+  not at t0 + 14 s;
+- limiter (`PhoneChangeLimiter`, unit): a partial refill period is kept: after ten takes at t0, a
+  token taken at t0 + 15 s leaves the next one at t0 + 20 s.
+
+Added by the 2026-10-06 amendment (PR-S2), phone:
+
+- settle (D15): one set write sends no signal 149 ms after it and exactly one 150 ms after it, with
+  both times written as literals in the test, never through `CHANGE_SETTLE_MS`. Every existing
+  notifier test keeps reading the constant (F32) and passes unchanged.
+
 Gates: `assert_wear_transport_gate.py --self-test` covers all four paths with the existing cases
 (allowlisted file passes; sibling, path-suffix and directory-prefix fail; a suppression inside an
 allowlisted file fails); `assert_play_bundle.py --self-test` gains the G12 fixtures.
@@ -587,8 +702,20 @@ every gate reports its input count.
 | M-S29 | a blocked O6 is enqueued anyway | bucket test (the coordinator keeps running work while it waits) |
 | M-S30 | `processReload` does not apply again the writes received since it started | load-race test (`processReload`) and the return-with-save test |
 | M-S31 | the subscription starts only on the store's first `Init` | return-to-screen test |
-| M-S32 | the notifier's `catch` removed | key-flow-failure test (an exception reaches the handler) |
+| M-S32 | the notifier's guard removed; the chain has no `catch` operator (D13) | key-flow-failure tests (an exception reaches the handler; for the foreign cancellation, no `signal stopped` line) |
 | M-S33 | a running subscription is not cancelled before `Init` starts another | single-collector test |
+| M-S34 | a dedupe-cache hit returns without recording its key; applied at each of the three cache-hit returns (`PhoneWorkoutBridgeImpl.kt:70,103,149`) in turn | the cache-hit test of that entry point |
+| M-S35 | a command records its prepared response instead of the one it returns (`PhoneWorkoutBridgeImpl.kt:135`) | command-refresh test |
+| M-S36 | `@SingleIn` removed from `WatchKnownRevisions` | graph identity test |
+| M-S37 | a refresh of another origin dropped at start does not serve the pending change (the `else` branch at `WatchTransportCoordinator.kt:301` removed) | rule 4 test |
+| M-S38 | an O6 whose token cannot be issued keeps its change pending (`WatchTransportCoordinator.kt:272` removed) | rule 3 test |
+| M-S39 | an O6 chain's follow-up is exempt from the budget (`&& !followUp` removed at `WatchTransportCoordinator.kt:505`) | rule 6 test |
+| M-S40 | the deferral re-arms every millisecond (`PhoneChangeLimiter.kt:45` returns 1 while the bucket is empty) | rule 5 test |
+| M-S41 | the refill period restarts at every take (`PhoneChangeLimiter.kt:52` without its condition) | refill-start test and the limiter test |
+| M-S42 | `Init` subscribes only when the route carries a session | session-creation test |
+| M-S43 | a state write of the store goes back to `updateStateImmediate`; applied to the timer's tick and to the watch write in turn | atomic-writes test |
+| M-S44 | the notifier's guard treats its own cancellation as a failure | guard test (cancelling the lifetime logs `signal stopped`) |
+| M-S45 | `CHANGE_SETTLE_MS` back to 500 (D15), and in a second run 100 | settle test |
 
 ### 10.3 Existing gates
 
@@ -633,6 +760,11 @@ STOP.
 | Both devices complete the same set within about 100 ms | — | the screen may keep the earlier writer's values until re-entry | last writer wins, as today |
 | Watch set during an undo window, then Undo | — | the screen restores the earlier state plus the watch set; a re-upsert compensation of the same position overwrites it | last writer wins |
 | Watch set in an exercise soft-deleted on the phone | — | kept in the undo snapshot; closing the window deletes the exercise with it | deleted with the exercise |
+| Three sets completed on one watch within about 2.2 s (2.5 s in 1.53.0) | the watch may be signalled once anyway: for that handshake's round trip the controls are disabled and an open editor closes (F25) | the second set's key waits out the interval that the first set's round started; the third set makes the bridge record a newer key for the watch, so the waiting round, which compares with the second key, signals it (D7 compares with the round's key, not the newest; §13) | none |
+| A signal arrives after the watch issued a command and before the coordinator received it, and the command then times out | the O6 is dropped as retry-preserved instead of waiting for the binding's deadline (§7.3 rule 3; an exception to D6); Retry, the next signal or O1–O5 recovers | — | none |
+| The phone's signal is served while the watch issues a command (any origin can do this; O6 arrives unprompted, so it is likelier) | the handshake token retires the attempt just issued, so the set is not sent; the next tap succeeds after the answer | — | none |
+| The watch sleeps while an O6 waits for its deferral | served when the deferral fires after that much awake time, or sooner at the next signal, completion or O1–O5; never early (§7.3 rule 5); a process reclaimed meanwhile loses it until the next signal or O1–O5; no alarm or wake lock | — | none |
+| Discard on the empty-finish dialog after the watch completed a set | — | the dialog was decided at Finish, before the watch set; Discard deletes the session with that set (since 1.52; §13) | the watch set is deleted |
 
 ## 12. Release and acceptance
 
@@ -661,6 +793,11 @@ STOP.
 ### 12.3 Owner physical checklist
 
 Setup as transport §12.3: Play installs only (D7 there), notifications allowed on the watch.
+Before S1 the owner writes the installed Workeeper version of both devices into the report, as the
+device shows it (the app's App info page or the Play Store's "About this app"). "No pending update"
+does not establish a version: a device that was never offered the update shows none either. A
+watch older than 1.53.0-wear has no listener for the signal and fails S1, S2, S3, S7 and S8 by
+design (§5.4).
 
 | Id | Step | Expected |
 |---|---|---|
@@ -680,14 +817,73 @@ Setup as transport §12.3: Play installs only (D7 there), notifications allowed 
 The owner reports pass or fail per row with a note, and a screenshot for a failure. Failures feed a
 1.53.x fix.
 
+### 12.4 PR-S2 and hotfix 1.53.1 (amendments of 2026-10-03 and 2026-10-06)
+
+1. Each amendment lands on `dev` as its own direct push (specifications take no PR).
+2. PR-S2 into `dev`, bisect-green per commit: D13 and its tests, D14 and its test, D15 and its
+   test, the other tests §10.1 adds for PR-S2, and the documentation below. Its new named mutations
+   are M-S32 as redefined and M-S34 to M-S45; every other named mutation whose test or production
+   file PR-S2 changes runs again. No commit mixes a change under `documentation/` with a change
+   anywhere else, so that step 3 can take every other commit unchanged. §12.1 step 3 follows the
+   merge.
+3. PR-S2 ships as hotfix 1.53.1 (D15) through [release-flow.md](../release-flow.md) §6.2, because
+   `dev` holds unreleased changes unrelated to it (#312, #317 and #318 at `f64e13f3`):
+   - `cut_release.yml` with `mode: hotfix` cuts `release/release-v.1.53.1` from `master`: 1.53.1,
+     versionCode 57, Wear 1000057 (release-flow.md §4.5);
+   - every PR-S2 commit that changes anything outside `documentation/` is cherry-picked onto that
+     branch, in order. The same cherry-picks are first rehearsed on `master` before the cut, gated
+     per commit as on `dev`; a hotfix commit whose tree equals its rehearsal commit's except
+     `gradle/libs.versions.toml` takes over that commit's gate evidence;
+   - `android_deploy_prod.yml` then runs on the branch: phone to production, Wear to
+     `wear:internal`. The `production` environment has no protection rule (§15, 2026-10-03), so the
+     deploy does not wait for an approval;
+   - §12.2's evidence and ledger rows follow, with 1.53.1, 57 and 1000057. The sync of `master` into
+     `dev` then carries the cherry-picked commits, whose changes `dev` already holds.
+4. The owner runs §12.3 on 1.53.1, both versions recorded. If S1, S2, S3, S7 and S8 pass, the
+   signal is accepted. If they fail, the cause lies either outside what the emulator run of 1.53.0
+   covered (§15, 2026-10-06: Bluetooth, relay, the Play-signed builds) or in what 1.53.1 changed
+   (D13, D15), and a run on the physical devices with logging builds is specified next.
+
+Documentation and comments in PR-S2, none of which changes behavior:
+
+- `PhoneChangeNotifier.kt:26-29`: the `CHANGE_SETTLE_MS` KDoc names D15 and stays PROVISIONAL;
+  "Unmeasured" becomes "not measured on a physical device";
+- `PhoneChangeNotifier.kt:32-36`: the `CHANGE_MIN_INTERVAL_MS` KDoc speaks of rounds (§5.3);
+  `:77-86`: the KDoc describes the guard (D13), not the place of a `catch`;
+- `WatchTransportCoordinator.kt:91-97`: "served only while nothing is queued or in flight" becomes
+  "served only while no refresh is queued and no request is in flight", and the awake-time clause of
+  §7.3 rule 5 is added;
+- `ReleaseRuntimeBoundaryTest.kt`: the class KDoc (`:37-38`) no longer says that nothing asserts on
+  the link, and names the O6 test's dependence on `@Order(1)` and on the runtime the factory keeps
+  for the process; one blank line separates the two tests (`:64-65`);
+- `documentation/ci-cd.md:75-78`: the storeRelease boundary step also proves that the release
+  factory's runtime forwards the phone's change signal (the release boundary test, M-S20's named
+  test, runs only there); `:183`, G9: the Wear item names `WearProtocol.WATCH_CAPABILITY`;
+- `assert_wear_transport_gate.py`: the messages at `:615-616` and `:634` say "Data Layer
+  allowlist" and the one at `:631` says "on the Data Layer allowlist", instead of "transport
+  allowlist" and "transport-allowlisted"; the docstring's short line at `:52` is rewrapped;
+- `WearDataLayerApiRule.kt`: the issue description (`:41-43`) and the report message (`:109-111`)
+  say that only the allowlisted files of §8 may name the Data Layer, instead of citing a privacy
+  review that has not happened; the report message keeps `$FORBIDDEN_PACKAGE`, which
+  `WearDataLayerApiRuleTest.kt:29` pins;
+- the PR-S2 body lists the compiler suppression PR-S added in a test
+  (`CommonHandlerExternalWritesTest.kt:101`, the idiom of `BaseStore.kt:122`). PR-S2 adds no
+  suppression of any kind; an `@OptIn` in a test, for example to `InternalCoroutinesApi` for a
+  `Delay`, is not one.
+
 ## 13. Out of scope
 
 Phase 2 watch UX (the exercise list, picking the exercise, skipping a set or an exercise) and its
 protocol v2; a revision inside the signal; keeping the watch controls enabled during a handshake;
 a watch status that tells "phone not found" from "phone didn't answer"; the re-entry mechanism of
 `BaseStore` (`tech-debt.md`); the teardown order of the restore path; per-node lease retirement
-(D12); Wear production; measured constants; the release backlog (rulesets, signing of the bump
-commit, the fastlane `beta` lane, the Actions cache, Data safety review).
+(D12); skipping a watch that already holds the newest key, which would end the rapid-set signal of
+§11; making the in-flight-command check atomic with issuing a handshake token, for every origin
+(the two command races of §11); Discard on the empty-finish dialog after a watch set (§11), where
+re-checking that the session is still empty or closing the dialog when a watch write lands is the
+owner's choice; Wear production; measured constants; the release backlog (rulesets, signing of the
+bump commit, the fastlane `beta` lane, the Actions cache, Data safety review, the `production`
+approval that `release-flow.md` §6.1 describes and the environment does not enforce).
 
 ## 14. Discovery (before editing) and STOP conditions
 
@@ -700,6 +896,12 @@ Discovery rows, each with command, evidence and verdict:
 - **Q4** The graph accessor `armPostPreflight` uses for the notifier, the application `Context`
   binding for the link (§6.3), and where the bridge maps into `SetsDataType` (§6.4).
 - **Q5** ASM-7: the key-flow test of §10.1 is written and run first; RED is a STOP.
+- **Q6** (PR-S2) F29 to F31, and every line the 2026-10-03 amendment cites, re-verified at the
+  current `dev` head; pure line drift is recorded.
+- **Q7** (PR-S2, hotfix) F32 re-verified at the current `dev` head; `master` still at the
+  `release-v.1.53.0` merge with 1.53.0 / 56; and the files PR-S2 changes outside
+  `documentation/` compared between `master` and `dev`, so that a commit that would not
+  cherry-pick cleanly is known before the hotfix is cut.
 
 STOP and report when:
 
@@ -710,6 +912,11 @@ STOP and report when:
 - a gate can only be opened by a wildcard other than detekt's leading `**/`, a directory prefix or
   a suppression;
 - a named mutation cannot be made RED;
+- a PR-S2 test needs reflection, or a production change beyond D13, D14, D15, the documentation
+  of §12.4 and the graph item of §10.1 (`WatchKnownRevisions` public with internal members, the
+  `AppGraph.watchKnownRevisions` accessor and its KDoc);
+- a PR-S2 commit does not cherry-pick cleanly onto the hotfix branch, or the hotfix branch would
+  need any change that is not a PR-S2 commit or the version bump;
 - a Paparazzi golden changes;
 - a bundle identity gate fails;
 - the `product.md` OLD block of Appendix A does not occur exactly once, or the result hash differs
@@ -725,6 +932,24 @@ Append-only. One row per PR, release step and acceptance item.
 | 2026-10-02 | §12.1 step 1: this specification on `dev`, with the transport status paragraph of §9 | e8a9395f | Direct push. The copy's sha256 `65765213…` equals the approved source file; the transport specification changed only by the §9 paragraph. GitHub verified the signature. |
 | 2026-10-02 | Amendment after PR-S discovery: D10 to D12, the Q2 and Q4 answers, the G12 self-test SKIP rule | 1e663164 | Direct push. The copy's sha256 `97f90f8a…` equals the owner's file. GitHub verified the signature. |
 | 2026-10-02 | PR-S #313: the phone's change signal, origin O6, the live-workout screen's watch sets, `singleTop`, the four-file allowlist, G12 | head 18bdee78 (9 commits); run 37048223696 | All checks green on 18bdee78: Build and Unit Tests (2,960 tests), KMP iOS kit smoke, Release bundle identity (G12 PASS on Wear, N/A on phone), Mockup Appearance Gate. Measured locally: 36 named-mutation runs RED then GREEN, every head gate green. An independent review found four gaps, fixed before opening (17e07a26, 95b7dc2c, 18bdee78). The review bot did not review: its usage limit was reached. Every commit GitHub-verified. The owner merges. |
+| 2026-10-03 | PR-S #313 merged into `dev` | merge 31639c8c (head a23da290); runs 37048223696, 37051454031 | Merged by the owner at 08:25:00Z after every check was green on a23da290: Build and Unit Tests, KMP iOS kit smoke, Release bundle identity (run 37051454031), Mockup Appearance Gate (runs 37051453998, 37053159215). Review: the Codex bot did not run (usage limit); an independent review by Claude replaced it, with no blocker or major finding, its minor findings going to PR-S2. The owner accepted the §6.2 deviation (`.catch` before `.conflate()`); this specification's listing follows with PR-S2. |
+| 2026-10-03 | §12.1 step 3: `android_build_unified.yml` on `dev` with `execute_unit_tests=true` | run 37109655585 on 31639c8c | Success: Build and Unit Tests, KMP iOS kit smoke, Release bundle identity. The run reports "All 2 960 tests pass" (3 275 runs, 462 files). |
+| 2026-10-03 | §12.1 step 4: release 1.53.0, phone | cut run 37111834530; deploy run 37116431535; tag `release-v.1.53.0` → 805e4266; #314 → 6bf23319 | Cut from `dev` at 31639c8c (bump 805e4266, 1.53.0 / 56). Release PR #314 green (runs 37111847144, 37111847148). Deploy: bundle identity `RESULT PASS (12/12 checks ran on 1 bundle)`, G12 N/A; listing `RESULT OK: 13 items, no drift`; versionCode 56 uploaded to `production`, "Successfully finished the upload to Google Play" at 11:26:34Z. Tag pushed, #314 merged into `master` at 11:26:38Z. APK release run 37119666743, asset `store-release.apk`. No approval was asked: the `production` environment has no protection rules. |
+| 2026-10-03 | §12.1 step 4: release 1.53.0, Wear | run 37116431535, job `deploy_wear` (111193229894; re-run 111202630071) | Bundle identity `RESULT PASS (12/12 checks ran on 1 bundle)`, G12 PASS (`PhoneChangeListenerService`); listing `RESULT OK: 1 items, no drift`; `DECISION UPLOAD` at 11:31:23Z, versionCode 1000056 to `wear:internal`, upload finished at 11:31:49Z. The job's re-run (attempt 2) ended in `DECISION SKIP` at 12:34:00Z: 1000056 already on `wear:internal`. |
+| 2026-10-03 | Sync `master` → `dev` | #316 → 1fa564fe | Opened by run 37119669998 on 6bf23319; checks green on that head (runs 37119683167, 37119683162); merged by the owner at 12:26:42Z. Physical devices are unverified until the owner's §12.3 checklist. |
+| 2026-10-04 | §12.3, owner, 1.53.0 | — | Reported by the owner: a phone change showed on the watch only after the owner's own action (reopening the app, or the screen turning off and on), never by itself; the other rows were not reported one by one. The installed watch version was not recorded; a watch on 1.52.2-wear behaves exactly so (§5.4). |
+| 2026-10-06 | §10.4: paired-emulator run of the 1.53.0 code, by the implementer | no commit; tag `release-v.1.53.0` (805e4266), `dev` flavor release builds 56 and 1000056 | Phone `Pixel_9_Pro_XL` (API 36, Google Play image) and watch `Wear_OS_Large_Round` (API 36), paired through Android Studio's assistant with the Pixel Watch app; Play services 25.30.31 and 25.11.34; one connected peer on each side. From the phone tap to the watch's accepted snapshot: S1 894, 873 and 919 ms, of which the settle is 500 ms; S7 five taps, five signals 2.01–2.23 s apart, the watch on the right set 2.07 s after the last tap; S2 in ambient 860 ms, the watch dozing throughout; S3 with the watch's process killed (`am kill`): the listener started it, finish 1.51 s, start 1.08 s (ASM-6 holds on the emulator); S8 1.11 s. With a temporary, uncommitted log line per distinct key: start, complete a set, skip, return, add an exercise and finish each gave exactly one distinct key in each of three runs; editing a completed set, one key per step. Not physical evidence. |
+| 2026-10-06 | Amendment after the PR #313 review: F29 to F31, D13 and D14, the PR-S2 tests and named mutations, §12.4 | da6f3695 | Direct push to `dev`. The copy's sha256 `8e792501…` equals the owner's file. GitHub verified the signature. |
+| 2026-10-06 | Amendment for hotfix 1.53.1: F32, D15, the settle test, M-S45, §12.3 and §12.4, the §10.4 row | c4abab00 | Direct push to `dev`. The copy's sha256 `7203dca9…` equals the owner's file. GitHub verified the signature. |
+| 2026-10-07 | §12.4 step 2: PR-S2, D13 to D15 and the PR-S2 tests | branch `fix/wear-live-sync-hardening`, head df67e4e9 on c4abab00: 7ab77ac1, df54f9d2, 158ee225, a817f1eb, 8e676deb, d5457ac7, ce09cb93, df67e4e9 | Every commit signed. The hotfix takes all but df67e4e9, the only one under `documentation/`. Per-commit gates, measured (daemon stopped, `--rerun-tasks --no-build-cache --no-daemon`): wear-bridge 92, 93 and 104 tests; wear-bridge and app 302; live-workout 213; Wear dev and store 636; lint-rules 138 and the storeRelease boundary 3; detekt clean on every touched module (`lint-rules` has no detekt task); the transport gate and its 53-case self-test at every commit. RED on the base: the settle test at 500 ms (exit 1) and the atomic-writes test (exit 1, six `updateStateImmediate` calls). Named mutations, 47 runs on df67e4e9, each RED on its named tests, restored byte-exact and GREEN: M-S32, M-S34 at 3 sites, M-S35 to M-S44 with M-S43 at 2 sites, M-S45 at 500 and 100; 29 earlier ones rerun (M-S6 added); M-SX1 supplementary for the rejection tests. Head gates on df67e4e9: assembleDebug (4 APKs), assembleDebugAndroidTest (39 APKs), verifyPaparazziDebug (13 modules, 456 golden cases, no snapshot changed), `:lint-rules:test` 138, detekt (56 tasks, 1 515 files), lintDebug (23 reports, 225 warnings, none in a changed file), testDebugUnitTest (3 086 passed, 65 skipped, 0 failed), the boundary test 3, both release bundles `RESULT PASS (12/12 checks ran on 1 bundle)` with Wear G12 PASS and the swap control exiting 1 on G5, the bundle self-test 70 cases, the transport gate; the mockup gate's rows 1 to 6, 9 and 10 PASS, rows 7 and 8 UNMEASURED locally (no headless browser). |
+| 2026-10-07 | PR-S2 #320: independent review and its fixes | e5096f3d, after head 07a1a02c | A fresh reviewer read the diff against this specification alone: no blocker, no should-fix, two NITs, both reproduced and fixed (classification on #320). Correct-and-new: the guard's minimum-interval case now has a change waiting in the interval when the query fails; with PR-S's chain (`catch` before `conflate`) in place of the guard it fails (supplementary M-SX2). Correct: a test KDoc no longer explains that case through `catch`. Gate on e5096f3d: wear-bridge 104 tests, detekt 21 + 2 files, the transport gate. Mutations rerun on e5096f3d, measured: M-S1 to M-S4, M-S7, M-S8, M-S26, M-S27, M-S32, M-S44, M-S45 at both values, M-SX1 and M-SX2, each RED on its named tests and GREEN after the restore. CI on 07a1a02c: run 37624253690 (Build and Unit Tests, KMP iOS kit smoke, Release bundle identity) and run 37624253620 (Mockup Appearance Gate) succeeded. The review bot reported its Codex usage limit and did not review. |
+| 2026-10-07 | PR-S2 #320 merged into `dev` | merge ecca15ec (head df8d0443) | Merged by the owner at 17:46:48Z with `--merge --match-head-commit df8d0443…`; the merge's second parent is df8d0443. Checks on that head: run 37629802875 (Build and Unit Tests, KMP iOS kit smoke, Release bundle identity; "All 2 991 tests pass") and run 37629869424 (Mockup Appearance Gate). Review: the independent review's two NITs were fixed in e5096f3d and closed; the review bot reported its Codex usage limit and did not review, so the merge was handed to the owner (A1). Hotfix 1.53.1 takes 7ab77ac1, df54f9d2, 158ee225, a817f1eb, 8e676deb, d5457ac7, ce09cb93 and e5096f3d. `dev` then also took #319 (38982c2e, `ui_tests.yml` and `ci-cd.md` only). |
+| 2026-10-07 | §12.1 step 3 for PR-S2: `android_build_unified.yml` on `dev` with `execute_unit_tests=true` | run 37662002150 on 38982c2e | Success: Build and Unit Tests, KMP iOS kit smoke, Release bundle identity. The run reports "All 2 991 tests pass" (3 312 runs, 466 files). It ran on 38982c2e, the merge plus #319, whose tree differs from ecca15ec only in `.github/workflows/ui_tests.yml` and `documentation/ci-cd.md`. Its dispatch cancelled the push run 37661806448 of the same commit (the workflow's concurrency group). |
+| 2026-10-09 | §12.4 step 3: hotfix 1.53.1 cut | cut run 37926248148; branch `release/release-v.1.53.1`, bump d827d112; #324 | Dispatched once with `mode=hotfix` after the owner's go, on `master` at 6bf23319 (1.53.0 / 56; no 1.53.1 branch, tag or PR into `master`). The bump `chore: bump to v.1.53.1 (code 57)` changes only `gradle/libs.versions.toml`, to 1.53.1 / 57; the workflow's bump commit is unsigned, as were those of 1.53.0, 1.52.2 and 1.52.1. #324 "Hotfix v.1.53.1" opened into `master`. `dev` had moved to fd5dc415 (#321 to #323), and `git merge-tree` against the rehearsal head then predicted a sync conflict in `CommonHandlerExternalWritesTest.kt`. |
+| 2026-10-09 | §12.4 step 3: PR-S2's commits on the hotfix branch | 7ab77ac1 → 23b3dc5a, df54f9d2 → 38ca2d9f, 158ee225 → d83e5c12, a817f1eb → 494d657f, 8e676deb → e48be469, d5457ac7 → 8dc14c59, ce09cb93 → 3eec4f4c, e5096f3d → d229ac4d | `git cherry-pick -x`, signed, no conflict; every commit GitHub-verified; pushed as a fast-forward, d827d112..d229ac4d. The rehearsal came first, on a local branch from 6bf23319 that was never pushed (60165791, 5916e4fa, cd4f827d, c4246907, 35a0dd12, 6a50d08c, 4f28d212, 7f04cf66), with measured gates at every commit: wear-bridge 92, 93, 104 and 104 tests; wear-bridge and app 302; live-workout 213; Wear dev and store 636; lint-rules 138 and the storeRelease boundary 3; detekt on every touched module; the transport gate and its 53-case self-test. Each hotfix commit differs from its rehearsal commit only in `gradle/libs.versions.toml`, so that evidence carries over. The hotfix branch's diff from the bump equals PR-S2's diff outside `documentation/`, file by file without the hunk-header and `index` lines (18 files, 1 038 lines). Head gates on d229ac4d, measured: 1 289 tests (wear-bridge 104, app 198, live-workout 213, Wear dev 318 and store 318, lint-rules 138), the boundary 3, detekt (9 tasks, 348 files), the transport gate and its self-test. At the rehearsal head, the first root `testDebugUnitTest` run failed once, in `WearRotaryControllerTest` (`AppNotIdleException`, store flavor only, a file PR-S2 does not touch); its isolated rerun and the full measured rerun passed (3 171 results, 0 failures). That was reported to the owner before the go. CI on #324 at d229ac4d: PR Guard run 37927414717; run 37927414847, Build and Unit Tests ("All 2 991 tests pass", 2 994 runs in 379 files), KMP iOS kit smoke, and Release bundle identity, `RESULT PASS (12/12 checks ran on 1 bundle)` on both bundles with G12 PASS on Wear and N/A on phone. |
+| 2026-10-09 | §12.4 step 3: release 1.53.1, phone | cut run 37926248148; deploy run 37931418561; tag `release-v.1.53.1` → d229ac4d; #324 → 543f7634 | Deploy dispatched with the default inputs, pinned to d229ac4d: guard, build (Build and Unit Tests with "All 2 991 tests pass", 3 312 runs in 466 files; KMP iOS kit smoke; Release bundle identity), Smoke UI Tests, then the phone job: bundle identity `RESULT PASS (12/12 checks ran on 1 bundle)`, G12 N/A; listing `RESULT OK: 13 items, no drift`; versionCode 57 uploaded to `production`, "Successfully finished the upload to Google Play" at 13:44:07Z. Tag pushed at 13:44:09Z; #324 merged into `master` at 13:44:11Z with `--match-head-commit` d229ac4d. APK release run 37938972760, asset `store-release.apk`. No approval was asked, and no recovery was used. |
+| 2026-10-09 | §12.4 step 3: release 1.53.1, Wear | run 37931418561, job `deploy_wear` (113848297172; re-run 113850514463) | Bundle identity `RESULT PASS (12/12 checks ran on 1 bundle)`, G12 PASS (`PhoneChangeListenerService`); listing `RESULT OK: 1 items, no drift`; `DECISION UPLOAD` at 13:48:20Z (`wear:internal` held 1000056), versionCode 1000057 to `wear:internal`, upload finished at 13:48:54Z. The job's re-run (attempt 2, that job alone; the phone job kept its first attempt) ended in `DECISION SKIP` at 13:54:42Z: 1000057 already on `wear:internal`. |
+| 2026-10-09 | Sync `master` → `dev` | #325, head 543f7634: open, conflicting | Opened by run 37938979345 on 543f7634. GitHub reports it conflicting in `CommonHandlerExternalWritesTest.kt`: three hunks where #321, on `dev` after PR-S2, dropped commas from the names of tests PR-S2 added; the `master` side holds that file exactly as `dev` had it before #321. Predicted at the cut and again after the cherry-picks, and left to the owner. Checks on 543f7634: the `master` push run 37938979322 succeeded (Build and Unit Tests with "All 2 991 tests pass", 3 312 runs in 466 files; KMP iOS kit smoke; Release bundle identity), so no dispatch was needed. Physical devices are unverified until the owner's §12.3 checklist on 1.53.1. |
 
 ## 16. Sources
 

@@ -88,7 +88,7 @@ internal class CommonHandlerTest {
 
     /** The consumer is `ExerciseGraph`'s `if (state.isLoading) return` gate, not a field reader. */
     @Test
-    fun `a load that throws clears isLoading, or the route is composed on nothing forever`() {
+    fun `a load that throws clears isLoading or the route is composed on nothing forever`() {
         coEvery { interactor.getExercise(any()) } throws IllegalStateException("db down")
         val (stateFlow, handler) = setup(State.create(uuid = "uuid-1"))
         // Precondition rather than assertion: a route with a uuid starts loading by construction.
@@ -100,7 +100,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `a create route never loads, so it is never withheld`() {
+    fun `a create route never loads so it is never withheld`() {
         val (stateFlow, handler) = setup(State.create(uuid = null))
 
         handler.invoke(Action.Common.Init)
