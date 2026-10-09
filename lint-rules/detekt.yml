@@ -150,6 +150,8 @@ complexity:
       - '**/androidTest/**'
       - '**/androidHostTest/**'
       - '**/androidDeviceTest/**'
+      - '**/commonTest/**'
+      - '**/iosTest/**'
 
 coroutines:
   active: true
