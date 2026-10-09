@@ -34,8 +34,9 @@ import java.util.concurrent.TimeUnit
  * where Play services are absent: nothing reaches the link before a request origin
  * (`WatchTransportCoordinatorTest`), and `PlayServicesWearLink` creates its clients lazily, on its
  * first call (its GUARD; no test may name the Data Layer, wear-live-sync.md §8).
- * The Tile request below is an O2 origin, so it starts a request in the background; nothing here
- * asserts on the link.
+ * The factory keeps one runtime for the process, so these tests share it. The O6 test asserts on the
+ * link status that runtime records, which holds only while it runs first (`@Order(1)`): the Tile
+ * request below is an O2 origin and starts a request in the background.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [Build.VERSION_CODES.TIRAMISU])
@@ -62,6 +63,7 @@ internal class ReleaseRuntimeBoundaryTest {
         }
         assertNotEquals(LinkStatus.UNKNOWN, runtime.snapshot.value.link, "O6 started a handshake")
     }
+
     @Test
     fun releaseRejectsSyntheticEventsAndExcludesTheirSourceClass() {
         val context = RuntimeEnvironment.getApplication()

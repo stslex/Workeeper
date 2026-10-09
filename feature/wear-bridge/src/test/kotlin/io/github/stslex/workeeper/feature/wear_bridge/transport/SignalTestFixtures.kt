@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.feature.wear_bridge.WatchStateKey
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.TestScope
 import java.util.Collections
 import kotlin.uuid.Uuid
@@ -23,10 +24,24 @@ internal class FakeNudgeLink : WatchNudgeLink {
     var watches: List<String> = listOf(WATCH_A)
     val signals: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
+    /** Every call as it starts (`lookup` or `send`), before any gate holds it. */
+    val calls: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
     /** Thrown by the next lookup, as a failed capability Task does. */
     var failNextLookup: Throwable? = null
 
+    /** Holds the next lookup until completed, as a slow capability Task does. */
+    var lookupGate: CompletableDeferred<Unit>? = null
+
+    /** Holds the next send until completed; a send counts as signalled only once it returns. */
+    var sendGate: CompletableDeferred<Unit>? = null
+
     override suspend fun reachableWatches(): List<String> {
+        calls += "lookup"
+        lookupGate?.let { gate ->
+            lookupGate = null
+            gate.await()
+        }
         failNextLookup?.let { failure ->
             failNextLookup = null
             throw failure
@@ -35,6 +50,11 @@ internal class FakeNudgeLink : WatchNudgeLink {
     }
 
     override suspend fun signal(nodeId: String) {
+        calls += "send"
+        sendGate?.let { gate ->
+            sendGate = null
+            gate.await()
+        }
         signals += nodeId
     }
 

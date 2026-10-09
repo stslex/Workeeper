@@ -267,6 +267,130 @@ internal class WatchTransportPhoneChangeTest {
         assertTrue(!h.owner.surface.value.hasUnsubmittedDraft)
     }
 
+    /** Rule 4: a queued refresh of another origin dropped at start serves the pending change. */
+    @Test
+    fun `an O1 behind a command that times out is dropped and the change starts one O6 at the deadline`() = runTest {
+        val h = connected(this)
+        h.link.gate = CompletableDeferred()
+        h.runtime.onAction(ControllerAction.CompleteSet)
+        runCurrent()
+        h.runtime.onControllerInteractive(false)
+        h.runtime.onControllerInteractive(true)
+        h.runtime.onPhoneChanged()
+        runCurrent()
+        assertEquals(CommandStatus.IN_FLIGHT, h.owner.snapshot.value.workout.command?.status)
+        val handshakesBefore = h.link.handshakes.size
+
+        advanceTimeBy(REQUEST_TIMEOUT_MS + 1)
+        runCurrent()
+        assertEquals(CommandStatus.TIMED_OUT_RETRYABLE, h.owner.snapshot.value.workout.command?.status)
+        assertTrue(
+            "refresh CONTROLLER_INTERACTIVE dropped: retry preserved" in h.logger.lines,
+            "the queued O1 was dropped at start: ${h.logger.lines}",
+        )
+        val binding = h.owner.snapshot.value.workout.authority as LocalMutationAuthority.AttemptBound
+        h.link.gate = null
+
+        advanceTimeBy(binding.effectiveDeadlineMs - h.clock.nowMs() - 1)
+        runCurrent()
+        assertEquals(handshakesBefore, h.link.handshakes.size, "nothing before the binding's deadline")
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(handshakesBefore + 1, h.link.handshakes.size, "exactly one O6 at the binding's deadline")
+    }
+
+    /** Rule 3: an O6 that cannot get its token gives its change up; the next signal recovers it. */
+    @Test
+    fun `an O6 whose token cannot be issued is dropped once and only the next signal starts one`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.env.failNextId = true
+
+        h.runtime.onPhoneChanged()
+        runCurrent()
+        advanceTimeBy(FIVE_MINUTES_MS)
+        runCurrent()
+        assertEquals(
+            listOf("refresh phone_changed dropped: no token"),
+            h.logger.lines.filter { "dropped" in it },
+            "dropped once, and said so",
+        )
+        assertEquals(0, h.link.handshakes.size, "no handshake until the next signal")
+
+        h.runtime.onPhoneChanged()
+        runCurrent()
+
+        assertEquals(1, h.link.handshakes.size, "the next signal starts one")
+    }
+
+    /** Rule 6: an O6 chain's follow-up is an ordinary automatic follow-up, under the budget. */
+    @Test
+    fun `with the automatic budget spent an O6 chain answered Unavailable while interactive gets no follow-up`() =
+        runTest {
+            val h = TransportHarness(this)
+            h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+            repeat(AUTO_REFRESH_BUDGET) {
+                h.runtime.onControllerInteractive(false)
+                h.runtime.onControllerInteractive(true)
+                runCurrent()
+            }
+            assertEquals(AUTO_REFRESH_BUDGET, h.link.handshakes.size, "the budget is spent")
+            h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active(unavailable = true) })
+
+            h.runtime.onPhoneChanged()
+            runCurrent()
+
+            assertEquals(AUTO_REFRESH_BUDGET + 1, h.link.handshakes.size, "the O6 and no follow-up")
+            assertTrue("refresh phone_changed dropped: budget" in h.logger.lines, "${h.logger.lines}")
+        }
+
+    /** Rule 5: the deferral is the only timer; nothing polls while a change waits for a token. */
+    @Test
+    fun `an O6 waiting for a token runs no work until the deferral fires once`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        repeat(PHONE_CHANGE_BURST) {
+            h.runtime.onPhoneChanged()
+            runCurrent()
+        }
+        h.runtime.onPhoneChanged()
+        runCurrent()
+        val reads = h.clockReads
+
+        advanceTimeBy(PHONE_CHANGE_REFILL_MS - 1)
+        runCurrent()
+        assertEquals(reads, h.clockReads, "nothing read the clock while the change waited")
+        assertEquals(PHONE_CHANGE_BURST, h.link.handshakes.size)
+
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(PHONE_CHANGE_BURST + 1, h.link.handshakes.size, "the deferral fired and served the change")
+    }
+
+    @Test
+    fun `the refill period runs from the first take of a full bucket, not from the last take`() = runTest {
+        val h = TransportHarness(this)
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
+        h.runtime.onPhoneChanged()
+        runCurrent()
+        val t0 = h.clock.nowMs()
+        advanceTimeBy(FOUR_SECONDS_MS)
+        repeat(PHONE_CHANGE_BURST - 1) {
+            h.runtime.onPhoneChanged()
+            runCurrent()
+        }
+        assertEquals(PHONE_CHANGE_BURST, h.link.handshakes.size, "each started after the previous one completed")
+
+        h.runtime.onPhoneChanged()
+        runCurrent()
+        advanceTimeBy(t0 + PHONE_CHANGE_REFILL_MS - h.clock.nowMs() - 1)
+        runCurrent()
+        assertEquals(PHONE_CHANGE_BURST, h.link.handshakes.size, "the eleventh waits for the first take's period")
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(PHONE_CHANGE_BURST + 1, h.link.handshakes.size, "it starts at t0 + 10 s, not at t0 + 14 s")
+    }
+
     /** Interactive, with one accepted handshake and fresh authority. */
     private fun connected(scope: TestScope): TransportHarness = TransportHarness(scope).also { h ->
         h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() })
@@ -279,5 +403,6 @@ internal class WatchTransportPhoneChangeTest {
 
     private companion object {
         const val FIVE_MINUTES_MS = 300_000L
+        const val FOUR_SECONDS_MS = 4_000L
     }
 }

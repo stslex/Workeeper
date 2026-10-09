@@ -39,8 +39,8 @@ class WearDataLayerApiRule(
         id = javaClass.simpleName,
         severity = Severity.Defect,
         description = "References to the Wearable Data Layer API ($FORBIDDEN_PACKAGE) are " +
-            "forbidden. Sending a workout payload off the phone is gated on a blocking privacy " +
-            "review; see documentation/feature-specs/wear-phase-1-active-workout-tile.md.",
+            "forbidden: only the allowlisted files of " +
+            "documentation/feature-specs/wear-live-sync.md §8 may name the Data Layer.",
         debt = Debt.TWENTY_MINS,
     )
 
@@ -107,8 +107,8 @@ class WearDataLayerApiRule(
                 issue,
                 Entity.from(element),
                 "`$FORBIDDEN_PACKAGE` is reached here without an import, which the " +
-                    "ForbiddenImport gate cannot see. Sending any workout payload over the " +
-                    "Wearable Data Layer is blocked on a privacy review that has not happened.",
+                    "ForbiddenImport gate cannot see. Only the allowlisted files of " +
+                    "wear-live-sync.md §8 may name the Wearable Data Layer.",
             ),
         )
     }
