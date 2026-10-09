@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.app.common.di
 
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
@@ -30,6 +31,9 @@ interface AppRootDeps {
 
     /** Generation-owned factory for the archive graph extension. */
     val archiveGraphFactory: ArchiveGraph.Factory
+
+    /** Generation-owned factory for the all-trainings graph extension. */
+    val allTrainingsGraphFactory: AllTrainingsGraph.Factory
 }
 
 /**

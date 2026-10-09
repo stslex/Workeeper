@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
@@ -42,14 +41,14 @@ internal class AllTrainingsExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
+    private fun AppGraph.allTrainings(): AllTrainingsGraph = allTrainingsGraphFactory
+        .createAllTrainingsGraph()
+
     @Test
     fun `extension resolves the store through the parent graph`() {
         val appGraph = buildAppGraph()
 
-        val store = appGraph
-            .asContribution<AllTrainingsGraph.Factory>()
-            .createAllTrainingsGraph()
-            .allTrainingsStore
+        val store = appGraph.allTrainings().allTrainingsStore
 
         assertNotNull(store, "The contributed extension must resolve AllTrainingsStoreImpl from the parent graph")
     }
@@ -58,10 +57,7 @@ internal class AllTrainingsExtensionIdentityTest {
     fun `store's app-scoped deps are the SAME instances the parent holds`() {
         val appGraph = buildAppGraph()
 
-        val store = appGraph
-            .asContribution<AllTrainingsGraph.Factory>()
-            .createAllTrainingsGraph()
-            .allTrainingsStore
+        val store = appGraph.allTrainings().allTrainingsStore
 
         assertSame(
             appGraph.analyticsHolder,
