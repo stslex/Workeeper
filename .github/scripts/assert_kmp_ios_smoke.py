@@ -280,6 +280,113 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.9: the nine portable suites (3/18/2/3/2/9/4/4/4) plus the one production scene,
+        # 50 exact.
+        "module": "feature:all-trainings",
+        "results_dir": "feature/all-trainings/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractorImplTest",
+                [
+                    "archiveTrainings delegates to repository bulkArchive",
+                    "deleteTrainings returns target count and delegates",
+                    "canPermanentlyDelete delegates to repository",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandlerTest",
+                [
+                    "OnTrainingClick emits haptic and navigates to OpenDetail",
+                    "OnFabClick emits haptic and navigates to OpenCreate",
+                    "OnFabClick with selection fires no haptic and sets pendingBulkDelete",
+                    "OnTagFilterToggle adds tag when not selected",
+                    "OnTagFilterToggle removes tag when already selected",
+                    "OnSelectionExit clears selection mode",
+                    "OnBulkDeleteConfirm calls archiveTrainings and clears selection on success",
+                    "OnBulkDeleteDismiss clears pending delete",
+                    "entering selection by long press fires LongPress",
+                    "toggling an item inside selection fires ContextClick not LongPress",
+                    "untoggling an item inside selection fires ContextClick",
+                    "long press inside selection fires ContextClick not a second LongPress",
+                    "toggling a tag filter fires no haptic",
+                    "confirmed bulk archive fires Confirm",
+                    "OnClearTagFilter empties the whole filter in one act",
+                    "OnClearTagFilter fires no haptic",
+                    "OnClearTagFilter on an already-empty filter changes nothing",
+                    "OnEmptyCreate opens create and fires no haptic",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.mvi.handler.NavigationHandlerTest",
+                [
+                    "OpenDetail navigates to Screen Training with uuid",
+                    "OpenCreate navigates to Screen Training with null uuid",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.mvi.store.StartBlankGateTest",
+                [
+                    "no workout running — the drawn pair is whole",
+                    "a workout is running — the blank-start CTA withdraws",
+                    "before the first emission the CTA is withheld not offered",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsClearanceTest",
+                [
+                    "list bottom clearance is the drawn 88 not the 72 it shipped with",
+                    "each drawn part is the value the mockup gives it",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.ui.components.ListSurfaceTest",
+                [
+                    "rows win over everything",
+                    "an unsettled refresh with no rows is loading not empty",
+                    "loading outranks selection and the filter",
+                    "a failed first page is its own verdict",
+                    "no rows nothing done is the first-run empty",
+                    "a filter that matches nothing is its own state not the first-run empty",
+                    "selection outranks the filter because the selection block carries the filter recovery",
+                    "the crossfade covers the drawn blocks and neither non-block verdict",
+                    "selection empty and filtered empty are both in the crossfade so the pair transits",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingTailKindTest",
+                [
+                    "appending draws the loading footer",
+                    "a failed page draws the error footer not silence",
+                    "exhausted draws no footer at all",
+                    "idle mid-list draws no footer either",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.ui.components.TopBarModeTest",
+                [
+                    "off is the resting bar",
+                    "on is the selection bar",
+                    "different selections are one mode so the count cannot drive the crossfade",
+                    "an empty selection is still the selection bar",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_trainings.ui.components.TrailingSlotKindTest",
+                [
+                    "at rest the slot promises a destination",
+                    "an unselected row in selection mode draws nothing and keeps its slot",
+                    "a selected row draws the check",
+                    "selected outranks selecting so the mark never blanks",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest",
+                "resourcesPagingBranchesSelectionAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

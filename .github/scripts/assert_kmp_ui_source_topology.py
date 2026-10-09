@@ -1970,8 +1970,486 @@ ARCHIVE_ENTRY = FeatureEntry(
     extra_checks=(archive_item_ui_contract, archive_day_month_contract),
 )
 
+
+def data_class_parameters(source: str, name: str) -> list:
+    """`name: Type` (any default kept) for each parameter of `data class <name>(`; None if absent."""
+    match = re.search(rf"\bdata\s+class\s+{re.escape(name)}\s*\(", source)
+    if not match:
+        return None
+    depth = 0
+    for index in range(match.end() - 1, len(source)):
+        if source[index] == "(":
+            depth += 1
+        elif source[index] == ")":
+            depth -= 1
+            if depth == 0:
+                body = source[match.end():index]
+                break
+    else:
+        return None
+    parameters: list[str] = []
+    chunk = ""
+    nesting = 0
+    for char in body + ",":
+        if char in "(<[{":
+            nesting += 1
+        elif char in ")>]}":
+            nesting -= 1
+        if char == "," and nesting == 0:
+            text = " ".join(chunk.split())
+            if text:
+                declared = re.fullmatch(r"(?:val|var)\s+(\w+)\s*:\s*(.+)", text)
+                parameters.append(f"{declared.group(1)}: {declared.group(2)}" if declared else text)
+            chunk = ""
+        else:
+            chunk += char
+    return parameters
+
+
+def all_trainings_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D1 and D2 (kmp-phase-7-9-all-trainings-feature.md §5.2, §5.3, §12.1): the event carries
+    # semantics, copy resolves in the mapper and the graph, and no handler resolves a resource.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return common_sources[path]
+
+    store_relative = "mvi/store/AllTrainingsStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        expected_parameters = ["archivedCount: Int", "blockedNames: ImmutableList<String>"]
+        parameters = data_class_parameters(
+            strip_kotlin_comments(store_source), "ShowBulkDeleteSuccess"
+        )
+        if parameters != expected_parameters:
+            failures.append(
+                f"{module}: {(entry.common_main / store_relative).relative_to(entry.root)} "
+                f"ShowBulkDeleteSuccess parameters must be exactly {expected_parameters}; "
+                f"actual={parameters}"
+            )
+    for relative, fragments in (
+        (
+            "ui/AllTrainingsGraph.kt",
+            (
+                "internal suspend fun bulkArchiveMessage(",
+                "bulkArchiveMessage(event.archivedCount, event.blockedNames)",
+                "// TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md",
+            ),
+        ),
+        (
+            "mvi/mapper/TrainingListItemMapper.kt",
+            (
+                "internal suspend fun TrainingListItemDomain.toUi(",
+                "Clock.System.now().toEpochMilliseconds()",
+            ),
+        ),
+    ):
+        source = source_of(relative)
+        if source is None:
+            continue
+        for fragment in fragments:
+            count = source.count(fragment)
+            if count != 1:
+                failures.append(
+                    f"{module}: {(entry.common_main / relative).relative_to(entry.root)} copy "
+                    f"contract requires {fragment!r} exactly once; found {count}"
+                )
+    handler_prefix = (entry.common_main / "mvi/handler").as_posix() + "/"
+    handlers = [path for path in common_sources if path.as_posix().startswith(handler_prefix)]
+    if not handlers:
+        failures.append(f"{module}: copy contract found no file under mvi/handler/")
+    for path in handlers:
+        for token in ("getString(", "getPluralString(", "stringResource(", "pluralStringResource(", "Res."):
+            if token in common_sources[path]:
+                failures.append(
+                    f"{module}: {path.relative_to(entry.root)} resolves copy in a handler: {token!r}"
+                )
+    return failures
+
+
+def all_trainings_back_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # The portable BackHandler intercepts back only while selecting, and exits selection (§5.6).
+    failures: list[str] = []
+    graph_path = entry.common_main / "ui/AllTrainingsGraph.kt"
+    source = common_sources.get(graph_path, "")
+    for fragment in (
+        "import androidx.compose.ui.backhandler.BackHandler",
+        "ExperimentalComposeUiApi::class",
+        "BackHandler(enabled = processor.state.value.interceptBack)",
+        "processor.consume(Action.Click.OnSelectionExit)",
+    ):
+        count = source.count(fragment)
+        if count != 1:
+            failures.append(
+                f"{entry.module}: {graph_path.relative_to(entry.root)} back contract requires "
+                f"{fragment!r} exactly once; found {count}"
+            )
+    return failures
+
+
+ALL_TRAININGS_ENTRY = FeatureEntry(
+    module="feature:all-trainings",
+    short_name="all-trainings",
+    root=Path("feature/all-trainings"),
+    package_dir="io/github/stslex/workeeper/feature/all_trainings",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.all_trainings.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'api(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.androidx.paging.common)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.androidx.compose.paging)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.core)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        '"androidDeviceTestImplementation"(libs.bundles.android.test)',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)',
+        '"androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
+        '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
+    # ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
+    # all contractual (kmp-phase-7-9-all-trainings-feature.md §3.4, whose table already carries the
+    # 24 plural items made positional by decision P1, §5.1).
+    catalog=(
+        ("string", "feature_all_trainings_title", "Trainings", "Тренировки"),
+        (
+            "string",
+            "feature_all_trainings_empty_headline",
+            "Your trainings will appear here",
+            "Здесь появятся тренировки",
+        ),
+        (
+            "string",
+            "feature_all_trainings_empty_supporting",
+            "Build a template in advance, or start an empty one and add exercises as you go.",
+            "Собери шаблон заранее или начни пустую и добавляй упражнения по ходу.",
+        ),
+        ("string", "feature_all_trainings_fab_create", "Create training", "Создать тренировку"),
+        (
+            "string",
+            "feature_all_trainings_status_in_progress_format",
+            "in progress · started %1$s ago",
+            "в процессе · началась %1$s назад",
+        ),
+        ("string", "feature_all_trainings_status_last_format", "last: %1$s", "последняя: %1$s"),
+        ("string", "feature_all_trainings_status_never", "never trained", "ещё не было"),
+        ("string", "feature_all_trainings_relative_just_now", "just now", "только что"),
+        ("string", "feature_all_trainings_relative_minutes_format", "%1$dm", "%1$d мин"),
+        ("string", "feature_all_trainings_relative_hours_format", "%1$dh", "%1$d ч"),
+        ("string", "feature_all_trainings_relative_days_format", "%1$dd", "%1$d дн"),
+        (
+            "plurals",
+            "feature_all_trainings_exercise_count",
+            (("one", "%1$d exercise"), ("other", "%1$d exercises")),
+            (
+                ("one", "%1$d упражнение"),
+                ("few", "%1$d упражнения"),
+                ("many", "%1$d упражнений"),
+                ("other", "%1$d упражнения"),
+            ),
+        ),
+        ("string", "feature_all_trainings_selection_close", "Close selection", "Закрыть выбор"),
+        (
+            "plurals",
+            "feature_all_trainings_selected_count",
+            (("one", "%1$d selected"), ("other", "%1$d selected")),
+            (
+                ("one", "выбрана %1$d"),
+                ("few", "выбрано %1$d"),
+                ("many", "выбрано %1$d"),
+                ("other", "выбрано %1$d"),
+            ),
+        ),
+        ("string", "feature_all_trainings_bulk_archive", "Archive", "В архив"),
+        (
+            "plurals",
+            "feature_all_trainings_bulk_archive_success",
+            (("one", "%1$d training archived"), ("other", "%1$d trainings archived")),
+            (
+                ("one", "%1$d тренировка в архиве"),
+                ("few", "%1$d тренировки в архиве"),
+                ("many", "%1$d тренировок в архиве"),
+                ("other", "%1$d тренировки в архиве"),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_partial_format",
+            "Archived %1$d, blocked: %2$s",
+            "В архиве: %1$d, не получилось: %2$s",
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_confirm_title",
+            "Archive selected?",
+            "Архивировать выбранные?",
+        ),
+        (
+            "plurals",
+            "feature_all_trainings_bulk_archive_confirm_body",
+            (
+                ("one", "%1$d training will move to archive. Restore from Settings → Archive."),
+                ("other", "%1$d trainings will move to archive. Restore from Settings → Archive."),
+            ),
+            (
+                ("one", "%1$d тренировка будет перенесена в архив. Восстановить можно в Настройках → Архив."),
+                ("few", "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("many", "%1$d тренировок будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("other", "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_impact",
+            "Reversible · history preserved",
+            "Обратимо · история сохранится",
+        ),
+        ("string", "feature_all_trainings_paging_loading", "Loading", "Загружаю"),
+        (
+            "string",
+            "feature_all_trainings_paging_error",
+            "Couldn’t load more",
+            "Не удалось загрузить дальше",
+        ),
+        ("string", "feature_all_trainings_paging_retry", "Retry", "Повторить"),
+        ("string", "feature_all_trainings_empty_create", "Create a training", "Создать тренировку"),
+        (
+            "string",
+            "feature_all_trainings_empty_start_blank",
+            "Start an empty training",
+            "Начать пустую тренировку",
+        ),
+        (
+            "string",
+            "feature_all_trainings_filtered_empty_headline",
+            "Nothing matches these tags",
+            "По этим тегам ничего нет",
+        ),
+        ("string", "feature_all_trainings_filtered_empty_clear", "Clear filter", "Сбросить фильтр"),
+        (
+            "string",
+            "feature_all_trainings_selection_empty_headline",
+            "Nothing here, but your selection is kept",
+            "Здесь пусто, но выбор цел",
+        ),
+        (
+            "string",
+            "feature_all_trainings_selection_empty_supporting",
+            "Your selection stays until you leave selection mode.",
+            "Отметки останутся, пока не выйдешь из режима.",
+        ),
+        (
+            "string",
+            "feature_all_trainings_refresh_error",
+            "Couldn’t load the list",
+            "Не удалось загрузить список",
+        ),
+    ),
+    resource_prefix="feature_all_trainings_",
+    # TrainingListItemMapper.kt is deliberately absent: under D2 it is where copy resolves (§12.1).
+    payload_files=frozenset({"AllTrainingsStore.kt", "TrainingListItemUi.kt", "TagUiModel.kt"}),
+    store_file="mvi/store/AllTrainingsStore.kt",
+    # Store State stays semantic: paging, tags, filter, selection and plain flags (§12.1).
+    state_fields=(
+        ("pagingUiState", "PagingUiState<PagingData<TrainingListItemUi>>"),
+        ("availableTags", "ImmutableList<TagUiModel>"),
+        ("activeTagFilter", "ImmutableSet<String>"),
+        ("selectionMode", "SelectionMode"),
+        ("pendingBulkDelete", "PendingBulkDelete?"),
+        ("hasActiveSession", "Boolean"),
+    ),
+    # ResourceWrapper leaves the feature entirely (§5.2, §5.3).
+    resource_wrapper_readers=frozenset(),
+    preview_subjects={
+        "ui/components/TagFilterRow.kt": "TagFilterRow",
+        "ui/components/TrainingRow.kt": "TrainingRow",
+        "ui/components/ArrivedEmptyStates.kt": "ArrivedEmptyStates",
+        "ui/components/TrainingsEmptyState.kt": "TrainingsEmptyState",
+    },
+    # The only suppressions the target may carry: the four inherited production annotations of §3.1.
+    # Nothing under commonTest: PR-N left no Native-illegal test name (§4.4).
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandler.kt": [
+            '"TooManyFunctions"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsGraph.kt": [
+            '"LongMethod"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsScreen.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+    },
+    # The exact portable test-name inventory: the 49 identities of §3.2 plus the one Native scene
+    # of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/AllTrainingsInteractorImplTest.kt": [
+            "archiveTrainings delegates to repository bulkArchive",
+            "deleteTrainings returns target count and delegates",
+            "canPermanentlyDelete delegates to repository",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandlerTest.kt": [
+            "OnTrainingClick emits haptic and navigates to OpenDetail",
+            "OnFabClick emits haptic and navigates to OpenCreate",
+            "OnFabClick with selection fires no haptic and sets pendingBulkDelete",
+            "OnTagFilterToggle adds tag when not selected",
+            "OnTagFilterToggle removes tag when already selected",
+            "OnSelectionExit clears selection mode",
+            "OnBulkDeleteConfirm calls archiveTrainings and clears selection on success",
+            "OnBulkDeleteDismiss clears pending delete",
+            "entering selection by long press fires LongPress",
+            "toggling an item inside selection fires ContextClick not LongPress",
+            "untoggling an item inside selection fires ContextClick",
+            "long press inside selection fires ContextClick not a second LongPress",
+            "toggling a tag filter fires no haptic",
+            "confirmed bulk archive fires Confirm",
+            "OnClearTagFilter empties the whole filter in one act",
+            "OnClearTagFilter fires no haptic",
+            "OnClearTagFilter on an already-empty filter changes nothing",
+            "OnEmptyCreate opens create and fires no haptic",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/NavigationHandlerTest.kt": [
+            "OpenDetail navigates to Screen Training with uuid",
+            "OpenCreate navigates to Screen Training with null uuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/store/StartBlankGateTest.kt": [
+            "no workout running — the drawn pair is whole",
+            "a workout is running — the blank-start CTA withdraws",
+            "before the first emission the CTA is withheld not offered",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsClearanceTest.kt": [
+            "list bottom clearance is the drawn 88 not the 72 it shipped with",
+            "each drawn part is the value the mockup gives it",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/ListSurfaceTest.kt": [
+            "rows win over everything",
+            "an unsettled refresh with no rows is loading not empty",
+            "loading outranks selection and the filter",
+            "a failed first page is its own verdict",
+            "no rows nothing done is the first-run empty",
+            "a filter that matches nothing is its own state not the first-run empty",
+            "selection outranks the filter because the selection block carries the filter recovery",
+            "the crossfade covers the drawn blocks and neither non-block verdict",
+            "selection empty and filtered empty are both in the crossfade so the pair transits",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/PagingTailKindTest.kt": [
+            "appending draws the loading footer",
+            "a failed page draws the error footer not silence",
+            "exhausted draws no footer at all",
+            "idle mid-list draws no footer either",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TopBarModeTest.kt": [
+            "off is the resting bar",
+            "on is the selection bar",
+            "different selections are one mode so the count cannot drive the crossfade",
+            "an empty selection is still the selection bar",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrailingSlotKindTest.kt": [
+            "at rest the slot promises a destination",
+            "an unselected row in selection mode draws nothing and keeps its slot",
+            "a selected row draws the check",
+            "selected outranks selecting so the mark never blanks",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsFeatureSceneIosTest.kt": [
+            "resourcesPagingBranchesSelectionAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/golden/AllTrainingsGoldenTest.kt"
+    ),
+    # The 25 methods of §3.3, in source order; each renders light and dark (50 PNGs).
+    golden_methods=[
+        "rowPlain",
+        "rowLongName",
+        "rowClamped",
+        "rowActive",
+        "rowSelected",
+        "rowActiveSelected",
+        "tagFilterBand",
+        "emptyState",
+        "rowUnselectedInSelection",
+        "pagingLoading",
+        "pagingError",
+        "confirmDialogContent",
+        "screenList",
+        "screenSelection",
+        "screenFirstRunEmpty",
+        "filteredEmpty",
+        "selectionEmptyFiltered",
+        "selectionEmptyUnfiltered",
+        "coldOpenLoading",
+        "coldOpenError",
+        "screenColdOpen",
+        "screenRefreshError",
+        "screenFilteredEmpty",
+        "screenSelectionEmpty",
+        "screenSelectionEmptyUnfiltered",
+    ],
+    device_test=(
+        "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt"
+    ),
+    device_fragments=(
+        "@Smoke",
+        '@Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")',
+        "fun pendingFeatureRewrite()",
+    ),
+    feature_class="AllTrainingsFeature",
+    graph_interface="AllTrainingsGraph",
+    graph_function="allTrainingsGraph",
+    factory_accessor="allTrainingsGraphFactory",
+    create_method="createAllTrainingsGraph",
+    store_impl="AllTrainingsStoreImpl",
+    store_accessor="allTrainingsStore",
+    feature_file="di/AllTrainingsFeature.kt",
+    graph_file="ui/AllTrainingsGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/AllTrainingsExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.allTrainings(): AllTrainingsGraph = allTrainingsGraphFactory.createAllTrainingsGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+    ],
+    identity_accessor=r"(?<!AppGraph)\.allTrainings\(\)",
+    # The one app device test that composes the graph directly passes the factory (§6).
+    extra_root_fragments={
+        "app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/AllTrainingsExtensionDbVisibilityTest.kt": (
+            "MetroTestGraphHolder.graph.allTrainingsGraphFactory",
+            "allTrainingsGraph(factory = factory)",
+        ),
+    },
+    extra_checks=(all_trainings_copy_contract, all_trainings_back_contract),
+)
+
 # Every shared feature entry the gate holds to its exact contract.
-FEATURE_ENTRIES = (ARCHIVE_ENTRY,)
+FEATURE_ENTRIES = (ARCHIVE_ENTRY, ALL_TRAININGS_ENTRY)
 
 
 # Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and
