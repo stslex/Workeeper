@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`, then links the same eight modules' iosArm64 test binaries, never run). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, archive feature, and all-trainings feature Native tests plus exact identities on `macos-26`, then links the same nine modules' iosArm64 test binaries, never run). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -157,7 +157,7 @@ against the tree as checked out, before any step could rewrite it. `:lint-rules:
 
 Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`, `:core:ui:navigation`,
 `:core:ui:mvi`, `:core:ui:start-mode`, `:core:ui:plan-editor`, `:feature:image-viewer`,
-`:feature:plan-editor`, and `:feature:archive`: the KMP
+`:feature:plan-editor`, `:feature:archive`, and `:feature:all-trainings`: the KMP
 conventions register `assembleDebug`, `testDebugUnitTest`, `lintDebug`,
 `assembleDebugAndroidTest` and `verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks
 (`assemble`, `testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`,
@@ -358,8 +358,10 @@ required context for the Phase-7 native tests. One forced Gradle invocation exec
 `:core:ui:plan-editor` (common reducer coverage plus the production read-only-to-editable scene),
 `:feature:image-viewer` (12 common handler cases plus the production resource, branch, Coil, and
 action scene), `:feature:plan-editor` (all 42 portable cases plus the production resource,
-branch, and action scene), and `:feature:archive` (all 25 portable cases plus the production
-resource, paging-branch, and action scene).
+branch, and action scene), `:feature:archive` (all 25 portable cases plus the production
+resource, paging-branch, and action scene), and `:feature:all-trainings` (all 49 portable cases
+plus the production resource, mapper and snackbar copy, paging-branch, selection, and action
+scene).
 It uses `--continue` so one module's failure cannot mask whether the others ran. The job selects
 `/Applications/Xcode_26.6.app` explicitly, asserts
 `xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
@@ -387,21 +389,24 @@ and the script says so plainly. It is skipped when the job is cancelled, and whe
 never ran because an earlier setup step (checkout, Xcode selection, JDK, signing material) failed —
 asserting there would bury the real setup failure under a misleading `result directory … does not
 exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
-the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, or
-archive feature verdict. The image-viewer validator requires
+the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature,
+archive feature, or all-trainings feature verdict. The image-viewer validator requires
 `io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
 exactly once. The plan-editor feature validator requires all 42 portable tuples and
 `io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
 exactly once, for exactly 43 target tuples. The archive feature validator requires all 25
 portable tuples and
 `io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest.resourcesPagingBranchesAndActionsRenderAndDispatch`
-exactly once, for exactly 26 target tuples. All eight result directories upload under
+exactly once, for exactly 26 target tuples. The all-trainings feature validator requires all 49
+portable tuples and
+`io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+exactly once, for exactly 50 target tuples. All nine result directories upload under
 `if: always()` regardless.
 
-The same eight modules' iosArm64 (device) test binaries are then linked in one forced invocation
+The same nine modules' iosArm64 (device) test binaries are then linked in one forced invocation
 (`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
 started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
-each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/8 linked`, and fails naming every
+each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/9 linked`, and fails naming every
 module without a binary. Device tests are compiled and linked, never run: CI has no device. The
 Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
 `assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking

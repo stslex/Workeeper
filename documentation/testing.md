@@ -412,6 +412,44 @@ The 14 archive goldens moved byte-identical to `androidHostTest`. Android keeps 
 `appGraph.archiveGraphFactory`, and `ArchiveScreenTest.pendingFeatureRewrite` in
 `androidDeviceTest` as the one documented `@Smoke` skip.
 
+#### Shared all-trainings feature
+
+`feature:all-trainings` keeps its nine portable suites in `commonTest`, so the same 49 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 3, click handler
+18, navigation handler 2, start-blank gate 3, clearance 2, list surface 9, paging tail 4, top-bar
+mode 4, and trailing slot 4. They use `kotlin.test`, `kotlinx-coroutines-test` (two suites) and
+private in-file fakes. The click-handler fake reproduces the old relaxed store: it applies state
+updates, records events, consumed actions and each Store-scope `launch` without running it, and
+fails fast on every member the handler must not touch; only the bulk-confirm identity runs its
+recorded launch, and it also asserts the semantic `ShowBulkDeleteSuccess(archivedCount = 2,
+blockedNames = empty)` event. The domain suite's repository fakes import `core:data` shapes
+directly; the KMP test source sets' exemption in `DomainLayerPurityRule` is what keeps them out of
+the production-domain check. Two `StartBlankGateTest` names contain U+2014; the Native XML reports
+both byte-exactly, the first non-ASCII test names run on Native in this repository. No suite
+needs a Native test-name suppression.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` with deterministic `PagingData` and a fixed clock.
+It resolves the whole private EN catalog, the status and relative-time copy through the production
+mapper, and the bulk-archive snackbar copy through the graph's `bulkArchiveMessage`; renders the
+cold-open loading and refresh-error verdicts, the first-run empty state with and without a running
+session, the filtered and selection empty states, populated rows with their meta line, both append
+tails, the resting and selection bars, and the archive confirm dialog; and asserts the eleven
+dispatched actions as one exact ordered list. It settles each paging branch in bounded steps until
+that branch's production tag exists, as archive's scene does. Together with the 49 portable cases,
+the all-trainings Native XML contains exactly 50 passing cases with no skip, failure, or error. No
+Android host test reaches the mapper or snackbar copy (the goldens build their rows from fixed
+fixtures), so this scene is that copy's proof. It is a headless Compose scene, not an iOS app,
+UIKit, or XCTest claim.
+
+The 50 all-trainings goldens moved byte-identical to `androidHostTest`. Android keeps the two
+`AllTrainingsExtensionIdentityTest` cases, which resolve the factory through
+`appGraph.allTrainingsGraphFactory`; the `@Regression` `AllTrainingsExtensionDbVisibilityTest`,
+which reads the factory from `MetroTestGraphHolder.graph` and composes
+`allTrainingsGraph(factory = factory)`; and `AllTrainingsScreenTest.pendingFeatureRewrite` in
+`androidDeviceTest` as the one documented `@Smoke` skip.
+
 #### Shared MVI runtime
 
 `core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
@@ -887,7 +925,7 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 | Feature | Test class |
 |---|---|
-| `feature/all-trainings` | `feature/all-trainings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
+| `feature/all-trainings` | `feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
 | `feature/all-exercises` | `feature/all-exercises/src/androidTest/.../AllExercisesScreenTest.kt`, `AllExercisesScreenAccessibilityTest.kt`, `AllExercisesScreenEdgeCasesTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt`, `ExerciseFormBasicsTest.kt` |
@@ -897,11 +935,12 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 ## Visual gate — Paparazzi screenshot goldens
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
-`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), and `feature/`{`all-exercises`,
-`all-trainings`, `exercise`, `exercise-chart`, `home`, `live-workout`, `past-session`, `settings`,
-`single-training`}. Goldens live in `src/test/snapshots/images/` in classic Android modules and in
-`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
-`:core:ui:plan-editor`, `:core:ui:start-mode`, `:feature:archive`), and are committed. The shared harness
+`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP), and
+`feature/`{`all-exercises`, `exercise`, `exercise-chart`, `home`, `live-workout`, `past-session`,
+`settings`, `single-training`}. Goldens live in `src/test/snapshots/images/` in classic Android
+modules and in `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
+`:core:ui:plan-editor`, `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`), and
+are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
@@ -1075,11 +1114,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:image-viewer:iosSimulatorArm64Test \
   :feature:plan-editor:iosSimulatorArm64Test \
   :feature:archive:iosSimulatorArm64Test \
+  :feature:all-trainings:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 8/8.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 9/9.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1088,6 +1128,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:image-viewer:linkDebugTestIosArm64 \
   :feature:plan-editor:linkDebugTestIosArm64 \
   :feature:archive:linkDebugTestIosArm64 \
+  :feature:all-trainings:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities
