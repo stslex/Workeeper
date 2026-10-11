@@ -30,7 +30,7 @@ manual dispatch, or inside the production deploy — never on a PR.
 
 ## Build and unit-test workflow
 
-`android_build_unified.yml` runs a single `build` job on `ubuntu-latest`.
+`android_build_unified.yml` runs a single `build` job on `ubuntu-24.04`.
 
 ### Setup steps
 
@@ -114,7 +114,7 @@ the property out.
 `testDebugUnitTest` is not pure Gradle on this repository: the Wear module's alias depends on
 `:app:wear:verifyEmulatorAcceptanceRunner`, an `Exec` task that runs
 `python3 documentation/wear-emulator-acceptance/run_parser_tests.py`. The step therefore needs
-`python3` on PATH (ubuntu-latest ships it; the same holds for every local root gate), and the
+`python3` on PATH (ubuntu-24.04 ships it; the same holds for every local root gate), and the
 runner verifies an exact identity inventory (`EXPECTED_TESTS`, 65 ids): a missing, renamed or
 extra parser test fails the task before any test runs, and every listed id must leave a passing
 testcase in `app/wear/build/test-results/verifyEmulatorAcceptanceRunner/`.
@@ -294,7 +294,7 @@ built from. Nine checks: `:root` unchanged against a baseline unless declared, n
 screen, two **render** checks driven through headless Chromium, and token parity between the
 mockup's `:root` and `AppColors.kt`.
 
-One job, `mockup-gate`, on `ubuntu-latest`, `timeout-minutes: 10`. It needs no keystore, no
+One job, `mockup-gate`, on `ubuntu-24.04`, `timeout-minutes: 10`. It needs no keystore, no
 `google-services.json` and no secret of any kind, so it also runs on fork PRs. Five things about
 it are deliberate and are commented at length in the workflow itself:
 
