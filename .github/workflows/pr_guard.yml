@@ -15,7 +15,7 @@ permissions:
 jobs:
   pr_guard:
     name: Validate PR source branch
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Validate source branch
         env:

@@ -50,7 +50,7 @@ permissions:
 jobs:
   resolve:
     name: Resolve the release to ship
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
       version_name: ${{ steps.resolve.outputs.version_name }}
@@ -111,7 +111,7 @@ jobs:
   deploy:
     name: Deploy Wear to Play
     needs: resolve
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     # One Wear run per version at a time, and never cancel one in progress: a second run waits, then
     # ends in SKIP once the first has uploaded. The key is the same for a call and a dispatch.

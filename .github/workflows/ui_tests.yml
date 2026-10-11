@@ -48,7 +48,7 @@ jobs:
   # Smoke UI tests - fast, critical tests with mocked data
   smoke-tests:
     name: Smoke UI Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     if: github.event_name == 'schedule' || inputs.test_suite == 'smoke' || inputs.test_suite == 'all'
 
@@ -225,7 +225,7 @@ jobs:
   # Regression UI tests - comprehensive integration tests
   regression-tests:
     name: Regression UI Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     if: github.event_name == 'schedule' || inputs.test_suite == 'regression' || inputs.test_suite == 'all'
 
