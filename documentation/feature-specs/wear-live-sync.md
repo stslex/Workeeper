@@ -15,6 +15,8 @@ emulator run of its code: F32 is added; D15 records the decision; the title, §1
 §10, §11, §12.3, §12.4, §14 and §15 follow from it. PR-S2 delivers it, and hotfix 1.53.1 ships
 PR-S2 (§12.4).
 
+**Amended on 2026-10-11** by [Wear Phase 2](wear-phase-2-exercise-list.md) (protocol v2).
+
 - **Specification base:** `dev` at `b1945ee1` (hotfix 1.52.2 merged, `master` synced). Evidence
   is `path:line` there. The facts the 2026-10-02 amendment corrects or adds were verified at
   `481ee294`, which moves none of the lines this document cites. The facts the 2026-10-03

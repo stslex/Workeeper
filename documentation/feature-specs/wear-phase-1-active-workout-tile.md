@@ -9,6 +9,8 @@ This authorization permits test/debug synthetic sources only. Both privacy gates
 [Wear paired transport](wear-paired-transport.md). Physical-device acceptance and final Phase 1
 acceptance remain open.
 
+**Amended on 2026-10-11** by [Wear Phase 2](wear-phase-2-exercise-list.md) (protocol v2).
+
 - **Decision date:** 2026-09-01
 - **Specification base:** `dev` at
   `bbc650ca2acda43d7e0121bb4309d467284a40a1`
