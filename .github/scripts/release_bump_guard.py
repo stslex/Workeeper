@@ -36,15 +36,17 @@ class CommitError(Exception):
 
 def read_commit(commit):
     """Return (verified, reason, parent shas, [(filename, status)]). Raises CommitError."""
-    if not isinstance(commit, dict):
-        raise CommitError("the JSON is not an object")
-    verification = (commit.get("commit") or {}).get("verification")
+    if not isinstance(commit, dict) or not isinstance(commit.get("commit"), dict):
+        raise CommitError("the JSON is not a commit object")
+    verification = commit["commit"].get("verification")
     if not isinstance(verification, dict) or "verified" not in verification:
         raise CommitError("the JSON has no commit.verification")
     parents = commit.get("parents")
     files = commit.get("files")
     if not isinstance(parents, list) or not isinstance(files, list):
         raise CommitError("the JSON has no 'parents' or 'files' list")
+    if not all(isinstance(entry, dict) for entry in parents + files):
+        raise CommitError("an entry of 'parents' or 'files' is not an object")
     return (verification.get("verified"), verification.get("reason"),
             [parent.get("sha") for parent in parents],
             [(entry.get("filename"), entry.get("status")) for entry in files])
