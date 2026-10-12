@@ -151,18 +151,22 @@ jobs:
             | jq -Rs '{content: ., encoding: "base64"}' \
             | gh api "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq '.sha')"
           if [[ "$blob" != "$EXPECTED_BLOB" ]]; then
+            echo "- blob check: FAIL (GitHub \`$blob\`, local \`$EXPECTED_BLOB\`)" >> "$GITHUB_STEP_SUMMARY"
             echo "::error::The blob GitHub stored ($blob) is not the local one ($EXPECTED_BLOB)."
             exit 1
           fi
           echo "blob check: PASS ($blob)"
+          echo "- blob check: PASS (\`$blob\`)" >> "$GITHUB_STEP_SUMMARY"
           tree="$(jq -n --arg base "$BASE_TREE" --arg mode "$MODE_BITS" --arg sha "$blob" \
               '{base_tree: $base, tree: [{path: "gradle/libs.versions.toml", mode: $mode, type: "blob", sha: $sha}]}' \
             | gh api "repos/$GITHUB_REPOSITORY/git/trees" --input - --jq '.sha')"
           if [[ "$tree" != "$EXPECTED_TREE" ]]; then
+            echo "- tree check: FAIL (GitHub \`$tree\`, local \`$EXPECTED_TREE\`)" >> "$GITHUB_STEP_SUMMARY"
             echo "::error::The tree GitHub stored ($tree) is not the local one ($EXPECTED_TREE)."
             exit 1
           fi
           echo "tree check: PASS ($tree)"
+          echo "- tree check: PASS (\`$tree\`)" >> "$GITHUB_STEP_SUMMARY"
           # No author, committer or signature: GitHub signs a bot's commit only without them.
           commit="$(jq -n --arg message "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})" \
               --arg tree "$tree" --arg parent "$PARENT" '{message: $message, tree: $tree, parents: [$parent]}' \
@@ -173,11 +177,7 @@ jobs:
           fi
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "Bump commit: $commit (parent $PARENT)"
-          {
-            echo "- blob check: PASS (\`$blob\`)"
-            echo "- tree check: PASS (\`$tree\`)"
-            echo "- bump commit: \`$commit\`, parent \`$PARENT\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "- bump commit: \`$commit\`, parent \`$PARENT\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create the branch at the bump commit
         id: branch
@@ -197,21 +197,30 @@ jobs:
             exit 0
           fi
           echo "$response"
+          # A 422 is never retried and never followed by a delete. "Reference already exists" is the
+          # usual cause; a rule refusal, when the owner no longer bypasses `all` (spec §6), is another.
           if [[ "$response" == *"(HTTP 422)"* ]]; then
             echo "created=false" >> "$GITHUB_OUTPUT"
-            echo "::error::GitHub refused to create $BRANCH (422): it already exists. Nothing is deleted."
+            if [[ "$response" == *"Reference already exists"* ]]; then
+              echo "::error::GitHub refused to create $BRANCH (422): it already exists. Nothing is deleted."
+            else
+              echo "::error::GitHub refused to create $BRANCH (422), see the response above. Nothing is deleted."
+            fi
             exit 1
           fi
           # A lost response may hide a ref that was created. The commit is new in this run, so a
-          # ref that points at it is this run's.
-          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha' 2>/dev/null || true)"
+          # ref that points at it is this run's. On an HTTP error gh prints the error body, not
+          # the --jq result, so only a successful read counts.
+          if ! actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha' 2>/dev/null)"; then
+            actual=""
+          fi
           if [[ "$actual" == "$COMMIT" ]]; then
             echo "created=true" >> "$GITHUB_OUTPUT"
             echo "The create call failed, but $BRANCH points at this run's commit $COMMIT: created."
             exit 0
           fi
           echo "created=false" >> "$GITHUB_OUTPUT"
-          echo "::error::Could not create $BRANCH, and it does not point at $COMMIT (it points at '${actual}')."
+          echo "::error::Could not create $BRANCH, and it does not point at $COMMIT (read: '${actual:-no ref}')."
           exit 1
 
       - name: Prove the bump commit
@@ -228,7 +237,10 @@ jobs:
           while :; do
             reads=$((reads + 1))
             decision=0
+            verdict="the commit could not be read"
             if gh api "repos/$GITHUB_REPOSITORY/commits/$COMMIT" > bump-commit.json 2> bump-commit.err; then
+              verdict="$(jq -r '"verified=\(.commit.verification.verified), reason=\(.commit.verification.reason)"' \
+                bump-commit.json 2>/dev/null || echo "the commit could not be parsed")"
               python3 .ci/.github/scripts/release_bump_guard.py --commit bump-commit.json \
                 --parent "$PARENT" --path gradle/libs.versions.toml || decision=$?
             else
@@ -243,6 +255,7 @@ jobs:
               sleep 5
               continue
             fi
+            echo "- bump commit \`$COMMIT\`: NOT PROVEN after $reads reads ($verdict)" >> "$GITHUB_STEP_SUMMARY"
             echo "::error::The bump commit $COMMIT is not proven after $reads reads (last result $decision); see release-flow.md §8.13."
             exit 1
           done
@@ -331,11 +344,27 @@ jobs:
             echo "The release PR is open; $BRANCH stays."
             exit 0
           fi
-          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          # Read just before the delete, up to 3 times, 5 s apart; a branch that cannot be read is
+          # never deleted. On an HTTP error gh prints the error body, so only a successful read counts.
+          current=""
+          for attempt in 1 2 3; do
+            if current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"; then
+              break
+            fi
+            current=""
+            if [[ "$attempt" -lt 3 ]]; then sleep 5; fi
+          done
+          if [[ -z "$current" ]]; then
+            echo "::error::Could not read $BRANCH, so it was not deleted. Check it and delete it by hand (release-flow.md §8.4)."
+            exit 1
+          fi
           if [[ "$current" != "$COMMIT" ]]; then
             echo "::error::Refusing to delete $BRANCH: it points at $current, not this run's commit $COMMIT. Delete it by hand (release-flow.md §8.4)."
             exit 1
           fi
-          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH"
+          if ! gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH"; then
+            echo "::error::Could not delete $BRANCH. Delete it by hand (release-flow.md §8.4)."
+            exit 1
+          fi
           echo "Deleted $BRANCH (dry run: $DRY_RUN, PR step: ${PR_OUTCOME:-none})."
           echo "- branch \`$BRANCH\` deleted (dry run: $DRY_RUN)" >> "$GITHUB_STEP_SUMMARY"
