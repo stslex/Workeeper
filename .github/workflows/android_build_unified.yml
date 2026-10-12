@@ -33,7 +33,7 @@ jobs:
   # Main build job - runs linting, unit tests, and build
   build:
     name: Build and Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
@@ -426,7 +426,7 @@ jobs:
   # ever added back.
   release-bundles:
     name: Release bundle identity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       # GUARD: the phone release variant uploads its Crashlytics mapping unconditionally (the deploy

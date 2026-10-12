@@ -29,7 +29,7 @@ concurrency:
 jobs:
   guard:
     name: Validate release branch and TOML coherence
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version_name: ${{ steps.toml.outputs.version_name }}
       version_code: ${{ steps.toml.outputs.version_code }}
@@ -141,7 +141,7 @@ jobs:
     needs: [ guard, build, ui_tests ]
     if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     name: Deploy to Play, tag, merge PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: production
     steps:

@@ -20,7 +20,7 @@ jobs:
     # collide with the Y bumps performed by cut_release.yml, and hotfix Z-bumps are
     # semantically wrong (they imply patches over a release).
     if: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
