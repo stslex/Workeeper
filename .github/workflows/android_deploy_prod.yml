@@ -133,7 +133,10 @@ jobs:
           while :; do
             reads=$((reads + 1))
             decision=0
-            gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"
+            if ! gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"; then
+              echo "::error::Could not read release PR #$PR_NUMBER. Nothing was uploaded. See release-flow.md §8.11."
+              exit 1
+            fi
             python3 .github/scripts/release_pr_guard.py --pr "$RUNNER_TEMP/release-pr.json" --head "$PINNED_SHA" \
               || decision=$?
             if [[ "$decision" -eq 0 ]]; then
@@ -274,7 +277,10 @@ jobs:
           while :; do
             reads=$((reads + 1))
             decision=0
-            gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"
+            if ! gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"; then
+              echo "::error::Could not read release PR #$PR_NUMBER. Nothing was uploaded. See release-flow.md §8.11."
+              exit 1
+            fi
             python3 .github/scripts/release_pr_guard.py --pr "$RUNNER_TEMP/release-pr.json" --head "$PINNED_SHA" \
               || decision=$?
             if [[ "$decision" -eq 0 ]]; then
