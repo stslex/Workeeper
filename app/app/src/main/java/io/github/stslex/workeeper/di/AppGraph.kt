@@ -28,6 +28,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -167,6 +168,12 @@ internal interface AppGraph :
      * `WatchKnownRevisionsIdentityTest`.
      */
     val watchKnownRevisions: WatchKnownRevisions
+
+    /**
+     * Compose-resource strings for code outside composition (kmp-string-resolver.md). Its only
+     * reader here is the graph identity test, `StringResolverIdentityTest`.
+     */
+    val stringResolver: StringResolver
 
     @Provides
     @SingleIn(AppScope::class)
