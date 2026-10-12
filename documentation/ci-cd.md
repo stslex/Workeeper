@@ -14,7 +14,7 @@ All workflow files live under `.github/workflows/`.
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
-| `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix) | Bumps the version (minor from `dev`, patch from `master`), pushes a `release/release-v.X.Y.Z` branch and opens the release PR. |
+| `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix; `dry_run`) | Bumps the version (minor from `dev`, patch from `master`), makes the bump commit through the REST Git database API so that GitHub signs it, creates the `release/release-v.X.Y.Z` branch at it, proves the commit ([release cut and merge guards](#release-cut-and-merge-guards)) and opens the release PR. `dry_run` runs the same path on `ci/bump-dry-run-<run id>`, deletes that branch and opens no PR. Dispatched from `dev` for now ([release-flow.md](release-flow.md) §6.1). |
 | `sync_master_to_dev.yml` | push to `master` | Opens an automated PR propagating `master` (version bumps, hotfixes) back onto `dev`. |
 | `android_deploy_beta.yml` | `workflow_dispatch` only | Bumps version, generates a Play Store changelog, uploads to the Beta track via Fastlane, tags `beta-v<version>`. |
 | `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`, then calls `android_deploy_wear.yml`. |
@@ -660,6 +660,33 @@ zero compared items, two adopt round trips (an emptied and a reordered screensho
 OK against the same Play state, and case-variant names (`images/Icon.PNG`, `images/PhoneScreenshots/`)
 compared from the names committed, as supply's case-insensitive glob uploads them.
 
+### Release cut and merge guards
+
+Two helpers decide whether a release can go on once `master` requires verified signatures
+([release-signing.md](feature-specs/release-signing.md) §4.2, §4.3). Their self-tests run next to
+the others in the `Release bundle identity` job's "Self-test the release decision helpers" step.
+
+`.github/scripts/release_bump_guard.py --commit <json> --parent <sha> --path <path>` decides on the
+REST commit that `cut_release.yml` reads back after making the bump commit. `DECISION PASS` (exit 0)
+needs `commit.verification.verified` true, the source head as the only parent, and
+`gradle/libs.versions.toml` as the only file, `modified`. `DECISION RETRY` (exit 3) means that
+`verification.reason` is `gpgverify_unavailable` or `gpgverify_error`: GitHub has not checked the
+signature yet, and the cut reads the commit again, up to 5 times, 5 s apart. Anything else is
+`DECISION FAIL` (exit 1), naming every failed check and the reason; unreadable input exits 2. The
+cut runs it from a sparse checkout of the dispatch ref into `.ci`, because the source branch lacks
+it until this change reaches it. `--self-test` runs 9 fixtures: a pass, an unsigned commit, both
+retry reasons, two parents, another parent, two files, another file and an added file.
+
+`.github/scripts/release_pr_guard.py --pr <json> --head <sha>` decides on
+`gh pr view <n> --json number,mergeable,mergeStateStatus,headRefOid`. PASS needs `mergeable`
+`MERGEABLE`, `mergeStateStatus` `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, and the pinned SHA as the head;
+RETRY means either field is `UNKNOWN` with the head matching; anything else fails, printing every
+value. `android_deploy_prod.yml` runs it with `PUSH_TOKEN` in the guard job and again right before
+the Play upload, reading the PR again on RETRY, up to 6 times, 10 s apart
+([release-flow.md](release-flow.md) §6.1 step 3.1, §8.11). `--self-test` runs 25 fixtures: every
+pair of the 3 `mergeable` and 8 `mergeStateStatus` values with the pinned head, and one passing pair
+whose head moved.
+
 ### GitHub APK release
 
 `github_release_apk.yml` triggers on either a manual dispatch (with optional `tag_name` input)
@@ -708,7 +735,7 @@ Configured under repository secrets in GitHub:
 | `KEYSTORE_KEY_ALIAS`, `KEYSTORE_KEY_PASSWORD`, `KEYSTORE_STORE_PASSWORD` | every job that signs | Written into the generated `keystore.properties`. |
 | `GOOGLE_SERVICES_JSON_STORE`, `GOOGLE_SERVICES_JSON_DEV` | build / UI / release | Base64 of the per-variant `google-services.json`. |
 | `PLAY_CONFIG_JSON` | beta / prod / Wear deploy | Base64 of the Play Console service-account JSON used by Fastlane. |
-| `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Token used to push the version-bump commit and the release tag back to the repo. |
+| `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Creates the release branch at the bump commit, and deletes a branch the cut created but opened no PR for. Opens and merges release PRs, pushes the release tag, and runs the sync. Three of these writes rely on the owner's bypass of the `all` ruleset: creating a branch at the unchecked bump commit, the cut's delete, and the merge's `--delete-branch`. Opening PRs and pushing the tag do not, because `all` is a branch ruleset. The workflow token makes the bump commit's blob, tree and commit, and writes no ref. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | `claude.yml`, `claude-code-review.yml` | Auth for `anthropics/claude-code-action`. |
 
 Generated at build time on CI (never committed):

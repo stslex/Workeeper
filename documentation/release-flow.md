@@ -110,7 +110,7 @@ This means: deploy retries don't bump `versionCode`. If a retry hits Play with a
 Two invariants govern the version values on a release branch.
 
 **Invariant 1: branch name == TOML versionName.** The release branch name encodes its version; the TOML on that branch must match. Enforced:
-- At cut time: branch is created *with* the bumped TOML committed atomically.
+- At cut time: the bump commit is made first, through GitHub's API, and the branch is created at it, so a release branch never exists without its bump. A cut that does not open its PR deletes the branch; only a forced cancel or a lost runner can leave one behind (§8.4).
 - At deploy time: the guard step parses the version from `${{ github.ref }}` and compares it to the TOML. Mismatch = fail before upload.
 
 This eliminates the class of bugs where someone hand-edits TOML on a release branch and the branch name lies about what's being released.
@@ -163,14 +163,18 @@ Example: release 1.52.0 with code 53 gives phone `1.52.0 (53)` and watch `1.52.0
 
 Triggered when there are merged features in `dev` ready to ship.
 
-1. **Cut.** Developer manually triggers `cut_release.yml` with input `mode: release`. The workflow:
-   1. Checks out `dev` at HEAD.
+1. **Cut.** Developer manually triggers `cut_release.yml` with input `mode: release`, dispatched from `dev` (see the dispatch rule below). The workflow ([release-signing.md](feature-specs/release-signing.md) §4.1):
+   1. Checks out `dev` at HEAD, and the release helpers of the dispatch ref into `.ci`.
    2. Reads current `versionName` from TOML (e.g., `1.5.0`).
    3. Computes new version: bumps `Y`, sets `Z = 0`, bumps `versionCode +1` (e.g., `1.5.0 → 1.6.0`, code `42 → 43`).
-   4. Creates branch `release/release-v.1.6.0` from `dev` HEAD.
-   5. Commits the TOML change to the new branch with message `chore: bump to v.1.6.0`.
-   6. Pushes the branch (race-free; the branch did not exist a moment ago).
+   4. Makes the bump commit `chore: bump to v.1.6.0 (code 43)` through GitHub's REST Git database API with the workflow token: a blob, a tree and a commit whose only parent is `dev` HEAD, with no author, committer or signature, so GitHub signs it as `github-actions[bot]`. The blob and the tree must equal the ones computed locally.
+   5. Creates branch `release/release-v.1.6.0` at that commit with `PUSH_TOKEN`, so the branch is born with its bump. GitHub refuses a branch that already exists. The workflow token could not create it: the `all` ruleset lets only its bypass actors, the owner among them, create a branch at a commit that has not passed its checks.
+   6. Proves the commit with `release_bump_guard.py`: verified, `dev` HEAD as its only parent, `gradle/libs.versions.toml` as its only file. It reads the commit again while GitHub has not checked the signature yet. A commit that does not pass stops the cut (§8.13).
    7. Opens a PR `release/release-v.1.6.0 → master` titled `Release v.1.6.0`.
+
+   A cut that does not open its PR (a failure, a cancel, a timeout) deletes the branch it created, and only that one. With `dry_run: true` the cut runs steps 1–6 on a throwaway branch `ci/bump-dry-run-<run id>`, deletes it and opens no PR; the run's artifact `bump-commit-attempt-<n>` holds the commit it proved.
+
+   **Dispatch rule.** `master` keeps the old cut, which commits the bump unsigned, until a release-mode cut made after the signed bump landed on `dev` has merged into `master`; a hotfix does not carry it there. Until then, dispatch every cut from `dev`: `gh workflow run cut_release.yml --ref dev -f mode=release` (or `-f mode=hotfix`), or set "Use workflow from" to `dev` in the Actions UI, which defaults to `master`. The mode picks the source branch, so a hotfix is still cut from `master`; the ref supplies the workflow and its helpers. A cut dispatched from `master` makes an unsigned bump. In release mode the branch carries the deploy checks, which stop the deploy before the upload (§8.11): close the PR, delete the branch, and cut again from `dev`. In hotfix mode the branch has no checks, so the upload succeeds and the merge is refused (§8.12).
 
 2. **Validation on the PR.** Standard PR triggers fire:
    - `android_build_unified.yml` runs build + unit tests + detekt + lint.
@@ -184,6 +188,7 @@ Triggered when there are merged features in `dev` ready to ship.
       - **Branch ↔ TOML coherence**: parses version from branch name, reads TOML, fails if they don't match (§4.4 invariant 1).
       - **versionCode ↔ master coherence**: fetches master's `gradle/libs.versions.toml` and fails if the release branch's `versionCode` is not strictly greater (§4.4 invariant 2). Catches concurrent-release-and-hotfix collisions before fastlane (see §6.4); recovery in §8.6.
       - **PR lookup**: finds the open release PR, exposes its number as `needs.guard.outputs.pr_number`.
+      - **Release PR check**: `release_pr_guard.py` reads the PR with `PUSH_TOKEN` and fails unless it can merge at the pinned SHA: `mergeable` is `MERGEABLE`, `mergeStateStatus` is `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, and its head is the pinned SHA. While GitHub has not computed it (`UNKNOWN`), the step reads the PR again, up to 6 times, 10 s apart. The deploy job runs the same check again right before the upload (step 5), which catches a push to the release branch, or a rule change, during the build and UI tests. A failure stops the release with nothing uploaded (§8.11).
    2. Calls `android_build_unified.yml` (workflow_call) on the pinned SHA.
    3. Calls `ui_tests.yml` with `test_suite: smoke` (skippable via `skip_ui_tests` input) on the pinned SHA.
    4. Stops at the `production` GitHub Environment for manual approval (required reviewer = developer).
@@ -204,12 +209,12 @@ Triggered when there are merged features in `dev` ready to ship.
 
 Triggered when a bug is found in the currently-released version and dev contains unrelated unreleased changes.
 
-1. **Cut.** Developer triggers `cut_release.yml` with `mode: hotfix`. The workflow:
-   1. Checks out `master` at HEAD (master always reflects the live production version).
+1. **Cut.** Developer triggers `cut_release.yml` with `mode: hotfix`, dispatched from `dev` under the dispatch rule of §6.1 step 1; the source is still `master`. The workflow:
+   1. Checks out `master` at HEAD (master always reflects the live production version), and the release helpers of the dispatch ref into `.ci`.
    2. Reads current `versionName` (e.g., `1.6.0`).
    3. Computes new version: bumps `Z`, leaves `Y` (e.g., `1.6.0 → 1.6.1`), bumps `versionCode +1`.
-   4. Creates branch `release/release-v.1.6.1` from `master` HEAD.
-   5. Commits, pushes, opens PR.
+   4. Makes the bump commit on `master` HEAD through the API, creates branch `release/release-v.1.6.1` at it, and proves the commit, as §6.1 step 1 does.
+   5. Opens the PR. The dry run and the deletion of a branch that got no PR are the same as in §6.1.
 
 2. **Fix.** Developer pushes the actual bugfix commits directly to `release/release-v.1.6.1`. This is fine — the branch is owned by this hotfix and nobody else writes to it.
 
@@ -460,6 +465,44 @@ supply overwrites every listing text and replaces every image type the repositor
   - Keep the repository's: dispatch on the tag with `allow_listing_overwrite: true`.
 
 The first combined run (1.52.0) compares against `release-v.1.51.0`, which has no Wear metadata: Wear screenshots uploaded in the Console during the form-factor setup surface there as a Wear DRIFT, after the phone is live. A difference only in whitespace normalisation on the phone listing can also surface once; adopt Play's text.
+
+### 8.11 Deploy stopped: the release PR cannot merge
+
+The release PR check, in the guard job or right before the upload, found that the PR cannot merge into `master` at the pinned SHA (§6.1 step 3.1). The run prints `mergeable`, `mergeStateStatus` and the head.
+
+**State:** nothing was uploaded, tagged or merged.
+
+**Recovery,** one per cause:
+- `BLOCKED` with an unverified commit: `master` requires verified signatures, and every commit the PR brings must be verified. List the unverified commits:
+  ```
+  gh api repos/stslex/Workeeper/compare/master...<branch> --paginate --jq '.commits[] | select(.commit.verification.verified | not) | .sha'
+  ```
+  - The cut's bump: close the PR, delete the branch, and cut again from `dev` (§6.1 step 1).
+  - A commit from `dev`: the owner decides between two options. (a) A history rewrite of `dev` that re-signs it. (b) Turn off "Require signed commits" in the `master` ruleset before dispatching the deploy, and turn it on again after the merge, then read the rules back with `gh api repos/stslex/Workeeper/rules/branches/master`. In (b), `master` is unprotected for the length of that run.
+- `BLOCKED` while the PR's checks are still running: dispatch again when they are green.
+- `DIRTY` or `BEHIND`: resolve, as for any PR.
+- `DRAFT`: mark the PR ready.
+- A moved head (the PR head is not the pinned SHA): §8.1.
+
+### 8.12 Release live, merge refused by the ruleset
+
+The upload succeeded and the tag was pushed, but `master`'s ruleset refused `gh pr merge`. Either the PR check passed a PR that the ruleset then refused (Assumption S1 of [release-signing.md](feature-specs/release-signing.md) did not hold), or the branch had no PR check: a hotfix cut from `master` under the old cut (§6.1 step 1, dispatch rule).
+
+**State:** the phone release is live and tagged; `master` does not reflect it, and the Wear job did not run.
+
+**Recovery (owner):**
+1. Turn off "Require signed commits" in the `master` ruleset.
+2. `gh pr merge <n> --merge --delete-branch --match-head-commit <pinned sha>`.
+3. Turn the rule on again, and read the rules back with `gh api repos/stslex/Workeeper/rules/branches/master`.
+4. Dispatch `android_deploy_wear.yml` on the tag, as §8.7 describes; `deploy_wear` did not run.
+
+### 8.13 Cut failed: the bump commit is not verified
+
+`release_bump_guard.py` did not pass the bump commit by its last read (§6.1 step 1.6). The run log prints the commit's `verified` and `verification.reason`, its parents and its files.
+
+**State:** nothing was opened, and the cut deleted the branch it created. The unreferenced commit stays in GitHub's object store, which is harmless.
+
+**Recovery:** read `verification.reason` in the run log, and GitHub's status page, before cutting again.
 
 ---
 
