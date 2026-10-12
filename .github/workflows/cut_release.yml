@@ -10,6 +10,10 @@ on:
           - hotfix
         required: true
         description: "release: bump minor (Y), cut from dev. hotfix: bump patch (Z), cut from master."
+      dry_run:
+        type: boolean
+        default: false
+        description: "Make and prove the bump commit on a throwaway ci/bump-dry-run-<run id> branch, delete it, and open no PR."
 
 permissions:
   contents: write
@@ -19,6 +23,10 @@ concurrency:
   group: cut-release
   cancel-in-progress: false
 
+# Release signing spec §4.1. The workflow token writes the bump commit's blob, tree and commit, so
+# GitHub signs it as github-actions[bot], and writes no ref. PUSH_TOKEN creates the branch at that
+# commit and, when the cut opens no PR, deletes it: the `all` ruleset lets only its bypass actors
+# (the owner) do either (spec §3 F16).
 jobs:
   cut:
     name: Cut release branch
@@ -47,6 +55,17 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PUSH_TOKEN }}
 
+      # GUARD: after the source checkout. A checkout into the workspace root that finds no .git
+      # empties the workspace first, so a .ci made before it would be deleted. The helpers come
+      # from the dispatch ref, because the source branch lacks them until this change reaches it.
+      - name: Check out the release helpers of the dispatch ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .ci
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
       - name: Bump version
         id: bump
         env:
@@ -67,9 +86,28 @@ jobs:
             echo "branch=$branch"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Choose the branch name
+        id: name
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_BRANCH: ${{ steps.bump.outputs.branch }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [[ "$DRY_RUN" == "true" ]]; then
+            branch="ci/bump-dry-run-${RUN_ID}"
+            if [[ ! "$branch" =~ ^ci/bump-dry-run-[0-9]+$ ]]; then
+              echo "::error::Dry-run branch name '$branch' does not match ^ci/bump-dry-run-[0-9]+\$; nothing was written."
+              exit 1
+            fi
+          else
+            branch="$RELEASE_BRANCH"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Branch: $branch (dry run: $DRY_RUN)"
+
       - name: Verify release branch does not already exist
         env:
-          BRANCH: ${{ steps.bump.outputs.branch }}
+          BRANCH: ${{ steps.name.outputs.branch }}
         run: |
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "::error::Branch $BRANCH already exists on origin. Delete it or pick a different version."
@@ -77,30 +115,166 @@ jobs:
           fi
           echo "Branch $BRANCH is free on origin."
 
-      - name: Configure git identity
+      - name: Record the parent and the expected objects
+        id: expect
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          parent="$(git rev-parse HEAD)"
+          base_tree="$(git rev-parse 'HEAD^{tree}')"
+          blob="$(git hash-object gradle/libs.versions.toml)"
+          git add gradle/libs.versions.toml
+          tree="$(git write-tree)"
+          mode="$(git ls-files -s gradle/libs.versions.toml | awk '{ print $1 }')"
+          {
+            echo "parent=$parent"
+            echo "base_tree=$base_tree"
+            echo "blob=$blob"
+            echo "tree=$tree"
+            echo "mode=$mode"
+          } >> "$GITHUB_OUTPUT"
+          echo "Source head $parent (tree $base_tree); expected blob $blob, tree $tree, mode $mode"
 
-      - name: Create release branch and commit version bump
+      # Objects only, never a ref: the workflow token needs Contents (write) and nothing else here.
+      - name: Make the bump commit through the API
+        id: commit
         env:
-          BRANCH: ${{ steps.bump.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+          PARENT: ${{ steps.expect.outputs.parent }}
+          BASE_TREE: ${{ steps.expect.outputs.base_tree }}
+          EXPECTED_BLOB: ${{ steps.expect.outputs.blob }}
+          EXPECTED_TREE: ${{ steps.expect.outputs.tree }}
+          MODE_BITS: ${{ steps.expect.outputs.mode }}
           VERSION_NAME: ${{ steps.bump.outputs.version_name }}
           VERSION_CODE: ${{ steps.bump.outputs.version_code }}
         run: |
-          git checkout -b "$BRANCH"
-          git add gradle/libs.versions.toml
-          git commit -m "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})"
+          set -o pipefail
+          blob="$(base64 -w0 gradle/libs.versions.toml \
+            | jq -Rs '{content: ., encoding: "base64"}' \
+            | gh api "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq '.sha')"
+          if [[ "$blob" != "$EXPECTED_BLOB" ]]; then
+            echo "::error::The blob GitHub stored ($blob) is not the local one ($EXPECTED_BLOB)."
+            exit 1
+          fi
+          echo "blob check: PASS ($blob)"
+          tree="$(jq -n --arg base "$BASE_TREE" --arg mode "$MODE_BITS" --arg sha "$blob" \
+              '{base_tree: $base, tree: [{path: "gradle/libs.versions.toml", mode: $mode, type: "blob", sha: $sha}]}' \
+            | gh api "repos/$GITHUB_REPOSITORY/git/trees" --input - --jq '.sha')"
+          if [[ "$tree" != "$EXPECTED_TREE" ]]; then
+            echo "::error::The tree GitHub stored ($tree) is not the local one ($EXPECTED_TREE)."
+            exit 1
+          fi
+          echo "tree check: PASS ($tree)"
+          # No author, committer or signature: GitHub signs a bot's commit only without them.
+          commit="$(jq -n --arg message "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})" \
+              --arg tree "$tree" --arg parent "$PARENT" '{message: $message, tree: $tree, parents: [$parent]}' \
+            | gh api "repos/$GITHUB_REPOSITORY/git/commits" --input - --jq '.sha')"
+          if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::GitHub returned no commit sha (got '$commit')."
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Bump commit: $commit (parent $PARENT)"
+          {
+            echo "- blob check: PASS (\`$blob\`)"
+            echo "- tree check: PASS (\`$tree\`)"
+            echo "- bump commit: \`$commit\`, parent \`$PARENT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Push release branch
-        env:
-          BRANCH: ${{ steps.bump.outputs.branch }}
-        run: git push -u origin "$BRANCH"
-
-      - name: Open release PR
+      - name: Create the branch at the bump commit
+        id: branch
         env:
           GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
-          BRANCH: ${{ steps.bump.outputs.branch }}
+          BRANCH: ${{ steps.name.outputs.branch }}
+          COMMIT: ${{ steps.commit.outputs.commit }}
+        run: |
+          {
+            echo "branch=$BRANCH"
+            echo "commit=$COMMIT"
+          } >> "$GITHUB_OUTPUT"
+          if response="$(gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/heads/$BRANCH" -f sha="$COMMIT" --jq '.object.sha' 2>&1)"; then
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "Created $BRANCH at $response."
+            exit 0
+          fi
+          echo "$response"
+          if [[ "$response" == *"(HTTP 422)"* ]]; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "::error::GitHub refused to create $BRANCH (422): it already exists. Nothing is deleted."
+            exit 1
+          fi
+          # A lost response may hide a ref that was created. The commit is new in this run, so a
+          # ref that points at it is this run's.
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ "$actual" == "$COMMIT" ]]; then
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "The create call failed, but $BRANCH points at this run's commit $COMMIT: created."
+            exit 0
+          fi
+          echo "created=false" >> "$GITHUB_OUTPUT"
+          echo "::error::Could not create $BRANCH, and it does not point at $COMMIT (it points at '${actual}')."
+          exit 1
+
+      - name: Prove the bump commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          COMMIT: ${{ steps.branch.outputs.commit }}
+          PARENT: ${{ steps.expect.outputs.parent }}
+        run: |
+          # The first read, then up to 5 more, 5 s apart, while GitHub has not checked the signature
+          # yet (exit 3) or does not serve the commit yet (HTTP 404). Only exit 0 continues.
+          reads=0
+          while :; do
+            reads=$((reads + 1))
+            decision=0
+            if gh api "repos/$GITHUB_REPOSITORY/commits/$COMMIT" > bump-commit.json 2> bump-commit.err; then
+              python3 .ci/.github/scripts/release_bump_guard.py --commit bump-commit.json \
+                --parent "$PARENT" --path gradle/libs.versions.toml || decision=$?
+            else
+              cat bump-commit.err
+              if grep -q '(HTTP 404)' bump-commit.err; then decision=404; else decision=1; fi
+            fi
+            if [[ "$decision" -eq 0 ]]; then
+              break
+            fi
+            if [[ ( "$decision" -eq 3 || "$decision" -eq 404 ) && "$reads" -le 5 ]]; then
+              echo "Read $reads: not decided yet ($decision); reading again in 5 s."
+              sleep 5
+              continue
+            fi
+            echo "::error::The bump commit $COMMIT is not proven after $reads reads (last result $decision); see release-flow.md §8.13."
+            exit 1
+          done
+          git fetch origin "$BRANCH"
+          fetched="$(git rev-parse FETCH_HEAD)"
+          if [[ "$fetched" != "$COMMIT" ]]; then
+            echo "::error::origin/$BRANCH is $fetched, not the bump commit $COMMIT."
+            exit 1
+          fi
+          git diff --exit-code FETCH_HEAD -- gradle/libs.versions.toml
+          echo "The committed gradle/libs.versions.toml equals the local bump."
+          verified="$(jq -r '.commit.verification.verified' bump-commit.json)"
+          reason="$(jq -r '.commit.verification.reason' bump-commit.json)"
+          echo "- bump commit \`$COMMIT\`: verified=$verified, reason=$reason (DECISION PASS after $reads reads)" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      # For K2 (spec §5.1). One name per attempt: upload-artifact@v4 refuses a name the run already
+      # holds, and a re-run keeps the earlier attempt's artifacts.
+      - name: Upload the bump commit
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bump-commit-attempt-${{ github.run_attempt }}
+          path: bump-commit.json
+          retention-days: 30
+
+      - name: Open release PR
+        id: pr
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
           VERSION_NAME: ${{ steps.bump.outputs.version_name }}
           VERSION_CODE: ${{ steps.bump.outputs.version_code }}
           MODE: ${{ inputs.mode }}
@@ -127,3 +301,41 @@ jobs:
             --head "$BRANCH" \
             --title "$title" \
             --body-file "$body_file"
+
+      # Runs as the owner, whom the `all` ruleset lets delete branches, so GitHub no longer stops a
+      # wrong delete: these checks are what keep it to the branch this run created.
+      - name: Delete the branch when the cut opened no PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          CREATED: ${{ steps.branch.outputs.created }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          COMMIT: ${{ steps.branch.outputs.commit }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PR_OUTCOME: ${{ steps.pr.outcome }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [[ "$CREATED" != "true" ]]; then
+            echo "This run created no branch; nothing to delete."
+            exit 0
+          fi
+          if [[ ! "$BRANCH" =~ ^(release/release-v\.[0-9]+\.[0-9]+\.[0-9]+|ci/bump-dry-run-[0-9]+)$ ]]; then
+            echo "::error::Refusing to delete '$BRANCH': not a release or dry-run branch name."
+            exit 1
+          fi
+          if [[ "$DRY_RUN" == "true" && "$BRANCH" != "ci/bump-dry-run-${RUN_ID}" ]]; then
+            echo "::error::Refusing to delete '$BRANCH': a dry run deletes only ci/bump-dry-run-${RUN_ID}."
+            exit 1
+          fi
+          if [[ "$DRY_RUN" != "true" && "$PR_OUTCOME" == "success" ]]; then
+            echo "The release PR is open; $BRANCH stays."
+            exit 0
+          fi
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          if [[ "$current" != "$COMMIT" ]]; then
+            echo "::error::Refusing to delete $BRANCH: it points at $current, not this run's commit $COMMIT. Delete it by hand (release-flow.md §8.4)."
+            exit 1
+          fi
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH"
+          echo "Deleted $BRANCH (dry run: $DRY_RUN, PR step: ${PR_OUTCOME:-none})."
+          echo "- branch \`$BRANCH\` deleted (dry run: $DRY_RUN)" >> "$GITHUB_STEP_SUMMARY"
