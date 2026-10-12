@@ -58,6 +58,10 @@ EXPECTED = [
                 "io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest",
                 "sheetLayoutRendersMigratedStringFontAndIcon",
             ),
+            native(
+                "io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest",
+                "resolvesTheEnglishCatalog",
+            ),
         ],
     },
     {
