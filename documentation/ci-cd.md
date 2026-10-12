@@ -351,7 +351,8 @@ property of the workflow.
 
 The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
 required context for the Phase-7 native tests. One forced Gradle invocation executes the
-`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene),
+`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene and the
+`StringResolver` catalog reads),
 `:core:ui:navigation` (all 12 routes through the production serialization registry),
 `:core:ui:mvi` (lifetime/event/navigation/processor contracts), `:core:ui:start-mode`
 (production sheet composition, migrated resources, selected-state semantics, and callback),
@@ -390,7 +391,11 @@ never ran because an earlier setup step (checkout, Xcode selection, JDK, signing
 asserting there would bury the real setup failure under a misleading `result directory … does not
 exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
 the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature,
-archive feature, or all-trainings feature verdict. The image-viewer validator requires
+archive feature, or all-trainings feature verdict. The kit validator requires two tuples,
+`io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest.sheetLayoutRendersMigratedStringFontAndIcon`
+and
+`io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`,
+each exactly once. The image-viewer validator requires
 `io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
 exactly once. The plan-editor feature validator requires all 42 portable tuples and
 `io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`

@@ -96,9 +96,13 @@ specification described in the canonical workflow.
   `feature/<X>/mvi/mapper/`.
 - Two Detekt rules guard this boundary: `DomainLayerPurityRule` and
   `DomainLayerNoUiRule`.
-- Display strings and resource fallbacks live in UI mappers via
-  `stringResource(R.string.*)` or `resourceWrapper.getString(...)`. The domain layer
-  never injects `ResourceWrapper` and never imports `R.*`.
+- Display strings and resource fallbacks live in UI mappers. An Android `R` string is read
+  with `stringResource(R.string.*)` in composition and `resourceWrapper.getString(...)`
+  outside it. A Compose-resource string (`Res.string.*` / `Res.plurals.*`, in any module) is
+  read with CMP's `stringResource` / `pluralStringResource` in composition and an injected
+  `StringResolver` outside it, never CMP's top-level `getString` / `getPluralString`. The
+  domain layer injects neither `ResourceWrapper` nor `StringResolver` and never imports
+  `R.*`.
 
 ## Available skills
 

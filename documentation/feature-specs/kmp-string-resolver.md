@@ -1,6 +1,6 @@
 # KMP PR-R — `StringResolver`: Compose resources outside composition
 
-**Status:** SPECIFIED — implemented by the prompt that lands this document (maintainer GO, 2026-10-12).
+**Status:** COMPLETE — implemented by the PR whose merge brought this line to dev.
 
 **Discovery baseline:** dev @ 7007cfe8be42e05bf6d352c7b34fdc542468bc1a (2026-10-12, merge of #327).
 
@@ -421,9 +421,96 @@ fix; the maintainer merges.
 
 ## 13. Implementation evidence
 
-Filled by commit 3: base SHA; commits 1 and 2 with the signed-commits skill's local `gpgsig`
-check (not `git verify-commit`, which needs an allowed-signers file), and commit 3 as "this commit"
-(as kmp-phase-7-9 Section 19.2 did); the gate table with executed-task lines and
-case counts; the control table with each verdict quoted; O1's result; deviations, if any. GitHub's
-signature verification, the CI run ids and the review classification go in the PR body and the
-report, because they cannot exist before this commit does.
+### 13.1 Entry and commits
+
+At entry, `origin/dev` was `a83f5d0ea57bd3ef13d925c72492a41942749207`: this document, landed as a
+fast-forward push on the discovery baseline `7007cfe8b` (the merge of #327) with the input sha256
+`4297c2d3f7257a4383a4bdec3b4e504db967b45e18a2425892ebd27573b2c87d`. That push was Markdown-only,
+so the unified workflow started no run for it. The latest `Android CI/CD - Unified Build and
+Tests` push run on dev was 38228905167 on `7007cfe8b`: success. `git diff --stat 7007cfe8b
+a83f5d0ea` over the Section 9 paths shows only this document.
+
+| Commit | SHA | Boundary and verification |
+| --- | --- | --- |
+| `feat(kit): resolve Compose resources outside composition` | `11ad7731b2cacf67f275ac372a996fbf6e4faea9` | the five Section 11 item 1 paths, 168 insertions; `gpgsig` present (the signed-commits skill's `git cat-file commit` check) |
+| `feat(app): pin the app-scoped StringResolver binding` | `5ebf3bf02f413b629aa2c1e544016081cb175ac5` | `AppGraph.kt` and `StringResolverIdentityTest.kt`, 52 insertions; `gpgsig` present |
+| `docs: document StringResolver and record its evidence` | this commit | the six Section 9 documents, and this document's Status line and Section 13 |
+
+After commit 2, `git diff --name-status a83f5d0ea HEAD` listed exactly the 7 code paths of
+Section 7.4, and none of them is a `.png`, `strings.xml`, `*.gradle.kts` or
+`gradle/libs.versions.toml` path.
+
+### 13.2 Gates
+
+Every Gradle invocation ran immediately after `./gradlew --stop`, with `--rerun-tasks
+--no-build-cache --no-configuration-cache --console=plain` (plus `--continue` where shown). Each
+"Executed" cell is the logged `N actionable tasks: N executed`. Counts come only from JUnit XML
+written after the run's recorded start, and the triple is failures/errors/skips.
+
+| Tree | Command | Executed | Parsed result |
+| --- | --- | ---: | --- |
+| base | `:core:ui:kit:testAndroidHostTest` | 87/87 | 413 cases, 0/0/0 |
+| base | `:app:app:testDebugUnitTest` | 577/577 | 198 cases, 0/0/0 |
+| base | nine-module `iosSimulatorArm64Test --continue` | 259/259 | 170 cases, kit 1, 0/0/0 |
+| base | `assert_kmp_ios_smoke.py` | — | GREEN; `core:ui:kit: 1 executed / 0 skipped / 0 failed / 0 errored — verified 1 exact identity` |
+| commit 1 | `:core:ui:kit:testAndroidHostTest` | 87/87 | 415 cases (+2: `ComposeStringResolverTest.resolvesTheEnglishCatalog`, `ComposeStringResolverRuTest.resolvesTheRussianCatalog`), 0/0/0 |
+| commit 1 | nine-module `iosSimulatorArm64Test --continue` | 259/259 | 171 cases, kit 2 (`ComposeStringResolverIosTest.resolvesTheEnglishCatalog[iosSimulatorArm64]`), 0/0/0 |
+| commit 1 | `assert_kmp_ios_smoke.py` | — | GREEN; `core:ui:kit: 2 executed / 0 skipped / 0 failed / 0 errored — verified 2 exact identities`, the other eight modules unchanged |
+| commit 1 | nine-module `linkDebugTestIosArm64 --continue` | 250/250 | 9/9 `test.kexe` written by this run |
+| commit 1 | `:app:app:testDebugUnitTest` | 577/577 | 198 cases (= base), 0/0/0 |
+| commit 1 | `detekt --continue` | 63/63 | GREEN |
+| commit 2 | `:app:app:testDebugUnitTest` | 577/577 | 200 cases (+2: `app graph binds the Compose string resolver`, `two reads give the one app-scoped resolver`), 0/0/0 |
+| commit 2 | `detekt --continue` | 63/63 | GREEN |
+| commit 2 | `assembleDebug lintDebug testDebugUnitTest --continue` | 2598/2598 | 453 XML files in 34 result directories, 3175 cases, 0/0/0; lint without errors (its warnings are the existing dependency-version notices on `gradle/libs.versions.toml` and the wrapper) |
+| commit 2 | `detekt --continue` | 63/63 | GREEN |
+| commit 2 | `assembleDebugAndroidTest` | 2169/2169 | GREEN |
+| commit 2 | `verifyPaparazziDebug` | 645/645 | GREEN; no golden recorded, no PNG changed |
+| commit 2 | `:lint-rules:test` | 9/9 | 151 cases, 0/0/0 |
+| commit 2 | `assert_kmp_ui_source_topology.py` | — | GREEN |
+| commit 2 | `personal_data_gate.py -v` | — | GREEN |
+
+Device suites were not run: no runtime path reads the binding (Section 7.3). This commit's own
+gates (the topology script, the personal-data gate and detekt on the documentation tree) are in
+the PR body, because they cannot run on a tree that contains their own record.
+
+### 13.3 Known-negative controls
+
+The controls ran on the committed tree at commit 2, one at a time. Each was a fresh GREEN of its
+task, one mutation, the verdict quoted from fresh output, a byte-exact restoration (the file's
+sha256 equal before and after), an empty `git status --porcelain`, and a fresh GREEN again. K1–K5
+and O1 went through `documentation/mockups/mutation_harness.py` one-shot mode with
+`--no-configuration-cache --console=plain` inside `--task`. K1 and K2 ran their host and Native
+tasks in one harness invocation with `--continue`. The row-level text comes from the JUnit XML
+that the mutated run wrote, read before the post-restore GREEN. Every row quotes the English
+class; in each one the Russian class failed on the same rows.
+
+| Id | Mutation | Verdict (quoted) | Hygiene |
+| --- | --- | --- | --- |
+| K1 | `getString` returns `""` | `RED (3 test(s))`: both host classes `Multiple Failures (4 failures)`, e.g. `row 1: plain string ==> expected: <Cancel> but was: <>`; Native `Expected <[Cancel, Delete Push Day?, Push Day — 12 min, Delete %1$s?]>, actual <[, , , ]>` | GREEN before and after; restored; porcelain empty |
+| K2 | `*formatArgs.reversedArray()` | `RED (3 test(s))`: both host classes `Multiple Failures (1 failure)`, `row 3: two arguments, in order ==> expected: <Push Day — 12 min> but was: <12 min — Push Day>`; Native `actual <[Cancel, Delete Push Day?, 12 min — Push Day, Delete %1$s?]>` | same |
+| K3 | the no-argument overload always | `RED (2 test(s))`: both classes `Multiple Failures (2 failures)`, `row 2: one argument ==> expected: <Delete Push Day?> but was: <Delete %1$s?>` and `row 3: two arguments, in order ==> expected: <Push Day — 12 min> but was: <%1$s — %2$s>` | same |
+| K4 | `internal class ComposeStringResolver` | `*** INVALID — DID NOT COMPILE, proves nothing ***` with ``e: …/ComposeStringResolver.kt:22:1 `@ContributesBinding`-annotated class io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolver is internal but contributes to a public scope `AppScope`.`` | same |
+| K5 | `@SingleIn(AppScope::class)` removed | `RED (1 test(s))`: `two reads give the one app-scoped resolver` fails with `StringResolver must be app-scoped: one instance per graph` and two distinct `ComposeStringResolver` instances; `app graph binds the Compose string resolver` passes | same |
+| K6 | the iOS method renamed | the nine-module Native command 259/259 green; the oracle exits 1, prints `ok:` for the other eight modules, and fails on the kit tuple only: `expected exactly one testcase with classname='io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest' name='resolvesTheEnglishCatalog[iosSimulatorArm64]', found 0` | GREEN (Native and oracle) before and after; restored with `cp` from a scratchpad copy; porcelain empty |
+
+O1, recorded and not scored: with the empty-arguments branch removed (always the vararg
+overload), both host classes fail with `java.lang.IndexOutOfBoundsException: Index 0 out of bounds
+for length 0`. Row 4 is the only call that hands a placeholder template no arguments, so the
+exception is row 4's and it ends the method before `assertAll`. For a placeholder template, CMP's
+vararg path with no arguments is not its no-argument overload; R2's branch is load-bearing, and
+7.10 can rely on it.
+
+### 13.4 Deviations and observations
+
+- K4 fails earlier than Section 6 assumed. Metro 1.3.2 rejects an internal class that contributes
+  to the public `AppScope` while compiling `core:ui:kit`, before `AppGraph`'s missing binding is
+  reached. The verdict is the required one and names `ComposeStringResolver`. The older note that
+  an internal contribution compiles and silently fails to aggregate (measured on Metro 1.1.1) no
+  longer describes Metro 1.3.2; that note is outside Section 9 and unchanged.
+- The oracle prints `verified N exact identities`; Section 7 paraphrases it as "kit verifies N
+  identities".
+- R5's "54 strings, 0 plurals" is kit's EN catalog; the RU catalog has 53 strings, because one EN
+  string is `translatable="false"`.
+- The first controls run was discarded: its driver passed `--console=plain` twice to the GREEN
+  runs, which Gradle rejected before running anything. Every control was then re-run in full; the
+  table above is the re-run.
