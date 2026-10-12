@@ -313,6 +313,10 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   binding (`RestoreStateRepositoryImpl`, contributed by `@ContributesBinding(AppScope)` in
   `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
+- `AppGraph.stringResolver` has **no production reader**: nothing reads `StringResolver` from
+  the graph yet. The accessor exists so `StringResolverIdentityTest` can prove the binding to
+  `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
+  `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
   resolved there at all. That is why the ordering pins in `AppRuntimeReplacementTest` record a
   database touch with
@@ -449,6 +453,25 @@ The 50 all-trainings goldens moved byte-identical to `androidHostTest`. Android 
 which reads the factory from `MetroTestGraphHolder.graph` and composes
 `allTrainingsGraph(factory = factory)`; and `AllTrainingsScreenTest.pendingFeatureRewrite` in
 `androidDeviceTest` as the one documented `@Smoke` skip.
+
+#### Shared string resolver
+
+`core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside
+composition and with no fake. On the Android host, under Robolectric,
+`ComposeStringResolverTest.resolvesTheEnglishCatalog` reads the EN catalog and
+`ComposeStringResolverRuTest.resolvesTheRussianCatalog` the RU one; the Russian half is a second
+class in the same file with `@Config(sdk = [33], qualifiers = "ru")`, as
+`CommonHandlerComposeResourceTest.kt` does, because the Robolectric JUnit 5 extension forbids
+method-level `@Config`. Each method reads
+four rows in one `runBlocking` (a plain string, a one-argument string, a two-argument string in
+argument order, and a placeholder string read without arguments) and asserts them with
+`assertAll`, so every failing row is reported. On Native, the exact identity
+`io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`
+reads the same four EN rows, and the kit validator pins it.
+
+Plural delegation is compiled but not executed: kit's catalog has no plural, so its first
+execution is Phase 7.10's mapper identities. Feature tests fake the interface in-file, switching
+on the generated resource objects; there is no shared fake or fixtures module.
 
 #### Shared MVI runtime
 

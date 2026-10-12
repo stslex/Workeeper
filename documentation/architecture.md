@@ -55,7 +55,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `DataStoreProviderFactory`).
 - `core/ui/kit` — reusable Compose UI: theme (`AppTheme`, `AppDimension`, `AppUi`), components
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
-  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`.
+  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`, and
+  `StringResolver`, which reads Compose-resource strings outside composition (see
+  [Localization](#localization)).
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
 - `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
   command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),
@@ -295,9 +297,10 @@ Briefly:
   - The screen renders via `when (state.dialogState)` / `when (state.bottomSheetState)`.
   - Open: handler calls `updateState { it.copy(dialogState = DialogState.X(...)) }`.
     Close: handler calls `updateState { it.copy(dialogState = DialogState.Hidden) }`.
-  - Display strings are pre-resolved in the handler via `ResourceWrapper`
-    (consistent with the "no `R.*` in domain, no computation inside `updateState`
-    lambdas" rules) — never resolved in the Composable.
+  - Display strings are pre-resolved in the handler via `ResourceWrapper`, or via
+    `StringResolver` for Compose-resource strings (consistent with the "no `R.*` in
+    domain, no computation inside `updateState` lambdas" rules) — never resolved in
+    the Composable.
   - The `interceptBack: Boolean` derived property (where present) reads
     `dialogState` / `bottomSheetState` so the back gesture dismisses the topmost
     dialog before propagating.
@@ -340,9 +343,9 @@ Briefly:
 
 `BaseStore.updateState` and `updateStateImmediate` schedule the lambda on `Main.immediate`.
 The lambda's job is **state transformation only** — given `current`, return a copy with
-new field values. Mapping, formatting, and any work involving `ResourceWrapper` or
-domain-to-UI conversions runs *before* the lambda body, in the collector or handler that
-calls `updateState`.
+new field values. Mapping, formatting, and any work involving `ResourceWrapper`,
+`StringResolver` or domain-to-UI conversions runs *before* the lambda body, in the collector
+or handler that calls `updateState`.
 
 Wrong:
 
@@ -368,8 +371,8 @@ thread. The lambda receives an already-mapped value and just produces the new St
 
 Pure state transforms — operations that read only `current` and return a new `current`,
 e.g. `current.tags.filterNot { ... }` — are exempt; they're cheap and lifting them out
-introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`, or building
-a UI model from non-state inputs, hoist it.
+introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`,
+`StringResolver`, or building a UI model from non-state inputs, hoist it.
 
 ## Per-feature MVI layout
 
@@ -632,8 +635,8 @@ construction in the tree.
   `TrackNowConflict`, `SaveResult`, `BulkArchiveResult`,
   `StartSessionConflict`).
 - The domain layer never imports `androidx.compose.*`, never references
-  `R.*`, never injects `ResourceWrapper`. Display fallbacks live in UI
-  mappers, not in domain.
+  `R.*`, never injects `ResourceWrapper` or `StringResolver`. Display
+  fallbacks live in UI mappers, not in domain.
 - Repository INTERFACES (e.g. `ExerciseRepository`,
   `SessionConflictResolver`) are abstractions, not data models — they
   remain importable by interactor implementations and use cases. The
@@ -2077,6 +2080,33 @@ It does **not** apply to:
 - Domain identifiers (entity types, set types, action names in MVI) — these stay English
   in code, translated on display.
 
+#### Shared (KMP) modules and which reader a string takes
+
+Shared (KMP) modules keep their copy in Compose Resources instead of Android resources:
+
+```
+<module>/src/commonMain/composeResources/values/strings.xml     — English (default fallback)
+<module>/src/commonMain/composeResources/values-ru/strings.xml  — Russian overlay
+```
+
+Each such module generates its own `Res` through `compose.resources { packageOfResClass = … }`
+in its build file.
+
+The reader is chosen by the catalog a string lives in, not by the module kind:
+
+- **An Android `R` string:** `stringResource(R.string.*)` in composition, `ResourceWrapper`
+  outside it.
+- **A Compose-resource string** (`Res.string.*` / `Res.plurals.*`, in any module, including kit
+  strings read by Android-only features): `org.jetbrains.compose.resources.stringResource` /
+  `pluralStringResource` in composition, an injected `StringResolver` (`core/ui/kit`) outside
+  it, never CMP's top-level `getString` / `getPluralString` (only `ComposeStringResolver`
+  itself calls those). The six production files that predate this rule are a debt row
+  ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
+
+Compose resources choose by the **primary** system locale only and format arguments with
+`toString()`. That holds for every Compose-resource string and for `StringResolver`; the remedy
+is a maintainer decision ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
+
 #### Naming convention
 
 ```
@@ -2156,6 +2186,16 @@ When creating a new feature module:
    means the missing locale falls back to English (which is acceptable but visible).
 4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
    `context.getString(R.string.xxx)` from non-Compose code.
+
+For a shared (KMP) feature module the same four steps read:
+
+1. Create `src/commonMain/composeResources/values/strings.xml` with all English strings, and
+   give the module its own `Res` with `compose.resources { packageOfResClass = … }`.
+2. Create `src/commonMain/composeResources/values-ru/strings.xml` with the Russian
+   translations.
+3. Both files must contain the same set of keys, as above.
+4. Reference all strings via `stringResource(Res.string.xxx)` from Composables and an injected
+   `StringResolver` from non-Compose code.
 
 ## Compose UI conventions
 
