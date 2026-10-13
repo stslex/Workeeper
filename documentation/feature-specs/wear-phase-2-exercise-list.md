@@ -861,7 +861,8 @@ screen takes rotary input; the first-view gates (§10.1) cover each new screen.
   updated" lines, nothing else. This is an owner-authorized exception to the repository lock, like
   transport D1. It lands in PR-P2A, the PR that starts sending the outline, and goes live when the
   release merges into `master`: Pages publishes from `master` (transport ASM-4; its ledger shows the
-  policy served six minutes after the `master` merge, `wear-paired-transport.md:700`; §14 Q4).
+  policy served six minutes after the `master` merge, `wear-paired-transport.md`, ledger row "Policy
+  live (§9.1)"; §14 Q4).
 - Data safety: the implementer compares the form with the new text and records the verdict. The
   expected verdict is no change: the same kinds of data as today, between the user's own devices,
   with end-to-end encrypted relay (transport §9.3). A needed change is an owner action, not a STOP.
@@ -1075,7 +1076,7 @@ replaces §12.3.
 ### 12.1 Order
 
 1. The owner approves this file. It lands on `dev` (a direct push; specifications take no PR)
-   together with one status line in Phase 1, transport and live sync: "Amended on <date> by [Wear
+   together with one status line in Phase 1, transport and live sync: "Amended on `<date>` by [Wear
    Phase 2](wear-phase-2-exercise-list.md) (protocol v2)."
 2. PR-P2A into `dev`: §5, §6, §7, the Phase 1 controller kept working on the selection (no list
    yet; Skip not offered), Appendices A and B. Suggested commits: the protocol (models, codec,
@@ -1143,8 +1144,8 @@ Discovery rows, each with command, evidence and verdict:
 - **Q3** The string gate's exemption mechanism, the action registry, the acceptance harness's
   fixture mechanism, and every mutation-manifest anchor the two PRs will change (listed).
 - **Q4** Where Pages publishes from: transport ASM-4 is recorded as an assumption, consistent with
-  its ledger (`wear-paired-transport.md:700`); confirm it from the repository's Pages settings or a
-  `gh api repos/stslex/Workeeper/pages` read.
+  its ledger (`wear-paired-transport.md`, ledger row "Policy live (§9.1)"); confirm it from the
+  repository's Pages settings or a `gh api repos/stslex/Workeeper/pages` read.
 - **Q5** Where the shared done-rule vectors of §5.3 live, and the exact `ExerciseDoneRule` entry
   point.
 - **Q6** The real codec's size for the §5.7 fixtures, both response types. The 20 × 5 stress
