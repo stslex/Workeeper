@@ -158,7 +158,8 @@ internal class PhoneWorkoutBridgeSignalTest {
 
         known.record(NODE_A, null)
         val stale = bridge.executeCommand(NODE_A, command.another())
-        assertNotEquals(CommandOutcome.Applied, stale.outcome)
+        // §5.4 step 5: the applied command advanced the revision this one still carries.
+        assertEquals(CommandOutcome.StaleRevision, stale.outcome)
         assertTrue(known.holds(NODE_A, stale.replacement.key()), "the rejection's replacement")
 
         known.record(NODE_A, null)
@@ -353,8 +354,9 @@ internal class PhoneWorkoutBridgeSignalTest {
             },
         )
 
-        assertNotEquals(CommandOutcome.Applied, stale.outcome)
-        assertNotEquals(CommandOutcome.Applied, moved.outcome)
+        // §5.4 step 5 and step 8 (an unknown position is not completable).
+        assertEquals(CommandOutcome.StaleRevision, stale.outcome)
+        assertEquals(CommandOutcome.TargetChanged, moved.outcome)
         assertEquals(emptyList<Published>(), published)
     }
 

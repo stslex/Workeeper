@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.wear.ongoing
 
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
@@ -43,11 +44,14 @@ internal class WatchOngoingCoordinatorTest {
             payload = (active.payload as SnapshotPayload.Active).copy(
                 exercises = listOf(
                     fixtures.outlineExercise(fixtures.exerciseA, listOf(fixtures.done(0))),
-                    fixtures.outlineExercise(fixtures.laterExercise, listOf(fixtures.open(0)), skipped = true),
+                    fixtures.outlineExercise(fixtures.laterExercise, listOf(fixtures.done(0)), skipped = true),
                 ),
             ),
         )
-        assertTrue(OutlineRules.isWorkoutComplete(finished.payload as SnapshotPayload.Active))
+        val outline = finished.payload as SnapshotPayload.Active
+        assertTrue(OutlineRules.isWorkoutComplete(outline))
+        // No Open set anywhere: an indicator that needed one would not be posted (M-P27).
+        assertTrue(outline.exercises.none { exercise -> exercise.sets.any { it is OutlineSet.Open } })
 
         val status = assertIs<OngoingStatus.Scheduled>(OngoingTestEnvironment().accept(finished))
 

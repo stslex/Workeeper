@@ -193,9 +193,11 @@ class WearProtocolCodecTest {
         }
         // A skip body relabelled complete_set has no integer reps: the correlated rejection v1 gives
         // a body without reps, not a drop.
-        assertIs<PhoneDecodeResult.CorrelatedProtocolRejection>(
+        val relabelled = assertIs<PhoneDecodeResult.CorrelatedProtocolRejection>(
             phoneDecode(skip.replace("\"kind\":\"set_exercise_skipped\"", "\"kind\":\"complete_set\"")),
         )
+        assertEquals(ProtocolRejectionReason.INVALID_NUMERIC_ENCODING, relabelled.reason)
+        assertEquals(ProtocolFixtures.commandId, relabelled.routing.commandId)
         val snapshot = WearProtocolCodec.encode(
             ActiveWorkoutSnapshotResponse(
                 WearProtocol.SCHEMA_VERSION,

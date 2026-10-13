@@ -396,10 +396,12 @@ class WatchWorkoutReducerCommandTest {
                 base.copy(body = WatchCommandBody.SetExerciseSkipped(ReducerTestFixtures.exerciseA, false)),
         )
         allowed.forEachIndexed { index, (case, command) ->
-            assertIs<CommandIssueResult.Issued>(
+            val issued = assertIs<CommandIssueResult.Issued>(
                 activeReducer().issueCommand(ReducerTestFixtures.id(80 + index), 1, command),
                 case,
             )
+            assertEquals(command.commandId, issued.token.commandId, case)
+            assertEquals(ReducerTestFixtures.id(80 + index), issued.token.correlationId, case)
         }
         refused.forEachIndexed { index, (case, command) ->
             assertIs<CommandIssueResult.Rejected>(

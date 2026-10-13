@@ -151,8 +151,17 @@ internal class PhoneWorkoutBridgeDeviceTest {
         assertNotNull(sync)
         assertEquals(command.commandId.value, sync?.receiptCommandId)
         assertEquals(sync?.revision, sync?.receiptRevision)
-        val replacement = responses.first().replacement.payload
-        assertTrue(replacement is SnapshotPayload.Active && OutlineRules.isWorkoutComplete(replacement))
+        // §5.3: the one planned set is done with the values written, so the workout is complete; §6.2: the
+        // Active replacement offers the next lease, the one the durable row holds.
+        val replacement = responses.first().replacement.payload as SnapshotPayload.Active
+        assertEquals(
+            listOf(OutlineSet.Done(0, SetTypeWire.WORK, reps = 8, weightHundredthsKg = 12_525)),
+            replacement.exercises.single().sets,
+        )
+        assertTrue(OutlineRules.isWorkoutComplete(replacement))
+        val granted = replacement.mutationAuthority as MutationAuthority.Granted
+        assertEquals(sync?.leaseGeneration, granted.mutationLeaseGeneration)
+        assertEquals(WearProtocol.MAX_MUTATION_WINDOW_MS, granted.leaseRemainingAtPhoneSendMs)
     }
 
     private suspend fun seedActiveWorkout() {

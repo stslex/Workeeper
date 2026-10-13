@@ -213,7 +213,8 @@ internal class WatchRuntimeOwnerTest {
 
         assertEquals(WearSurfaceKind.WORKOUT_COMPLETE, env.owner.surface.value.kind)
         assertFalse(env.owner.surface.value.hasUnsubmittedDraft)
-        assertInstanceOf(OngoingStatus.Scheduled::class.java, env.owner.ongoingStatus.value)
+        // §7.6: received at 1 000 ms, the full 120 000 ms window and the 5 000 ms reconnect window.
+        assertEquals(OngoingStatus.Scheduled(126_000L), env.owner.ongoingStatus.value)
         assertNull(env.owner.snapshot.value.selection, "an outline without an open exercise has no selection")
     }
 

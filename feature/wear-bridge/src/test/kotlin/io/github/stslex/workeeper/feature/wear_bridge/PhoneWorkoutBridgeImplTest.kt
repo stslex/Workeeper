@@ -30,6 +30,7 @@ import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ImmutableTypeField
 import io.github.stslex.workeeper.core.wear.protocol.InvalidValueReason
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.OutlineExercise
 import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
@@ -1434,7 +1435,7 @@ internal class PhoneWorkoutBridgeImplTest {
         val sets = bridge.activePayload().exercises.single().sets
 
         assertEquals(listOf(0, 2), sets.map(OutlineSet::position))
-        assertTrue(sets[0] is OutlineSet.Open)
+        assertEquals(OutlineSet.Open(0, SetTypeWire.WORK, reps = 5, weightHundredthsKg = 10_000), sets[0])
         assertEquals(OutlineSet.Done(2, SetTypeWire.DROP, reps = 3, weightHundredthsKg = 10_000), sets[1])
     }
 
@@ -1446,12 +1447,12 @@ internal class PhoneWorkoutBridgeImplTest {
     fun `a handshake for an all-finished outline grants a lease`() = runTest {
         val seed = seedSession(plans = listOf(plan(100.0, 5)))
         database.setDao.upsertByTarget(Uuid.random(), seed.performedUuids.single(), 0, 5, 100.0, SetTypeEntity.WORK)
+        val before = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
 
         val outline = bridge.activePayload()
 
         assertTrue(outline.isWorkoutComplete())
-        assertTrue(outline.mutationAuthority is MutationAuthority.Granted)
-        assertTrue(leaseStore.activeLeaseForTest(SOURCE_NODE, outline.sessionUuid) != null)
+        assertGrantedAt(outline, generation = before.leaseGeneration + 1)
     }
 
     @Test
@@ -1494,7 +1495,8 @@ internal class PhoneWorkoutBridgeImplTest {
         val response = bridge.executeCommand(SOURCE_NODE, ruleR.copy(body = ruleR.completeBody().copy(setPosition = 0)))
 
         assertEquals(CommandOutcome.TargetChanged, response.outcome)
-        assertTrue(response.replacement.payload is SnapshotPayload.Active)
+        // §6.2: the replacement is an Active outline, so it offers the next lease; nothing is written.
+        assertGrantedAt(response.replacement.payload as SnapshotPayload.Active, generation = before.leaseGeneration + 1)
         assertNothingWritten(before, requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)))
         assertEquals(1, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
     }
@@ -1528,20 +1530,22 @@ internal class PhoneWorkoutBridgeImplTest {
     fun `skip and return are applied, advance the revision, store the receipt and set the flag`() = runTest {
         val seed = seedSession(plans = listOf(plan(100.0, 5)), secondPlans = listOf(plan(50.0, 8)))
         val first = seed.performedUuids.first()
-        val before = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
         val skip = requestFrom(bridge.activePayload(), WatchCommandBody.SetExerciseSkipped(first.toWireUuid(), true))
+        val before = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
 
         val skipped = bridge.executeCommand(SOURCE_NODE, skip)
         val afterSkip = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
 
         assertEquals(CommandOutcome.Applied, skipped.outcome)
         assertTrue(database.performedExerciseDao.getBySession(seed.sessionUuid).first { it.uuid == first }.skipped)
-        assertTrue(afterSkip.revision > before.revision)
+        // §6.3: the one flag write advances the revision by its one trigger (F10); the receipt binds to it.
+        assertEquals(before.revision + 1, afterSkip.revision)
         assertEquals(skip.commandId.value, afterSkip.receiptCommandId)
         assertEquals(afterSkip.revision, afterSkip.receiptRevision)
         val replacement = skipped.replacement.payload as SnapshotPayload.Active
+        assertEquals(afterSkip.revision, replacement.sessionRevision)
         assertTrue(requireNotNull(replacement.exercise(first.toWireUuid())).skipped)
-        assertTrue(replacement.mutationAuthority is MutationAuthority.Granted)
+        assertGrantedAt(replacement, generation = before.leaseGeneration + 1)
         assertEquals(0, database.setDao.countByPerformedExercise(first), "the flag only, no set")
 
         val giveBack = requestFrom(replacement, WatchCommandBody.SetExerciseSkipped(first.toWireUuid(), false))
@@ -1549,7 +1553,12 @@ internal class PhoneWorkoutBridgeImplTest {
 
         assertEquals(CommandOutcome.Applied, returned.outcome)
         assertFalse(database.performedExerciseDao.getBySession(seed.sessionUuid).first { it.uuid == first }.skipped)
-        assertTrue(requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision > afterSkip.revision)
+        val afterReturn = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
+        assertEquals(afterSkip.revision + 1, afterReturn.revision)
+        assertGrantedAt(
+            returned.replacement.payload as SnapshotPayload.Active,
+            generation = afterSkip.leaseGeneration + 1,
+        )
     }
 
     @Test
@@ -1573,6 +1582,13 @@ internal class PhoneWorkoutBridgeImplTest {
 
         assertEquals(CommandOutcome.TargetChanged, skipSkipped.outcome)
         assertEquals(CommandOutcome.TargetChanged, returnPending.outcome)
+        // §6.2: each TargetChanged replacement is an Active outline and offers the next lease.
+        val skipGrant = (skipSkipped.replacement.payload as SnapshotPayload.Active).mutationAuthority
+        assertEquals(before.leaseGeneration + 1, (skipGrant as MutationAuthority.Granted).mutationLeaseGeneration)
+        assertGrantedAt(
+            returnPending.replacement.payload as SnapshotPayload.Active,
+            generation = before.leaseGeneration + 3,
+        )
         val after = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
         assertEquals(before.revision, after.revision)
         assertNull(after.receiptCommandId)
@@ -1586,6 +1602,7 @@ internal class PhoneWorkoutBridgeImplTest {
         database.setDao.upsertByTarget(Uuid.random(), seed.performedUuids.single(), 0, 5, 100.0, SetTypeEntity.WORK)
         val outline = bridge.activePayload()
         assertTrue(outline.isWorkoutComplete())
+        val before = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
 
         val response = bridge.executeCommand(
             SOURCE_NODE,
@@ -1594,6 +1611,8 @@ internal class PhoneWorkoutBridgeImplTest {
 
         assertEquals(CommandOutcome.Applied, response.outcome)
         assertTrue(database.performedExerciseDao.getBySession(seed.sessionUuid).single().skipped)
+        // §5.4 step 9: Applied carries a fresh outline and the next lease.
+        assertGrantedAt(response.replacement.payload as SnapshotPayload.Active, generation = before.leaseGeneration + 1)
     }
 
     @Test
@@ -1609,6 +1628,8 @@ internal class PhoneWorkoutBridgeImplTest {
         val replay = bridge.executeCommand(SOURCE_NODE, skip.copy(correlationId = CanonicalUuid.random()))
 
         assertEquals(CommandOutcome.AlreadyApplied, replay.outcome)
+        // §5.4 step 4 then §6.2: the receipt answers at the same revision with the next lease.
+        assertGrantedAt(replay.replacement.payload as SnapshotPayload.Active, generation = applied.leaseGeneration + 1)
         assertNothingWritten(applied, requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)))
         assertTrue(database.performedExerciseDao.getBySession(seed.sessionUuid).single().skipped)
     }
@@ -1643,9 +1664,12 @@ internal class PhoneWorkoutBridgeImplTest {
             WatchCommandBody.SetExerciseSkipped(seed.performedUuids.single().toWireUuid(), true),
         )
 
+        val beforeFailure = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
         val retryable = bridge.executeCommand(SOURCE_NODE, first)
         val successor = (retryable.replacement.payload as SnapshotPayload.Active).mutationAuthority
             as MutationAuthority.Granted
+        // §5.5: RetryableTemporaryFailure pairs with a granted Active outline, the retry binding's lease.
+        assertGrantedAt(retryable.replacement.payload as SnapshotPayload.Active, beforeFailure.leaseGeneration + 1)
         flaky.fail = false
         val applied = bridge.executeCommand(
             SOURCE_NODE,
@@ -1681,7 +1705,7 @@ internal class PhoneWorkoutBridgeImplTest {
         val response = bridge.executeCommand(SOURCE_NODE, skip)
 
         assertEquals(CommandOutcome.NoActiveSession, response.outcome)
-        assertTrue(response.replacement.payload is SnapshotPayload.NoSession)
+        assertEquals(SnapshotPayload.NoSession, response.replacement.payload)
         assertFalse(database.performedExerciseDao.getBySession(seed.sessionUuid).single().skipped)
     }
 
@@ -1728,7 +1752,7 @@ internal class PhoneWorkoutBridgeImplTest {
 
         assertEquals(CommandOutcome.AuthorizationExpired, response.outcome)
         val replacement = response.replacement.payload as SnapshotPayload.Active
-        assertTrue(replacement.mutationAuthority is MutationAuthority.Unavailable)
+        assertEquals(READ_ONLY, replacement.mutationAuthority)
     }
 
     // endregion
@@ -1747,13 +1771,17 @@ internal class PhoneWorkoutBridgeImplTest {
             )
         }
 
+        val grown = SnapshotPayload.PayloadTooLarge(
+            early.sessionUuid,
+            requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision,
+        )
         val handshake = bridge.snapshot()
-        assertTrue(handshake.snapshot.payload is SnapshotPayload.PayloadTooLarge)
+        assertEquals(grown, handshake.snapshot.payload)
         assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, early.sessionUuid))
 
         val stale = bridge.executeCommand(SOURCE_NODE, early.copy(correlationId = CanonicalUuid.random()))
         assertEquals(CommandOutcome.StaleRevision, stale.outcome)
-        assertTrue(stale.replacement.payload is SnapshotPayload.PayloadTooLarge)
+        assertEquals(grown, stale.replacement.payload)
 
         val responses = listOf(
             early.copy(body = early.completeBody().copy(reps = 0)),
@@ -1767,7 +1795,7 @@ internal class PhoneWorkoutBridgeImplTest {
         }
         responses.forEach { response ->
             assertEquals(CommandOutcome.TargetChanged, response.outcome, "InvalidValues and ImmutableTypeMismatch too")
-            assertTrue(response.replacement.payload is SnapshotPayload.PayloadTooLarge)
+            assertEquals(grown, response.replacement.payload)
             WearProtocolCodec.encode(response)
         }
 
@@ -1785,7 +1813,7 @@ internal class PhoneWorkoutBridgeImplTest {
             ),
             ProtocolRejectionReason.INVALID_NUMERIC_ENCODING,
         )
-        assertTrue(rejected.replacement.payload is SnapshotPayload.PayloadTooLarge)
+        assertEquals(grown, rejected.replacement.payload)
         assertEquals(0, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
         assertFalse(database.performedExerciseDao.getBySession(seed.sessionUuid).single().skipped)
     }
@@ -1979,7 +2007,21 @@ internal class PhoneWorkoutBridgeImplTest {
         type = SetTypeDataModel.WORK,
     )
 
-    /** No write and no receipt: the revision and the receipt stay; the replacement may grant a new lease. */
+    /**
+     * §6.2: [outline] offers exactly the lease the bridge now holds for this node, at [generation], for
+     * the whole window, and the durable generation is that one.
+     */
+    private suspend fun assertGrantedAt(outline: SnapshotPayload.Active, generation: Long) {
+        val lease = requireNotNull(leaseStore.activeLeaseForTest(SOURCE_NODE, outline.sessionUuid))
+        assertEquals(
+            MutationAuthority.Granted(lease.leaseId, generation, WearProtocol.MAX_MUTATION_WINDOW_MS),
+            outline.mutationAuthority,
+        )
+        val sync = requireNotNull(database.wearSyncDao.getSessionSync(Uuid.parse(outline.sessionUuid.value)))
+        assertEquals(generation, sync.leaseGeneration)
+    }
+
+    /** No write and no receipt: the revision and the receipt stay (a granting replacement moves only the lease). */
     private fun assertNothingWritten(expected: SessionWearSyncRow, actual: SessionWearSyncRow) {
         assertEquals(expected.revision, actual.revision)
         assertEquals(expected.receiptCommandId, actual.receiptCommandId)
@@ -2105,6 +2147,9 @@ internal class PhoneWorkoutBridgeImplTest {
     }
 
     private companion object {
+        /** The authority of every read-only replacement (§5.5). */
+        val READ_ONLY = MutationAuthority.Unavailable(MutationUnavailableReason.FRESH_HANDSHAKE_REQUIRED)
+
         const val SOURCE_NODE: String = "synthetic-watch-node"
     }
 }

@@ -612,13 +612,25 @@ internal class WatchTransportCoordinatorTest {
             h.owner.snapshot.value.workout.command?.fingerprintCommand?.sourceNodeId,
         )
         val sent = h.link.rawRequests.map { it.decodeToString() }
-        assertTrue(sent.any { "watch_command" in it && "complete_set" in it }, "the command was sent: $sent")
+        val command = sent.single { "\"operation\":\"watch_command\"" in it }
+        assertTrue("\"kind\":\"complete_set\"" in command, command)
         assertTrue(sent.none { FakePhoneLink.WATCH_NODE in it }, "the node id never travels")
     }
 
     @Test
     fun `a skip is sent as watch_command and labelled like a completion`() = runTest {
         val h = connected(this)
+        val skippedLater = ReducerTestFixtures.active(revision = 2, leaseGeneration = 2).let { snapshot ->
+            val outline = snapshot.payload as SnapshotPayload.Active
+            snapshot.copy(
+                payload = outline.copy(
+                    exercises = outline.exercises.map { exercise ->
+                        exercise.copy(skipped = exercise.performedExerciseUuid == ReducerTestFixtures.laterExercise)
+                    },
+                ),
+            )
+        }
+        h.link.answer = phoneAnswers(snapshot = { ReducerTestFixtures.active() }, replacement = { skippedLater })
         h.runtime.onAction(ControllerAction.SkipExercise(ReducerTestFixtures.laterExercise))
         runCurrent()
 
@@ -626,7 +638,10 @@ internal class WatchTransportCoordinatorTest {
         assertEquals(WatchCommandBody.SetExerciseSkipped(ReducerTestFixtures.laterExercise, true), skip.body)
         val sent = h.link.rawRequests.map { it.decodeToString() }.single { "\"watch_command\"" in it }
         assertTrue("set_exercise_skipped" in sent, sent)
-        assertTrue(h.logger.lines.any { "command -> response:Applied" in it }, "the skip was logged: ${h.logger.lines}")
+        assertTrue(
+            h.logger.lines.any { it.startsWith("command -> response:Applied:accepted: out ") },
+            "the skip was logged: ${h.logger.lines}",
+        )
         assertTrue(h.logger.lines.none { ReducerTestFixtures.laterExercise.value in it })
     }
 
@@ -640,7 +655,7 @@ internal class WatchTransportCoordinatorTest {
         runCurrent()
 
         val lines = h.logger.lines
-        assertTrue(lines.any { "handshake -> snapshot:Active:" in it }, "the handshake was logged: $lines")
+        assertTrue(lines.any { it.startsWith("handshake -> snapshot:Active:accepted: out ") }, "handshake: $lines")
         assertTrue(lines.any { "command -> response:Applied" in it }, "the command was logged: $lines")
         val forbidden = listOf(
             SENTINEL_TRAINING,

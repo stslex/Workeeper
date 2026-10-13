@@ -82,7 +82,9 @@ internal class PhoneWearRpcHandlerTest {
                 answer.decodeToString(),
             )
             assertEquals(emptyList<String>(), bridge.calls)
-            assertTrue(logger.lines.single().startsWith("rpc version -> unsupported: in "), logger.lines.single())
+            val line = logger.lines.single()
+            val sizes = "in ${request.encodeToByteArray().size} B, out ${WearProtocolCodec.VERSION_ANSWER.size} B, "
+            assertTrue(line.startsWith("rpc version -> unsupported: $sizes"), line)
         }
     }
 
