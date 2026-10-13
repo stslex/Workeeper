@@ -14,7 +14,11 @@ sealed interface ExternalWriteUiModel {
 data class ExternalSetUiModel(
     override val performedExerciseUuid: String,
     val set: LiveSetUiModel,
-) : ExternalWriteUiModel
+) : ExternalWriteUiModel {
+
+    /** GUARD: names its type only; the values are never logged (wear-phase-2-exercise-list.md §9). */
+    override fun toString(): String = "ExternalSetUiModel"
+}
 
 /** An exercise the paired watch skipped or returned to the session (wear-phase-2-exercise-list.md §6.5). */
 @Stable

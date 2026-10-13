@@ -155,6 +155,31 @@ internal class WatchRuntimeSelectionTest {
     }
 
     @Test
+    fun `with a retryable command a changed selection names no reason and cannot complete`() {
+        val env = RuntimeTestEnvironment()
+        env.accept(outline())
+        val issued = assertInstanceOf(
+            WatchActionResult.CommandIssued::class.java,
+            env.owner.onAction(ControllerAction.CompleteSet),
+        )
+        env.owner.transportTimeout(issued.token.correlationId)
+        assertEquals(WearSurfaceKind.RETRYABLE_ERROR, env.owner.surface.value.kind, "the target shows Retry")
+
+        assertEquals(WatchActionResult.Updated, env.owner.onAction(ControllerAction.SelectExercise(exerciseB)))
+
+        // §7.2: the command's state shows only on its target; elsewhere completion is disabled, no reason.
+        val elsewhere = env.owner.surface.value
+        assertEquals(WearSurfaceKind.ACTIVE, elsewhere.kind)
+        assertEquals(BENCH, elsewhere.exerciseName)
+        assertFalse(elsewhere.completeEnabled)
+        assertNull(elsewhere.completionUnavailableReason)
+        assertEquals(WatchActionResult.Rejected, env.owner.onAction(ControllerAction.CompleteSet))
+
+        env.owner.onAction(ControllerAction.SelectExercise(exerciseA))
+        assertEquals(WearSurfaceKind.RETRYABLE_ERROR, env.owner.surface.value.kind, "its own target shows Retry again")
+    }
+
+    @Test
     fun `every selection change rewrites the cached record with its payload kept`() {
         val env = RuntimeTestEnvironment()
         env.accept(outline())

@@ -14,7 +14,11 @@ data class ExternalSetDomain(
     override val performedExerciseUuid: String,
     val position: Int,
     val set: PlanSetDomain,
-) : ExternalWriteDomain
+) : ExternalWriteDomain {
+
+    /** GUARD: names its type only; the values are never logged (wear-phase-2-exercise-list.md §9). */
+    override fun toString(): String = "ExternalSetDomain"
+}
 
 /** An exercise skipped ([skipped] true) or returned to the session (false); the flag only. */
 data class ExternalSkipDomain(

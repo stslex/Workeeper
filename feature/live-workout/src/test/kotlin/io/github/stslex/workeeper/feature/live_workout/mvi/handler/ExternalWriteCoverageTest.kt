@@ -74,6 +74,11 @@ internal class ExternalWriteCoverageTest {
         assertEquals(listOf(skip(skipped = true), write(0), skip(skipped = false)), coverage.since(load))
     }
 
+    @Test
+    fun `a watch set prints its type only`() {
+        assertEquals("ExternalSetUiModel", write(0).toString())
+    }
+
     private fun skip(skipped: Boolean) = ExternalSkipUiModel(performedExerciseUuid = "pe-1", skipped = skipped)
 
     private fun write(position: Int) = ExternalSetUiModel(

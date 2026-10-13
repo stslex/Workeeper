@@ -26,7 +26,11 @@ internal data class WatchInteractionEligibility(
          */
         fun from(state: WatchReducerState, selection: OutlineSelection?): WatchInteractionEligibility {
             if (state.display is WatchDisplayState.ProtocolMismatch) return WatchInteractionEligibility()
-            if (state.command?.status in RETRYABLE_STATUSES) return WatchInteractionEligibility(retry = true)
+            // A retryable command is still open: off its target it disables completion and names no
+            // reason, as an in-flight one does (§7.2).
+            if (state.command?.status in RETRYABLE_STATUSES) {
+                return WatchInteractionEligibility(retry = true, commandIdle = false)
+            }
             val outline = state.display.activeOutlineOrNull() ?: return WatchInteractionEligibility()
             val selected = selection?.let { outline.openSetOrNull(it) }
             val draft = state.draft

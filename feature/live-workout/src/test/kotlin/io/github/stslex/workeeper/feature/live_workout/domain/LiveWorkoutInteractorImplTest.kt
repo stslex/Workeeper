@@ -958,6 +958,22 @@ internal class LiveWorkoutInteractorImplTest {
         )
     }
 
+    @Test
+    fun `a watch set write and its domain model print their type only`() {
+        assertEquals(
+            "ExternalSessionWrite.SetMarked",
+            externalWrite(sessionUuid = "session-1", position = 1).toString(),
+        )
+        assertEquals(
+            "ExternalSetDomain",
+            ExternalSetDomain(
+                performedExerciseUuid = "pe-1",
+                position = 1,
+                set = PlanSetDomain(weight = 82.5, reps = 6, type = SetTypeDomain.FAILURE),
+            ).toString(),
+        )
+    }
+
     private fun externalSkip(sessionUuid: String, skipped: Boolean) = ExternalSessionWrite.SkipChanged(
         sessionUuid = sessionUuid,
         performedExerciseUuid = "pe-1",

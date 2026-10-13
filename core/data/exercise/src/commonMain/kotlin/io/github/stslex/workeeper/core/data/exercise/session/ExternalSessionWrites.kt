@@ -26,7 +26,11 @@ sealed interface ExternalSessionWrite {
         val weight: Double?,
         val reps: Int,
         val type: SetsDataType,
-    ) : ExternalSessionWrite
+    ) : ExternalSessionWrite {
+
+        /** GUARD: names its type only; the values are never logged (wear-phase-2-exercise-list.md §9). */
+        override fun toString(): String = "ExternalSessionWrite.SetMarked"
+    }
 
     /** An exercise skipped ([skipped] true) or returned to the session (false); the flag only. */
     data class SkipChanged(
