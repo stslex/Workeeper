@@ -17,13 +17,13 @@ import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
@@ -32,11 +32,15 @@ import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridge
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridgeImpl
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutSnapshotBuilder
 import io.github.stslex.workeeper.feature.wear_bridge.RoomWearSetMutationWriter
+import io.github.stslex.workeeper.feature.wear_bridge.RoomWearSkipMutationWriter
 import io.github.stslex.workeeper.feature.wear_bridge.WatchKnownRevisions
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkDepsHolder
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import io.github.stslex.workeeper.feature.wear_bridge.WearMutationLeaseStore
+import io.github.stslex.workeeper.feature.wear_bridge.WearMutationWriters
+import io.github.stslex.workeeper.feature.wear_bridge.completeTargetBody
+import io.github.stslex.workeeper.feature.wear_bridge.toWireUuid
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -71,7 +75,10 @@ internal class PhoneWearRpcEndToEndTest {
             snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
             leaseStore = WearMutationLeaseStore(env.transition),
             clock = PhoneMonotonicClock { 0L },
-            mutationWriter = RoomWearSetMutationWriter(database),
+            writers = WearMutationWriters(
+                RoomWearSetMutationWriter(database),
+                RoomWearSkipMutationWriter(database),
+            ),
             knownRevisions = WatchKnownRevisions(),
             externalSessionWrites = ExternalSessionWrites(),
         )
@@ -85,16 +92,58 @@ internal class PhoneWearRpcEndToEndTest {
         val performed = seedSession(plans = listOf(plan(weight = 100.0, reps = 5), plan(weight = 100.0, reps = 5)))
         val handler = PhoneWearRpcHandler(holder = SingleGenerationHolder(bridge), admissionScope = backgroundScope)
 
+        val snapshot = handshake(handler)
+        val active = snapshot.snapshot.payload as SnapshotPayload.Active
+        val commandBytes = WearProtocolCodec.encode(
+            command(snapshot, active.completeTargetBody().copy(reps = 7, weightHundredthsKg = 10_250)),
+        )
+
+        val applied = handler.handle(SOURCE_NODE, commandBytes)
+        val replayed = handler.handle(SOURCE_NODE, commandBytes)
+
+        val response = (WearProtocolCodec.decodeForWatch(applied) as WatchDecodeResult.Success).envelope
+            as WatchCommandResponse
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        assertArrayEquals(applied, replayed, "the same attempt replayed gets the same response")
+        assertEquals(1, database.setDao.countByPerformedExercise(performed), "exactly one written set")
+    }
+
+    @Test
+    fun `handshake bytes, then a skip command, then its replay skip the exercise once`() = runTest {
+        val performed = seedSession(plans = listOf(plan(weight = 100.0, reps = 5)))
+        val handler = PhoneWearRpcHandler(holder = SingleGenerationHolder(bridge), admissionScope = backgroundScope)
+
+        val snapshot = handshake(handler)
+        val commandBytes = WearProtocolCodec.encode(
+            command(snapshot, WatchCommandBody.SetExerciseSkipped(performed.toWireUuid(), skipped = true)),
+        )
+
+        val applied = handler.handle(SOURCE_NODE, commandBytes)
+        val replayed = handler.handle(SOURCE_NODE, commandBytes)
+
+        val response = (WearProtocolCodec.decodeForWatch(applied) as WatchDecodeResult.Success).envelope
+            as WatchCommandResponse
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        val after = response.replacement.payload as SnapshotPayload.Active
+        assertEquals(true, after.exercises.single().skipped, "the answer's outline shows the skip")
+        assertArrayEquals(applied, replayed, "the same attempt replayed gets the same response")
+        assertEquals(true, database.performedExerciseDao.getAll().single { it.uuid == performed }.skipped)
+        assertEquals(0, database.setDao.countByPerformedExercise(performed), "a skip writes no set")
+    }
+
+    private suspend fun handshake(handler: PhoneWearRpcHandler): ActiveWorkoutSnapshotResponse {
         val snapshotBytes = handler.handle(
             SOURCE_NODE,
             WearProtocolCodec.encode(GetActiveWorkoutRequest(WearProtocol.SCHEMA_VERSION, CanonicalUuid.random())),
         )
-        val snapshot = (WearProtocolCodec.decodeForWatch(snapshotBytes) as WatchDecodeResult.Success).envelope
+        return (WearProtocolCodec.decodeForWatch(snapshotBytes) as WatchDecodeResult.Success).envelope
             as ActiveWorkoutSnapshotResponse
-        val active = snapshot.snapshot.payload as SnapshotPayload.ActiveWithTarget
-        val grant = active.mutationAuthority as MutationAuthority.Granted
+    }
 
-        val command = CompleteCurrentSetRequest(
+    private fun command(snapshot: ActiveWorkoutSnapshotResponse, body: WatchCommandBody): WatchCommandRequest {
+        val active = snapshot.snapshot.payload as SnapshotPayload.Active
+        val grant = active.mutationAuthority as MutationAuthority.Granted
+        return WatchCommandRequest(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = CanonicalUuid.random(),
             commandId = CanonicalUuid.random(),
@@ -103,25 +152,8 @@ internal class PhoneWearRpcEndToEndTest {
             sessionRevision = active.sessionRevision,
             mutationLeaseId = grant.mutationLeaseId,
             mutationLeaseGeneration = grant.mutationLeaseGeneration,
-            body = CompleteCurrentSetBody(
-                performedExerciseUuid = active.target.performedExerciseUuid,
-                setPosition = active.target.setPosition,
-                reps = 7,
-                weightHundredthsKg = 10_250,
-                exerciseType = active.target.exerciseType,
-                setType = active.target.setType,
-            ),
+            body = body,
         )
-        val commandBytes = WearProtocolCodec.encode(command)
-
-        val applied = handler.handle(SOURCE_NODE, commandBytes)
-        val replayed = handler.handle(SOURCE_NODE, commandBytes)
-
-        val response = (WearProtocolCodec.decodeForWatch(applied) as WatchDecodeResult.Success).envelope
-            as CompleteCurrentSetResponse
-        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
-        assertArrayEquals(applied, replayed, "the same attempt replayed gets the same response")
-        assertEquals(1, database.setDao.countByPerformedExercise(performed), "exactly one written set")
     }
 
     private suspend fun seedSession(plans: List<PlanSetDataModel>): kotlin.uuid.Uuid {

@@ -28,7 +28,7 @@ class WatchSnapshotCacheTest {
 
         val restarted = cache(storage = storage, now = 10_001, bootCount = 4)
         val result = assertIs<CacheReadResult.DisplayOnly>(restarted.read())
-        val active = assertIs<SnapshotPayload.ActiveWithTarget>(result.snapshot.payload)
+        val active = assertIs<SnapshotPayload.Active>(result.snapshot.payload)
         assertIs<MutationAuthority.Unavailable>(active.mutationAuthority)
         assertEquals(WearProtocol.MAX_MUTATION_WINDOW_MS, result.persistedEffectiveMutationWindowMs)
         assertEquals(false, result.mutationWindowElapsed)
@@ -83,7 +83,7 @@ class WatchSnapshotCacheTest {
         )
         assertTrue(result.mutationWindowElapsed)
         assertIs<MutationAuthority.Unavailable>(
-            assertIs<SnapshotPayload.ActiveWithTarget>(result.snapshot.payload).mutationAuthority,
+            assertIs<SnapshotPayload.Active>(result.snapshot.payload).mutationAuthority,
         )
     }
 
@@ -130,6 +130,25 @@ class WatchSnapshotCacheTest {
         assertEquals(CacheReadResult.Absent(CacheAbsentReason.CORRUPT), result)
         assertEquals(0, decodeCalls)
         assertEquals(1, storage.deleteCalls)
+    }
+
+    @Test
+    fun `a protocol v1 snapshot left by the previous release is deleted as corrupt`() {
+        val storage = FakeAtomicStorage()
+        cache(storage = storage, now = 1_000, bootCount = 1).replace(
+            encodedSnapshot = V1_SNAPSHOT.encodeToByteArray(),
+            receivedAtElapsedRealtimeMs = 1_000,
+            bootCount = 1,
+            effectiveMutationWindowMs = null,
+            ongoingStopAtElapsedRealtimeMs = null,
+            connection = CachedConnection.CONNECTED,
+        )
+
+        val result = cache(storage = storage, now = 1_001, bootCount = 1).read()
+
+        assertEquals(CacheReadResult.Absent(CacheAbsentReason.CORRUPT), result)
+        assertEquals(1, storage.deleteCalls)
+        assertNull(storage.bytes)
     }
 
     @Test
@@ -230,10 +249,25 @@ class WatchSnapshotCacheTest {
             val diskResult = assertIs<CacheReadResult.DisplayOnly>(
                 cache(storage = storage, now = 1_002, bootCount = 1).read(),
             )
-            val active = assertIs<SnapshotPayload.ActiveWithTarget>(diskResult.snapshot.payload)
+            val active = assertIs<SnapshotPayload.Active>(diskResult.snapshot.payload)
             val expectedRevision = if (cut == CrashCut.AFTER_ATOMIC_PUBLISH) 6L else 5L
             assertEquals(expectedRevision, active.sessionRevision)
         }
+    }
+
+    private companion object {
+        /** A Phase 1 watch's cached handshake answer: schema version 1, `active_with_target`. */
+        const val V1_SNAPSHOT = "{\"operation\":\"active_workout_snapshot\",\"schemaVersion\":1," +
+            "\"correlationId\":\"bbbbbbbb-0000-4000-8000-000000000004\",\"snapshot\":{" +
+            "\"databaseEpoch\":\"bbbbbbbb-0000-4000-8000-000000000001\",\"payload\":{" +
+            "\"state\":\"active_with_target\",\"sessionUuid\":\"bbbbbbbb-0000-4000-8000-000000000002\"," +
+            "\"sessionRevision\":5,\"trainingName\":{\"kind\":\"value\",\"value\":\"Training\"}," +
+            "\"completedExercises\":0,\"totalExercises\":1,\"target\":{" +
+            "\"performedExerciseUuid\":\"bbbbbbbb-0000-4000-8000-000000000003\"," +
+            "\"exerciseName\":{\"kind\":\"value\",\"value\":\"Exercise\"},\"setPosition\":0," +
+            "\"setOrdinal\":1,\"totalSets\":1,\"reps\":10,\"weightHundredthsKg\":5000," +
+            "\"exerciseType\":\"weighted\",\"setType\":\"work\"},\"mutationAuthority\":{" +
+            "\"kind\":\"unavailable\",\"reason\":\"fresh_handshake_required\"}}}}"
     }
 
     private fun storageWithRecord(receivedAt: Long, bootCount: Int): FakeAtomicStorage =

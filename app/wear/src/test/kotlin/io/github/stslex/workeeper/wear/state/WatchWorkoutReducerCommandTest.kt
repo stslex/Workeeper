@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.state
 
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.ImmutableTypeField
 import io.github.stslex.workeeper.core.wear.protocol.InvalidValueReason
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
+import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -123,7 +125,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlationId = commandCorrelation,
-                outcome = CompleteCommandOutcome.InvalidValues(
+                outcome = CommandOutcome.InvalidValues(
                     NumericField.REPS,
                     InvalidValueReason.BELOW_MINIMUM,
                 ),
@@ -132,7 +134,10 @@ class WatchWorkoutReducerCommandTest {
             4,
         )
 
-        assertEquals(ReducerTestFixtures.exerciseB, activePayload(reducer).target.performedExerciseUuid)
+        assertEquals(
+            ReducerTestFixtures.exerciseB,
+            OutlineRules.defaultSelection(activePayload(reducer))?.performedExerciseUuid,
+        )
         assertNull(reducer.state.draft)
         assertEquals(CommandStatus.TERMINAL, reducer.state.command?.status)
         assertEquals(
@@ -156,7 +161,7 @@ class WatchWorkoutReducerCommandTest {
 
         val response = ReducerTestFixtures.response(
             correlationId = commandCorrelation,
-            outcome = CompleteCommandOutcome.Applied,
+            outcome = CommandOutcome.Applied,
             replacement = ReducerTestFixtures.active(
                 revision = 1,
                 leaseGeneration = 2,
@@ -179,7 +184,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.issueCommand(correlation, 1, ReducerTestFixtures.fingerprint(reps = 0))
         val response = ReducerTestFixtures.response(
             correlationId = correlation,
-            outcome = CompleteCommandOutcome.InvalidValues(
+            outcome = CommandOutcome.InvalidValues(
                 NumericField.REPS,
                 InvalidValueReason.BELOW_MINIMUM,
             ),
@@ -204,7 +209,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlation,
-                CompleteCommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE),
+                CommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE),
                 ReducerTestFixtures.active(unavailable = true),
             ),
             2,
@@ -221,7 +226,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlation,
-                CompleteCommandOutcome.AuthorizationExpired,
+                CommandOutcome.AuthorizationExpired,
                 ReducerTestFixtures.active(
                     leaseGeneration = 2,
                     leaseId = ReducerTestFixtures.lease2,
@@ -242,7 +247,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlation,
-                CompleteCommandOutcome.RetryableTemporaryFailure,
+                CommandOutcome.RetryableTemporaryFailure,
                 ReducerTestFixtures.active(
                     leaseGeneration = 2,
                     leaseId = ReducerTestFixtures.lease2,
@@ -267,7 +272,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlation,
-                CompleteCommandOutcome.ProtocolRejected(
+                CommandOutcome.ProtocolRejected(
                     ProtocolRejectionReason.INVALID_NUMERIC_ENCODING,
                 ),
                 ReducerTestFixtures.active(unavailable = true),
@@ -295,7 +300,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlation,
-                CompleteCommandOutcome.NoActiveSession,
+                CommandOutcome.NoActiveSession,
                 ReducerTestFixtures.active(),
             ),
             2,
@@ -308,22 +313,22 @@ class WatchWorkoutReducerCommandTest {
     @Test
     fun `source invalidation outcomes enforce their complete contextual pairing matrix`() {
         val invalidCases = listOf(
-            CompleteCommandOutcome.StaleRevision to ReducerTestFixtures.active(
+            CommandOutcome.StaleRevision to ReducerTestFixtures.active(
                 leaseGeneration = 2,
                 leaseId = ReducerTestFixtures.lease2,
             ),
-            CompleteCommandOutcome.TargetChanged to ReducerTestFixtures.active(
+            CommandOutcome.TargetChanged to ReducerTestFixtures.active(
                 session = ReducerTestFixtures.sessionB,
                 revision = 0,
                 leaseGeneration = 2,
                 leaseId = ReducerTestFixtures.lease2,
                 targetExercise = ReducerTestFixtures.exerciseB,
             ),
-            CompleteCommandOutcome.TargetChanged to ReducerTestFixtures.active(
+            CommandOutcome.TargetChanged to ReducerTestFixtures.active(
                 leaseGeneration = 2,
                 leaseId = ReducerTestFixtures.lease2,
             ),
-            CompleteCommandOutcome.NoActiveSession to ReducerTestFixtures.noSession(
+            CommandOutcome.NoActiveSession to ReducerTestFixtures.noSession(
                 ReducerTestFixtures.otherEpoch,
             ),
         )
@@ -353,7 +358,7 @@ class WatchWorkoutReducerCommandTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlationId = correlation,
-                outcome = CompleteCommandOutcome.TargetChanged,
+                outcome = CommandOutcome.TargetChanged,
                 replacement = ReducerTestFixtures.active(
                     leaseGeneration = 2,
                     leaseId = ReducerTestFixtures.lease2,
@@ -363,7 +368,10 @@ class WatchWorkoutReducerCommandTest {
             2,
         )
 
-        assertEquals(ReducerTestFixtures.exerciseB, activePayload(reducer).target.performedExerciseUuid)
+        assertEquals(
+            ReducerTestFixtures.exerciseB,
+            OutlineRules.defaultSelection(activePayload(reducer))?.performedExerciseUuid,
+        )
         assertEquals(CommandStatus.TERMINAL, reducer.state.command?.status)
         assertNull(reducer.state.draft)
     }
@@ -378,7 +386,7 @@ class WatchWorkoutReducerCommandTest {
         assertIs(reducer.state.display)
 
     private fun activePayload(reducer: WatchWorkoutReducer) =
-        assertIs<io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload.ActiveWithTarget>(
+        assertIs<SnapshotPayload.Active>(
             active(reducer).snapshot.payload,
         )
 }

@@ -2,16 +2,18 @@
 package io.github.stslex.workeeper.wear.state
 
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintPurpose
-import io.github.stslex.workeeper.core.wear.protocol.FingerprintV1
+import io.github.stslex.workeeper.core.wear.protocol.FingerprintV2
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolPairingValidator
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import kotlin.math.max
 import kotlin.math.min
@@ -37,7 +39,7 @@ internal class WatchWorkoutReducer {
     /** Initialize only a pristine reducer from a snapshot already admitted by the guarded cache reader. */
     fun restoreDisplayOnly(snapshot: SnapshotData) {
         check(latestIssuedGeneration == 0L && admittedMeta == null && state == WatchReducerState())
-        val active = snapshot.payload as? SnapshotPayload.ActiveWithTarget
+        val active = snapshot.payload as? SnapshotPayload.Active
         val restored = if (active == null) {
             snapshot
         } else {
@@ -89,12 +91,18 @@ internal class WatchWorkoutReducer {
         if (current != null && current.status !in TERMINAL_COMMAND_STATUSES) {
             return CommandIssueResult.Rejected
         }
+        // §7.1: the admitted outline must allow the command's target.
+        val outline = admittedSnapshot?.payload ?: return CommandIssueResult.Rejected
+        if (!OutlineRules.allows(outline, fingerprintCommand.body)) {
+            return CommandIssueResult.Rejected
+        }
 
         latestIssuedGeneration = Math.addExact(latestIssuedGeneration, 1L)
-        val fingerprint = FingerprintV1.fingerprint(
+        val fingerprint = FingerprintV2.fingerprint(
             fingerprintCommand,
             FingerprintPurpose.DELIVERY_ATTEMPT,
         )
+        val target = CommandTarget.of(fingerprintCommand.body)
         val token = RequestToken(
             correlationId = correlationId,
             generation = latestIssuedGeneration,
@@ -106,11 +114,10 @@ internal class WatchWorkoutReducer {
             commandId = fingerprintCommand.commandId,
             fingerprintCommand = fingerprintCommand,
             source = available.source,
-            target = available.target,
-            draft = CommandDraft(
-                reps = fingerprintCommand.reps,
-                weightHundredthsKg = fingerprintCommand.weightHundredthsKg,
-            ),
+            target = target,
+            draft = (fingerprintCommand.body as? WatchCommandBody.CompleteSet)?.let { body ->
+                CommandDraft(reps = body.reps, weightHundredthsKg = body.weightHundredthsKg)
+            },
             localGeneration = latestIssuedGeneration,
             attemptsIssued = 1,
             timedOutCorrelations = emptySet(),
@@ -127,12 +134,12 @@ internal class WatchWorkoutReducer {
                 leaseId = available.leaseId,
                 leaseGeneration = available.leaseGeneration,
                 source = available.source,
-                target = available.target,
+                target = target,
                 effectiveDeadlineMs = available.effectiveDeadlineMs,
                 attemptsIssued = 1,
                 retryReady = false,
             ),
-            draft = command.draft,
+            draft = command.draft ?: state.draft,
             command = command,
         )
         return CommandIssueResult.Issued(token)
@@ -172,7 +179,7 @@ internal class WatchWorkoutReducer {
      * return value only exposes the existing transition (wear-paired-transport.md §7.5).
      */
     fun receiveCommandResponse(
-        response: CompleteCurrentSetResponse,
+        response: WatchCommandResponse,
         receivedAtElapsedRealtimeMs: Long,
     ): SnapshotReduction? {
         val token = requests[response.correlationId]
@@ -219,7 +226,7 @@ internal class WatchWorkoutReducer {
         if (!reduction.accepted && response.outcome.requiresConvergence()) {
             state = state.copy(refreshRequired = true)
         }
-        val protocolRejected = response.outcome as? CompleteCommandOutcome.ProtocolRejected
+        val protocolRejected = response.outcome as? CommandOutcome.ProtocolRejected
         if (protocolRejected != null) {
             state = state.copy(
                 display = WatchDisplayState.ProtocolMismatch(protocolRejected.reason),
@@ -390,7 +397,7 @@ internal class WatchWorkoutReducer {
             return SnapshotReduction(accepted = false, effectiveMutationWindowMs = null)
         }
 
-        val active = snapshot.payload as? SnapshotPayload.ActiveWithTarget
+        val active = snapshot.payload as? SnapshotPayload.Active
         val granted = active?.mutationAuthority as? MutationAuthority.Granted
         val effectiveWindow = if (admission == SnapshotAdmission.AUTHORITY_ELIGIBLE &&
             granted != null && token != null
@@ -416,7 +423,6 @@ internal class WatchWorkoutReducer {
                     leaseId = requiredGranted.mutationLeaseId,
                     leaseGeneration = requiredGranted.mutationLeaseGeneration,
                     source = source,
-                    target = requireNotNull(snapshot.targetKeyOrNull()),
                     effectiveDeadlineMs = requireNotNull(deadline),
                 )
             } else {
@@ -435,12 +441,11 @@ internal class WatchWorkoutReducer {
     private fun displayState(snapshot: SnapshotData, mutable: Boolean): WatchDisplayState =
         when (snapshot.payload) {
             is SnapshotPayload.NoSession -> WatchDisplayState.NoSession(snapshot.databaseEpoch)
-            is SnapshotPayload.ActiveWithTarget -> WatchDisplayState.Active(
+            is SnapshotPayload.Active -> WatchDisplayState.Active(
                 snapshot = snapshot,
                 freshness = if (mutable) ActiveFreshness.FRESH else ActiveFreshness.REFRESH_REQUIRED,
             )
-            is SnapshotPayload.PhoneActionRequired -> WatchDisplayState.PhoneActionRequired(snapshot)
-            is SnapshotPayload.WorkoutComplete -> WatchDisplayState.WorkoutComplete(snapshot)
+            is SnapshotPayload.PayloadTooLarge -> WatchDisplayState.PayloadTooLarge(snapshot)
         }
 
     private fun effectiveWindow(token: RequestToken, receivedAt: Long, phoneRemaining: Long): Long? {
@@ -452,28 +457,28 @@ internal class WatchWorkoutReducer {
 
     private fun reduceOutcomeBeforeSnapshot(
         command: LogicalCommand,
-        outcome: CompleteCommandOutcome,
+        outcome: CommandOutcome,
     ): LogicalCommand = when (outcome) {
-        is CompleteCommandOutcome.Applied,
-        is CompleteCommandOutcome.AlreadyApplied,
+        is CommandOutcome.Applied,
+        is CommandOutcome.AlreadyApplied,
         -> command.terminal(clearDraft = true).also { emit(ReducerEvent.ConfirmationHaptic) }
-        is CompleteCommandOutcome.StaleRevision,
-        is CompleteCommandOutcome.TargetChanged,
-        is CompleteCommandOutcome.NoActiveSession,
+        is CommandOutcome.StaleRevision,
+        is CommandOutcome.TargetChanged,
+        is CommandOutcome.NoActiveSession,
         -> command.terminal(clearDraft = true)
-        is CompleteCommandOutcome.AuthorizationExpired ->
+        is CommandOutcome.AuthorizationExpired ->
             command.copy(status = CommandStatus.TERMINAL).also { emit(ReducerEvent.ErrorHaptic) }
-        is CompleteCommandOutcome.InvalidValues ->
+        is CommandOutcome.InvalidValues ->
             command.copy(status = CommandStatus.TERMINAL).also {
                 emit(ReducerEvent.ErrorHaptic)
                 emit(ReducerEvent.FieldError(outcome.field))
             }
-        is CompleteCommandOutcome.ImmutableTypeMismatch ->
+        is CommandOutcome.ImmutableTypeMismatch ->
             command.terminal(clearDraft = true).also { emit(ReducerEvent.ErrorHaptic) }
-        is CompleteCommandOutcome.RetryableTemporaryFailure ->
+        is CommandOutcome.RetryableTemporaryFailure ->
             command.copy(status = CommandStatus.AWAITING_RETRY_AUTHORITY)
                 .also { emit(ReducerEvent.ErrorHaptic) }
-        is CompleteCommandOutcome.ProtocolRejected ->
+        is CommandOutcome.ProtocolRejected ->
             command.terminal(clearDraft = true).also {
                 emit(ReducerEvent.ErrorHaptic)
                 emit(ReducerEvent.ProtocolError(outcome.reason))
@@ -482,16 +487,16 @@ internal class WatchWorkoutReducer {
 
     private fun reduceOutcomeAfterSnapshot(
         command: LogicalCommand,
-        outcome: CompleteCommandOutcome,
+        outcome: CommandOutcome,
         snapshotAccepted: Boolean,
     ): LogicalCommand = when (outcome) {
-        is CompleteCommandOutcome.AuthorizationExpired -> {
+        is CommandOutcome.AuthorizationExpired -> {
             if (currentMatches(command)) command else command.terminal(clearDraft = true)
         }
-        is CompleteCommandOutcome.InvalidValues -> {
+        is CommandOutcome.InvalidValues -> {
             if (currentMatches(command)) command else command.terminal(clearDraft = true)
         }
-        is CompleteCommandOutcome.RetryableTemporaryFailure -> {
+        is CommandOutcome.RetryableTemporaryFailure -> {
             rebindRetryable(command, snapshotAccepted)
         }
         else -> command
@@ -511,7 +516,7 @@ internal class WatchWorkoutReducer {
             mutationLeaseId = successor.leaseId,
             mutationLeaseGeneration = successor.leaseGeneration,
         )
-        val reboundFingerprint = FingerprintV1.fingerprint(
+        val reboundFingerprint = FingerprintV2.fingerprint(
             reboundSource,
             FingerprintPurpose.DELIVERY_ATTEMPT,
         )
@@ -522,7 +527,7 @@ internal class WatchWorkoutReducer {
                 leaseId = successor.leaseId,
                 leaseGeneration = successor.leaseGeneration,
                 source = successor.source,
-                target = successor.target,
+                target = command.target,
                 effectiveDeadlineMs = successor.effectiveDeadlineMs,
                 attemptsIssued = 1,
                 retryReady = true,
@@ -541,18 +546,18 @@ internal class WatchWorkoutReducer {
         return copy(status = CommandStatus.TERMINAL)
     }
 
+    /** §7.1: a command is obsolete when the source changed; the same source is the same outline. */
     private fun invalidateObsoleteCommand(snapshot: SnapshotData) {
         val visible = state.command ?: return
-        val sourceMatches = snapshot.sourceVersion() == visible.source
-        val targetMatches = snapshot.targetKeyOrNull() == visible.target
+        val sourceMatches = snapshot.matchesCommandSource(visible.source)
         if (visible.status == CommandStatus.SOURCE_INVALIDATED) {
-            if (!sourceMatches || !targetMatches) {
+            if (!sourceMatches) {
                 state = state.copy(draft = null)
             }
             return
         }
         if (visible.status in CLOSED_COMMAND_STATUSES) return
-        if (sourceMatches && targetMatches) return
+        if (sourceMatches) return
         val invalidated = visible.copy(status = CommandStatus.SOURCE_INVALIDATED)
         commands[visible.commandId] = invalidated
         state = state.copy(command = invalidated, draft = null)
@@ -567,8 +572,7 @@ internal class WatchWorkoutReducer {
     }
 
     private fun currentMatches(command: LogicalCommand): Boolean =
-        admittedSnapshot?.sourceVersion() == command.source &&
-            admittedSnapshot?.targetKeyOrNull() == command.target
+        admittedSnapshot?.matchesCommandSource(command.source) == true
 
     private fun fingerprintMatchesAuthority(
         fingerprint: FingerprintCommand,
@@ -576,8 +580,6 @@ internal class WatchWorkoutReducer {
     ): Boolean = fingerprint.databaseEpoch == authority.source.databaseEpoch &&
         fingerprint.sessionUuid == (authority.source.identity as? ActiveIdentity.Session)?.sessionUuid &&
         fingerprint.sessionRevision == authority.source.sessionRevision &&
-        fingerprint.performedExerciseUuid == authority.target.performedExerciseUuid &&
-        fingerprint.setPosition == authority.target.setPosition &&
         fingerprint.mutationLeaseId == authority.leaseId &&
         fingerprint.mutationLeaseGeneration == authority.leaseGeneration
 
@@ -674,25 +676,35 @@ internal class WatchWorkoutReducer {
     }
 }
 
-/** Pure pairing check of a command response against its command; reads no reducer state. */
+/**
+ * Pure pairing check of a command response against its command (wear-phase-2-exercise-list.md §5.5);
+ * reads no reducer state.
+ */
 internal fun responsePairingIsValid(
-    response: CompleteCurrentSetResponse,
+    response: WatchCommandResponse,
     command: LogicalCommand,
 ): Boolean {
     if (!ProtocolPairingValidator.isValid(response.outcome, response.replacement.payload)) {
         return false
     }
-    val replacementSource = response.replacement.sourceVersion()
+    val replacement = response.replacement
     return when (response.outcome) {
-        is CompleteCommandOutcome.StaleRevision -> replacementSource != command.source
-        is CompleteCommandOutcome.NoActiveSession ->
-            replacementSource.databaseEpoch == command.source.databaseEpoch
-        is CompleteCommandOutcome.TargetChanged ->
-            replacementSource == command.source &&
-                response.replacement.targetKeyOrNull() != command.target
+        is CommandOutcome.StaleRevision -> !replacement.matchesCommandSource(command.source)
+        is CommandOutcome.NoActiveSession ->
+            replacement.sourceVersion().databaseEpoch == command.source.databaseEpoch
+        is CommandOutcome.TargetChanged ->
+            replacement.sourceVersion() == command.source &&
+                !command.allowedOn(replacement.payload)
+        is CommandOutcome.InvalidValues,
+        is CommandOutcome.ImmutableTypeMismatch,
+        -> command.target is CommandTarget.CompleteSet
         else -> true
     }
 }
+
+/** The command's target is still `completable` or `skippable` on [payload]; never on `PayloadTooLarge`. */
+private fun LogicalCommand.allowedOn(payload: SnapshotPayload): Boolean =
+    OutlineRules.allows(payload, fingerprintCommand.body)
 
 internal fun safeMonotonicAdd(left: Long, right: Long): Long? = runCatching {
     Math.addExact(left, right)
@@ -715,20 +727,19 @@ internal fun retryableSuccessorMatches(
     command: LogicalCommand,
 ): Boolean = snapshotAccepted && available != null &&
     available.source == command.source &&
-    available.target == command.target &&
     command.attemptsIssued == 1
 
-internal fun CompleteCommandOutcome.requiresConvergence(): Boolean = when (this) {
-    is CompleteCommandOutcome.Applied,
-    is CompleteCommandOutcome.AlreadyApplied,
-    is CompleteCommandOutcome.AuthorizationExpired,
-    is CompleteCommandOutcome.StaleRevision,
-    is CompleteCommandOutcome.TargetChanged,
-    is CompleteCommandOutcome.NoActiveSession,
-    is CompleteCommandOutcome.ProtocolRejected,
+internal fun CommandOutcome.requiresConvergence(): Boolean = when (this) {
+    is CommandOutcome.Applied,
+    is CommandOutcome.AlreadyApplied,
+    is CommandOutcome.AuthorizationExpired,
+    is CommandOutcome.StaleRevision,
+    is CommandOutcome.TargetChanged,
+    is CommandOutcome.NoActiveSession,
+    is CommandOutcome.ProtocolRejected,
     -> true
-    is CompleteCommandOutcome.InvalidValues,
-    is CompleteCommandOutcome.ImmutableTypeMismatch,
-    is CompleteCommandOutcome.RetryableTemporaryFailure,
+    is CommandOutcome.InvalidValues,
+    is CommandOutcome.ImmutableTypeMismatch,
+    is CommandOutcome.RetryableTemporaryFailure,
     -> false
 }

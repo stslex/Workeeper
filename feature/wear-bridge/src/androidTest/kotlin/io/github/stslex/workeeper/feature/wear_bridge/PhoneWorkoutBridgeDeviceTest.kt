@@ -22,13 +22,16 @@ import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvid
 import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -87,7 +90,10 @@ internal class PhoneWorkoutBridgeDeviceTest {
             snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
             leaseStore = WearMutationLeaseStore(transition),
             clock = PhoneMonotonicClock { 0L },
-            mutationWriter = RoomWearSetMutationWriter(database),
+            writers = WearMutationWriters(
+                RoomWearSetMutationWriter(database),
+                RoomWearSkipMutationWriter(database),
+            ),
             knownRevisions = WatchKnownRevisions(),
             externalSessionWrites = ExternalSessionWrites(),
         )
@@ -104,9 +110,11 @@ internal class PhoneWorkoutBridgeDeviceTest {
             SOURCE_NODE,
             GetActiveWorkoutRequest(WearProtocol.SCHEMA_VERSION, CanonicalUuid.random()),
         ).snapshot
-        val active = snapshot.payload as SnapshotPayload.ActiveWithTarget
+        val active = snapshot.payload as SnapshotPayload.Active
         val authority = active.mutationAuthority as MutationAuthority.Granted
-        val command = CompleteCurrentSetRequest(
+        val exercise = active.exercises.single()
+        val open = exercise.sets.single() as OutlineSet.Open
+        val command = WatchCommandRequest(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = CanonicalUuid.random(),
             commandId = CanonicalUuid.random(),
@@ -115,35 +123,36 @@ internal class PhoneWorkoutBridgeDeviceTest {
             sessionRevision = active.sessionRevision,
             mutationLeaseId = authority.mutationLeaseId,
             mutationLeaseGeneration = authority.mutationLeaseGeneration,
-            body = CompleteCurrentSetBody(
-                performedExerciseUuid = active.target.performedExerciseUuid,
-                setPosition = active.target.setPosition,
+            body = WatchCommandBody.CompleteSet(
+                performedExerciseUuid = exercise.performedExerciseUuid,
+                setPosition = open.position,
                 reps = 8,
                 weightHundredthsKg = 12_525,
-                exerciseType = active.target.exerciseType,
+                exerciseType = exercise.exerciseType,
                 setType = SetTypeWire.WORK,
             ),
         )
 
         val responses = coroutineScope {
             listOf(
-                async { bridge.completeCurrentSet(SOURCE_NODE, command) },
-                async { bridge.completeCurrentSet(SOURCE_NODE, command) },
+                async { bridge.executeCommand(SOURCE_NODE, command) },
+                async { bridge.executeCommand(SOURCE_NODE, command) },
             ).awaitAll()
         }
 
-        val performedUuid = kotlin.uuid.Uuid.parse(active.target.performedExerciseUuid.value)
+        val performedUuid = kotlin.uuid.Uuid.parse(exercise.performedExerciseUuid.value)
         val rows = database.setDao.getByPerformedExercise(performedUuid)
         val sync = database.wearSyncDao.getActiveSessionSync()
         assertEquals(responses.first(), responses.last())
-        assertEquals(CompleteCommandOutcome.Applied, responses.singleOutcome())
+        assertEquals(CommandOutcome.Applied, responses.singleOutcome())
         assertEquals(1, rows.size)
         assertEquals(8, rows.single().reps)
         assertEquals(125.25, rows.single().weight ?: Double.NaN, 0.0)
         assertNotNull(sync)
         assertEquals(command.commandId.value, sync?.receiptCommandId)
         assertEquals(sync?.revision, sync?.receiptRevision)
-        assertTrue(responses.first().replacement.payload is SnapshotPayload.WorkoutComplete)
+        val replacement = responses.first().replacement.payload
+        assertTrue(replacement is SnapshotPayload.Active && OutlineRules.isWorkoutComplete(replacement))
     }
 
     private suspend fun seedActiveWorkout() {
@@ -193,8 +202,7 @@ internal class PhoneWorkoutBridgeDeviceTest {
         database.performedExerciseDao.insert(performed)
     }
 
-    private fun List<io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse>
-        .singleOutcome(): CompleteCommandOutcome = map { it.outcome }.distinct().single()
+    private fun List<WatchCommandResponse>.singleOutcome(): CommandOutcome = map { it.outcome }.distinct().single()
 
     private companion object {
         const val SOURCE_NODE: String = "synthetic-device-node"

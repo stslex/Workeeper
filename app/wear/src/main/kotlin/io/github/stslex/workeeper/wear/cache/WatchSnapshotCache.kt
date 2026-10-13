@@ -163,7 +163,7 @@ internal class WatchSnapshotCache(
     }
 
     private fun SnapshotData.withoutMutationAuthority(): SnapshotData {
-        val active = payload as? SnapshotPayload.ActiveWithTarget ?: return this
+        val active = payload as? SnapshotPayload.Active ?: return this
         return copy(
             payload = active.copy(
                 mutationAuthority = MutationAuthority.Unavailable(

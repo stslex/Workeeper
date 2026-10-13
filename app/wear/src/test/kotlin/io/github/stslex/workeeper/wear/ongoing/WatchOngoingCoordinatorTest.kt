@@ -2,6 +2,8 @@
 package io.github.stslex.workeeper.wear.ongoing
 
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.wear.cache.CacheReadResult
@@ -31,6 +33,25 @@ internal class WatchOngoingCoordinatorTest {
         assertEquals(126_000L, env.cachedRecord().ongoingStopAtElapsedRealtimeMs)
         assertEquals(1_000L, env.cachedRecord().receivedAtElapsedRealtimeMs)
         assertEquals(125_000L, env.notification.posts.single().timeoutAfterMs)
+    }
+
+    @Test
+    fun `a fresh granted lease on an all-finished outline posts the indicator`() {
+        val fixtures = ReducerTestFixtures
+        val active = fixtures.active()
+        val finished = active.copy(
+            payload = (active.payload as SnapshotPayload.Active).copy(
+                exercises = listOf(
+                    fixtures.outlineExercise(fixtures.exerciseA, listOf(fixtures.done(0))),
+                    fixtures.outlineExercise(fixtures.laterExercise, listOf(fixtures.open(0)), skipped = true),
+                ),
+            ),
+        )
+        assertTrue(OutlineRules.isWorkoutComplete(finished.payload as SnapshotPayload.Active))
+
+        val status = assertIs<OngoingStatus.Scheduled>(OngoingTestEnvironment().accept(finished))
+
+        assertEquals(126_000L, status.stopAtElapsedRealtimeMs)
     }
 
     @Test
@@ -300,12 +321,15 @@ internal class WatchOngoingCoordinatorTest {
 
     @Test
     fun `all non-active display states immediately cancel the existing notification`() {
-        val snapshot = ReducerTestFixtures.active()
         val terminals = listOf(
             WatchDisplayState.Loading,
             WatchDisplayState.NoSession(ReducerTestFixtures.epoch),
-            WatchDisplayState.PhoneActionRequired(snapshot),
-            WatchDisplayState.WorkoutComplete(snapshot),
+            WatchDisplayState.PayloadTooLarge(
+                SnapshotData(
+                    ReducerTestFixtures.epoch,
+                    SnapshotPayload.PayloadTooLarge(ReducerTestFixtures.sessionA, 1),
+                ),
+            ),
             WatchDisplayState.ProtocolMismatch(reason = null),
         )
         terminals.forEach { terminal ->
@@ -340,7 +364,7 @@ internal class WatchOngoingCoordinatorTest {
         assertTrue(env.notification.posts.isEmpty())
         val restored = assertIs<CacheReadResult.DisplayOnly>(env.newCoordinator().restore())
         assertEquals(CachedConnection.DISCONNECTED, restored.connection)
-        val target = assertIs<SnapshotPayload.ActiveWithTarget>(restored.snapshot.payload)
+        val target = assertIs<SnapshotPayload.Active>(restored.snapshot.payload)
         assertIs<MutationAuthority.Unavailable>(target.mutationAuthority)
 
         val absent = OngoingTestEnvironment()
@@ -386,7 +410,7 @@ internal class WatchOngoingCoordinatorTest {
         env.events.clear()
         val restarted = env.newCoordinator()
         val restored = assertIs<CacheReadResult.DisplayOnly>(restarted.restore())
-        val active = assertIs<SnapshotPayload.ActiveWithTarget>(restored.snapshot.payload)
+        val active = assertIs<SnapshotPayload.Active>(restored.snapshot.payload)
 
         assertIs<MutationAuthority.Unavailable>(active.mutationAuthority)
         assertEquals(1, env.notification.posts.size)

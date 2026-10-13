@@ -2,11 +2,11 @@
 package io.github.stslex.workeeper.feature.wear_bridge
 
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandRouting
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
@@ -109,16 +109,16 @@ internal class WearBridgeWorkLeaseTest {
                     request: GetActiveWorkoutRequest,
                 ): ActiveWorkoutSnapshotResponse = error("not used")
 
-                override suspend fun completeCurrentSet(
+                override suspend fun executeCommand(
                     authenticatedSourceNodeId: String,
-                    request: CompleteCurrentSetRequest,
-                ): CompleteCurrentSetResponse = error("not used")
+                    request: WatchCommandRequest,
+                ): WatchCommandResponse = error("not used")
 
                 override suspend fun protocolRejected(
                     authenticatedSourceNodeId: String,
-                    routing: CompleteCommandRouting,
+                    routing: CommandRouting,
                     reason: ProtocolRejectionReason,
-                ): CompleteCurrentSetResponse = error("not used")
+                ): WatchCommandResponse = error("not used")
             }
         }
     }

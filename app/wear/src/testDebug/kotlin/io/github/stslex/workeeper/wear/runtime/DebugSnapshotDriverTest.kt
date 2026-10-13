@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.runtime
 
-import io.github.stslex.workeeper.wear.ui.ongoingStatus
-import io.github.stslex.workeeper.wear.ui.surface
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
+import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
+import io.github.stslex.workeeper.wear.ui.ongoingStatus
+import io.github.stslex.workeeper.wear.ui.surface
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -88,6 +89,54 @@ internal class DebugSnapshotDriverTest {
         assertFalse(env.owner.surface.value.completeEnabled)
     }
 
+    /**
+     * wear-phase-2-exercise-list.md §12.1 step 2: every fixture the driver publishes maps to the
+     * surface the fixture describes, so the harness's fixture identities render as they did on v1.
+     */
+    @Test
+    fun everyRuntimeFixtureMapsToTheSurfaceItDescribes() {
+        assertEquals(RUNTIME_FIXTURE_COUNT, RUNTIME_FIXTURES.size)
+        RUNTIME_FIXTURES.forEach { id ->
+            val env = environment()
+            assertTrue(driver(env).handle(id), id)
+            val fixture = requireNotNull(SyntheticSurfaceFixtures.find(id))
+            val surface = env.owner.surface.value.copy(selectedLocale = fixture.selectedLocale)
+            assertEquals(fixture.pinned(), surface.pinned(), id)
+        }
+    }
+
+    @Test
+    fun fixturesWithoutARuntimeSourceAreRefused() {
+        listOf(
+            SyntheticSurfaceFixtures.WEIGHT_ERROR,
+            SyntheticSurfaceFixtures.RETRYABLE,
+            SyntheticSurfaceFixtures.PROTOCOL_MISMATCH,
+            SyntheticSurfaceFixtures.LOADING,
+        ).forEach { id ->
+            val env = environment()
+            assertFalse(driver(env).handle(id), id)
+            assertEquals(WearSurfaceKind.LOADING, env.owner.surface.value.kind, id)
+        }
+    }
+
+    /** The values a snapshot decides; `fieldError` of an active surface comes from a reducer event. */
+    private fun WearSurfaceModel.pinned() = listOf(
+        kind,
+        trainingName,
+        exerciseName,
+        completedExercises,
+        totalExercises,
+        setOrdinal,
+        totalSets,
+        reps,
+        weightHundredthsKg,
+        weighted,
+        controlsVisible,
+        completeEnabled,
+        completionUnavailableReason,
+        fieldError.takeUnless { controlsVisible },
+    )
+
     private fun environment() = RuntimeTestEnvironment(transformClock = { DebugElapsedClock(it) })
 
     private fun driver(env: RuntimeTestEnvironment) = DebugSnapshotDriver(
@@ -98,3 +147,21 @@ internal class DebugSnapshotDriverTest {
 }
 
 private const val DRAFT_REPS = 12
+private const val RUNTIME_FIXTURE_COUNT = 14
+
+private val RUNTIME_FIXTURES = listOf(
+    SyntheticSurfaceFixtures.ACTIVE_BOUNDARY,
+    SyntheticSurfaceFixtures.WEIGHTLESS,
+    SyntheticSurfaceFixtures.FIELD_ERROR,
+    SyntheticSurfaceFixtures.COMMAND_IN_FLIGHT,
+    SyntheticSurfaceFixtures.UNSET_WEIGHT,
+    SyntheticSurfaceFixtures.ANONYMOUS_EXERCISE,
+    SyntheticSurfaceFixtures.ANONYMOUS_COMPLETE,
+    SyntheticSurfaceFixtures.REFRESH_REQUIRED,
+    SyntheticSurfaceFixtures.DISCONNECTED,
+    SyntheticSurfaceFixtures.NO_SETS,
+    SyntheticSurfaceFixtures.UNSUPPORTED,
+    SyntheticSurfaceFixtures.PAYLOAD_TOO_LARGE,
+    SyntheticSurfaceFixtures.COMPLETE,
+    SyntheticSurfaceFixtures.NO_SESSION,
+)

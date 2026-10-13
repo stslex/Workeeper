@@ -30,8 +30,8 @@ data class ActiveWorkoutSnapshotResponse(
 ) : WearEnvelope
 
 @Serializable
-@SerialName("complete_current_set")
-data class CompleteCurrentSetRequest(
+@SerialName("watch_command")
+data class WatchCommandRequest(
     override val schemaVersion: Int,
     override val correlationId: CanonicalUuid,
     val commandId: CanonicalUuid,
@@ -40,28 +40,44 @@ data class CompleteCurrentSetRequest(
     val sessionRevision: Long,
     val mutationLeaseId: CanonicalUuid,
     val mutationLeaseGeneration: Long,
-    val body: CompleteCurrentSetBody,
+    val body: WatchCommandBody,
 ) : WearEnvelope
 
 @Serializable
-@SerialName("complete_current_set_response")
-data class CompleteCurrentSetResponse(
+@SerialName("watch_command_response")
+data class WatchCommandResponse(
     override val schemaVersion: Int,
     override val correlationId: CanonicalUuid,
     val commandId: CanonicalUuid,
-    val outcome: CompleteCommandOutcome,
+    val outcome: CommandOutcome,
     val replacement: SnapshotData,
 ) : WearEnvelope
 
+/** What a watch command asks of one performed exercise (wear-phase-2-exercise-list.md §5.2, P1). */
 @Serializable
-data class CompleteCurrentSetBody(
-    val performedExerciseUuid: CanonicalUuid,
-    val setPosition: Int,
-    val reps: Int,
-    val weightHundredthsKg: Int?,
-    val exerciseType: ExerciseTypeWire,
-    val setType: SetTypeWire,
-)
+@JsonClassDiscriminator("kind")
+sealed interface WatchCommandBody {
+    val performedExerciseUuid: CanonicalUuid
+
+    @Serializable
+    @SerialName("complete_set")
+    data class CompleteSet(
+        override val performedExerciseUuid: CanonicalUuid,
+        val setPosition: Int,
+        val reps: Int,
+        val weightHundredthsKg: Int?,
+        val exerciseType: ExerciseTypeWire,
+        val setType: SetTypeWire,
+    ) : WatchCommandBody
+
+    /** [skipped] true skips the exercise; false returns it to the session. */
+    @Serializable
+    @SerialName("set_exercise_skipped")
+    data class SetExerciseSkipped(
+        override val performedExerciseUuid: CanonicalUuid,
+        val skipped: Boolean,
+    ) : WatchCommandBody
+}
 
 @Serializable
 data class SnapshotData(
@@ -77,77 +93,110 @@ sealed interface SnapshotPayload {
     @SerialName("no_session")
     data object NoSession : SnapshotPayload
 
+    /** The session outline: every performed exercise in phone order, skipped ones included (V2). */
     @Serializable
-    @SerialName("active_with_target")
-    data class ActiveWithTarget(
+    @SerialName("active")
+    data class Active(
         val sessionUuid: CanonicalUuid,
         val sessionRevision: Long,
         val trainingName: BoundedDisplayName,
-        val completedExercises: Int,
-        val totalExercises: Int,
-        val target: ActiveTarget,
+        val exercises: List<OutlineExercise>,
         val mutationAuthority: MutationAuthority,
     ) : SnapshotPayload {
 
         init {
             require(sessionRevision >= 0L)
-            require(completedExercises >= 0)
-            require(totalExercises >= completedExercises)
+            require(exercises.map(OutlineExercise::performedExerciseUuid).toSet().size == exercises.size)
         }
     }
 
     @Serializable
-    @SerialName("phone_action_required")
-    data class PhoneActionRequired(
+    @SerialName("payload_too_large")
+    data class PayloadTooLarge(
         val sessionUuid: CanonicalUuid,
         val sessionRevision: Long,
-        val reason: PhoneActionReason,
     ) : SnapshotPayload {
 
         init {
             require(sessionRevision >= 0L)
-        }
-    }
-
-    @Serializable
-    @SerialName("workout_complete")
-    data class WorkoutComplete(
-        val sessionUuid: CanonicalUuid,
-        val sessionRevision: Long,
-        val trainingName: BoundedDisplayName,
-        val completedExercises: Int,
-        val totalExercises: Int,
-    ) : SnapshotPayload {
-
-        init {
-            require(sessionRevision >= 0L)
-            require(completedExercises >= 0)
-            require(totalExercises >= completedExercises)
         }
     }
 }
 
 @Serializable
-data class ActiveTarget(
+data class OutlineExercise(
     val performedExerciseUuid: CanonicalUuid,
-    val exerciseName: BoundedDisplayName,
-    val setPosition: Int,
-    val setOrdinal: Int,
-    val totalSets: Int,
-    val reps: Int,
-    val weightHundredthsKg: Int?,
+    val name: BoundedDisplayName,
     val exerciseType: ExerciseTypeWire,
-    val setType: SetTypeWire,
+    val skipped: Boolean,
+    val sets: List<OutlineSet>,
 ) {
 
     init {
-        require(setPosition >= 0)
-        require(setOrdinal >= 1)
-        require(totalSets >= setOrdinal)
-        require(reps in 0..WearProtocol.MAX_WEAR_REPS)
-        require(weightHundredthsKg == null || weightHundredthsKg in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG)
-        require(exerciseType != ExerciseTypeWire.WEIGHTLESS || weightHundredthsKg == null)
+        require(sets.zipWithNext().all { (left, right) -> left.position < right.position })
+        require(exerciseType != ExerciseTypeWire.WEIGHTLESS || sets.none { it.weightHundredthsKgOrNull() != null })
     }
+}
+
+@Serializable
+@JsonClassDiscriminator("kind")
+sealed interface OutlineSet {
+    val position: Int
+    val setType: SetTypeWire
+
+    /** Not done; its planned values are inside the watch domain, so the watch may complete it. */
+    @Serializable
+    @SerialName("open")
+    data class Open(
+        override val position: Int,
+        override val setType: SetTypeWire,
+        val reps: Int,
+        val weightHundredthsKg: Int?,
+    ) : OutlineSet {
+
+        init {
+            require(position >= 0)
+            require(reps in 0..WearProtocol.MAX_WEAR_REPS)
+            require(weightHundredthsKg == null || weightHundredthsKg in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG)
+        }
+    }
+
+    /** Done. Values are display-only; a value outside the watch domain is null. */
+    @Serializable
+    @SerialName("done")
+    data class Done(
+        override val position: Int,
+        override val setType: SetTypeWire,
+        val reps: Int?,
+        val weightHundredthsKg: Int?,
+    ) : OutlineSet {
+
+        init {
+            require(position >= 0)
+            require(reps == null || reps in 0..WearProtocol.MAX_WEAR_REPS)
+            require(weightHundredthsKg == null || weightHundredthsKg in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG)
+        }
+    }
+
+    /** Not done, and a planned value is outside the watch domain (P8): shown, not completable here. */
+    @Serializable
+    @SerialName("blocked")
+    data class Blocked(
+        override val position: Int,
+        override val setType: SetTypeWire,
+        val field: NumericField,
+    ) : OutlineSet {
+
+        init {
+            require(position >= 0)
+        }
+    }
+}
+
+private fun OutlineSet.weightHundredthsKgOrNull(): Int? = when (this) {
+    is OutlineSet.Open -> weightHundredthsKg
+    is OutlineSet.Done -> weightHundredthsKg
+    is OutlineSet.Blocked -> null
 }
 
 @Serializable
@@ -182,31 +231,7 @@ enum class MutationUnavailableReason {
 }
 
 @Serializable
-@JsonClassDiscriminator("kind")
-sealed interface PhoneActionReason {
-
-    @Serializable
-    @SerialName("no_set_rows")
-    data class NoSetRows(
-        val performedExerciseUuid: CanonicalUuid,
-        val exerciseName: BoundedDisplayName,
-    ) : PhoneActionReason
-
-    @Serializable
-    @SerialName("unsupported_numeric_values")
-    data class UnsupportedNumericValues(
-        val field: NumericField,
-        val performedExerciseUuid: CanonicalUuid,
-        val exerciseName: BoundedDisplayName,
-    ) : PhoneActionReason
-
-    @Serializable
-    @SerialName("payload_too_large")
-    data object PayloadTooLarge : PhoneActionReason
-}
-
-@Serializable
-@Suppress("MagicNumber") // Normative FingerprintV1 enum bytes.
+@Suppress("MagicNumber") // Normative FingerprintV2 enum bytes.
 enum class ExerciseTypeWire(val fingerprintByte: Byte) {
     @SerialName("weighted")
     WEIGHTED(0x01),
@@ -216,7 +241,7 @@ enum class ExerciseTypeWire(val fingerprintByte: Byte) {
 }
 
 @Serializable
-@Suppress("MagicNumber") // Normative FingerprintV1 enum bytes.
+@Suppress("MagicNumber") // Normative FingerprintV2 enum bytes.
 enum class SetTypeWire(val fingerprintByte: Byte) {
     @SerialName("warm")
     WARM(0x01),
@@ -275,52 +300,52 @@ enum class ProtocolRejectionReason {
 
 @Serializable
 @JsonClassDiscriminator("kind")
-sealed interface CompleteCommandOutcome {
+sealed interface CommandOutcome {
 
     @Serializable
     @SerialName("applied")
-    data object Applied : CompleteCommandOutcome
+    data object Applied : CommandOutcome
 
     @Serializable
     @SerialName("already_applied")
-    data object AlreadyApplied : CompleteCommandOutcome
+    data object AlreadyApplied : CommandOutcome
 
     @Serializable
     @SerialName("authorization_expired")
-    data object AuthorizationExpired : CompleteCommandOutcome
+    data object AuthorizationExpired : CommandOutcome
 
     @Serializable
     @SerialName("stale_revision")
-    data object StaleRevision : CompleteCommandOutcome
+    data object StaleRevision : CommandOutcome
 
     @Serializable
     @SerialName("target_changed")
-    data object TargetChanged : CompleteCommandOutcome
+    data object TargetChanged : CommandOutcome
 
     @Serializable
     @SerialName("no_active_session")
-    data object NoActiveSession : CompleteCommandOutcome
+    data object NoActiveSession : CommandOutcome
 
     @Serializable
     @SerialName("invalid_values")
     data class InvalidValues(
         val field: NumericField,
         val reason: InvalidValueReason,
-    ) : CompleteCommandOutcome
+    ) : CommandOutcome
 
     @Serializable
     @SerialName("immutable_type_mismatch")
     data class ImmutableTypeMismatch(
         val field: ImmutableTypeField,
-    ) : CompleteCommandOutcome
+    ) : CommandOutcome
 
     @Serializable
     @SerialName("retryable_temporary_failure")
-    data object RetryableTemporaryFailure : CompleteCommandOutcome
+    data object RetryableTemporaryFailure : CommandOutcome
 
     @Serializable
     @SerialName("protocol_rejected")
     data class ProtocolRejected(
         val reason: ProtocolRejectionReason,
-    ) : CompleteCommandOutcome
+    ) : CommandOutcome
 }

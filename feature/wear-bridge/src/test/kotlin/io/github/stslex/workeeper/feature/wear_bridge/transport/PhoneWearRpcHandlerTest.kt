@@ -4,17 +4,17 @@ package io.github.stslex.workeeper.feature.wear_bridge.transport
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandRouting
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
@@ -30,12 +30,16 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** wear-paired-transport.md §6.2 and §10.1: every handler branch, admission and lease rule. */
+/**
+ * wear-paired-transport.md §6.2 and §10.1: every handler branch, admission and lease rule; the v2
+ * dispatch and the version answer of wear-phase-2-exercise-list.md §5.1 and §6.4.
+ */
 internal class PhoneWearRpcHandlerTest {
 
     @Test
@@ -52,15 +56,57 @@ internal class PhoneWearRpcHandlerTest {
     }
 
     @Test
-    fun `a command is answered with the bridge response`() = runTest {
+    fun `a command of either kind is answered with the bridge response`() = runTest {
+        listOf(command(), command(SKIP_BODY)).forEach { request ->
+            val bridge = FakeBridge()
+
+            val answer = handler(FakeHolder(bridge)).handle(SOURCE_NODE, WearProtocolCodec.encode(request))
+
+            val response = (WearProtocolCodec.decodeForWatch(answer) as WatchDecodeResult.Success).envelope
+            assertEquals(CommandOutcome.Applied, (response as WatchCommandResponse).outcome)
+            assertEquals(listOf("command:$SOURCE_NODE:${request.body::class.simpleName}"), bridge.calls)
+        }
+    }
+
+    @Test
+    fun `a v1 handshake and a v1 command get exactly the version answer and never reach the bridge`() = runTest {
+        listOf(V1_HANDSHAKE, V1_COMMAND).forEach { request ->
+            val bridge = FakeBridge()
+            val logger = RecordingLogger()
+
+            val answer = handler(FakeHolder(bridge), logger = logger).handle(SOURCE_NODE, request.encodeToByteArray())
+
+            assertArrayEquals(WearProtocolCodec.VERSION_ANSWER, answer)
+            assertEquals(
+                "{\"operation\":\"unsupported_version\",\"schemaVersion\":2}",
+                answer.decodeToString(),
+            )
+            assertEquals(emptyList<String>(), bridge.calls)
+            assertTrue(logger.lines.single().startsWith("rpc version -> unsupported: in "), logger.lines.single())
+        }
+    }
+
+    @Test
+    fun `a closed kill switch answers a v1 request with nothing, before any decoding`() = runTest {
+        val bridge = FakeBridge(transportStatus = setOf(WearPayloadTransportStatus.TRANSPORT_POLICY_REQUIRED))
+
+        val answer = handler(FakeHolder(bridge)).handle(SOURCE_NODE, V1_HANDSHAKE.encodeToByteArray())
+
+        assertEquals(0, answer.size)
+        assertEquals(emptyList<String>(), bridge.calls)
+    }
+
+    @Test
+    fun `a skip command whose skipped is a string is dropped`() = runTest {
         val bridge = FakeBridge()
-        val request = command()
+        val bytes = WearProtocolCodec.encode(command(SKIP_BODY)).decodeToString()
+            .replace("\"skipped\":true", "\"skipped\":\"true\"")
+            .encodeToByteArray()
 
-        val answer = handler(FakeHolder(bridge)).handle(SOURCE_NODE, WearProtocolCodec.encode(request))
+        val answer = handler(FakeHolder(bridge)).handle(SOURCE_NODE, bytes)
 
-        val response = (WearProtocolCodec.decodeForWatch(answer) as WatchDecodeResult.Success).envelope
-        assertEquals(CompleteCommandOutcome.Applied, (response as CompleteCurrentSetResponse).outcome)
-        assertEquals(listOf("complete:$SOURCE_NODE"), bridge.calls)
+        assertEquals(0, answer.size)
+        assertEquals(emptyList<String>(), bridge.calls)
     }
 
     @Test
@@ -74,8 +120,8 @@ internal class PhoneWearRpcHandlerTest {
 
         val response = (WearProtocolCodec.decodeForWatch(answer) as WatchDecodeResult.Success).envelope
         assertEquals(
-            CompleteCommandOutcome.ProtocolRejected(ProtocolRejectionReason.INVALID_NUMERIC_ENCODING),
-            (response as CompleteCurrentSetResponse).outcome,
+            CommandOutcome.ProtocolRejected(ProtocolRejectionReason.INVALID_NUMERIC_ENCODING),
+            (response as WatchCommandResponse).outcome,
         )
         assertEquals(listOf("rejected:$SOURCE_NODE:INVALID_NUMERIC_ENCODING"), bridge.calls)
     }
@@ -87,6 +133,15 @@ internal class PhoneWearRpcHandlerTest {
         val answer = handler(FakeHolder(bridge)).handle(SOURCE_NODE, "{\"operation\":\"nope\"}".encodeToByteArray())
 
         assertEquals(0, answer.size)
+        assertEquals(emptyList<String>(), bridge.calls)
+    }
+
+    @Test
+    fun `a malformed request still gets empty bytes`() = runTest {
+        val bridge = FakeBridge()
+        listOf("{", "[]", "{\"operation\":\"get_active_workout\",\"schemaVersion\":\"1\"}").forEach { request ->
+            assertEquals(0, handler(FakeHolder(bridge)).handle(SOURCE_NODE, request.encodeToByteArray()).size, request)
+        }
         assertEquals(emptyList<String>(), bridge.calls)
     }
 
@@ -156,15 +211,20 @@ internal class PhoneWearRpcHandlerTest {
 
     @Test
     fun `the handler logs operation, result class, byte counts and time only`() = runTest {
-        val logger = RecordingLogger()
-        val request = command()
+        mapOf(
+            command() to "rpc watch_command:complete_set -> Applied: in ",
+            command(SKIP_BODY) to "rpc watch_command:set_exercise_skipped -> Applied: in ",
+        ).forEach { (request, prefix) ->
+            val logger = RecordingLogger()
 
-        handler(FakeHolder(FakeBridge()), this, logger).handle(SOURCE_NODE, WearProtocolCodec.encode(request))
+            handler(FakeHolder(FakeBridge()), this, logger).handle(SOURCE_NODE, WearProtocolCodec.encode(request))
 
-        val line = logger.lines.single()
-        assertTrue(line.startsWith("rpc complete_current_set -> Applied: in "), line)
-        listOf(SOURCE_NODE, request.commandId.value, request.sessionUuid.value, "\"").forEach { forbidden ->
-            assertTrue(forbidden !in line, "the log line carries '$forbidden': $line")
+            val line = logger.lines.single()
+            assertTrue(line.startsWith(prefix), line)
+            val forbidden = listOf(SOURCE_NODE, request.commandId.value, request.sessionUuid.value, SKIPPED_UUID.value)
+            (forbidden + "\"").forEach { value ->
+                assertTrue(value !in line, "the log line carries '$value': $line")
+            }
         }
     }
 
@@ -194,31 +254,31 @@ internal class PhoneWearRpcHandlerTest {
             return ActiveWorkoutSnapshotResponse(WearProtocol.SCHEMA_VERSION, request.correlationId, NO_SESSION)
         }
 
-        override suspend fun completeCurrentSet(
+        override suspend fun executeCommand(
             authenticatedSourceNodeId: String,
-            request: CompleteCurrentSetRequest,
-        ): CompleteCurrentSetResponse {
-            calls += "complete:$authenticatedSourceNodeId"
-            return CompleteCurrentSetResponse(
+            request: WatchCommandRequest,
+        ): WatchCommandResponse {
+            calls += "command:$authenticatedSourceNodeId:${request.body::class.simpleName}"
+            return WatchCommandResponse(
                 WearProtocol.SCHEMA_VERSION,
                 request.correlationId,
                 request.commandId,
-                CompleteCommandOutcome.Applied,
+                CommandOutcome.Applied,
                 NO_SESSION,
             )
         }
 
         override suspend fun protocolRejected(
             authenticatedSourceNodeId: String,
-            routing: CompleteCommandRouting,
+            routing: CommandRouting,
             reason: ProtocolRejectionReason,
-        ): CompleteCurrentSetResponse {
+        ): WatchCommandResponse {
             calls += "rejected:$authenticatedSourceNodeId:$reason"
-            return CompleteCurrentSetResponse(
+            return WatchCommandResponse(
                 WearProtocol.SCHEMA_VERSION,
                 routing.correlationId,
                 routing.commandId,
-                CompleteCommandOutcome.ProtocolRejected(reason),
+                CommandOutcome.ProtocolRejected(reason),
                 NO_SESSION,
             )
         }
@@ -270,7 +330,33 @@ internal class PhoneWearRpcHandlerTest {
         val EPOCH: CanonicalUuid = CanonicalUuid.parse("cccccccc-0000-4000-8000-000000000001")
         val NO_SESSION = SnapshotData(EPOCH, SnapshotPayload.NoSession)
 
-        fun command() = CompleteCurrentSetRequest(
+        val SKIPPED_UUID: CanonicalUuid = CanonicalUuid.parse("dddddddd-0000-4000-8000-000000000001")
+        val SKIP_BODY = WatchCommandBody.SetExerciseSkipped(SKIPPED_UUID, skipped = true)
+
+        /** A Phase 1 watch's handshake, byte for byte as a v1 watch encodes it. */
+        const val V1_HANDSHAKE = "{\"operation\":\"get_active_workout\",\"schemaVersion\":1," +
+            "\"correlationId\":\"aaaaaaaa-0000-4000-8000-000000000001\"}"
+
+        /** A Phase 1 watch's command, with the v1 operation and body. */
+        const val V1_COMMAND = "{\"operation\":\"complete_current_set\",\"schemaVersion\":1," +
+            "\"correlationId\":\"aaaaaaaa-0000-4000-8000-000000000002\"," +
+            "\"commandId\":\"aaaaaaaa-0000-4000-8000-000000000003\"," +
+            "\"databaseEpoch\":\"cccccccc-0000-4000-8000-000000000001\"," +
+            "\"sessionUuid\":\"aaaaaaaa-0000-4000-8000-000000000004\",\"sessionRevision\":1," +
+            "\"mutationLeaseId\":\"aaaaaaaa-0000-4000-8000-000000000005\",\"mutationLeaseGeneration\":1," +
+            "\"body\":{\"performedExerciseUuid\":\"aaaaaaaa-0000-4000-8000-000000000006\",\"setPosition\":0," +
+            "\"reps\":5,\"weightHundredthsKg\":10000,\"exerciseType\":\"WEIGHTED\",\"setType\":\"WORK\"}}"
+
+        fun command(
+            body: WatchCommandBody = WatchCommandBody.CompleteSet(
+                performedExerciseUuid = CanonicalUuid.random(),
+                setPosition = 0,
+                reps = 5,
+                weightHundredthsKg = 10_000,
+                exerciseType = ExerciseTypeWire.WEIGHTED,
+                setType = SetTypeWire.WORK,
+            ),
+        ) = WatchCommandRequest(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = CanonicalUuid.random(),
             commandId = CanonicalUuid.random(),
@@ -279,14 +365,7 @@ internal class PhoneWearRpcHandlerTest {
             sessionRevision = 1,
             mutationLeaseId = CanonicalUuid.random(),
             mutationLeaseGeneration = 1,
-            body = CompleteCurrentSetBody(
-                performedExerciseUuid = CanonicalUuid.random(),
-                setPosition = 0,
-                reps = 5,
-                weightHundredthsKg = 10_000,
-                exerciseType = ExerciseTypeWire.WEIGHTED,
-                setType = SetTypeWire.WORK,
-            ),
+            body = body,
         )
     }
 }

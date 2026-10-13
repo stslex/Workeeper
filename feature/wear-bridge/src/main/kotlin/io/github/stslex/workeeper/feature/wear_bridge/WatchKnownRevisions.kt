@@ -6,8 +6,8 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import kotlin.uuid.Uuid
 
 /** What a watch shows: the active session and its Wear revision. A null key means no session. */
@@ -60,7 +60,7 @@ class WatchKnownRevisions @Inject internal constructor() {
         response.also { record(nodeId, it.snapshot.watchStateKey()) }
 
     /** As above, for a command or protocol-rejection response: [nodeId] shows its replacement. */
-    internal fun shown(nodeId: String, response: CompleteCurrentSetResponse): CompleteCurrentSetResponse =
+    internal fun shown(nodeId: String, response: WatchCommandResponse): WatchCommandResponse =
         response.also { record(nodeId, it.replacement.watchStateKey()) }
 
     /** True only when [nodeId] was last answered with exactly [key]; a node never answered is stale. */

@@ -3,10 +3,11 @@ package io.github.stslex.workeeper.feature.wear_bridge.transport
 
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.PhoneDecodeResult
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearEnvelope
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridge
@@ -95,8 +96,8 @@ internal class PhoneWearRpcHandler(
                 is GetActiveWorkoutRequest -> bridge.getActiveWorkout(sourceNodeId, envelope).let { response ->
                     encoded("get_active_workout", response.snapshot.payload::class.simpleName, response)
                 }
-                is CompleteCurrentSetRequest -> bridge.completeCurrentSet(sourceNodeId, envelope).let { response ->
-                    encoded("complete_current_set", response.outcomeName(), response)
+                is WatchCommandRequest -> bridge.executeCommand(sourceNodeId, envelope).let { response ->
+                    encoded(envelope.body.operation(), response.outcomeName(), response)
                 }
                 // decodeForPhone yields only the two request shapes; anything else is not answered.
                 else -> Answer("unexpected", envelope::class.simpleName ?: "Envelope")
@@ -105,6 +106,8 @@ internal class PhoneWearRpcHandler(
                 bridge.protocolRejected(sourceNodeId, decoded.routing, decoded.reason).let { response ->
                     encoded("protocol_rejected", response.outcomeName(), response)
                 }
+            // wear-phase-2-exercise-list.md §5.1 (P3): another schema version gets the fixed v2 answer.
+            PhoneDecodeResult.UnsupportedVersion -> Answer("version", "unsupported", WearProtocolCodec.VERSION_ANSWER)
             PhoneDecodeResult.Dropped -> Answer("dropped", "no_answer")
         }
     }
@@ -112,7 +115,13 @@ internal class PhoneWearRpcHandler(
     private fun encoded(operation: String, result: String?, envelope: WearEnvelope): Answer =
         Answer(operation, result ?: "Response", WearProtocolCodec.encode(envelope))
 
-    private fun CompleteCurrentSetResponse.outcomeName(): String? = outcome::class.simpleName
+    private fun WatchCommandResponse.outcomeName(): String? = outcome::class.simpleName
+
+    /** The log's operation: the command kind, never its values (transport §7.9). */
+    private fun WatchCommandBody.operation(): String = when (this) {
+        is WatchCommandBody.CompleteSet -> "watch_command:complete_set"
+        is WatchCommandBody.SetExerciseSkipped -> "watch_command:set_exercise_skipped"
+    }
 
     /** No [bytes] is the Phase 1 "drop": nothing the phone may answer (§5.3). */
     private class Answer(val operation: String, val result: String, val bytes: ByteArray = ByteArray(0))

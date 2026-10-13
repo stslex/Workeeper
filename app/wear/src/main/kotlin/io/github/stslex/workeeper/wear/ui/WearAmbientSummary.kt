@@ -129,7 +129,10 @@ internal fun ambientSummaryContent(
     timePattern: String = "HH:mm",
 ): AmbientSummaryContent {
     val time = ambientTime(timestampMillis, model.selectedLocale, timeZone, timePattern)
-    val context = model.exerciseName ?: model.trainingName ?: resources.getString(R.string.workout_generic)
+    // GUARD: the phone-action kinds carry the training name for the Tile only (§7.6); their ambient
+    // context stays the exercise or the generic workout label.
+    val context = model.exerciseName ?: model.trainingName?.takeUnless { model.kind in PHONE_ACTION_KINDS }
+        ?: resources.getString(R.string.workout_generic)
     val progress = model.setOrdinal?.let { current ->
         model.totalSets?.let { total ->
             String.format(model.selectedLocale, "%d/%d", current, total)
@@ -174,6 +177,8 @@ internal fun ambientSummaryContent(
             .joinToString(". "),
     )
 }
+
+private val PHONE_ACTION_KINDS = setOf(WearSurfaceKind.PHONE_ACTION_NO_SETS, WearSurfaceKind.PHONE_ACTION_UNSUPPORTED)
 
 private fun ambientStatusResource(model: WearSurfaceModel): Int = when (model.completionUnavailableReason) {
     CompletionUnavailableReason.DISCONNECTED -> R.string.complete_reason_disconnected

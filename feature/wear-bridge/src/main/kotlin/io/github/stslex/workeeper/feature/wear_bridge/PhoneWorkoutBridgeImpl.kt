@@ -14,26 +14,31 @@ import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrit
 import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandRouting
 import io.github.stslex.workeeper.core.wear.protocol.CommandValidation
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.EnvelopeTooLargeException
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintPurpose
-import io.github.stslex.workeeper.core.wear.protocol.FingerprintV1
+import io.github.stslex.workeeper.core.wear.protocol.FingerprintV2
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintValue
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ImmutableTypeField
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.UnsupportedFingerprintVersionException
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
+import io.github.stslex.workeeper.core.wear.protocol.WearEnvelope
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import io.github.stslex.workeeper.core.wear.protocol.exercise
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.LinkedHashMap
@@ -47,7 +52,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val snapshotBuilder: PhoneWorkoutSnapshotBuilder,
     private val leaseStore: WearMutationLeaseStore,
     private val clock: PhoneMonotonicClock,
-    private val mutationWriter: WearSetMutationWriter,
+    private val writers: WearMutationWriters,
     private val knownRevisions: WatchKnownRevisions,
     private val externalSessionWrites: ExternalSessionWrites,
 ) : PhoneWorkoutBridge {
@@ -59,7 +64,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val snapshotResponses =
         BoundedResponseMap<SnapshotRequestKey, ActiveWorkoutSnapshotResponse>()
     private val commandResponses =
-        BoundedResponseMap<CommandRequestKey, CompleteCurrentSetResponse>()
+        BoundedResponseMap<CommandRequestKey, WatchCommandResponse>()
 
     override suspend fun getActiveWorkout(
         authenticatedSourceNodeId: String,
@@ -81,21 +86,21 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         knownRevisions.shown(authenticatedSourceNodeId, response)
     }
 
-    override suspend fun completeCurrentSet(
+    override suspend fun executeCommand(
         authenticatedSourceNodeId: String,
-        request: CompleteCurrentSetRequest,
-    ): CompleteCurrentSetResponse = coordinatorMutex.withLock {
+        request: WatchCommandRequest,
+    ): WatchCommandResponse = coordinatorMutex.withLock {
         requireRequest(request.schemaVersion, authenticatedSourceNodeId)
         val fingerprintCommand = request.toFingerprintCommand(authenticatedSourceNodeId)
-        val stableFingerprint = FingerprintV1.fingerprint(
+        val stableFingerprint = FingerprintV2.fingerprint(
             fingerprintCommand,
             FingerprintPurpose.STABLE_INTENT,
         )
-        val attemptFingerprint = FingerprintV1.fingerprint(
+        val attemptFingerprint = FingerprintV2.fingerprint(
             fingerprintCommand,
             FingerprintPurpose.DELIVERY_ATTEMPT,
         )
-        val key = CompleteRequestKey(
+        val key = CommandAttemptKey(
             sourceNodeId = authenticatedSourceNodeId,
             correlationId = request.correlationId,
             attemptFingerprint = attemptFingerprint,
@@ -119,8 +124,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 )
             }
         }
-        // wear-live-sync.md §6.4: only after mutate returned an Applied write; in commit order,
-        // because this runs under coordinatorMutex.
+        // wear-live-sync.md §6.4, wear-phase-2-exercise-list.md §6.3: only after mutate returned an
+        // Applied write; in commit order, because this runs under coordinatorMutex.
         prepared.applied?.let(externalSessionWrites::publish)
         prepared.retire?.let { retired ->
             leaseStore.retireMatching(
@@ -137,9 +142,9 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
 
     override suspend fun protocolRejected(
         authenticatedSourceNodeId: String,
-        routing: CompleteCommandRouting,
+        routing: CommandRouting,
         reason: ProtocolRejectionReason,
-    ): CompleteCurrentSetResponse = coordinatorMutex.withLock {
+    ): WatchCommandResponse = coordinatorMutex.withLock {
         requireRequest(routing.schemaVersion, authenticatedSourceNodeId)
         val key = ProtocolRejectedRequestKey(
             sourceNodeId = authenticatedSourceNodeId,
@@ -151,7 +156,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             readOnlyCommandResponse(
                 correlationId = routing.correlationId,
                 commandId = routing.commandId,
-                outcome = CompleteCommandOutcome.ProtocolRejected(reason),
+                outcome = CommandOutcome.ProtocolRejected(reason),
                 base = snapshotBuilder.build(currentEpoch()),
             )
         }
@@ -165,11 +170,11 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         knownRevisions.shown(authenticatedSourceNodeId, response)
     }
 
-    // Keep the security-sensitive gateway order visible and contiguous with specification §5.2.
+    // Keep the security-sensitive gateway order visible and contiguous with specification §5.4.
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     private suspend fun processCommand(
         sourceNodeId: String,
-        request: CompleteCurrentSetRequest,
+        request: WatchCommandRequest,
         stableFingerprint: FingerprintValue,
         attemptFingerprint: FingerprintValue,
     ): PreparedCommandResponse {
@@ -177,13 +182,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val base = snapshotBuilder.build(epoch)
         val retirement = request.retirement(sourceNodeId)
         if (request.databaseEpoch != epoch) {
-            return prepareCommandResponse(
-                sourceNodeId,
-                request,
-                CompleteCommandOutcome.StaleRevision,
-                base,
-                retirement,
-            )
+            return prepareCommandResponse(sourceNodeId, request, CommandOutcome.StaleRevision, base, retirement)
         }
 
         val payload = base.payload
@@ -192,7 +191,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 response = readOnlyCommandResponse(
                     request.correlationId,
                     request.commandId,
-                    CompleteCommandOutcome.NoActiveSession,
+                    CommandOutcome.NoActiveSession,
                     base,
                 ),
                 retire = retirement,
@@ -200,18 +199,12 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         }
         val activeIdentity = requireNotNull(payload.sessionIdentityOrNull())
         if (activeIdentity.first != request.sessionUuid) {
-            return prepareCommandResponse(
-                sourceNodeId,
-                request,
-                CompleteCommandOutcome.StaleRevision,
-                base,
-                retirement,
-            )
+            return prepareCommandResponse(sourceNodeId, request, CommandOutcome.StaleRevision, base, retirement)
         }
 
         // Bound to the session the snapshot just resolved. Nothing enforces that only one session
         // is IN_PROGRESS, and an independent unordered `LIMIT 1` over that predicate could answer
-        // with a different row — leaving the target from one session while the revision, the
+        // with a different row — leaving the outline from one session while the revision, the
         // receipt and the performed lookup below all came from another.
         val sync = requireNotNull(
             database.wearSyncDao.getSessionSync(Uuid.parse(activeIdentity.first.value)),
@@ -219,13 +212,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val receiptOutcome = receiptOutcome(sync, epoch, request, attemptFingerprint)
         if (receiptOutcome != null) {
             return when (receiptOutcome) {
-                CompleteCommandOutcome.AlreadyApplied -> prepareCommandResponse(
-                    sourceNodeId,
-                    request,
-                    receiptOutcome,
-                    base,
-                    retirement,
-                )
+                CommandOutcome.AlreadyApplied ->
+                    prepareCommandResponse(sourceNodeId, request, receiptOutcome, base, retirement)
                 else -> PreparedCommandResponse(
                     response = readOnlyCommandResponse(
                         request.correlationId,
@@ -238,25 +226,14 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             }
         }
         if (sync.revision != request.sessionRevision) {
-            return prepareCommandResponse(
-                sourceNodeId,
-                request,
-                CompleteCommandOutcome.StaleRevision,
-                base,
-                retirement,
-            )
+            return prepareCommandResponse(sourceNodeId, request, CommandOutcome.StaleRevision, base, retirement)
         }
 
+        val performedExerciseUuid = Uuid.parse(request.body.performedExerciseUuid.value)
         val performed = database.performedExerciseDao.getBySession(sync.sessionUuid)
-            .firstOrNull { it.uuid.toString() == request.body.performedExerciseUuid.value }
-        if (performed == null || performed.skipped) {
-            return prepareCommandResponse(
-                sourceNodeId,
-                request,
-                CompleteCommandOutcome.TargetChanged,
-                base,
-                retirement,
-            )
+            .firstOrNull { it.uuid == performedExerciseUuid }
+        if (performed == null) {
+            return prepareCommandResponse(sourceNodeId, request, CommandOutcome.TargetChanged, base, retirement)
         }
 
         val leaseAdmission = leaseStore.admit(
@@ -265,8 +242,6 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             databaseEpoch = request.databaseEpoch,
             sessionUuid = request.sessionUuid,
             sessionRevision = request.sessionRevision,
-            performedExerciseUuid = request.body.performedExerciseUuid,
-            setPosition = request.body.setPosition,
             leaseId = request.mutationLeaseId,
             leaseGeneration = request.mutationLeaseGeneration,
             stableFingerprint = stableFingerprint,
@@ -277,7 +252,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             LeaseAdmission.AuthorizationExpired -> return prepareCommandResponse(
                 sourceNodeId,
                 request,
-                CompleteCommandOutcome.AuthorizationExpired,
+                CommandOutcome.AuthorizationExpired,
                 base,
                 retirement,
             )
@@ -285,9 +260,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 response = readOnlyCommandResponse(
                     request.correlationId,
                     request.commandId,
-                    CompleteCommandOutcome.ProtocolRejected(
-                        ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH,
-                    ),
+                    CommandOutcome.ProtocolRejected(ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH),
                     base,
                 ),
                 retire = retirement,
@@ -295,58 +268,21 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             LeaseAdmission.Accepted -> Unit
         }
 
-        val targetPayload = payload as? SnapshotPayload.ActiveWithTarget
-        val target = targetPayload?.target
-        val existing = database.setDao.getByPerformedAndPosition(
-            performedExerciseUuid = Uuid.parse(request.body.performedExerciseUuid.value),
-            position = request.body.setPosition,
-        )
-        if (!request.matchesCanonicalTarget(target, existing != null)) {
-            return prepareCommandResponse(
-                sourceNodeId,
-                request,
-                CompleteCommandOutcome.TargetChanged,
-                base,
-                retirement,
-            )
-        }
-        val canonicalTarget = requireNotNull(target)
-        if (canonicalTarget.exerciseType != request.body.exerciseType) {
-            return unavailableTargetRejection(
-                request,
-                CompleteCommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE),
-                base,
-                retirement,
-            )
-        }
-        if (canonicalTarget.setType != request.body.setType) {
-            return unavailableTargetRejection(
-                request,
-                CompleteCommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.SET_TYPE),
-                base,
-                retirement,
-            )
-        }
-        CommandValidation.validate(request.body)?.let { invalid ->
-            return unavailableTargetRejection(request, invalid, base, retirement)
+        when (val rejection = bodyRejection(request.body, payload)) {
+            null -> Unit
+            CommandOutcome.TargetChanged ->
+                return prepareCommandResponse(sourceNodeId, request, rejection, base, retirement)
+            else -> return unavailableTargetRejection(request, rejection, base, retirement)
         }
 
-        val written = WearSetWrite(
-            uuid = Uuid.random(),
-            performedExerciseUuid = Uuid.parse(request.body.performedExerciseUuid.value),
-            position = request.body.setPosition,
-            reps = request.body.reps,
-            weight = request.body.weightHundredthsKg?.toDouble()?.div(HUNDREDTHS_PER_KG),
-            type = request.body.setType.toEntity(),
-        )
-        mutationWriter.write(written)
+        val applied = write(request.body, sync.sessionUuid)
         val committedSync = requireNotNull(database.wearSyncDao.getSessionSync(sync.sessionUuid))
         check(committedSync.revision > sync.revision) { "Wear mutation did not advance revision" }
         val committedBase = snapshotBuilder.build(epoch)
         val prepared = prepareCommandResponse(
             sourceNodeId,
             request,
-            CompleteCommandOutcome.Applied,
+            CommandOutcome.Applied,
             committedBase,
             retirement,
         )
@@ -359,36 +295,78 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 revision = committedSync.revision,
             ) == 1,
         ) { "Wear receipt did not bind to committed revision" }
-        // Published by completeCurrentSet once this transaction has committed (§6.4 change 2).
-        return prepared.copy(applied = written.toExternal(sync.sessionUuid))
+        // Published by executeCommand once this transaction has committed (§6.3).
+        return prepared.copy(applied = applied)
     }
 
-    private suspend fun receiptOutcome(
+    /**
+     * §5.4 step 8: why the outline at the request's revision refuses [body], or null when it may be
+     * written. Only `complete_set` checks types and values.
+     */
+    private fun bodyRejection(body: WatchCommandBody, payload: SnapshotPayload): CommandOutcome? {
+        if (!OutlineRules.allows(payload, body)) return CommandOutcome.TargetChanged
+        if (body !is WatchCommandBody.CompleteSet) return null
+        val exercise = requireNotNull((payload as SnapshotPayload.Active).exercise(body.performedExerciseUuid))
+        val set = exercise.sets.first { it.position == body.setPosition } as OutlineSet.Open
+        return when {
+            exercise.exerciseType != body.exerciseType ->
+                CommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE)
+            set.setType != body.setType -> CommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.SET_TYPE)
+            else -> CommandValidation.validate(body)
+        }
+    }
+
+    /** Writes [body] inside the command's transaction; returns what the screen is told after it commits. */
+    private suspend fun write(body: WatchCommandBody, sessionUuid: Uuid): ExternalSessionWrite {
+        val performedExerciseUuid = Uuid.parse(body.performedExerciseUuid.value)
+        return when (body) {
+            is WatchCommandBody.CompleteSet -> {
+                val written = WearSetWrite(
+                    uuid = Uuid.random(),
+                    performedExerciseUuid = performedExerciseUuid,
+                    position = body.setPosition,
+                    reps = body.reps,
+                    weight = body.weightHundredthsKg?.toDouble()?.div(HUNDREDTHS_PER_KG),
+                    type = body.setType.toEntity(),
+                )
+                writers.set.write(written)
+                written.toExternal(sessionUuid)
+            }
+            is WatchCommandBody.SetExerciseSkipped -> {
+                writers.skip.write(performedExerciseUuid, body.skipped)
+                ExternalSessionWrite.SkipChanged(
+                    sessionUuid = sessionUuid.toString(),
+                    performedExerciseUuid = performedExerciseUuid.toString(),
+                    skipped = body.skipped,
+                )
+            }
+        }
+    }
+
+    /**
+     * P4: a stored receipt counts only for the same command id; only then is its fingerprint parsed,
+     * so a receipt another command left, in any encoding, never rejects this one.
+     */
+    private fun receiptOutcome(
         sync: io.github.stslex.workeeper.core.data.database.wear.SessionWearSyncRow,
         epoch: CanonicalUuid,
-        request: CompleteCurrentSetRequest,
+        request: WatchCommandRequest,
         attemptFingerprint: FingerprintValue,
-    ): CompleteCommandOutcome? {
+    ): CommandOutcome? {
         val storedBytes = sync.receiptAttemptFingerprint ?: return null
+        if (sync.receiptCommandId != request.commandId.value) return null
         val stored = try {
             FingerprintValue.parse(storedBytes)
         } catch (_: UnsupportedFingerprintVersionException) {
-            return CompleteCommandOutcome.ProtocolRejected(
-                ProtocolRejectionReason.UNSUPPORTED_FINGERPRINT_VERSION,
-            )
+            return CommandOutcome.ProtocolRejected(ProtocolRejectionReason.UNSUPPORTED_FINGERPRINT_VERSION)
         } catch (_: IllegalArgumentException) {
-            return CompleteCommandOutcome.ProtocolRejected(
-                ProtocolRejectionReason.UNSUPPORTED_FINGERPRINT_VERSION,
-            )
+            return CommandOutcome.ProtocolRejected(ProtocolRejectionReason.UNSUPPORTED_FINGERPRINT_VERSION)
         }
-        if (sync.receiptCommandId != request.commandId.value) return null
         if (!stored.constantTimeEquals(attemptFingerprint)) {
-            return CompleteCommandOutcome.ProtocolRejected(
-                ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH,
-            )
+            return CommandOutcome.ProtocolRejected(ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH)
         }
         return if (sync.receiptDatabaseEpoch == epoch.value && sync.receiptRevision == sync.revision) {
-            CompleteCommandOutcome.AlreadyApplied
+            CommandOutcome.AlreadyApplied
         } else {
             null
         }
@@ -396,26 +374,22 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
 
     private suspend fun prepareAfterWriteFailure(
         sourceNodeId: String,
-        request: CompleteCurrentSetRequest,
+        request: WatchCommandRequest,
         stableFingerprint: ByteArray,
     ): PreparedCommandResponse {
         val epoch = currentEpoch()
         val base = snapshotBuilder.build(epoch)
         val retirement = request.retirement(sourceNodeId)
         val identity = base.payload.sessionIdentityOrNull()
-        val target = base.payload as? SnapshotPayload.ActiveWithTarget
         val outcome = when {
-            request.databaseEpoch != epoch -> CompleteCommandOutcome.StaleRevision
-            identity == null -> CompleteCommandOutcome.NoActiveSession
+            request.databaseEpoch != epoch -> CommandOutcome.StaleRevision
+            identity == null -> CommandOutcome.NoActiveSession
             identity.first != request.sessionUuid || identity.second != request.sessionRevision ->
-                CompleteCommandOutcome.StaleRevision
-            target == null -> CompleteCommandOutcome.TargetChanged
-            target.target.performedExerciseUuid != request.body.performedExerciseUuid ||
-                target.target.setPosition != request.body.setPosition ->
-                CompleteCommandOutcome.TargetChanged
-            else -> CompleteCommandOutcome.RetryableTemporaryFailure
+                CommandOutcome.StaleRevision
+            !OutlineRules.allows(base.payload, request.body) -> CommandOutcome.TargetChanged
+            else -> CommandOutcome.RetryableTemporaryFailure
         }
-        if (outcome == CompleteCommandOutcome.NoActiveSession) {
+        if (outcome == CommandOutcome.NoActiveSession) {
             return PreparedCommandResponse(
                 readOnlyCommandResponse(request.correlationId, request.commandId, outcome, base),
                 retire = retirement,
@@ -428,14 +402,14 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             base = base,
             retirement = retirement,
             retryStableFingerprint = stableFingerprint.takeIf {
-                outcome == CompleteCommandOutcome.RetryableTemporaryFailure
+                outcome == CommandOutcome.RetryableTemporaryFailure
             },
         )
     }
 
-    private suspend fun unavailableTargetRejection(
-        request: CompleteCurrentSetRequest,
-        outcome: CompleteCommandOutcome,
+    private fun unavailableTargetRejection(
+        request: WatchCommandRequest,
+        outcome: CommandOutcome,
         base: SnapshotData,
         retirement: LeaseRetirement,
     ): PreparedCommandResponse = PreparedCommandResponse(
@@ -448,38 +422,29 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         retire = retirement,
     )
 
+    /** §6.2: a lease goes with every `Active` outline, whatever its exercises' states. */
     private suspend fun prepareSnapshotResponse(
         sourceNodeId: String,
         correlationId: CanonicalUuid,
         base: SnapshotData,
     ): PreparedSnapshotResponse {
-        val target = base.payload as? SnapshotPayload.ActiveWithTarget
-            ?: return PreparedSnapshotResponse(fitSnapshotResponse(correlationId, base))
-        val lease = allocateCandidate(sourceNodeId, base, target)
-        val granted = base.withGrantedAuthority(lease)
-        val candidate = ActiveWorkoutSnapshotResponse(
-            schemaVersion = WearProtocol.SCHEMA_VERSION,
-            correlationId = correlationId,
-            snapshot = granted,
-        )
-        if (!fits(candidate)) {
-            return PreparedSnapshotResponse(
-                fitSnapshotResponse(correlationId, snapshotBuilder.payloadTooLarge(base)),
-            )
-        }
-        persistLeaseGeneration(target, lease)
+        val active = base.payload as? SnapshotPayload.Active
+            ?: return PreparedSnapshotResponse(snapshotResponse(correlationId, base))
+        val lease = allocateCandidate(sourceNodeId, base, active)
+        val candidate = snapshotResponse(correlationId, base.withGrantedAuthority(lease))
+        persistLeaseGeneration(active, lease)
         return PreparedSnapshotResponse(candidate, lease)
     }
 
     private suspend fun prepareCommandResponse(
         sourceNodeId: String,
-        request: CompleteCurrentSetRequest,
-        outcome: CompleteCommandOutcome,
+        request: WatchCommandRequest,
+        outcome: CommandOutcome,
         base: SnapshotData,
         retirement: LeaseRetirement,
         retryStableFingerprint: ByteArray? = null,
     ): PreparedCommandResponse {
-        val target = base.payload as? SnapshotPayload.ActiveWithTarget
+        val active = base.payload as? SnapshotPayload.Active
             ?: return PreparedCommandResponse(
                 response = readOnlyCommandResponse(
                     request.correlationId,
@@ -492,49 +457,35 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val lease = allocateCandidate(
             sourceNodeId = sourceNodeId,
             base = base,
-            target = target,
+            active = active,
             retryCommandId = request.commandId.takeIf { retryStableFingerprint != null },
             retryStableFingerprint = retryStableFingerprint,
         )
-        val candidate = CompleteCurrentSetResponse(
+        val candidate = WatchCommandResponse(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = request.correlationId,
             commandId = request.commandId,
             outcome = outcome,
             replacement = base.withGrantedAuthority(lease),
         )
-        if (!fits(candidate)) {
-            val boundedOutcome = if (outcome == CompleteCommandOutcome.RetryableTemporaryFailure) {
-                CompleteCommandOutcome.TargetChanged
-            } else {
-                outcome
-            }
-            return PreparedCommandResponse(
-                response = readOnlyCommandResponse(
-                    request.correlationId,
-                    request.commandId,
-                    boundedOutcome,
-                    snapshotBuilder.payloadTooLarge(base),
-                ),
-                retire = retirement,
-            )
-        }
-        persistLeaseGeneration(target, lease)
+        // GUARD: the builder kept this outline inside the budget of §5.7, so it fits (F27).
+        check(fits(candidate)) { "Granted command response exceeded the protocol envelope" }
+        persistLeaseGeneration(active, lease)
         return PreparedCommandResponse(candidate, lease, retirement)
     }
 
     private suspend fun persistLeaseGeneration(
-        target: SnapshotPayload.ActiveWithTarget,
+        active: SnapshotPayload.Active,
         lease: PendingMutationLease,
     ) {
         check(
             database.wearSyncDao.incrementLeaseGeneration(
-                sessionUuid = Uuid.parse(target.sessionUuid.value),
-                revision = target.sessionRevision,
+                sessionUuid = Uuid.parse(active.sessionUuid.value),
+                revision = active.sessionRevision,
             ) == 1,
         ) { "Durable Wear lease generation could not be allocated" }
         val persisted = requireNotNull(
-            database.wearSyncDao.getSessionSync(Uuid.parse(target.sessionUuid.value)),
+            database.wearSyncDao.getSessionSync(Uuid.parse(active.sessionUuid.value)),
         )
         check(persisted.leaseGeneration == lease.leaseGeneration) {
             "Durable Wear lease generation was not strictly ordered"
@@ -544,23 +495,21 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private suspend fun allocateCandidate(
         sourceNodeId: String,
         base: SnapshotData,
-        target: SnapshotPayload.ActiveWithTarget,
+        active: SnapshotPayload.Active,
         retryCommandId: CanonicalUuid? = null,
         retryStableFingerprint: ByteArray? = null,
     ): PendingMutationLease {
         val sync = requireNotNull(
-            database.wearSyncDao.getSessionSync(Uuid.parse(target.sessionUuid.value)),
+            database.wearSyncDao.getSessionSync(Uuid.parse(active.sessionUuid.value)),
         )
-        check(sync.revision == target.sessionRevision)
+        check(sync.revision == active.sessionRevision)
         val nextGeneration = Math.addExact(sync.leaseGeneration, 1L)
         val issuedAt = clock.elapsedRealtimeMs()
         return PendingMutationLease(
             sourceNodeId = sourceNodeId,
-            sessionUuid = target.sessionUuid,
+            sessionUuid = active.sessionUuid,
             databaseEpoch = base.databaseEpoch,
-            sessionRevision = target.sessionRevision,
-            performedExerciseUuid = target.target.performedExerciseUuid,
-            setPosition = target.target.setPosition,
+            sessionRevision = active.sessionRevision,
             leaseId = CanonicalUuid.random(),
             leaseGeneration = nextGeneration,
             leaseRemainingAtPhoneSendMs = WearProtocol.MAX_MUTATION_WINDOW_MS,
@@ -573,19 +522,18 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         )
     }
 
-    private fun fitSnapshotResponse(
+    /** GUARD: [base] comes from the builder, inside the budget of §5.7, so this fits (F27). */
+    private fun snapshotResponse(
         correlationId: CanonicalUuid,
         base: SnapshotData,
     ): ActiveWorkoutSnapshotResponse {
-        val candidate = ActiveWorkoutSnapshotResponse(
+        val response = ActiveWorkoutSnapshotResponse(
             WearProtocol.SCHEMA_VERSION,
             correlationId,
             base,
         )
-        if (fits(candidate)) return candidate
-        val fallback = candidate.copy(snapshot = snapshotBuilder.payloadTooLarge(base))
-        check(fits(fallback)) { "PayloadTooLarge snapshot fallback exceeded the protocol envelope" }
-        return fallback
+        check(fits(response)) { "Bounded snapshot response exceeded the protocol envelope" }
+        return response
     }
 
     private suspend fun publishSnapshotOrRefreshReadOnly(
@@ -595,7 +543,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val lease = prepared.lease ?: return prepared.response
         if (leaseStore.publishIfCurrent(database, transition, lease)) return prepared.response
         return transition {
-            fitSnapshotResponse(
+            snapshotResponse(
                 correlationId = correlationId,
                 base = snapshotBuilder.build(currentEpoch()).withUnavailableAuthority(),
             )
@@ -604,7 +552,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
 
     private suspend fun publishCommandOrRefreshReadOnly(
         prepared: PreparedCommandResponse,
-    ): CompleteCurrentSetResponse {
+    ): WatchCommandResponse {
         val lease = prepared.lease ?: return prepared.response
         if (leaseStore.publishIfCurrent(database, transition, lease)) return prepared.response
         return transition {
@@ -613,8 +561,8 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 correlationId = prepared.response.correlationId,
                 commandId = prepared.response.commandId,
                 outcome = when (prepared.response.outcome) {
-                    CompleteCommandOutcome.RetryableTemporaryFailure,
-                    CompleteCommandOutcome.TargetChanged,
+                    CommandOutcome.RetryableTemporaryFailure,
+                    CommandOutcome.TargetChanged,
                     -> lease.terminalOutcomeAfterPublicationLoss(base)
                     else -> prepared.response.outcome
                 },
@@ -623,17 +571,25 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         }
     }
 
+    /**
+     * §5.5: an outcome that needs an `Active` replacement but gets `PayloadTooLarge` is sent as
+     * `TargetChanged`. GUARD: the budget of §5.7 makes this `check` hold (F27).
+     */
     private fun readOnlyCommandResponse(
         correlationId: CanonicalUuid,
         commandId: CanonicalUuid,
-        outcome: CompleteCommandOutcome,
+        outcome: CommandOutcome,
         base: SnapshotData,
-    ): CompleteCurrentSetResponse {
-        val response = CompleteCurrentSetResponse(
+    ): WatchCommandResponse {
+        val response = WatchCommandResponse(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = correlationId,
             commandId = commandId,
-            outcome = outcome,
+            outcome = if (base.payload is SnapshotPayload.PayloadTooLarge && outcome.needsActiveReplacement()) {
+                CommandOutcome.TargetChanged
+            } else {
+                outcome
+            },
             replacement = base.withUnavailableAuthority(),
         )
         check(fits(response)) { "Bounded read-only command response exceeded the protocol envelope" }
@@ -644,7 +600,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         requireNotNull(database.wearSyncDao.getDatabaseMetadata()).databaseEpoch,
     )
 
-    private fun fits(envelope: io.github.stslex.workeeper.core.wear.protocol.WearEnvelope): Boolean =
+    private fun fits(envelope: WearEnvelope): Boolean =
         try {
             WearProtocolCodec.encode(envelope)
             true
@@ -657,16 +613,6 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         require(sourceNodeId.isNotBlank())
     }
 
-    private fun CompleteCurrentSetRequest.matchesCanonicalTarget(
-        target: io.github.stslex.workeeper.core.wear.protocol.ActiveTarget?,
-        targetRowAlreadyExists: Boolean,
-    ): Boolean {
-        if (target == null) return false
-        if (targetRowAlreadyExists) return false
-        if (target.performedExerciseUuid != body.performedExerciseUuid) return false
-        return target.setPosition == body.setPosition
-    }
-
     private data class SnapshotRequestKey(
         val sourceNodeId: String,
         val correlationId: CanonicalUuid,
@@ -674,7 +620,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
 
     private sealed interface CommandRequestKey
 
-    private data class CompleteRequestKey(
+    private data class CommandAttemptKey(
         val sourceNodeId: String,
         val correlationId: CanonicalUuid,
         val attemptFingerprint: FingerprintValue,
@@ -682,7 +628,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
 
     private data class ProtocolRejectedRequestKey(
         val sourceNodeId: String,
-        val routing: CompleteCommandRouting,
+        val routing: CommandRouting,
         val reason: ProtocolRejectionReason,
     ) : CommandRequestKey
 
@@ -692,11 +638,11 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     )
 
     private data class PreparedCommandResponse(
-        val response: CompleteCurrentSetResponse,
+        val response: WatchCommandResponse,
         val lease: PendingMutationLease? = null,
         val retire: LeaseRetirement? = null,
-        /** The set an Applied command wrote; null on every other path. */
-        val applied: ExternalSessionWrite.SetMarked? = null,
+        /** What an Applied command wrote; null on every other path. */
+        val applied: ExternalSessionWrite? = null,
     )
 
     private class BoundedResponseMap<K, V> {
@@ -739,6 +685,18 @@ fun interface WearSetMutationWriter {
     suspend fun write(value: WearSetWrite)
 }
 
+/** Writes one performed exercise's skip flag, inside the command's transaction (§6.3). */
+fun interface WearSkipMutationWriter {
+    suspend fun write(performedExerciseUuid: Uuid, skipped: Boolean)
+}
+
+/** The two command writers, one dependency of the bridge. */
+@Inject
+internal class WearMutationWriters(
+    val set: WearSetMutationWriter,
+    val skip: WearSkipMutationWriter,
+)
+
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 class RoomWearSetMutationWriter @Inject internal constructor(
@@ -756,7 +714,17 @@ class RoomWearSetMutationWriter @Inject internal constructor(
     }
 }
 
-internal fun CompleteCurrentSetRequest.toFingerprintCommand(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class RoomWearSkipMutationWriter @Inject internal constructor(
+    private val database: AppDatabase,
+) : WearSkipMutationWriter {
+    override suspend fun write(performedExerciseUuid: Uuid, skipped: Boolean) {
+        database.performedExerciseDao.setSkipped(performedExerciseUuid, skipped)
+    }
+}
+
+internal fun WatchCommandRequest.toFingerprintCommand(
     sourceNodeId: String,
 ): FingerprintCommand = FingerprintCommand(
     sourceNodeId = sourceNodeId,
@@ -765,17 +733,12 @@ internal fun CompleteCurrentSetRequest.toFingerprintCommand(
     databaseEpoch = databaseEpoch,
     sessionUuid = sessionUuid,
     sessionRevision = sessionRevision,
-    performedExerciseUuid = body.performedExerciseUuid,
-    setPosition = body.setPosition,
-    reps = body.reps,
-    weightHundredthsKg = body.weightHundredthsKg,
-    exerciseType = body.exerciseType,
-    setType = body.setType,
+    body = body,
     mutationLeaseId = mutationLeaseId,
     mutationLeaseGeneration = mutationLeaseGeneration,
 )
 
-internal fun CompleteCurrentSetRequest.retirement(sourceNodeId: String) = LeaseRetirement(
+internal fun WatchCommandRequest.retirement(sourceNodeId: String) = LeaseRetirement(
     sourceNodeId = sourceNodeId,
     sessionUuid = sessionUuid,
     leaseId = mutationLeaseId,
@@ -784,7 +747,7 @@ internal fun CompleteCurrentSetRequest.retirement(sourceNodeId: String) = LeaseR
 
 internal fun SnapshotData.withUnavailableAuthority(): SnapshotData = copy(
     payload = when (val current = payload) {
-        is SnapshotPayload.ActiveWithTarget -> current.copy(
+        is SnapshotPayload.Active -> current.copy(
             mutationAuthority = MutationAuthority.Unavailable(
                 io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
                     .FRESH_HANDSHAKE_REQUIRED,
@@ -795,7 +758,7 @@ internal fun SnapshotData.withUnavailableAuthority(): SnapshotData = copy(
 )
 
 internal fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): SnapshotData = copy(
-    payload = (payload as SnapshotPayload.ActiveWithTarget).copy(
+    payload = (payload as SnapshotPayload.Active).copy(
         mutationAuthority = MutationAuthority.Granted(
             mutationLeaseId = lease.leaseId,
             mutationLeaseGeneration = lease.leaseGeneration,
@@ -804,23 +767,26 @@ internal fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): Sna
     ),
 )
 
+/** The lease's command cannot run now; another state of the session says why (§6.3, V3). */
 internal fun PendingMutationLease.terminalOutcomeAfterPublicationLoss(
     base: SnapshotData,
-): CompleteCommandOutcome {
-    if (base.databaseEpoch != databaseEpoch) return CompleteCommandOutcome.StaleRevision
+): CommandOutcome {
+    if (base.databaseEpoch != databaseEpoch) return CommandOutcome.StaleRevision
     val identity = base.payload.sessionIdentityOrNull()
-        ?: return CompleteCommandOutcome.NoActiveSession
+        ?: return CommandOutcome.NoActiveSession
     if (identity.first != sessionUuid || identity.second != sessionRevision) {
-        return CompleteCommandOutcome.StaleRevision
+        return CommandOutcome.StaleRevision
     }
-    val target = (base.payload as? SnapshotPayload.ActiveWithTarget)?.target
-        ?: return CompleteCommandOutcome.TargetChanged
-    if (target.performedExerciseUuid != performedExerciseUuid ||
-        target.setPosition != setPosition
-    ) {
-        return CompleteCommandOutcome.TargetChanged
-    }
-    return CompleteCommandOutcome.AuthorizationExpired
+    return CommandOutcome.AuthorizationExpired
+}
+
+/** §5.5: the outcomes a `PayloadTooLarge` replacement cannot carry. */
+internal fun CommandOutcome.needsActiveReplacement(): Boolean = when (this) {
+    is CommandOutcome.InvalidValues,
+    is CommandOutcome.ImmutableTypeMismatch,
+    is CommandOutcome.RetryableTemporaryFailure,
+    -> true
+    else -> false
 }
 
 internal fun SetTypeWire.toEntity(): SetTypeEntity = when (this) {
