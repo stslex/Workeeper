@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.core.wear.protocol
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 /** wear-phase-2-exercise-list.md §5.2: every constructor check of the outline models. */
 class WireModelsTest {
@@ -81,6 +83,40 @@ class WireModelsTest {
                 OutlineSet.Blocked(2, SetTypeWire.WORK, NumericField.REPS),
             ),
         )
+    }
+
+    /** The prompt's LIMITS on §7.4 and §9: no new model's `toString()` carries a name, a value or a target. */
+    @Test
+    fun `the outline and command models print their type only`() {
+        val outline = ProtocolFixtures.activePayload()
+        val exercise = outline.exercises.first()
+        listOf(
+            "SnapshotPayload.Active" to outline,
+            "OutlineExercise" to exercise,
+            "OutlineSet.Done" to exercise.sets[0],
+            "OutlineSet.Open" to exercise.sets[1],
+            "OutlineSet.Blocked" to exercise.sets[2],
+            "WatchCommandBody.CompleteSet" to ProtocolFixtures.commandBody(),
+            "WatchCommandBody.SetExerciseSkipped" to ProtocolFixtures.skipBody(),
+        ).forEach { (type, model) -> assertEquals(type, model.toString()) }
+
+        val composed = listOf(
+            ProtocolFixtures.snapshot(outline),
+            ProtocolFixtures.command(),
+            ProtocolFixtures.command(ProtocolFixtures.skipBody()),
+            ProtocolFixtures.commandResponse(CommandOutcome.Applied, ProtocolFixtures.snapshot(outline)),
+        ).map(Any::toString)
+        val forbidden = listOf(
+            "Strength",
+            "Squat",
+            "Plank",
+            ProtocolFixtures.exerciseUuid.value,
+            "performedExerciseUuid=",
+            "setPosition=",
+            "reps=",
+            "weightHundredthsKg=",
+        )
+        composed.forEach { text -> forbidden.forEach { assertFalse(it in text, "$it in $text") } }
     }
 
     private fun exercise(

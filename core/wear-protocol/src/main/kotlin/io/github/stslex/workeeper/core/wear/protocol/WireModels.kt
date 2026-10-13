@@ -53,7 +53,10 @@ data class WatchCommandResponse(
     val replacement: SnapshotData,
 ) : WearEnvelope
 
-/** What a watch command asks of one performed exercise (wear-phase-2-exercise-list.md §5.2, P1). */
+/**
+ * What a watch command asks of one performed exercise (wear-phase-2-exercise-list.md §5.2, P1).
+ * GUARD: every body's toString names its type only; the target and the values are never logged (§9).
+ */
 @Serializable
 @JsonClassDiscriminator("kind")
 sealed interface WatchCommandBody {
@@ -68,7 +71,10 @@ sealed interface WatchCommandBody {
         val weightHundredthsKg: Int?,
         val exerciseType: ExerciseTypeWire,
         val setType: SetTypeWire,
-    ) : WatchCommandBody
+    ) : WatchCommandBody {
+
+        override fun toString(): String = "WatchCommandBody.CompleteSet"
+    }
 
     /** [skipped] true skips the exercise; false returns it to the session. */
     @Serializable
@@ -76,7 +82,10 @@ sealed interface WatchCommandBody {
     data class SetExerciseSkipped(
         override val performedExerciseUuid: CanonicalUuid,
         val skipped: Boolean,
-    ) : WatchCommandBody
+    ) : WatchCommandBody {
+
+        override fun toString(): String = "WatchCommandBody.SetExerciseSkipped"
+    }
 }
 
 @Serializable
@@ -93,7 +102,10 @@ sealed interface SnapshotPayload {
     @SerialName("no_session")
     data object NoSession : SnapshotPayload
 
-    /** The session outline: every performed exercise in phone order, skipped ones included (V2). */
+    /**
+     * The session outline: every performed exercise in phone order, skipped ones included (V2).
+     * GUARD: its toString names its type only, like every outline model; names are never logged (§9).
+     */
     @Serializable
     @SerialName("active")
     data class Active(
@@ -108,6 +120,8 @@ sealed interface SnapshotPayload {
             require(sessionRevision >= 0L)
             require(exercises.map(OutlineExercise::performedExerciseUuid).toSet().size == exercises.size)
         }
+
+        override fun toString(): String = "SnapshotPayload.Active"
     }
 
     @Serializable
@@ -136,6 +150,8 @@ data class OutlineExercise(
         require(sets.zipWithNext().all { (left, right) -> left.position < right.position })
         require(exerciseType != ExerciseTypeWire.WEIGHTLESS || sets.none { it.weightHundredthsKgOrNull() != null })
     }
+
+    override fun toString(): String = "OutlineExercise"
 }
 
 @Serializable
@@ -159,6 +175,8 @@ sealed interface OutlineSet {
             require(reps in 0..WearProtocol.MAX_WEAR_REPS)
             require(weightHundredthsKg == null || weightHundredthsKg in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG)
         }
+
+        override fun toString(): String = "OutlineSet.Open"
     }
 
     /** Done. Values are display-only; a value outside the watch domain is null. */
@@ -176,6 +194,8 @@ sealed interface OutlineSet {
             require(reps == null || reps in 0..WearProtocol.MAX_WEAR_REPS)
             require(weightHundredthsKg == null || weightHundredthsKg in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG)
         }
+
+        override fun toString(): String = "OutlineSet.Done"
     }
 
     /** Not done, and a planned value is outside the watch domain (P8): shown, not completable here. */
@@ -190,6 +210,8 @@ sealed interface OutlineSet {
         init {
             require(position >= 0)
         }
+
+        override fun toString(): String = "OutlineSet.Blocked"
     }
 }
 

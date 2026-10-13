@@ -1439,6 +1439,11 @@ internal class PhoneWorkoutBridgeImplTest {
         assertEquals(OutlineSet.Done(2, SetTypeWire.DROP, reps = 3, weightHundredthsKg = 10_000), sets[1])
     }
 
+    @Test
+    fun `a converted done weight prints its type only`() {
+        assertEquals("SnapshotWeight.Value", snapshotWeight(ExerciseTypeEntity.WEIGHTED, 125.25).toString())
+    }
+
     // endregion
 
     // region lease (§6.2, V3)

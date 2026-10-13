@@ -169,7 +169,12 @@ internal sealed interface SnapshotNumeric {
 
 /** The watch-domain value of one weight: null for a weightless exercise or no weight. */
 internal sealed interface SnapshotWeight {
-    data class Value(val hundredths: Int?) : SnapshotWeight
+    data class Value(val hundredths: Int?) : SnapshotWeight {
+
+        /** GUARD: names its type only; a value is never logged (wear-phase-2-exercise-list.md §9). */
+        override fun toString(): String = "SnapshotWeight.Value"
+    }
+
     data object Unsupported : SnapshotWeight
 }
 
