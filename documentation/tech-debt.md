@@ -453,7 +453,7 @@ that phase and tracked here for the next phase.
 | Severity | Location | Description |
 |---|---|---|
 | 🟡 | [feature/home/.../mvi/handler/CommonHandler.kt:36-39](../feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/CommonHandler.kt) | Mapping inside `updateStateImmediate` lambda — `row?.toUi(now, resourceWrapper)` runs on Main.immediate every active-session emit. Hoist out before the lambda. |
-| 🟡 | [feature/all-exercises/.../mvi/handler/PagingHandler.kt:49-52](../feature/all-exercises/src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandler.kt) | Mapping `tags.map { it.toTagUi() }.toImmutableList()` inside `updateStateImmediate` lambda. Same fix shape as above. |
+| 🟡 | [feature/all-exercises/.../mvi/handler/PagingHandler.kt:56-60](../feature/all-exercises/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandler.kt) | Mapping `tags.map { it.toTagUi() }.toImmutableList()` inside `updateStateImmediate` lambda. Same fix shape as above. |
 | 🟡 | [feature/all-trainings/.../mvi/handler/PagingHandler.kt:53-56](../feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/PagingHandler.kt) | Same pattern as the home / all-exercises rows. |
 | 🟡 | [feature/single-training/.../mvi/handler/CommonHandler.kt:55-56](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt) | Same pattern as the home / all-exercises rows. |
 
@@ -536,7 +536,7 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 |---|---|---|
 | 🟡 | [feature/settings/.../SettingsScreenTest.kt](../feature/settings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt) | 5.1 |
 | 🟡 | [feature/archive/.../ArchiveScreenTest.kt](../feature/archive/src/androidTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt) | 5.1 |
-| 🟡 | [feature/all-exercises/.../AllExercisesScreenTest.kt](../feature/all-exercises/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt) | 5.2 |
+| 🟡 | [feature/all-exercises/.../AllExercisesScreenTest.kt](../feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt) | 5.2 |
 | 🟡 | [feature/exercise/.../ExerciseScreenTest.kt](../feature/exercise/src/androidTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt) | 5.2 |
 | 🟡 | [feature/all-trainings/.../AllTrainingsScreenTest.kt](../feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt) | 5.3 |
 | 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |

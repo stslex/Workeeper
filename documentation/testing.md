@@ -313,8 +313,10 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   binding (`RestoreStateRepositoryImpl`, contributed by `@ContributesBinding(AppScope)` in
   `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
-- `AppGraph.stringResolver` has **no production reader**: nothing reads `StringResolver` from
-  the graph yet. The accessor exists so `StringResolverIdentityTest` can prove the binding to
+- `AppGraph.stringResolver` still has **no production reader**: no production code reads
+  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler` receive the
+  binding by constructor injection through their graph extension, which inherits it from
+  `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
   `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
@@ -454,6 +456,61 @@ which reads the factory from `MetroTestGraphHolder.graph` and composes
 `allTrainingsGraph(factory = factory)`; and `AllTrainingsScreenTest.pendingFeatureRewrite` in
 `androidDeviceTest` as the one documented `@Smoke` skip.
 
+#### Shared all-exercises feature
+
+`feature:all-exercises` keeps its ten portable suites in `commonTest`, so the same 66 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 5, click handler
+24, navigation handler 2, paging handler 1, UI mapper 11, clearance 2, list surface 9, paging tail
+4, top-bar mode 4, and trailing slot 4. They use `kotlin.test`, `kotlinx-coroutines-test` and
+private in-file fakes. The click-handler and paging-handler store fakes reproduce the old relaxed
+store: they apply state updates, record events, consumed actions and each Store-scope `launch`
+(and `Init`'s `Flow.launch`) without running it, and fail fast on every member the handler must
+not touch. The three bulk-confirm identities run their recorded launch's action and then its
+`onSuccess`, in that order.
+
+Copy outside composition resolves through the injected `StringResolver`, so 14 identities run
+through it: the 11 mapper identities and the three bulk-confirm ones. Each suite fakes it strictly
+and in-file. The fake switches on the generated resource objects, returns the strings the old
+`ResourceWrapper` stubs returned (the mapper suite's `"$count sessions"` family, the click
+suite's relaxed `""`), and throws on any other resource and on any read that does not pass
+exactly the arguments production passes: none for a plain string, one for `used_in_format`,
+and the quantity as the only format argument of every plural. A plural read that dropped its
+count would otherwise ship the raw template. The domain suite's repository fakes import
+`core:data` shapes directly; `ExerciseRepository` names `core:data:database`'s `PlanSetDataModel`,
+which `core:data:exercise` keeps implementation-scoped, so the module's `commonTest` carries
+that one edge (decision D5 of
+[kmp-phase-7-10-all-exercises-feature.md](feature-specs/kmp-phase-7-10-all-exercises-feature.md)).
+One `ClickHandlerTest` name contains U+2014; the Native XML reports it byte-exactly. No suite
+needs a Native test-name suppression.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` with deterministic `PagingData` and a fixed clock.
+Every read outside composition goes through one real `ComposeStringResolver`; the scene declares
+no fake. It resolves the whole private EN catalog as stored and filled, the footer copy through the
+production mapper and the blocked-archive copy through `toBlockedArchiveDialog`; renders the
+cold-open loading and refresh-error verdicts, the first-run, filtered and selection empty states,
+populated rows with their meta line, both append tails, the resting and selection bars, and the
+bulk-archive, blocked-archive and permanent-delete dialogs; and asserts the fourteen dispatched
+actions as one exact ordered list. Together with the 66 portable cases, the all-exercises Native
+XML contains exactly 67 passing cases with no skip, failure, or error. It is a headless Compose
+scene, not an iOS app, UIKit, or XCTest claim.
+
+This scene is the only executed guard of `ComposeStringResolver.getPluralString`'s delegation:
+kit's catalog has no plural, and Android host has no route to this module's plurals (a shared
+feature's build may not take Robolectric, and its generated `Res` is private, so neither kit nor
+app can read the catalog). On Android the delegation runs in production and in the app journeys
+whenever a row has stats, with no text assertion; the RU plural forms are pinned statically by
+the topology gate's catalog check only.
+
+The 52 all-exercises goldens moved byte-identical to `androidHostTest`; their fixtures carry
+fixed strings, so neither the mapper nor the resolver reaches a golden. Android keeps the two
+`AllExercisesExtensionIdentityTest` cases, which resolve the factory through
+`appGraph.allExercisesGraphFactory`, and the two `AllExercisesScreenTest` identities in
+`androidDeviceTest`: `pendingFeatureRewrite`, the one documented `@Smoke` skip, and the
+`@Regression` `blockedArchiveDialogListsBlockingTrainings`, which reads its confirm label through
+`ComposeStringResolver` from the module's own Compose resources.
+
 #### Shared string resolver
 
 `core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside
@@ -469,9 +526,12 @@ argument order, and a placeholder string read without arguments) and asserts the
 `io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`
 reads the same four EN rows, and the kit validator pins it.
 
-Plural delegation is compiled but not executed: kit's catalog has no plural, so its first
-execution is Phase 7.10's mapper identities. Feature tests fake the interface in-file, switching
-on the generated resource objects; there is no shared fake or fixtures module.
+Kit's catalog has no plural, so neither kit test reaches `getPluralString`. Its delegation first
+runs on Native, in `feature:all-exercises`' production scene, which reads all nine of that
+module's plurals through the real resolver; Android host has no route to it (see
+[Shared all-exercises feature](#shared-all-exercises-feature)). The mapper identities use a fake,
+so they do not execute it. Feature tests fake the interface in-file, switching on the generated
+resource objects; there is no shared fake or fixtures module.
 
 #### Shared MVI runtime
 
@@ -949,7 +1009,7 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 | Feature | Test class |
 |---|---|
 | `feature/all-trainings` | `feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
-| `feature/all-exercises` | `feature/all-exercises/src/androidTest/.../AllExercisesScreenTest.kt`, `AllExercisesScreenAccessibilityTest.kt`, `AllExercisesScreenEdgeCasesTest.kt` |
+| `feature/all-exercises` | `feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt`, `ExerciseFormBasicsTest.kt` |
 | `feature/settings` | `feature/settings/src/androidTest/.../SettingsScreenTest.kt` |
