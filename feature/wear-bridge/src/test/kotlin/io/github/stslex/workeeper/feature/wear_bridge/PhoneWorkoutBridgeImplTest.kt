@@ -20,7 +20,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEn
 import io.github.stslex.workeeper.core.data.database.wear.SessionWearSyncRow
 import io.github.stslex.workeeper.core.data.database.wear.WearSyncDao
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
@@ -1310,7 +1310,7 @@ internal class PhoneWorkoutBridgeImplTest {
                 clock = clock,
                 mutationWriter = RoomWearSetMutationWriter(database),
                 knownRevisions = WatchKnownRevisions(),
-                externalSetWrites = ExternalSetWrites(),
+                externalSessionWrites = ExternalSessionWrites(),
             )
 
             val response = divergent.completeCurrentSet(SOURCE_NODE, request)
@@ -1345,7 +1345,7 @@ internal class PhoneWorkoutBridgeImplTest {
         clock = clock,
         mutationWriter = writer,
         knownRevisions = WatchKnownRevisions(),
-        externalSetWrites = ExternalSetWrites(),
+        externalSessionWrites = ExternalSessionWrites(),
     )
 
     private suspend fun PhoneWorkoutBridgeImpl.snapshot() = getActiveWorkout(

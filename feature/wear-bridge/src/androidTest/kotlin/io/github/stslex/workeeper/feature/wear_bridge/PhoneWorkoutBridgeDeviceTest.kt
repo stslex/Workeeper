@@ -19,7 +19,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
@@ -89,7 +89,7 @@ internal class PhoneWorkoutBridgeDeviceTest {
             clock = PhoneMonotonicClock { 0L },
             mutationWriter = RoomWearSetMutationWriter(database),
             knownRevisions = WatchKnownRevisions(),
-            externalSetWrites = ExternalSetWrites(),
+            externalSessionWrites = ExternalSessionWrites(),
         )
     }
 

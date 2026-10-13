@@ -11,8 +11,8 @@ import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
@@ -67,7 +67,7 @@ internal class PhoneWorkoutBridgeSignalTest {
     private lateinit var leaseStore: WearMutationLeaseStore
     private lateinit var collector: Job
     private val known = WatchKnownRevisions()
-    private val externalSetWrites = ExternalSetWrites()
+    private val externalSessionWrites = ExternalSessionWrites()
     private val published = mutableListOf<Published>()
 
     /** A key no response of these tests carries. */
@@ -83,7 +83,7 @@ internal class PhoneWorkoutBridgeSignalTest {
         // Unconfined and undispatched: each publication runs this collector inside publish(), so it
         // records whether a bridge transaction was open at that moment.
         collector = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
-            externalSetWrites.writes.collect { write -> published += Published(write, transition.inTransaction) }
+            externalSessionWrites.writes.collect { write -> published += Published(write, transition.inTransaction) }
         }
     }
 
@@ -272,7 +272,7 @@ internal class PhoneWorkoutBridgeSignalTest {
         val response = bridge.completeCurrentSet(NODE_A, command)
 
         assertEquals(CompleteCommandOutcome.Applied, response.outcome)
-        val expected = ExternalSetWrite(
+        val expected = ExternalSessionWrite.SetMarked(
             sessionUuid = seed.sessionUuid.toString(),
             performedExerciseUuid = seed.performedUuid.toString(),
             position = command.body.setPosition,
@@ -450,7 +450,7 @@ internal class PhoneWorkoutBridgeSignalTest {
             clock = PhoneMonotonicClock { 0L },
             mutationWriter = writer,
             knownRevisions = known,
-            externalSetWrites = externalSetWrites,
+            externalSessionWrites = externalSessionWrites,
         )
 
     private suspend fun PhoneWorkoutBridgeImpl.handshake(node: String): ActiveWorkoutSnapshotResponse =
@@ -546,7 +546,7 @@ internal class PhoneWorkoutBridgeSignalTest {
     private suspend fun revision(seed: SignalSeed): Long =
         requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision
 
-    private data class Published(val write: ExternalSetWrite, val inTransaction: Boolean)
+    private data class Published(val write: ExternalSessionWrite, val inTransaction: Boolean)
 
     /**
      * Records whether a bridge transaction is open (the wrapper pattern of PhoneWorkoutBridgeImplTest's

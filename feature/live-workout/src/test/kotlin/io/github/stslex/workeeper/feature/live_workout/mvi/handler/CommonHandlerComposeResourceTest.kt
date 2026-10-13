@@ -75,7 +75,7 @@ private fun loadWeightlessSessionThroughInit(): MutableStateFlow<State> {
     val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     coEvery { interactor.loadSession("session-1") } returns weightlessSnapshot()
-    every { interactor.observeExternalSetWrites(any()) } returns emptyFlow()
+    every { interactor.observeExternalWrites(any()) } returns emptyFlow()
     val stateFlow = MutableStateFlow(
         State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
     )

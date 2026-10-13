@@ -10,8 +10,8 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CommandValidation
@@ -49,7 +49,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
     private val clock: PhoneMonotonicClock,
     private val mutationWriter: WearSetMutationWriter,
     private val knownRevisions: WatchKnownRevisions,
-    private val externalSetWrites: ExternalSetWrites,
+    private val externalSessionWrites: ExternalSessionWrites,
 ) : PhoneWorkoutBridge {
 
     /** Empty: no owner gate is open (wear-phase-1-active-workout-tile.md §6.1). */
@@ -121,7 +121,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         }
         // wear-live-sync.md §6.4: only after mutate returned an Applied write; in commit order,
         // because this runs under coordinatorMutex.
-        prepared.applied?.let(externalSetWrites::publish)
+        prepared.applied?.let(externalSessionWrites::publish)
         prepared.retire?.let { retired ->
             leaseStore.retireMatching(
                 sourceNodeId = retired.sourceNodeId,
@@ -696,7 +696,7 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val lease: PendingMutationLease? = null,
         val retire: LeaseRetirement? = null,
         /** The set an Applied command wrote; null on every other path. */
-        val applied: ExternalSetWrite? = null,
+        val applied: ExternalSessionWrite.SetMarked? = null,
     )
 
     private class BoundedResponseMap<K, V> {
@@ -842,11 +842,12 @@ internal fun SetTypeEntity.toSetsDataType(): SetsDataType = when (this) {
 }
 
 /** The values exactly as written (wear-live-sync.md §6.4). */
-internal fun WearSetWrite.toExternal(sessionUuid: Uuid): ExternalSetWrite = ExternalSetWrite(
-    sessionUuid = sessionUuid.toString(),
-    performedExerciseUuid = performedExerciseUuid.toString(),
-    position = position,
-    weight = weight,
-    reps = reps,
-    type = type.toSetsDataType(),
-)
+internal fun WearSetWrite.toExternal(sessionUuid: Uuid): ExternalSessionWrite.SetMarked =
+    ExternalSessionWrite.SetMarked(
+        sessionUuid = sessionUuid.toString(),
+        performedExerciseUuid = performedExerciseUuid.toString(),
+        position = position,
+        weight = weight,
+        reps = reps,
+        type = type.toSetsDataType(),
+    )

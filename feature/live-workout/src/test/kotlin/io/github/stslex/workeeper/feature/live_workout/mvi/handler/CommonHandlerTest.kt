@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 internal class CommonHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
-        every { observeExternalSetWrites(any()) } returns emptyFlow()
+        every { observeExternalWrites(any()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))

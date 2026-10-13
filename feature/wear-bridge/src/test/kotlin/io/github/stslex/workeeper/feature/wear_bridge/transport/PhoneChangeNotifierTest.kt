@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
@@ -82,7 +82,7 @@ internal class PhoneChangeNotifierTest {
             clock = PhoneMonotonicClock { 0L },
             mutationWriter = RoomWearSetMutationWriter(database),
             knownRevisions = known,
-            externalSetWrites = ExternalSetWrites(),
+            externalSessionWrites = ExternalSessionWrites(),
         )
     }
 
