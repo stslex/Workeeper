@@ -1174,6 +1174,7 @@ Append-only. One row per PR, release step and acceptance item.
 
 | Date | Item | Commit or run | Evidence |
 |---|---|---|---|
+| 2026-10-13 | PR-P2A (§12.1 step 2): protocol v2, the phone, the watch state | PR #331; head before this row `a3997543` | Per-commit gate green on C1 `3761c484`, C3 `176c0121`, C4 `35aadf80`, C5 `af678aa4`, C6 `1da618e5`, C7 `6ecc15f1`, C8 `80ef1cac` and C9 `a3997543` (C2 folded into C3, DEV-1): 2598 build tasks executed each, up to 2190 + 1028 + 51 unit tests, detekt 0 findings, 456 Paparazzi goldens with 0 changes, both bundles `RESULT PASS (12/12)`, the swap control `G5 FAIL`; C5's one red was a memory-pressure timeout of `WearOverflowGateTest` (store variant), its task rerun alone 359/359. Mutations: named 29 of 29 RED then GREEN (M-P25 after C9's stronger size test); earlier and manifest cases 193 rerun RED then GREEN, 277 untouched, 0 retired, 1 not rebuildable (`ambient-editor-retains-selection-after-ineligible-wake`); manifest anchors 160 of 160 once. FingerprintV2 device tests 1/1 phone and 1/1 watch on API 36 AVDs. Pages: `legacy`, from `master:/docs`. Data safety (DEV-2): no new declaration expected (transport §9.3, P4); the form comparison is UNVERIFIED, the owner's. The two nits of C5: §12.1 step 1's `<date>` in backticks; both `wear-paired-transport.md:700` citations now cite its ledger row "Policy live (§9.1)". |
 
 ## 16. Sources
 
