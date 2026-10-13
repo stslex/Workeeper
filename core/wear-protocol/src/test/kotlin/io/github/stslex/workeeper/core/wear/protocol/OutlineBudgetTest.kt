@@ -42,6 +42,9 @@ class OutlineBudgetTest {
         assertTrue(OutlineBudget.fits(atBudget))
         assertTrue(largestCommandResponseSize(atBudget) <= WearProtocol.MAX_ENVELOPE_BYTES)
         assertFalse(OutlineBudget.fits(over))
+        // §10.1: the outline that fits is sent as it is; the one just over becomes PayloadTooLarge of its session.
+        assertEquals(under, OutlineBudget.bounded(under))
+        assertEquals(over.copy(payload = over.fallback()), OutlineBudget.bounded(over))
     }
 
     @Test
@@ -72,6 +75,7 @@ class OutlineBudgetTest {
             val snapshot = snapshot(exercises)
             report(name, snapshot)
             assertFalse(OutlineBudget.fits(snapshot), name)
+            assertEquals(snapshot.copy(payload = snapshot.fallback()), OutlineBudget.bounded(snapshot), name)
         }
         val fallback = WearProtocolCodec.encode(
             ActiveWorkoutSnapshotResponse(
@@ -137,6 +141,12 @@ class OutlineBudgetTest {
 
     private fun SnapshotData.widest(): SnapshotData =
         copy(payload = (payload as SnapshotPayload.Active).copy(mutationAuthority = WIDEST_AUTHORITY))
+
+    /** What §5.7 sends in place of this outline: `PayloadTooLarge` of its session at its revision. */
+    private fun SnapshotData.fallback(): SnapshotPayload.PayloadTooLarge {
+        val active = payload as SnapshotPayload.Active
+        return SnapshotPayload.PayloadTooLarge(active.sessionUuid, active.sessionRevision)
+    }
 
     /**
      * The 20 x 5 stress outline with ASCII exercise names resized until its widest snapshot response
