@@ -32,7 +32,9 @@ internal class DebugSnapshotDriver(
     private val clock: DebugElapsedClock,
 ) {
     private val epoch = ids.nextId()
-    private val session = ids.nextId()
+
+    /** Each fixture is its own session, so the watch's selection starts from rule R on it (§7.2 rule 1). */
+    private var session = ids.nextId()
     private val exercise = ids.nextId()
     private var revision = 0L
     private var leaseGeneration = 0L
@@ -57,6 +59,7 @@ internal class DebugSnapshotDriver(
 
     private fun showFixture(id: String): Boolean {
         val model = SyntheticSurfaceFixtures.find(id) ?: return false
+        session = ids.nextId()
         if (model.kind == WearSurfaceKind.NO_SESSION) {
             return publish(SnapshotPayload.NoSession).also { if (it) current = null }
         }

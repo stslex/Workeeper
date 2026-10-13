@@ -180,6 +180,10 @@ private class AmbientEditorEligibilityFixture {
             is ControllerAction.SetWeight -> model.copy(weightHundredthsKg = action.value, hasUnsubmittedDraft = true)
             ControllerAction.CompleteSet,
             ControllerAction.Retry,
+            is ControllerAction.SelectExercise,
+            is ControllerAction.SelectSet,
+            is ControllerAction.SkipExercise,
+            is ControllerAction.ReturnExercise,
             -> model
         }
     }

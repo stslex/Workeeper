@@ -617,6 +617,20 @@ internal class WatchTransportCoordinatorTest {
     }
 
     @Test
+    fun `a skip is sent as watch_command and labelled like a completion`() = runTest {
+        val h = connected(this)
+        h.runtime.onAction(ControllerAction.SkipExercise(ReducerTestFixtures.laterExercise))
+        runCurrent()
+
+        val skip = h.link.commands.single()
+        assertEquals(WatchCommandBody.SetExerciseSkipped(ReducerTestFixtures.laterExercise, true), skip.body)
+        val sent = h.link.rawRequests.map { it.decodeToString() }.single { "\"watch_command\"" in it }
+        assertTrue("set_exercise_skipped" in sent, sent)
+        assertTrue(h.logger.lines.any { "command -> response:Applied" in it }, "the skip was logged: ${h.logger.lines}")
+        assertTrue(h.logger.lines.none { ReducerTestFixtures.laterExercise.value in it })
+    }
+
+    @Test
     fun `transport logs carry operation, result class, byte counts and time only`() = runTest {
         val h = TransportHarness(this)
         h.link.answer = phoneAnswers(snapshot = { sentinelSnapshot() })

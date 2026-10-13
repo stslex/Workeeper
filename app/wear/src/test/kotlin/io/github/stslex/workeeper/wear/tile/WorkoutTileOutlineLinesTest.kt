@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.OutlineExercise
 import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
 import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
@@ -49,6 +50,25 @@ internal class WorkoutTileOutlineLinesTest {
     }
 
     @Test
+    fun `the Tile shows the watch's selection, not the set rule R would pick`() {
+        val lines = lines(
+            exercise("Squat", listOf(ReducerTestFixtures.open(0))),
+            exercise("Row", listOf(ReducerTestFixtures.open(0), ReducerTestFixtures.open(1)), uuid = ROW),
+            selection = OutlineSelection(ROW, 1),
+        )
+
+        assertEquals(
+            listOf(
+                TRAINING,
+                "Row",
+                context.getString(R.string.set_progress, 2, 2),
+                context.resources.getQuantityString(R.plurals.exercise_progress, 2, 0, 2),
+            ),
+            lines,
+        )
+    }
+
+    @Test
     fun `a selected blocked set asks to edit the set on the phone`() {
         val lines = lines(
             exercise("Squat", listOf(OutlineSet.Blocked(0, SetTypeWire.WORK, NumericField.WEIGHT))),
@@ -81,8 +101,8 @@ internal class WorkoutTileOutlineLinesTest {
         )
     }
 
-    /** The Tile lines of an admitted outline whose selection is rule R's, as the owner publishes it. */
-    private fun lines(vararg exercises: OutlineExercise): List<String> {
+    /** The Tile lines of an admitted outline with [selection], rule R's when none is given. */
+    private fun lines(vararg exercises: OutlineExercise, selection: OutlineSelection? = null): List<String> {
         val source = ReducerTestFixtures.active()
         val payload = (source.payload as SnapshotPayload.Active).copy(
             trainingName = BoundedDisplayName.Value(TRAINING),
@@ -92,7 +112,10 @@ internal class WorkoutTileOutlineLinesTest {
         val correlation = ReducerTestFixtures.id(1)
         reducer.issueHandshake(correlation, 0)
         assertTrue(reducer.receiveSnapshot(correlation, source.copy(payload = payload), 0).accepted)
-        val snapshot = WatchRuntimeSnapshot(workout = reducer.state, selection = OutlineRules.defaultSelection(payload))
+        val snapshot = WatchRuntimeSnapshot(
+            workout = reducer.state,
+            selection = selection ?: OutlineRules.defaultSelection(payload),
+        )
         return WorkoutTileRenderer(context).refreshKey(snapshot).lines
     }
 
@@ -105,5 +128,6 @@ internal class WorkoutTileOutlineLinesTest {
 
     private companion object {
         const val TRAINING = "Leg day"
+        val ROW: CanonicalUuid = ReducerTestFixtures.laterExercise
     }
 }

@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -374,6 +375,38 @@ class WatchWorkoutReducerCommandTest {
         )
         assertEquals(CommandStatus.TERMINAL, reducer.state.command?.status)
         assertNull(reducer.state.draft)
+    }
+
+    /** wear-phase-2-exercise-list.md §7.1: the authority has no target; the admitted outline decides. */
+    @Test
+    fun `a command for any target the outline allows is issued and any other is rejected`() {
+        val base = ReducerTestFixtures.fingerprint()
+        val allowed = listOf(
+            "rule R's set" to base,
+            "a later open set" to ReducerTestFixtures.fingerprint(position = 1),
+            "another exercise's open set" to
+                ReducerTestFixtures.fingerprint(exercise = ReducerTestFixtures.laterExercise),
+            "a skip" to base.copy(body = WatchCommandBody.SetExerciseSkipped(ReducerTestFixtures.laterExercise, true)),
+        )
+        val refused = listOf(
+            "an unknown position" to ReducerTestFixtures.fingerprint(position = 5),
+            "an exercise not in the outline" to
+                ReducerTestFixtures.fingerprint(exercise = ReducerTestFixtures.exerciseB),
+            "a return of a pending exercise" to
+                base.copy(body = WatchCommandBody.SetExerciseSkipped(ReducerTestFixtures.exerciseA, false)),
+        )
+        allowed.forEachIndexed { index, (case, command) ->
+            assertIs<CommandIssueResult.Issued>(
+                activeReducer().issueCommand(ReducerTestFixtures.id(80 + index), 1, command),
+                case,
+            )
+        }
+        refused.forEachIndexed { index, (case, command) ->
+            assertIs<CommandIssueResult.Rejected>(
+                activeReducer().issueCommand(ReducerTestFixtures.id(90 + index), 1, command),
+                case,
+            )
+        }
     }
 
     private fun activeReducer(): WatchWorkoutReducer = WatchWorkoutReducer().also { reducer ->

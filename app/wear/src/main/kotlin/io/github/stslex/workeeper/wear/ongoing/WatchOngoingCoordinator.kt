@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.wear.ongoing
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
@@ -58,6 +59,7 @@ internal class WatchOngoingCoordinator(
         reducerState: WatchReducerState,
         receivedAtElapsedRealtimeMs: Long,
         bootCount: Int,
+        selection: OutlineSelection?,
     ): OngoingStatus {
         if (!reduction.accepted) return status()
         val effectiveWindow = eligibleWindow(response.snapshot, reduction, reducerState, receivedAtElapsedRealtimeMs)
@@ -71,7 +73,7 @@ internal class WatchOngoingCoordinator(
             notification.cancel()
             lifecycle = null
         }
-        persist(response, receivedAtElapsedRealtimeMs, bootCount, effectiveWindow, publishDeadline)
+        persist(response, receivedAtElapsedRealtimeMs, bootCount, effectiveWindow, publishDeadline, selection)
         if (publishDeadline != null) {
             val next = Lifecycle(response.snapshot, receivedAtElapsedRealtimeMs, publishDeadline)
             lifecycle = next
@@ -258,6 +260,7 @@ internal class WatchOngoingCoordinator(
         bootCount: Int,
         windowMs: Long?,
         deadlineMs: Long?,
+        selection: OutlineSelection?,
     ) {
         if (response.snapshot.payload is SnapshotPayload.NoSession) {
             cache.replaceWithNoSessionTombstone(receivedAtMs, bootCount, CachedConnection.CONNECTED)
@@ -269,6 +272,7 @@ internal class WatchOngoingCoordinator(
                 effectiveMutationWindowMs = windowMs,
                 ongoingStopAtElapsedRealtimeMs = deadlineMs,
                 connection = CachedConnection.CONNECTED,
+                selection = selection,
             )
         }
         cachedSnapshotReceivedAtMs = receivedAtMs

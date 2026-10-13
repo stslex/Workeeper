@@ -105,6 +105,19 @@ internal class DebugSnapshotDriverTest {
         }
     }
 
+    /** The harness shows fixtures one after another on one runtime: none keeps the last one's set. */
+    @Test
+    fun fixturesShownInSequenceEachMapToTheirOwnSurface() {
+        val env = environment()
+        val driver = driver(env)
+        (RUNTIME_FIXTURES + RUNTIME_FIXTURES.reversed()).forEach { id ->
+            assertTrue(driver.handle(id), id)
+            val fixture = requireNotNull(SyntheticSurfaceFixtures.find(id))
+            val surface = env.owner.surface.value.copy(selectedLocale = fixture.selectedLocale)
+            assertEquals(fixture.pinned(), surface.pinned(), id)
+        }
+    }
+
     @Test
     fun fixturesWithoutARuntimeSourceAreRefused() {
         listOf(

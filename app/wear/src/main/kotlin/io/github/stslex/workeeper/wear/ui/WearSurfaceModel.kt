@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.wear.protocol.exercise
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.state.ActiveFreshness
 import io.github.stslex.workeeper.wear.state.CommandTarget
+import io.github.stslex.workeeper.wear.state.LogicalCommand
 import io.github.stslex.workeeper.wear.state.ReducerEvent
 import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
@@ -100,7 +101,7 @@ internal object WearSurfaceMapper {
         }
         val selection = state.display.activeOutlineOrNull()?.let { outline -> shownSelection(outline, snapshot) }
         val eligibility = WatchInteractionEligibility.from(state, selection)
-        if (eligibility.retry) {
+        if (eligibility.retry && state.command.showsOn(selection)) {
             return WearSurfaceModel(
                 kind = WearSurfaceKind.RETRYABLE_ERROR,
                 retryEnabled = !snapshot.recoveryRequired && !snapshot.readOnly,
@@ -185,6 +186,7 @@ internal object WearSurfaceMapper {
                 command.target == CommandTarget.CompleteSet(TargetKey(exercise.performedExerciseUuid, set.position))
         } == true
         val completeEnabled = !blocked && eligibility.completion
+        val inFlightShown = state.command.showsOn(OutlineSelection(exercise.performedExerciseUuid, set.position))
         return WearSurfaceModel(
             kind = activeKind(display.freshness, snapshot),
             trainingName = payload.trainingName.valueOrNull(),
@@ -211,7 +213,7 @@ internal object WearSurfaceMapper {
                     commandIdle,
                     available,
                     eligibility.invalidField,
-                )
+                ).takeUnless { it == CompletionUnavailableReason.COMMAND_IN_FLIGHT && !inFlightShown }
             },
             fieldError = state.events.filterIsInstance<ReducerEvent.FieldError>().lastOrNull()?.field,
             selectedLocale = snapshot.locale,
@@ -256,6 +258,21 @@ internal object WearSurfaceMapper {
             totalExercises = progress.total,
             selectedLocale = locale,
         )
+    }
+
+    /**
+     * §7.2: the in-flight state ("Sending…", Retry) shows only where the selection is the command's
+     * target: its set for `complete_set`, its exercise for a skip or a return. Elsewhere completion
+     * stays disabled and names no reason. Without a selection the state shows, as before.
+     */
+    private fun LogicalCommand?.showsOn(selection: OutlineSelection?): Boolean {
+        val target = this?.target ?: return true
+        selection ?: return true
+        return when (target) {
+            is CommandTarget.CompleteSet ->
+                target.key == TargetKey(selection.performedExerciseUuid, selection.setPosition ?: return false)
+            is CommandTarget.SetSkipped -> target.performedExerciseUuid == selection.performedExerciseUuid
+        }
     }
 
     private fun BoundedDisplayName.valueOrNull(): String? =

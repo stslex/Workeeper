@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.wear.runtime
 
-import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
@@ -26,12 +26,21 @@ internal data class WatchRuntimeSnapshot(
 internal typealias WatchSelection = OutlineSelection
 
 /**
- * §7.2: the selection after an admitted [snapshot]. An `Active` outline selects rule R's set,
- * `PayloadTooLarge` keeps the selection until an outline arrives, and `NoSession` clears it.
+ * §7.2: the selection after an admitted [snapshot], when it was made on an outline of
+ * [selectionSession]. An `Active` outline reconciles it ([reconcileSelection]), `PayloadTooLarge`
+ * keeps it until an outline arrives, and `NoSession` clears it.
  */
-internal fun WatchSelection?.reconciledWith(snapshot: SnapshotData): WatchSelection? =
+internal fun WatchSelection?.reconciledWith(snapshot: SnapshotData, selectionSession: CanonicalUuid?): WatchSelection? =
     when (val payload = snapshot.payload) {
-        is SnapshotPayload.Active -> OutlineRules.defaultSelection(payload)
+        is SnapshotPayload.Active -> reconcileSelection(takeIf { selectionSession == payload.sessionUuid }, payload)
+        is SnapshotPayload.PayloadTooLarge -> this
+        SnapshotPayload.NoSession -> null
+    }
+
+/** The session a selection belongs to after [snapshot]: an outline's own; `PayloadTooLarge` keeps it. */
+internal fun CanonicalUuid?.selectionSessionAfter(snapshot: SnapshotData): CanonicalUuid? =
+    when (val payload = snapshot.payload) {
+        is SnapshotPayload.Active -> payload.sessionUuid
         is SnapshotPayload.PayloadTooLarge -> this
         SnapshotPayload.NoSession -> null
     }
