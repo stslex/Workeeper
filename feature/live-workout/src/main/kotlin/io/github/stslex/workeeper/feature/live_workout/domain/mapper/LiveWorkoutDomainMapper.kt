@@ -7,13 +7,15 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseType
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrite
 import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionStateDataModel
 import io.github.stslex.workeeper.core.data.exercise.sets.PrComparator
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSkipDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PerformedExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
@@ -107,15 +109,21 @@ internal object LiveWorkoutDomainMapper {
         position = position,
     )
 
-    fun ExternalSetWrite.toDomain(): ExternalSetDomain = ExternalSetDomain(
-        performedExerciseUuid = performedExerciseUuid,
-        position = position,
-        set = PlanSetDomain(
-            weight = weight,
-            reps = reps,
-            type = type.toDomain(),
-        ),
-    )
+    fun ExternalSessionWrite.toDomain(): ExternalWriteDomain = when (this) {
+        is ExternalSessionWrite.SetMarked -> ExternalSetDomain(
+            performedExerciseUuid = performedExerciseUuid,
+            position = position,
+            set = PlanSetDomain(
+                weight = weight,
+                reps = reps,
+                type = type.toDomain(),
+            ),
+        )
+        is ExternalSessionWrite.SkipChanged -> ExternalSkipDomain(
+            performedExerciseUuid = performedExerciseUuid,
+            skipped = skipped,
+        )
+    }
 
     fun PersonalRecordDataModel.toDomain(): PersonalRecordDomain = PersonalRecordDomain(
         sessionUuid = sessionUuid,

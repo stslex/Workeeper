@@ -4,13 +4,12 @@ package io.github.stslex.workeeper.wear.transport
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
@@ -131,7 +130,7 @@ internal class WatchTransportCoordinator(
     /** O5: a user Retry the owner answered with a refresh. */
     fun requestUserRefresh() = post { enqueueRefresh(Chain(RefreshOrigin.USER)) }
 
-    /** O5: a command attempt the owner issued (Complete set, or a retry of it). */
+    /** O5: a command attempt the owner issued (a set completed, an exercise skipped or returned, or a retry). */
     fun submitCommand(token: RequestToken, fingerprint: FingerprintCommand) = post {
         queue.addLast(Work.Command(Chain(RefreshOrigin.USER), token, fingerprint))
         pump()
@@ -388,7 +387,7 @@ internal class WatchTransportCoordinator(
                 // An answer the owner did not accept creates no authority; the link shows it.
                 if (!accepted) owner.handshakeUnanswered(true)
                 val payload = envelope.snapshot.payload
-                val authority = (payload as? SnapshotPayload.ActiveWithTarget)?.mutationAuthority
+                val authority = (payload as? SnapshotPayload.Active)?.mutationAuthority
                 Applied(
                     label = "snapshot:${payload::class.simpleName}:${if (accepted) "accepted" else "rejected"}",
                     acceptedUnavailable = accepted && authority is MutationAuthority.Unavailable,
@@ -415,11 +414,11 @@ internal class WatchTransportCoordinator(
         return when {
             envelope.correlationId != token.correlationId ->
                 Applied("other_correlation").also { owner.transportTimeout(token.correlationId) }
-            envelope is CompleteCurrentSetResponse -> {
+            envelope is WatchCommandResponse -> {
                 val admitted = owner.receiveCommandResponse(envelope)
                 // A response the reducer does not admit is no response for this attempt.
                 if (admitted == null) owner.transportTimeout(token.correlationId)
-                val authority = (envelope.replacement.payload as? SnapshotPayload.ActiveWithTarget)?.mutationAuthority
+                val authority = (envelope.replacement.payload as? SnapshotPayload.Active)?.mutationAuthority
                 Applied(
                     label = "response:${envelope.outcome::class.simpleName}:${admitted.admissionLabel()}",
                     acceptedUnavailable = admitted == true && authority is MutationAuthority.Unavailable,
@@ -541,7 +540,7 @@ internal class WatchTransportCoordinator(
 }
 
 /** Built field for field from the owner's command and the request's correlation; nothing recomputed (§5.3). */
-internal fun FingerprintCommand.toRequest(token: RequestToken) = CompleteCurrentSetRequest(
+internal fun FingerprintCommand.toRequest(token: RequestToken) = WatchCommandRequest(
     schemaVersion = schemaVersion,
     correlationId = token.correlationId,
     commandId = commandId,
@@ -550,14 +549,7 @@ internal fun FingerprintCommand.toRequest(token: RequestToken) = CompleteCurrent
     sessionRevision = sessionRevision,
     mutationLeaseId = mutationLeaseId,
     mutationLeaseGeneration = mutationLeaseGeneration,
-    body = CompleteCurrentSetBody(
-        performedExerciseUuid = performedExerciseUuid,
-        setPosition = setPosition,
-        reps = reps,
-        weightHundredthsKg = weightHundredthsKg,
-        exerciseType = exerciseType,
-        setType = setType,
-    ),
+    body = body,
 )
 
 internal fun RequestOperation.label(): String = when (this) {

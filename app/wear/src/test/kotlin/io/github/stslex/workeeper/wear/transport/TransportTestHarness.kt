@@ -3,12 +3,12 @@ package io.github.stslex.workeeper.wear.transport
 
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.PhoneDecodeResult
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearEnvelope
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
@@ -91,7 +91,7 @@ internal class FakePhoneLink : WearLink {
     }
 
     val handshakes: List<GetActiveWorkoutRequest> get() = requests.filterIsInstance<GetActiveWorkoutRequest>()
-    val commands: List<CompleteCurrentSetRequest> get() = requests.filterIsInstance<CompleteCurrentSetRequest>()
+    val commands: List<WatchCommandRequest> get() = requests.filterIsInstance<WatchCommandRequest>()
 
     companion object {
         const val PHONE_NODE = "phone-node-a"
@@ -102,15 +102,15 @@ internal class FakePhoneLink : WearLink {
 /** Answers a handshake with [snapshot] and a command with [outcome] + [replacement], all encoded. */
 internal fun phoneAnswers(
     snapshot: () -> SnapshotData,
-    outcome: () -> CompleteCommandOutcome = { CompleteCommandOutcome.Applied },
+    outcome: () -> CommandOutcome = { CommandOutcome.Applied },
     replacement: () -> SnapshotData = snapshot,
 ): (WearEnvelope) -> ByteArray = { request ->
     when (request) {
         is GetActiveWorkoutRequest -> WearProtocolCodec.encode(
             ActiveWorkoutSnapshotResponse(WearProtocol.SCHEMA_VERSION, request.correlationId, snapshot()),
         )
-        is CompleteCurrentSetRequest -> WearProtocolCodec.encode(
-            CompleteCurrentSetResponse(
+        is WatchCommandRequest -> WearProtocolCodec.encode(
+            WatchCommandResponse(
                 schemaVersion = WearProtocol.SCHEMA_VERSION,
                 correlationId = request.correlationId,
                 commandId = request.commandId,

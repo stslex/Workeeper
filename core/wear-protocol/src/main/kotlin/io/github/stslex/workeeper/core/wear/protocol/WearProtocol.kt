@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.wear.protocol
 
-/** Stable Phase-1 wire limits shared only by the Android phone and Wear artifacts. */
+/** Stable wire limits shared only by the Android phone and Wear artifacts. */
 object WearProtocol {
 
-    const val SCHEMA_VERSION: Int = 1
+    const val SCHEMA_VERSION: Int = 2
     const val MAX_DISPLAY_NAME_UTF8_BYTES: Int = 512
     const val MAX_ENVELOPE_BYTES: Int = 16_384
     const val MAX_WEAR_REPS: Int = 999
@@ -12,6 +12,18 @@ object WearProtocol {
     const val MAX_MUTATION_WINDOW_MS: Long = 120_000L
     const val DISPLAY_CACHE_TTL_MS: Long = 86_400_000L
     const val MAX_PAYLOAD_TOO_LARGE_FALLBACK_BYTES: Int = 1_024
+
+    /**
+     * What a command response may add to the snapshot response of the same outline: its command id
+     * and its outcome, far below this (wear-phase-2-exercise-list.md §5.7, P15).
+     */
+    const val COMMAND_HEADROOM_BYTES: Int = 512
+
+    /**
+     * An outline is sent only while its snapshot response, with the widest granted authority, fits
+     * this; otherwise the phone sends `PayloadTooLarge`. Every command response for it then fits too.
+     */
+    const val OUTLINE_BUDGET_BYTES: Int = MAX_ENVELOPE_BYTES - COMMAND_HEADROOM_BYTES
 
     /**
      * The capability the phone advertises (feature/wear-bridge `wear_capabilities.xml`, pinned by a

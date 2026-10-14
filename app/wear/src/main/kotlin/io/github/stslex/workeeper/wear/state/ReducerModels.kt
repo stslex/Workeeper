@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
 
 internal sealed interface ActiveIdentity {
     data object NoSession : ActiveIdentity
@@ -25,6 +26,29 @@ internal data class TargetKey(
     val setPosition: Int,
 )
 
+/** What a watch command aims at: a set to complete, or an exercise to skip or return (§7.1). */
+internal sealed interface CommandTarget {
+    val performedExerciseUuid: CanonicalUuid
+
+    // The target is the selection's twin: its toString names the type only (§7.4).
+    data class CompleteSet(val key: TargetKey) : CommandTarget {
+        override val performedExerciseUuid: CanonicalUuid get() = key.performedExerciseUuid
+
+        override fun toString(): String = "CommandTarget.CompleteSet"
+    }
+
+    data class SetSkipped(override val performedExerciseUuid: CanonicalUuid, val skipped: Boolean) : CommandTarget {
+        override fun toString(): String = "CommandTarget.SetSkipped"
+    }
+
+    companion object {
+        fun of(body: WatchCommandBody): CommandTarget = when (body) {
+            is WatchCommandBody.CompleteSet -> CompleteSet(TargetKey(body.performedExerciseUuid, body.setPosition))
+            is WatchCommandBody.SetExerciseSkipped -> SetSkipped(body.performedExerciseUuid, body.skipped)
+        }
+    }
+}
+
 internal sealed interface WatchDisplayState {
     data object Loading : WatchDisplayState
     data class NoSession(val databaseEpoch: CanonicalUuid) : WatchDisplayState
@@ -32,8 +56,7 @@ internal sealed interface WatchDisplayState {
         val snapshot: SnapshotData,
         val freshness: ActiveFreshness,
     ) : WatchDisplayState
-    data class PhoneActionRequired(val snapshot: SnapshotData) : WatchDisplayState
-    data class WorkoutComplete(val snapshot: SnapshotData) : WatchDisplayState
+    data class PayloadTooLarge(val snapshot: SnapshotData) : WatchDisplayState
     data class ProtocolMismatch(val reason: ProtocolRejectionReason?) : WatchDisplayState
 }
 
@@ -45,11 +68,11 @@ internal enum class ActiveFreshness {
 }
 
 internal sealed interface LocalMutationAuthority {
+    /** A session lease: any command the admitted outline allows, at its revision (V3). */
     data class Available(
         val leaseId: CanonicalUuid,
         val leaseGeneration: Long,
         val source: WorkoutSourceVersion,
-        val target: TargetKey,
         val effectiveDeadlineMs: Long,
     ) : LocalMutationAuthority
 
@@ -59,7 +82,8 @@ internal sealed interface LocalMutationAuthority {
         val leaseId: CanonicalUuid,
         val leaseGeneration: Long,
         val source: WorkoutSourceVersion,
-        val target: TargetKey,
+        /** The command's target, for the in-flight display only. */
+        val target: CommandTarget,
         val effectiveDeadlineMs: Long,
         val attemptsIssued: Int,
         val retryReady: Boolean,
@@ -77,8 +101,9 @@ internal data class LogicalCommand(
     val commandId: CanonicalUuid,
     val fingerprintCommand: FingerprintCommand,
     val source: WorkoutSourceVersion,
-    val target: TargetKey,
-    val draft: CommandDraft,
+    val target: CommandTarget,
+    /** The values a `complete_set` sends; null for a skip or a return. */
+    val draft: CommandDraft?,
     val localGeneration: Long,
     val attemptsIssued: Int,
     val timedOutCorrelations: Set<CanonicalUuid>,
@@ -137,24 +162,25 @@ internal fun SnapshotData.sourceVersion(): WorkoutSourceVersion = when (val stat
         identity = ActiveIdentity.NoSession,
         sessionRevision = null,
     )
-    is SnapshotPayload.ActiveWithTarget -> WorkoutSourceVersion(
+    is SnapshotPayload.Active -> WorkoutSourceVersion(
         databaseEpoch = databaseEpoch,
         identity = ActiveIdentity.Session(state.sessionUuid),
         sessionRevision = state.sessionRevision,
     )
-    is SnapshotPayload.PhoneActionRequired -> WorkoutSourceVersion(
-        databaseEpoch = databaseEpoch,
-        identity = ActiveIdentity.Session(state.sessionUuid),
-        sessionRevision = state.sessionRevision,
-    )
-    is SnapshotPayload.WorkoutComplete -> WorkoutSourceVersion(
+    is SnapshotPayload.PayloadTooLarge -> WorkoutSourceVersion(
         databaseEpoch = databaseEpoch,
         identity = ActiveIdentity.Session(state.sessionUuid),
         sessionRevision = state.sessionRevision,
     )
 }
 
-internal fun SnapshotData.targetKeyOrNull(): TargetKey? =
-    (payload as? SnapshotPayload.ActiveWithTarget)?.target?.let { target ->
-        TargetKey(target.performedExerciseUuid, target.setPosition)
-    }
+/**
+ * True when this snapshot is the outline a command was built on: the same source, which the database
+ * triggers make the same outline (§7.1). A `PayloadTooLarge` snapshot never matches.
+ */
+internal fun SnapshotData.matchesCommandSource(source: WorkoutSourceVersion): Boolean =
+    payload !is SnapshotPayload.PayloadTooLarge && sourceVersion() == source
+
+/** The admitted outline's `Active` payload, or null for every other display. */
+internal fun WatchDisplayState.activeOutlineOrNull(): SnapshotPayload.Active? =
+    (this as? WatchDisplayState.Active)?.snapshot?.payload as? SnapshotPayload.Active

@@ -360,14 +360,18 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /** Skip is a reversible in-place toggle — no confirmation, nothing destroyed. */
+    /**
+     * Skip is a reversible in-place flag — no confirmation, nothing destroyed. It writes the intent the
+     * menu showed and does nothing when the exercise already has it (wear-phase-2 P14).
+     */
     private fun processSkipExerciseToggle(action: Action.Click.OnSkipExercise) {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         val current = state.value
         val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
-        val skipped = exercise.status != ExerciseStatusUiModel.SKIPPED
+        val skipped = action.skipped
+        if ((exercise.status == ExerciseStatusUiModel.SKIPPED) == skipped) return
+        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         updateState { latest ->
-            setMutator.applySkipToggle(latest, action.performedExerciseUuid, skipped)
+            setMutator.applySkipped(latest, action.performedExerciseUuid, skipped)
         }
         launch(
             onError = { _ -> sendError(ErrorType.SkipFailed) },

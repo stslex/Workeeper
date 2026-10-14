@@ -64,6 +64,7 @@ internal class OngoingTestEnvironment {
         admission.state,
         admission.receivedAtMs,
         1,
+        selection = null,
     )
 
     fun cachedRecord() = requireNotNull(storage.bytes?.let(CacheFraming::decode))

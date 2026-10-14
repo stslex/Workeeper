@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -61,6 +62,24 @@ internal class ExternalWriteCoverageTest {
         assertEquals(emptyList<ExternalSetUiModel>(), coverage.since(next))
         assertEquals(emptyList<ExternalSetUiModel>(), coverage.since(ended), "an ended load applies nothing")
     }
+
+    @Test
+    fun `a load applies again the sets and the skips received after it began in arrival order`() {
+        val load = ExternalWriteCoverage.Load()
+        coverage.begin(load)
+        coverage.receive(skip(skipped = true))
+        coverage.receive(write(0))
+        coverage.receive(skip(skipped = false))
+
+        assertEquals(listOf(skip(skipped = true), write(0), skip(skipped = false)), coverage.since(load))
+    }
+
+    @Test
+    fun `a watch set prints its type only`() {
+        assertEquals("ExternalSetUiModel", write(0).toString())
+    }
+
+    private fun skip(skipped: Boolean) = ExternalSkipUiModel(performedExerciseUuid = "pe-1", skipped = skipped)
 
     private fun write(position: Int) = ExternalSetUiModel(
         performedExerciseUuid = "pe-1",

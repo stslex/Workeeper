@@ -7,24 +7,28 @@ import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneMonotonicClock
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridgeImpl
 import io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutSnapshotBuilder
 import io.github.stslex.workeeper.feature.wear_bridge.RoomWearSetMutationWriter
+import io.github.stslex.workeeper.feature.wear_bridge.RoomWearSkipMutationWriter
 import io.github.stslex.workeeper.feature.wear_bridge.WatchKnownRevisions
 import io.github.stslex.workeeper.feature.wear_bridge.WatchStateKey
 import io.github.stslex.workeeper.feature.wear_bridge.WearMutationLeaseStore
+import io.github.stslex.workeeper.feature.wear_bridge.WearMutationWriters
+import io.github.stslex.workeeper.feature.wear_bridge.completeTargetBody
+import io.github.stslex.workeeper.feature.wear_bridge.toWireUuid
 import io.github.stslex.workeeper.feature.wear_bridge.transport.FakeNudgeLink.Companion.WATCH_A
 import io.github.stslex.workeeper.feature.wear_bridge.transport.FakeNudgeLink.Companion.WATCH_B
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -80,9 +84,12 @@ internal class PhoneChangeNotifierTest {
             snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
             leaseStore = WearMutationLeaseStore(env.transition),
             clock = PhoneMonotonicClock { 0L },
-            mutationWriter = RoomWearSetMutationWriter(database),
+            writers = WearMutationWriters(
+                RoomWearSetMutationWriter(database),
+                RoomWearSkipMutationWriter(database),
+            ),
             knownRevisions = known,
-            externalSetWrites = ExternalSetWrites(),
+            externalSessionWrites = ExternalSessionWrites(),
         )
     }
 
@@ -312,7 +319,27 @@ internal class PhoneChangeNotifierTest {
         awaitKeys(tap) { it.isNotEmpty() }
 
         val response = completeShownSet(WATCH_A, shown)
-        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        awaitDistinct(tap, 2)
+        advanceTimeBy(PAST_ONE_SIGNAL_MS)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), link.signals, "the bridge recorded what it answered the writer (D7)")
+    }
+
+    @Test
+    fun `an applied watch skip signals nothing back to the watch that wrote it`() = runTest {
+        val seed = database.seedActiveWorkout()
+        val shown = grantingHandshake(WATCH_A)
+        val tap = startNotifier()
+        awaitKeys(tap) { it.isNotEmpty() }
+
+        val response = commandShown(
+            WATCH_A,
+            shown,
+            WatchCommandBody.SetExerciseSkipped(seed.performedUuid.toWireUuid(), skipped = true),
+        )
+        assertEquals(CommandOutcome.Applied, response.outcome)
         awaitDistinct(tap, 2)
         advanceTimeBy(PAST_ONE_SIGNAL_MS)
         runCurrent()
@@ -331,7 +358,7 @@ internal class PhoneChangeNotifierTest {
         awaitKeys(tap) { it.isNotEmpty() }
 
         val response = completeShownSet(WATCH_A, shown)
-        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+        assertEquals(CommandOutcome.Applied, response.outcome)
         awaitDistinct(tap, 2)
         advanceTimeBy(PAST_ONE_SIGNAL_MS)
         runCurrent()
@@ -463,38 +490,38 @@ internal class PhoneChangeNotifierTest {
             node,
             GetActiveWorkoutRequest(WearProtocol.SCHEMA_VERSION, CanonicalUuid.random()),
         )
-        val payload = response.snapshot.payload as SnapshotPayload.ActiveWithTarget
+        val payload = response.snapshot.payload as SnapshotPayload.Active
         assertInstanceOf(MutationAuthority.Granted::class.java, payload.mutationAuthority, "the handshake granted")
         response
     }
 
-    /** The watch completes the set its last handshake showed, through the real bridge. */
-    private fun completeShownSet(node: String, shown: ActiveWorkoutSnapshotResponse): CompleteCurrentSetResponse =
-        runBlocking {
-            val active = shown.snapshot.payload as SnapshotPayload.ActiveWithTarget
-            val authority = active.mutationAuthority as MutationAuthority.Granted
-            bridge.completeCurrentSet(
-                node,
-                CompleteCurrentSetRequest(
-                    schemaVersion = WearProtocol.SCHEMA_VERSION,
-                    correlationId = CanonicalUuid.random(),
-                    commandId = CanonicalUuid.random(),
-                    databaseEpoch = shown.snapshot.databaseEpoch,
-                    sessionUuid = active.sessionUuid,
-                    sessionRevision = active.sessionRevision,
-                    mutationLeaseId = authority.mutationLeaseId,
-                    mutationLeaseGeneration = authority.mutationLeaseGeneration,
-                    body = CompleteCurrentSetBody(
-                        performedExerciseUuid = active.target.performedExerciseUuid,
-                        setPosition = active.target.setPosition,
-                        reps = active.target.reps,
-                        weightHundredthsKg = active.target.weightHundredthsKg,
-                        exerciseType = active.target.exerciseType,
-                        setType = active.target.setType,
-                    ),
-                ),
-            )
-        }
+    /** The watch completes rule R's set of its last handshake, through the real bridge. */
+    private fun completeShownSet(node: String, shown: ActiveWorkoutSnapshotResponse): WatchCommandResponse =
+        commandShown(node, shown, (shown.snapshot.payload as SnapshotPayload.Active).completeTargetBody())
+
+    /** The watch sends [body] under its last handshake's lease, through the real bridge. */
+    private fun commandShown(
+        node: String,
+        shown: ActiveWorkoutSnapshotResponse,
+        body: WatchCommandBody,
+    ): WatchCommandResponse = runBlocking {
+        val active = shown.snapshot.payload as SnapshotPayload.Active
+        val authority = active.mutationAuthority as MutationAuthority.Granted
+        bridge.executeCommand(
+            node,
+            WatchCommandRequest(
+                schemaVersion = WearProtocol.SCHEMA_VERSION,
+                correlationId = CanonicalUuid.random(),
+                commandId = CanonicalUuid.random(),
+                databaseEpoch = shown.snapshot.databaseEpoch,
+                sessionUuid = active.sessionUuid,
+                sessionRevision = active.sessionRevision,
+                mutationLeaseId = authority.mutationLeaseId,
+                mutationLeaseGeneration = authority.mutationLeaseGeneration,
+                body = body,
+            ),
+        )
+    }
 
     private companion object {
         /** Past the settle time and one minimum interval: any signal a change causes has gone out. */

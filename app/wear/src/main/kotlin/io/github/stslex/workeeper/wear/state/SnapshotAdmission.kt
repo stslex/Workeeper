@@ -53,7 +53,7 @@ internal object SnapshotAdmissionPolicy {
             }
         }
 
-        val active = incoming.payload as? SnapshotPayload.ActiveWithTarget
+        val active = incoming.payload as? SnapshotPayload.Active
         val granted = active?.mutationAuthority as? MutationAuthority.Granted
         if (granted != null) {
             val currentLease = current.leaseGeneration ?: Long.MIN_VALUE
@@ -84,7 +84,7 @@ internal object SnapshotAdmissionPolicy {
         val incomingRevision = requireNotNull(incomingSource.sessionRevision)
         if (incomingRevision > currentRevision) return SnapshotAdmission.READ_ONLY
         if (incomingRevision < currentRevision) return SnapshotAdmission.REJECT
-        val incomingLease = (incoming.payload as? SnapshotPayload.ActiveWithTarget)
+        val incomingLease = (incoming.payload as? SnapshotPayload.Active)
             ?.mutationAuthority
             ?.let { it as? MutationAuthority.Granted }
             ?.mutationLeaseGeneration
@@ -104,7 +104,7 @@ internal object SnapshotAdmissionPolicy {
         }
 
     private fun authorityShape(incoming: SnapshotData): SnapshotAdmission {
-        val active = incoming.payload as? SnapshotPayload.ActiveWithTarget
+        val active = incoming.payload as? SnapshotPayload.Active
             ?: return SnapshotAdmission.AUTHORITY_ELIGIBLE
         return if (active.mutationAuthority is MutationAuthority.Granted) {
             SnapshotAdmission.AUTHORITY_ELIGIBLE

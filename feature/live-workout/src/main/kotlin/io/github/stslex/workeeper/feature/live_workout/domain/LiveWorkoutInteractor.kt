@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
@@ -61,12 +61,13 @@ interface LiveWorkoutInteractor {
     suspend fun loadSession(sessionUuid: String): SessionSnapshotDomain?
 
     /**
-     * The sets the paired watch writes into [sessionUuid] through the phone bridge, after each
-     * commit (wear-live-sync.md §6.4). Hot, and nothing is replayed to a late subscriber.
+     * The sets and skips the paired watch writes into [sessionUuid] through the phone bridge, after
+     * each commit and in commit order (wear-live-sync.md §6.4, wear-phase-2-exercise-list.md §6.5).
+     * Hot, and nothing is replayed to a late subscriber.
      * GUARD: no `flowOn`, `buffer` or other dispatching operator: the store subscribes undispatched
      * and starts a load only once this subscription is active.
      */
-    fun observeExternalSetWrites(sessionUuid: String): Flow<ExternalSetDomain>
+    fun observeExternalWrites(sessionUuid: String): Flow<ExternalWriteDomain>
 
     suspend fun upsertSet(
         performedExerciseUuid: String,

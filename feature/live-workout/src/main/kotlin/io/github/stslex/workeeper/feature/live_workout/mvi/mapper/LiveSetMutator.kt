@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
@@ -97,33 +99,51 @@ internal class LiveSetMutator(
         }
     }
 
+    /** One write the paired watch made, a set or a skip; pure, so a compare-and-set may run it again. */
+    fun applyExternalWrite(state: State, external: ExternalWriteUiModel): State = when (external) {
+        is ExternalSetUiModel -> applyExternalSet(state, external)
+        is ExternalSkipUiModel -> applyExternal(state, external.performedExerciseUuid) { target ->
+            applySkipped(target, external.performedExerciseUuid, external.skipped)
+        }
+    }
+
     /**
      * One set the paired watch wrote (wear-live-sync.md §6.4): A, the exercise is on screen, marked
      * as the phone's own completion marks it, and also inside an open undo window that holds it;
      * B, only inside the undo window (a soft-deleted exercise); C, in neither, ignored. Nothing else
      * in [state] changes.
      */
-    fun applyExternalSet(state: State, external: ExternalSetUiModel): State {
-        val uuid = external.performedExerciseUuid
-        val position = external.set.position
-        val shown = if (findExercise(state, uuid) != null) {
-            applySetMarked(state, uuid, position, external.set)
-        } else {
-            state
+    fun applyExternalSet(state: State, external: ExternalSetUiModel): State =
+        applyExternal(state, external.performedExerciseUuid) { target ->
+            applySetMarked(target, external.performedExerciseUuid, external.set.position, external.set)
         }
+
+    /**
+     * The skip state the watch wrote (wear-phase-2-exercise-list.md §6.5): [state] unchanged when the
+     * exercise is absent or already [skipped], otherwise [applySkipToggle] with that value.
+     */
+    fun applySkipped(state: State, performedExerciseUuid: String, skipped: Boolean): State {
+        val exercise = findExercise(state, performedExerciseUuid) ?: return state
+        if ((exercise.status == ExerciseStatusUiModel.SKIPPED) == skipped) return state
+        return applySkipToggle(state, performedExerciseUuid, skipped)
+    }
+
+    /**
+     * A to C of wear-live-sync.md §6.4 for one watch write about [uuid]: [patch] the screen when it
+     * shows the exercise, and the open undo window's snapshot when that holds it.
+     */
+    private fun applyExternal(state: State, uuid: String, patch: (State) -> State): State {
+        val shown = if (findExercise(state, uuid) != null) patch(state) else state
         val undo = state.pendingUndo
             ?.takeIf { pending -> pending.restoreExercises.any { it.performedExerciseUuid == uuid } }
             ?: return shown
-        // The undo snapshot gets the same patch, so an undo restores the earlier screen plus this set.
-        val restored = applySetMarked(
+        // The undo snapshot gets the same patch, so an undo restores the earlier screen plus this write.
+        val restored = patch(
             state.copy(
                 exercises = undo.restoreExercises,
                 setDrafts = undo.restoreDrafts,
                 rowCountOverrides = undo.restoreOverrides,
             ),
-            uuid,
-            position,
-            external.set,
         )
         return shown.copy(
             pendingUndo = undo.copy(

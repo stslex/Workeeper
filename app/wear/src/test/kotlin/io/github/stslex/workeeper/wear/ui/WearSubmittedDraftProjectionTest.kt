@@ -4,7 +4,9 @@ package io.github.stslex.workeeper.wear.ui
 import io.github.stslex.workeeper.wear.state.CommandDraft
 import io.github.stslex.workeeper.wear.state.CommandIssueResult
 import io.github.stslex.workeeper.wear.state.CommandStatus
+import io.github.stslex.workeeper.wear.state.CommandTarget
 import io.github.stslex.workeeper.wear.state.ReducerTestFixtures
+import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchWorkoutReducer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -52,7 +54,11 @@ internal class WearSubmittedDraftProjectionTest {
             state.copy(draft = CommandDraft(13, null)),
             state.copy(draft = CommandDraft(12, 10_000)),
             state.copy(command = submitted.copy(source = submitted.source.copy(sessionRevision = 2L))),
-            state.copy(command = submitted.copy(target = submitted.target.copy(setPosition = 1))),
+            state.copy(
+                command = submitted.copy(
+                    target = CommandTarget.CompleteSet(TargetKey(ReducerTestFixtures.exerciseA, setPosition = 1)),
+                ),
+            ),
             state.copy(command = null),
         ) + listOf(CommandStatus.TERMINAL, CommandStatus.SOURCE_INVALIDATED, CommandStatus.ABANDONED).map { status ->
             state.copy(command = submitted.copy(status = status))

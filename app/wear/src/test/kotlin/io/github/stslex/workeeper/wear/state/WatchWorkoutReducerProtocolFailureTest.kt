@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.state
 
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -29,7 +29,7 @@ internal class WatchWorkoutReducerProtocolFailureTest {
         reducer.receiveCommandResponse(
             ReducerTestFixtures.response(
                 correlationId = attempt,
-                outcome = CompleteCommandOutcome.Applied,
+                outcome = CommandOutcome.Applied,
                 replacement = ReducerTestFixtures.active(revision = 2),
             ),
             2,

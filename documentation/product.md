@@ -250,9 +250,13 @@ notes).
 An Android-only Wear OS companion is approved as a separate product and
 delivery workstream. Phase 1 is deliberately narrow: a glanceable Tile shows
 the state of an already-active phone workout and opens one minimal watch screen
-for editing and completing the current set. The phone remains the only workout
-database and durable source of truth; the watch may hold only the bounded,
-app-private display cache defined by the Phase 1 specification.
+for editing and completing the current set. Phase 2 adds the active workout's
+exercise list on the watch: choosing an exercise and any incomplete set of it,
+and skipping an exercise or returning it to the workout
+([Wear Phase 2](feature-specs/wear-phase-2-exercise-list.md)). The phone
+remains the only workout database and durable source of truth; the watch may
+hold only the bounded, app-private display cache defined by the Phase 1 and
+Phase 2 specifications.
 
 This exception does not authorize watchOS or shared KMP watch UI, starting or
 finishing sessions from the watch, health/sensor capture, Health Services,
@@ -275,15 +279,17 @@ re-read of this section first.
 - **No accounts or authentication.** The app does not know who the user
   is.
 - **No account-backed or Workeeper-operated cloud sync.** Workout data stays on
-  the phone by default. The sole approved cross-device exception is Phase 1 of
-  the personally paired Wear OS companion: after the required product and
-  public privacy disclosures are live, it may transfer the minimum active
-  workout snapshot and completion commands between the user's phone and watch,
-  let the phone send the watch a content-free change signal so that the watch
-  asks again ([Wear live sync](feature-specs/wear-live-sync.md)), and retain
-  the bounded watch cache defined by its specification. The owner authorized
-  Google-owned end-to-end encrypted Data Layer relay transit for it on
-  2026-09-29, together with its public disclosure
+  the phone by default. The sole approved cross-device exception is the
+  personally paired Wear OS companion: after the required product and public
+  privacy disclosures are live, it may transfer the active workout's outline
+  and the watch's commands (completing a set, skipping an exercise or returning
+  it) between the user's phone and watch
+  ([Wear Phase 2](feature-specs/wear-phase-2-exercise-list.md)), let the phone
+  send the watch a content-free change signal so that the watch asks again
+  ([Wear live sync](feature-specs/wear-live-sync.md)), and retain the bounded
+  watch cache defined by its specifications. The owner authorized Google-owned
+  end-to-end encrypted Data Layer relay transit for it on 2026-09-29, together
+  with its public disclosure
   ([Wear paired transport](feature-specs/wear-paired-transport.md)); no other
   phone/watch route is authorized. Manual export / import may be added later,
   but is not a v1 commitment.

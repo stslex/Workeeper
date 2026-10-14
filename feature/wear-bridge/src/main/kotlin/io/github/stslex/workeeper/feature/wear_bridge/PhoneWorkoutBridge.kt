@@ -2,11 +2,11 @@
 package io.github.stslex.workeeper.feature.wear_bridge
 
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandRouting
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 
 /**
  * The phone authority for the paired watch. The Data Layer listener invokes it through a
@@ -20,16 +20,17 @@ interface PhoneWorkoutBridge {
         request: GetActiveWorkoutRequest,
     ): ActiveWorkoutSnapshotResponse
 
-    suspend fun completeCurrentSet(
+    /** One watch command, `complete_set` or `set_exercise_skipped` (wear-phase-2-exercise-list.md §6.3). */
+    suspend fun executeCommand(
         authenticatedSourceNodeId: String,
-        request: CompleteCurrentSetRequest,
-    ): CompleteCurrentSetResponse
+        request: WatchCommandRequest,
+    ): WatchCommandResponse
 
     suspend fun protocolRejected(
         authenticatedSourceNodeId: String,
-        routing: CompleteCommandRouting,
+        routing: CommandRouting,
         reason: ProtocolRejectionReason,
-    ): CompleteCurrentSetResponse
+    ): WatchCommandResponse
 }
 
 /** Narrow app-graph surface the generation-bound Data Layer listener reads through its lease. */

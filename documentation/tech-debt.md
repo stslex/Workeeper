@@ -386,6 +386,14 @@ would have affected three tests, not one.
 
 ---
 
+## Mutation harness reads `:<module>:testClasses` as `:<module>:test` (2026-10-13)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [documentation/mockups/mutation_harness.py:156-167](mockups/mutation_harness.py) (`_reused_outputs`) | **A mutation run against a bare `:<module>:test` task is scored `INVALID — TASK OUTPUT REUSED` although the test task executed.** **Mechanism:** `_reused_outputs` takes `task.split()[0]` as the needle and matches it by substring (`needle in line`). `:<module>:test` is a prefix of `:<module>:testClasses`, a lifecycle task with no actions that Gradle reports `UP-TO-DATE` even under `--rerun-tasks`, so the check cites that line. `testDebugUnitTest` has no such prefix sibling, which is why Android modules never showed it. **Found** in PR-P2A's Phase 3: five named mutations against `:core:wear-protocol:test` came back INVALID, each citing `> Task :core:wear-protocol:testClasses UP-TO-DATE`. **Workaround (PR-P2A, no harness change):** pass the task with a leading flag, `--task "--console=plain :core:wear-protocol:test …"`, so the needle is the flag and matches no task line; the leading flag switches the harness's own check off, so read what it still prints: the run's Gradle summary must read `N actionable tasks: N executed` (every task executed, none reused) and a RED must name its failing test. The harness prints no task lines, so the summary line is the check. **Fix:** compare the task path exactly (`line.split()[2] == needle`) instead of by substring. |
+
+---
+
 ## Robolectric is not a valid oracle for transaction / async-child rollback semantics
 
 | Severity | Location | Description |

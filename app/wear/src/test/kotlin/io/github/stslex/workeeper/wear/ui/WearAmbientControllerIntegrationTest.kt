@@ -86,6 +86,10 @@ internal class WearAmbientControllerIntegrationTest {
                         )
                         ControllerAction.CompleteSet,
                         ControllerAction.Retry,
+                        is ControllerAction.SelectExercise,
+                        is ControllerAction.SelectSet,
+                        is ControllerAction.SkipExercise,
+                        is ControllerAction.ReturnExercise,
                         -> model
                     }
                 }

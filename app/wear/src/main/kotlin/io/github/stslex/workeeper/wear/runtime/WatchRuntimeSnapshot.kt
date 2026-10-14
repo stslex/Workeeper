@@ -1,5 +1,9 @@
 package io.github.stslex.workeeper.wear.runtime
 
+import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
+import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
+import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.state.WatchReducerState
 import java.util.Locale
@@ -12,9 +16,34 @@ internal data class WatchRuntimeSnapshot(
     val readOnly: Boolean = false,
     val locale: Locale = Locale.getDefault(),
     val link: LinkStatus = LinkStatus.UNKNOWN,
+    /** The set the watch shows and acts on (wear-phase-2-exercise-list.md §7.2); null: none. */
+    val selection: WatchSelection? = null,
 ) {
     override fun toString(): String = "WatchRuntimeSnapshot"
 }
+
+/** One exercise of the session and, when it has sets, one incomplete set of it (§7.2). */
+internal typealias WatchSelection = OutlineSelection
+
+/**
+ * §7.2: the selection after an admitted [snapshot], when it was made on an outline of
+ * [selectionSession]. An `Active` outline reconciles it ([reconcileSelection]), `PayloadTooLarge`
+ * keeps it until an outline arrives, and `NoSession` clears it.
+ */
+internal fun WatchSelection?.reconciledWith(snapshot: SnapshotData, selectionSession: CanonicalUuid?): WatchSelection? =
+    when (val payload = snapshot.payload) {
+        is SnapshotPayload.Active -> reconcileSelection(takeIf { selectionSession == payload.sessionUuid }, payload)
+        is SnapshotPayload.PayloadTooLarge -> this
+        SnapshotPayload.NoSession -> null
+    }
+
+/** The session a selection belongs to after [snapshot]: an outline's own; `PayloadTooLarge` keeps it. */
+internal fun CanonicalUuid?.selectionSessionAfter(snapshot: SnapshotData): CanonicalUuid? =
+    when (val payload = snapshot.payload) {
+        is SnapshotPayload.Active -> payload.sessionUuid
+        is SnapshotPayload.PayloadTooLarge -> this
+        SnapshotPayload.NoSession -> null
+    }
 
 /**
  * What the last request learned about the phone (wear-paired-transport.md §7.5). A status only:

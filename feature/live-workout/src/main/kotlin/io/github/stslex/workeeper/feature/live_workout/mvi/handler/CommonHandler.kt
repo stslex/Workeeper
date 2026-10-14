@@ -17,7 +17,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
-import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.coroutines.CompletableDeferred
@@ -140,7 +140,7 @@ internal class CommonHandler @Inject constructor(
             onMain {
                 // A plan-editor round-trip is not leaving the session (§7); expansions survive.
                 updateState { previous ->
-                    coverage.since(load).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalSet)
+                    coverage.since(load).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalWrite)
                 }
             }
             return true
@@ -161,19 +161,22 @@ internal class CommonHandler @Inject constructor(
     private fun restartExternalWrites(scope: CoroutineScope, sessionUuid: String) {
         externalWritesJob?.cancel()
         externalWritesJob = scope.launch(storeDispatchers.mainImmediateDispatcher, CoroutineStart.UNDISPATCHED) {
-            interactor.observeExternalSetWrites(sessionUuid)
+            interactor.observeExternalWrites(sessionUuid)
                 .map { write -> write.toUi() }
                 .onEach(::applyExternalWrite)
-                .catch { failure -> logger.w { "external set writes stopped: ${failure::class.simpleName}" } }
+                .catch { failure -> logger.w { "external writes stopped: ${failure::class.simpleName}" } }
                 .collect()
         }
         subscribed.complete(Unit)
     }
 
-    /** Applied at once (§6.4 A to C), and kept while a load is in flight. */
-    private fun applyExternalWrite(write: ExternalSetUiModel) {
+    /**
+     * A set or a skip, applied at once (wear-live-sync.md §6.4 A to C, wear-phase-2-exercise-list.md
+     * §6.5) and kept while a load is in flight.
+     */
+    private fun applyExternalWrite(write: ExternalWriteUiModel) {
         coverage.receive(write)
-        updateState { latest -> setMutator.applyExternalSet(latest, write) }
+        updateState { latest -> setMutator.applyExternalWrite(latest, write) }
     }
 
     private suspend fun <T> onMain(block: suspend () -> T): T =

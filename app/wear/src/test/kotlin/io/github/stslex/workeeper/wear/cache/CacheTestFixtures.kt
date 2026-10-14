@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.cache
 
-import io.github.stslex.workeeper.core.wear.protocol.ActiveTarget
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineExercise
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
@@ -24,22 +25,18 @@ internal object CacheTestFixtures {
 
     fun snapshot(revision: Long = 5): SnapshotData = SnapshotData(
         databaseEpoch = databaseEpoch,
-        payload = SnapshotPayload.ActiveWithTarget(
+        payload = SnapshotPayload.Active(
             sessionUuid = sessionUuid,
             sessionRevision = revision,
             trainingName = BoundedDisplayName.Value("Training"),
-            completedExercises = 0,
-            totalExercises = 1,
-            target = ActiveTarget(
-                performedExerciseUuid = exerciseUuid,
-                exerciseName = BoundedDisplayName.Value("Exercise"),
-                setPosition = 0,
-                setOrdinal = 1,
-                totalSets = 1,
-                reps = 10,
-                weightHundredthsKg = 5_000,
-                exerciseType = ExerciseTypeWire.WEIGHTED,
-                setType = SetTypeWire.WORK,
+            exercises = listOf(
+                OutlineExercise(
+                    performedExerciseUuid = exerciseUuid,
+                    name = BoundedDisplayName.Value("Exercise"),
+                    exerciseType = ExerciseTypeWire.WEIGHTED,
+                    skipped = false,
+                    sets = listOf(OutlineSet.Open(0, SetTypeWire.WORK, reps = 10, weightHundredthsKg = 5_000)),
+                ),
             ),
             mutationAuthority = MutationAuthority.Granted(
                 mutationLeaseId = leaseId,

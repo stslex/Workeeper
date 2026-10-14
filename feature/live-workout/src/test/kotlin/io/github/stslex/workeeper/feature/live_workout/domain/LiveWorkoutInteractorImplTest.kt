@@ -11,8 +11,8 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseType
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
@@ -25,6 +25,8 @@ import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRe
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSkipDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.mockk.coEvery
@@ -57,7 +59,7 @@ internal class LiveWorkoutInteractorImplTest {
     private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true).apply {
         every { observePersonalRecordsBatch(any()) } returns flowOf(emptyMap())
     }
-    private val externalSetWrites = ExternalSetWrites()
+    private val externalSessionWrites = ExternalSessionWrites()
 
     private val interactor = LiveWorkoutInteractorImpl(
         sessionRepository = sessionRepository,
@@ -67,7 +69,7 @@ internal class LiveWorkoutInteractorImplTest {
         trainingRepository = trainingRepository,
         trainingExerciseRepository = trainingExerciseRepository,
         personalRecordRepository = personalRecordRepository,
-        externalSetWrites = externalSetWrites,
+        externalSessionWrites = externalSessionWrites,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 
@@ -910,13 +912,13 @@ internal class LiveWorkoutInteractorImplTest {
 
     @Test
     fun `external set writes reach only the screen of their own session mapped as written`() = runTest {
-        val received = mutableListOf<ExternalSetDomain>()
+        val received = mutableListOf<ExternalWriteDomain>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            interactor.observeExternalSetWrites("session-1").collect { received += it }
+            interactor.observeExternalWrites("session-1").collect { received += it }
         }
 
-        externalSetWrites.publish(externalWrite(sessionUuid = "session-2", position = 0))
-        externalSetWrites.publish(externalWrite(sessionUuid = "session-1", position = 1))
+        externalSessionWrites.publish(externalWrite(sessionUuid = "session-2", position = 0))
+        externalSessionWrites.publish(externalWrite(sessionUuid = "session-1", position = 1))
 
         assertEquals(
             listOf(
@@ -930,7 +932,55 @@ internal class LiveWorkoutInteractorImplTest {
         )
     }
 
-    private fun externalWrite(sessionUuid: String, position: Int) = ExternalSetWrite(
+    @Test
+    fun `external skips reach only the screen of their own session in arrival order with the sets`() = runTest {
+        val received = mutableListOf<ExternalWriteDomain>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            interactor.observeExternalWrites("session-1").collect { received += it }
+        }
+
+        externalSessionWrites.publish(externalSkip(sessionUuid = "session-2", skipped = true))
+        externalSessionWrites.publish(externalSkip(sessionUuid = "session-1", skipped = true))
+        externalSessionWrites.publish(externalWrite(sessionUuid = "session-1", position = 1))
+        externalSessionWrites.publish(externalSkip(sessionUuid = "session-1", skipped = false))
+
+        assertEquals(
+            listOf(
+                ExternalSkipDomain(performedExerciseUuid = "pe-1", skipped = true),
+                ExternalSetDomain(
+                    performedExerciseUuid = "pe-1",
+                    position = 1,
+                    set = PlanSetDomain(weight = 82.5, reps = 6, type = SetTypeDomain.FAILURE),
+                ),
+                ExternalSkipDomain(performedExerciseUuid = "pe-1", skipped = false),
+            ),
+            received,
+        )
+    }
+
+    @Test
+    fun `a watch set write and its domain model print their type only`() {
+        assertEquals(
+            "ExternalSessionWrite.SetMarked",
+            externalWrite(sessionUuid = "session-1", position = 1).toString(),
+        )
+        assertEquals(
+            "ExternalSetDomain",
+            ExternalSetDomain(
+                performedExerciseUuid = "pe-1",
+                position = 1,
+                set = PlanSetDomain(weight = 82.5, reps = 6, type = SetTypeDomain.FAILURE),
+            ).toString(),
+        )
+    }
+
+    private fun externalSkip(sessionUuid: String, skipped: Boolean) = ExternalSessionWrite.SkipChanged(
+        sessionUuid = sessionUuid,
+        performedExerciseUuid = "pe-1",
+        skipped = skipped,
+    )
+
+    private fun externalWrite(sessionUuid: String, position: Int) = ExternalSessionWrite.SetMarked(
         sessionUuid = sessionUuid,
         performedExerciseUuid = "pe-1",
         position = position,

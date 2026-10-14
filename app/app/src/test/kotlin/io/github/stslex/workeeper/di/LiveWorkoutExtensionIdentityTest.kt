@@ -100,9 +100,9 @@ internal class LiveWorkoutExtensionIdentityTest {
         val extension = appGraph.liveWorkout(sessionUuid = "s-1")
 
         assertSame(
-            appGraph.externalSetWrites,
-            extension.externalSetWrites,
-            "ExternalSetWrites in the extension must be the PARENT's instance, or no watch write reaches it",
+            appGraph.externalSessionWrites,
+            extension.externalSessionWrites,
+            "ExternalSessionWrites in the extension must be the PARENT's instance, or no watch write reaches it",
         )
     }
 

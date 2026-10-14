@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.state
 
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -66,7 +67,10 @@ class WatchWorkoutReducerSnapshotTest {
 
         assertIs<LocalMutationAuthority.Retired>(reducer.state.authority)
         assertEquals(ActiveFreshness.DISCONNECTED, active(reducer).freshness)
-        assertEquals(ReducerTestFixtures.exerciseA, activePayload(reducer).target.performedExerciseUuid)
+        assertEquals(
+            ReducerTestFixtures.exerciseA,
+            OutlineRules.defaultSelection(activePayload(reducer))?.performedExerciseUuid,
+        )
     }
 
     @Test
@@ -227,6 +231,6 @@ class WatchWorkoutReducerSnapshotTest {
     private fun active(reducer: WatchWorkoutReducer): WatchDisplayState.Active =
         assertIs(reducer.state.display)
 
-    private fun activePayload(reducer: WatchWorkoutReducer): SnapshotPayload.ActiveWithTarget =
+    private fun activePayload(reducer: WatchWorkoutReducer): SnapshotPayload.Active =
         assertIs(active(reducer).snapshot.payload)
 }
