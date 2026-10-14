@@ -1038,7 +1038,8 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ```
 
 Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
-`:core:ui:start-mode`, and `:feature:all-exercises` too: on a KMP module Paparazzi registers
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, and `:feature:all-exercises`
+too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
 repo-wide commands above keep reaching every golden module.

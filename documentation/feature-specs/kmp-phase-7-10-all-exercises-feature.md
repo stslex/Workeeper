@@ -1945,5 +1945,7 @@ stale, so this PR fixes them in a separate documentation commit. It adds all-exe
 (`:feature:all-exercises:linkDebugTestIosArm64`, whose comment now reads `10/10`). The visual-gate
 paragraph's two module lists now name all-exercises among the KMP modules with goldens in
 `src/androidHostTest`, no longer among the classic ones in `src/test`. The sentence naming the
-KMP-shaped modules that both alias spellings cover now includes `:feature:all-exercises`. Every
+KMP-shaped modules that both alias spellings cover now includes `:feature:archive`,
+`:feature:all-trainings` and `:feature:all-exercises`, which closes the gap 7.8 and 7.9 left there;
+`--dry-run` shows both spellings resolving on all three (maintainer decision, 2026-10-14). Every
 module count in those places reads ten. Nothing else changes.
