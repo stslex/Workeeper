@@ -1938,8 +1938,12 @@ Left untouched on purpose (Section 9.2), each re-located on this tree:
 - `tech-debt.md`'s "Resolved" list (line 797);
 - `graphify-out/`.
 
-Also untouched, because Section 9.2 names exactly four `testing.md` changes and these are not among
-them, although the move made them stale: the nine-module Native and device-link commands under
-"Running tests" (`9/9`), the visual-gate paragraph that still lists all-exercises among the classic
-modules with goldens in `src/test`, and the sentence that lists the KMP-shaped modules both alias
-spellings cover. They are left for the follow-up documentation PR.
+Maintainer decision (2026-10-14): Section 9.2 omitted four `testing.md` places that the move made
+stale, so this PR fixes them in a separate documentation commit. It adds all-exercises where 7.9's
+`3a941f1f` added all-trainings: the Native command block under "Running tests"
+(`:feature:all-exercises:iosSimulatorArm64Test`) and the device-link block
+(`:feature:all-exercises:linkDebugTestIosArm64`, whose comment now reads `10/10`). The visual-gate
+paragraph's two module lists now name all-exercises among the KMP modules with goldens in
+`src/androidHostTest`, no longer among the classic ones in `src/test`. The sentence naming the
+KMP-shaped modules that both alias spellings cover now includes `:feature:all-exercises`. Every
+module count in those places reads ten. Nothing else changes.

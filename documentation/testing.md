@@ -1018,11 +1018,12 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 ## Visual gate — Paparazzi screenshot goldens
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
-`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP), and
-`feature/`{`all-exercises`, `exercise`, `exercise-chart`, `home`, `live-workout`, `past-session`,
-`settings`, `single-training`}. Goldens live in `src/test/snapshots/images/` in classic Android
-modules and in `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
-`:core:ui:plan-editor`, `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`), and
+`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
+`:feature:all-exercises` (KMP), and `feature/`{`exercise`, `exercise-chart`, `home`,
+`live-workout`, `past-session`, `settings`, `single-training`}. Goldens live in
+`src/test/snapshots/images/` in classic Android modules and in
+`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1036,8 +1037,8 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ./gradlew :core:ui:kit:recordPaparazziDebug
 ```
 
-Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`, and
-`:core:ui:start-mode` too: on a KMP module Paparazzi registers
+Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
+`:core:ui:start-mode`, and `:feature:all-exercises` too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
 repo-wide commands above keep reaching every golden module.
@@ -1198,11 +1199,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:plan-editor:iosSimulatorArm64Test \
   :feature:archive:iosSimulatorArm64Test \
   :feature:all-trainings:iosSimulatorArm64Test \
+  :feature:all-exercises:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 9/9.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 10/10.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1212,6 +1214,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:plan-editor:linkDebugTestIosArm64 \
   :feature:archive:linkDebugTestIosArm64 \
   :feature:all-trainings:linkDebugTestIosArm64 \
+  :feature:all-exercises:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities
