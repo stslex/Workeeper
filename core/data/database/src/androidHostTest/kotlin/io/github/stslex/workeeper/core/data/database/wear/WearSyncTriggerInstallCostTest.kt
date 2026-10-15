@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * The other half of the trigger-repair contract: a database that is already healthy must be left
@@ -31,7 +32,12 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 @Config(application = BaseDatabaseTest.TestApplication::class, sdk = [33])
 internal class WearSyncTriggerInstallCostTest {
 
-    private val statements = mutableListOf<String>()
+    // Written from Room's dispatcher threads, including after `prepareWearSyncStorage` returns:
+    // ending its transaction launches an invalidation-tracker refresh that nothing awaits, and that
+    // refresh's `prepare` can land while an assertion below is iterating. A plain list then throws
+    // ConcurrentModificationException; a copy-on-write list iterates a snapshot. The refresh issues
+    // no trigger DDL, so it cannot move either count.
+    private val statements = CopyOnWriteArrayList<String>()
     private lateinit var database: AppDatabase
 
     @BeforeEach
