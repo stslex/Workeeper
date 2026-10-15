@@ -391,6 +391,135 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.10: the ten portable suites (5/24/2/1/11/2/9/4/4/4) plus the one production
+        # scene, 67 exact.
+        "module": "feature:all-exercises",
+        "results_dir": "feature/all-exercises/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractorImplTest",
+                [
+                    "archiveExercise returns Success when no active trainings",
+                    "archiveExercise returns Blocked when active trainings exist",
+                    "restoreExercise delegates to repository",
+                    "canPermanentlyDelete delegates to repository",
+                    "permanentlyDelete delegates to repository",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandlerTest",
+                [
+                    "OnExerciseClick emits haptic and navigates to OpenDetail",
+                    "OnFabClick emits haptic and navigates to OpenCreate",
+                    "OnTagFilterToggle adds tag when not selected",
+                    "OnTagFilterToggle removes tag when already selected",
+                    "OnCancelPermanentDelete clears pending delete",
+                    "OnConfirmPermanentDelete with no pending is no-op",
+                    "OnConfirmPermanentDelete with pending clears state and emits Confirm haptic",
+                    "OnBulkDelete fires no haptic — the morph is silent",
+                    "OnTagFilterToggle fires no haptic",
+                    "OnBulkDeleteConfirm emits Confirm haptic",
+                    "OnBulkDelete with selection opens confirm dialog",
+                    "OnBulkDeleteConfirm calls bulkArchive and clears selection on success",
+                    "OnBulkDeleteConfirm opens blocked dialog and no snackbar when all blocked",
+                    "OnBulkDeleteConfirm opens blocked dialog with archived summary on partial block",
+                    "OnBlockedArchiveDismiss clears the blocked dialog",
+                    "OnBulkDeleteDismiss clears pending",
+                    "OnClearTagFilter empties the whole filter in one act",
+                    "OnClearTagFilter fires no haptic",
+                    "OnClearTagFilter on an already-empty filter changes nothing",
+                    "entering selection by long press fires LongPress",
+                    "long press inside selection fires ContextClick not a second LongPress",
+                    "selection toggle fires ContextClick",
+                    "selection exit fires ContextClick",
+                    "OnEmptyCreate opens create and fires no haptic",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandlerTest",
+                [
+                    "OpenDetail navigates to Screen Exercise with uuid",
+                    "OpenCreate navigates to Screen Exercise with null uuid",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandlerTest",
+                [
+                    "Init invokes observeAvailableTags via scope launch",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapperTest",
+                [
+                    "composeFooterLabel hides every segment when all values are zero or null",
+                    "composeFooterLabel renders all three segments when present",
+                    "composeFooterLabel hides session segment when count is zero",
+                    "composeFooterLabel hides linked-trainings segment when count is zero",
+                    "composeFooterLabel hides last-trained segment when value is null",
+                    "composeFooterLabel just-now segment when delta below one minute",
+                    "composeFooterLabel minute granularity for sub-hour deltas",
+                    "ExerciseListItemDomain toUi propagates non-zero stats into the model",
+                    "ExerciseListItemDomain toUi yields empty footer when stats are absent",
+                    "toBlockedArchiveDialog truncates trainings and sets archived summary on partial block",
+                    "toBlockedArchiveDialog omits archived summary and truncation when nothing archived",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.ui.AllExercisesClearanceTest",
+                [
+                    "list bottom clearance is the drawn 88 not the 72 it shipped with",
+                    "each drawn part is the value the mockup gives it",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.ui.components.ListSurfaceTest",
+                [
+                    "rows win over everything",
+                    "an unsettled refresh with no rows is loading not empty",
+                    "loading outranks selection and the filter",
+                    "a failed first page is its own verdict",
+                    "no rows nothing done is the first-run empty",
+                    "a filter that matches nothing is its own state not the first-run empty",
+                    "selection outranks the filter because the selection block carries the filter recovery",
+                    "the crossfade covers the drawn blocks and neither non-block verdict",
+                    "selection empty and filtered empty are both in the crossfade so the pair transits",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingTailKindTest",
+                [
+                    "appending draws the loading footer",
+                    "a failed page draws the error footer not silence",
+                    "exhausted draws no footer at all",
+                    "idle mid-list draws no footer either",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.ui.components.TopBarModeTest",
+                [
+                    "off is the resting bar",
+                    "on is the selection bar",
+                    "different selections are one mode so the count cannot drive the crossfade",
+                    "an empty selection is still the selection bar",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.all_exercises.ui.components.TrailingSlotKindTest",
+                [
+                    "at rest the slot promises a destination",
+                    "an unselected row in selection mode draws nothing and keeps its slot",
+                    "a selected row draws the check",
+                    "selected outranks selecting so the mark never blanks",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest",
+                "resourcesPagingBranchesSelectionAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

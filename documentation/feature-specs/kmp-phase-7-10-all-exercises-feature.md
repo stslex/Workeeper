@@ -1,6 +1,6 @@
 # KMP Phase 7.10 — feature:all-exercises becomes a shared feature entry
 
-**Status:** SPECIFIED — authorized for implementation by the maintainer's GO of 2026-10-12 (Section 18)
+**Status:** COMPLETE — implemented by the PR whose merge brought this line to dev.
 
 **Discovery baseline:** dev @ 16c41a0cdb56ccc19b2b27227dc63bb53effc701 (2026-10-12, merge of #329, PR-R).
 `feature/all-exercises` is unchanged since the Phase 7.9 census except PR-N's renames (`b0045adf`).
@@ -1397,4 +1397,555 @@ Merge stays the maintainer's.
 
 ## 19. Implementation evidence
 
-Reserved for the implementation's documentation commit.
+This section records the bounded implementation authorized by the maintainer's GO of 2026-10-12
+(Section 18), plus decision D5 of 2026-10-13 (Section 19.7). The GO authorized exactly Section 7
+and nothing in Section 8. Sections 0–18 remain the historical specification and are not rewritten
+here; where the measured tree contradicts their prose, Section 19.7 says so.
+
+Every load-bearing Gradle invocation below ran after `./gradlew --stop` and a check that no other
+Gradle client on the default daemon registry was running, with `--rerun-tasks --no-build-cache
+--no-configuration-cache --console=plain` (plus `--continue` where stated). Every "Executed" cell
+is the logged `N actionable tasks: N executed`. Only JUnit XML written after the run's recorded
+start was parsed, and each gate's XML was copied aside at once, so no later run could overwrite
+it. detekt never ran in the same invocation as tests.
+
+### 19.1 Entry, drift, and the D5 stop
+
+This specification landed on `dev` as `97c03dfe1667b2cbb7867c56843d4fcecacddc4c`, one signed
+commit pushed as a fast-forward of `16c41a0c`; its blob in the tree had the input sha256
+`998798f6…5317a`, and GitHub reports it `verified: true`, `reason: valid`. A Markdown-only push
+starts no unified run (`paths-ignore: ['**/*.md']`), so none started. That SHA is the
+implementation base; `16c41a0c` (PR-R) is its parent. The worktrees whose branch tips were already
+ancestors of `origin/dev` (PR-R's and two clean session worktrees) were removed with
+`git worktree remove`; the main checkout stayed.
+
+| Entry check | Result |
+| --- | --- |
+| latest push run of `Android CI/CD - Unified Build and Tests` on `dev` | run `38268385065` on `16c41a0c`, `success`: `Release bundle identity`, `KMP iOS kit smoke`, `Build and Unit Tests` and both report jobs green |
+| PR-R on the base | `StringResolver.kt` and `ComposeStringResolver.kt` match `kmp-string-resolver.md` Sections 4.1–4.2 (signatures, the three annotations, the aliased imports, `AppScope` from `core.core.di`, both GUARD comments); `AppGraph` declares `val stringResolver: StringResolver`; `StringResolverIdentityTest` green (19.3) |
+| drift | `git diff 16c41a0c..97c03dfe -- feature/all-exercises` is empty; the only commit since `16c41a0c` touching a Section 9.2 path is `97c03dfe` itself, which adds this document and conflicts with nothing |
+| open PRs touching the module | none open; no remote branch names all-exercises |
+
+Two read-only measurers reproduced Section 2's all-exercises row and Sections 3.1–3.7 on the base
+independently, neither reading the other's output. Census A read only the base's git objects
+(`ls-tree`, `cat-file`, and a scratch index built with `read-tree` for the PNG manifests). Census B
+read the clean worktree with a Kotlin lexer and declaration walker (nested comments, string
+templates, backtick names, multi-line annotations) and DOM XML parsing. Both reported MATCH on every
+item:
+
+| Section | Specification | Measured (A and B agree) |
+| --- | --- | --- |
+| 2, all-exercises row | 34 / 2,062 / 11 / 1,471 / 30 / 52 | equal |
+| 3.1 files and lines | 34 files, 2,062 lines, per-file table | every row equal, in table order |
+| 3.1 suppressions | two production, one test | `AllExercisesFeature.kt:24` `UNCHECKED_CAST`, `ClickHandler.kt:21` `TooManyFunctions`, `AllExercisesUiMapperTest.kt:20` `MagicNumber`; no `SuppressLint`, `SuppressWarnings` or `noinspection` |
+| 3.1 Android coupling | as listed | `R` in seven files; `ResourceWrapper` calls mapper 10 (3 + 7) and `ClickHandler` 2 (1 + 1), passed through by `PagingHandler`; `System.currentTimeMillis()` at mapper lines 27 and 51; the activity `BackHandler`, `LocalContext` with `appDeps`, `@VisibleForTesting` on `NAME`, and `uiMode` in the four previews where stated |
+| 3.2 identities | 66, 5/24/2/1/11/2/9/4/4/4 | byte-identical to the bullets, in order; MockK in the first five suites, JUnit 5 in all ten, no `paging-testing` import; one U+2014 name, `E2 80 94` at zero-based byte offset 29 |
+| 3.2 resolver facts | strict mapper mock, relaxed click mock | equal; the mapper stubs return `"$count sessions"` and siblings from the quantity, and only `used_in_format` reads its argument |
+| 3.3 goldens and device | 26 methods; 52 PNGs, 52 blobs, 100644; the device test's two identities | equal |
+| 3.4 catalog | 30 + 9 per locale in file order; 48 bare `%d` (EN 16, RU 32); three EN strings with numeric character references | equal after applying P1; `&#8216;` and `&#8217;` occur only in `permanent_delete_title`, `permanent_delete_body` and `blocked_archive_title`, and no other `composeResources` catalog carries one; both roots carry `xmlns:tools` and `tools:ignore="DuplicateStrings"`; 29 identifiers read in composition and 11 outside, all 39 read |
+| 3.5, 3.6 | as stated | equal; the four `ALL_EXERCISES_GRAPH` journeys declare the tag themselves and reach the tab through `NavPaths.toAllExercises()`, and `ApplicationBottomBarTest` holds the literal tag and uses `NavPaths` only for its timeout |
+| 3.7 readers and PNG manifests | 9 readers; four hashes, three projections | 9 readers equal to `EXPECTED_APP_DEPS_READERS`; all seven hashes equal |
+
+**The D5 stop.** Section 11.1 asks the domain suite for in-file fakes that implement
+`ExerciseRepository`. Its `setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)`
+names `core:data:database`'s `PlanSetDataModel`, and `core:data:exercise` declares
+`implementation(project(":core:data:database"))`, so the type is not on this module's compile
+classpath (`:feature:all-exercises:dependencies --configuration debugUnitTestCompileClasspath` lists
+`project ':core:data:exercise'` and no database line). A return type can be overridden as
+`Nothing`; a parameter type cannot. Measured in a detached probe worktree at the base, removed
+afterwards: a 34-member in-file fake failed with `Unresolved reference 'PlanSetDataModel'` and
+`'setAdhocPlan' overrides nothing`, and the same fake with one test-scope edge on
+`core:data:database` compiled. Section 10 makes a needed edge a STOP-and-amend, so the
+implementation stopped before any edit and the maintainer decided D5 (Section 19.7).
+
+Environment: Gradle 9.6.1 (wrapper), launcher and daemon JBR 21.0.11, Kotlin 2.4.10, Paging 3.5.0,
+Xcode 26.6 (17F113). Kotlin/Native's test task used its default simulator with none pre-booted, as
+in the workflow. Signing: repository-local SSH signing (`commit.gpgsign=true`); each commit object
+carries an SSH `gpgsig` header.
+
+### 19.2 Commits and changed boundary
+
+| Commit | SHA | Boundary |
+| --- | --- | --- |
+| `refactor(kmp): share all-exercises feature entry` | `df7b36a7fc3086012a7867c4df475c2360c9c6b8` | the module (Sections 3–11), the six app paths, and the minimal topology delta (`MODULES["feature:all-exercises"]`, the reader removed from `EXPECTED_APP_DEPS_READERS`); 113 paths with rename detection, 1,861 insertions, 601 deletions |
+| `ci(kmp): gate shared all-exercises feature` | `3cdf723573d0b38f3d9b897b4248e5aae74c6cab` | exactly the three Section 9.2 CI paths: `assert_kmp_ui_source_topology.py` +591/−1, `assert_kmp_ios_smoke.py` +129/−0, `android_build_unified.yml` +10/−7 |
+| `docs(kmp): record Phase 7.10 evidence` | this commit | exactly the five Section 9.2 documentation paths |
+
+Against the base, the three commits change 216 paths counted without rename pairing: 202 under
+`feature/all-exercises` (the 100 legacy `src/main`, `src/test` and `src/androidTest` paths removed,
+101 added — the 100 moved files and the Native scene — and `build.gradle.kts` modified) and exactly
+the 14 Section 9.2 paths outside it:
+
+    app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt
+    app/app/src/test/kotlin/io/github/stslex/workeeper/di/AllExercisesExtensionIdentityTest.kt
+    app/common/build.gradle.kts
+    app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt
+    app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt
+    app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt
+    .github/scripts/assert_kmp_ui_source_topology.py
+    .github/scripts/assert_kmp_ios_smoke.py
+    .github/workflows/android_build_unified.yml
+    documentation/architecture.md
+    documentation/ci-cd.md
+    documentation/testing.md
+    documentation/tech-debt.md
+    documentation/feature-specs/kmp-phase-7-10-all-exercises-feature.md
+
+`feature/all-exercises` tracks exactly 102 paths at exit: `build.gradle.kts`, `commonMain` 36 (34
+Kotlin files and 2 catalogs), `commonTest` 10, `androidHostTest` 53 (the golden test and 52 PNGs),
+`androidDeviceTest` 1 and `iosTest` 1, all mode 100644, with nothing tracked or on disk under
+`src/main`, `src/test`, `src/androidTest`, `androidMain` or `iosMain`. With git's default rename
+detection the module reads 96 renames, 1 modification, and four delete/add pairs plus the new scene
+(Section 19.7); at `-M10%` it reads 100 renames, 1 addition and 1 modification. The 52 PNGs, the
+golden test and 22 of the 34 production files are 100%-similarity renames. The catalogs differ from
+the base only by decision P1's 48 lines (EN 16, RU 32), each an `<item quantity=…>` whose only
+change is `%d` → `%1$d`; comments, root attributes, character references and the trailing newline
+are byte-identical. `git diff --check` is clean for every commit and for base..head.
+
+### 19.3 Fresh baseline before any edit
+
+| Command (base tree) | Executed | Parsed result |
+| --- | ---: | --- |
+| `:feature:all-exercises:assembleDebug` | 104/104 | target assembled |
+| `:feature:all-exercises:testDebugUnitTest` | 173/173 | 10 XML suites, 66 cases 5/24/2/1/11/2/9/4/4/4, names equal Section 3.2 (JUnit's trailing `()` removed), 0/0/0 |
+| `:feature:all-exercises:verifyPaparazziDebug` | 174/174 | 11 suites, 118 cases (52 golden and 66 portable), 0/0/0; `Visual gate live: 52 golden test case(s) executed for 52 golden image(s).` |
+| `:feature:all-exercises:assembleDebugAndroidTest` | 223/223 | device APK assembled |
+| current nine-module Native command (workflow form, `--continue --full-stacktrace`) | 259/259 | 38 XML files, 171 cases, 0/0/0: kit 2, navigation 1, mvi 14, start-mode 2, core plan-editor 20, image-viewer 13, feature plan-editor 43, archive 26, all-trainings 50 |
+| `python3 .github/scripts/assert_kmp_ios_smoke.py` | GREEN | `native gate live:`, every module `… — verified N exact identities` |
+| `:app:app:testDebugUnitTest --tests '*AllExercisesExtensionIdentityTest*' --tests '*StringResolverIdentityTest*'` | 577/577 | 2 files, 4 cases, 0/0/0 |
+
+The plain unit run compiled `AllExercisesGoldenTest` but executed no golden case
+(`gradle/golden-gate.gradle.kts`). Its identities were read from a second plain run
+(173/173) whose XML was archived immediately, because the Paparazzi run that followed the first one
+rewrote the same result directory (Section 19.8).
+
+### 19.4 Commit 1 focused evidence
+
+While commit 1 was assembled, unrecorded iteration builds (no forced flags) compiled the tree; they
+are not evidence. Two runs on the uncommitted tree are recorded because the procedure asks for them
+there:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| early Native check: `:feature:all-exercises:iosSimulatorArm64Test` (production and suites ported; no scene, no app paths yet) | 106/106 | 10 suites, 66 cases 5/24/2/1/11/2/9/4/4/4, 0/0/0; the module's first Native run; names equal Section 3.2 after stripping the classname prefix `iosSimulatorArm64Test.` and the name suffix `[iosSimulatorArm64]` |
+| the scene's first run (iteration build) | — | the scene passed on its first execution: the stored and filled EN catalog equal Section 3.4, the three character-reference strings included (Section 14's catalog condition cleared) |
+
+The U+2014 identity in the Native XML, read as raw bytes:
+
+    classname="iosSimulatorArm64Test.io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandlerTest"
+    name="OnBulkDelete fires no haptic — the morph is silent[iosSimulatorArm64]"    dash at zero-based byte offset 29
+
+It occurs once, as `E2 80 94`, in every `ClickHandlerTest` Native XML of this record.
+
+The Section 12.3 gates then ran on the committed tree `df7b36a7f` (porcelain empty):
+
+| # | Command | Executed | Parsed result |
+| ---: | --- | ---: | --- |
+| 1 | `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | Homebrew Python 3.14.8 and macOS Python 3.9.6, byte-identical: `feature:all-exercises: 101 exact source/resource/test files`; `app:common API edges and 8 remaining Context.appDeps readers are exact`; `compose-resource placeholders: 16 commonMain catalogs walked, every placeholder is %N$d or %N$s with N >= 1` |
+| 2 | `:feature:all-exercises:assembleDebug` | 302/302 | Android AAR and both iOS klibs (`compileAndroidMain`, `compileKotlinIosArm64`, `compileKotlinIosSimulatorArm64`, `compileCommonMainKotlinMetadata` executed) |
+| 3 | `:feature:all-exercises:testAndroidHostTest` | 175/175 | 10 suites, 66 cases 5/24/2/1/11/2/9/4/4/4, 0/0/0, names equal Section 3.2 |
+| 4 | `:feature:all-exercises:verifyPaparazziDebug` | 176/176 | `Visual gate live: 52 golden test case(s) executed for 52 golden image(s).`; 11 suites, 118 cases (52 golden and the 66 portable, names exact), 0/0/0; no `recordPaparazzi` task |
+| 5 | `:feature:all-exercises:iosSimulatorArm64Test` | 106/106 | 11 suites, 67 tuples by name (the 66 and the scene), 0/0/0 |
+| 6 | `:app:common:assembleDebug` | 323/323 | explicit consumer compiled |
+| 7 | `:app:app:testDebugUnitTest --tests '*AllExercisesExtensionIdentityTest*' --tests '*StringResolverIdentityTest*'` | 580/580 | 2 suites, 4 cases, 0/0/0: `extension resolves the store through the parent graph`, `store's app-scoped deps are the SAME instances the parent holds`, `app graph binds the Compose string resolver`, `two reads give the one app-scoped resolver` |
+| 8 | `./gradlew detekt --continue`, alone | 63/63 | 55 fresh reports, 0 findings; `:feature:all-exercises:detekt` and `:detektAndroidTestSuite` executed |
+| 9 | device: `AllExercisesScreenTest` — `ANDROID_SERIAL=emulator-5554 ./gradlew :feature:all-exercises:connectedDebugAndroidTest --max-workers=2 --continue` | 224/224 | ran as `connectedAndroidDeviceTest`: `pendingFeatureRewrite` skipped with its documented reason, `blockedArchiveDialogListsBlockingTrainings` passed (decision D3: Compose resources load in the library device APK, in composition and through `ComposeStringResolver`) |
+| 10 | device: journey classes — `ANDROID_SERIAL=emulator-5554 ./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=<the five Section 3.6 journey classes> --max-workers=2 --continue` | 741/741 | `Starting 29 tests`; fresh XML 29 cases, 0/0/0: `ApplicationBottomBarTest` 4, `BackStackStateRestorationTest` 4, `NavigationResultTest` 3, `RouteReachabilityTest` 15, `StoreRetentionTest` 3 |
+| 11 | relative PNG proof | GREEN | below |
+
+The golden JUnit XML names each case only `[1] LIGHT` or `[2] DARK`, so gate 4's method identities
+were read from the same run's Gradle HTML class report: 52 cases, 52 distinct (method, theme) pairs,
+equal to Section 3.3's 26 methods × {LIGHT, DARK}, all passed.
+
+Gradle metadata (Section 10): every declared edge is used by its source set's imports (commonMain
+12 edges; commonTest `kotlin("test")`, `coroutine.test` and D5's `core:data:database`; iosTest
+`kotlin("test")` and `cmp.ui.test`; the golden harness; the device bundle, `ui.test.junit4`,
+`test-utils`), and every import resolves to a declared edge, to the module itself, to Metro, to the
+standard library, to kit's `api` surface (CMP runtime, foundation, material3, components-resources),
+or, for the golden test's JUnit 5 annotations, to `KmpLibraryConventionPlugin`'s
+`androidHostTestImplementation` of `junit-jupiter`. On the Android compile classpath
+`kotlinx-collections-immutable` and `material-icons-core` arrive only through the module's own
+edges (`dependencyInsight`).
+
+Relative PNG proof (Section 3.7), at commit 1 and again at commit 2: the base manifests, with
+exactly the 52 all-exercises paths rewritten from `src/test/` to `src/androidHostTest/`, equal the
+head manifests byte for byte; all 528 working-tree PNGs hash to their index blobs; 13 Paparazzi
+owners; 52 all-exercises PNGs under `src/androidHostTest/snapshots/images`, 0 under `src/test`, all
+100644.
+
+| Manifest | Base | Base, 52 paths rewritten | Head |
+| --- | --- | --- | --- |
+| Paparazzi mode/blob/path (456 entries, 13 owners) | `46f2f70f052aeaa500cfaee6834b343a5f21f717a0d684c0ead5a54767d833d5` | `f8792e1efeca575a6b1bfa6bf780c89b52a0475392e3f9fea3f04f90d598443b` | `f8792e1efeca575a6b1bfa6bf780c89b52a0475392e3f9fea3f04f90d598443b` |
+| Paparazzi path list (456) | `64859f12035c03fab1d27c83c9aa12abd88286e9fec0dd5ef060e05572a65f2c` | `27b831bcc04b22f872dc2221abd310c3e33211f9f4163c42f0226822a4d6d44d` | `27b831bcc04b22f872dc2221abd310c3e33211f9f4163c42f0226822a4d6d44d` |
+| All PNGs mode/blob/path (528) | `8f4705371b62353ed92a33af735cddaba926992c24ca718fc5cd491c77b40513` | `ce590ad5c3a859541f8249cb95ea33e33104b5ba326699b323289b15c2fb3f36` | `ce590ad5c3a859541f8249cb95ea33e33104b5ba326699b323289b15c2fb3f36` |
+| all-exercises blob set (52 sorted blob IDs) | `4e71615ea8aacb223a77b5bc996147f23ca899c6f575f679060ec324f3fbe432` | — | `4e71615ea8aacb223a77b5bc996147f23ca899c6f575f679060ec324f3fbe432` |
+
+Every value equals Section 3.7's; the base column reproduces its measured hashes and the rewritten
+column its projections.
+
+The device for every device gate in this record is the repository's AVD `Pixel_6_API_34`, serial
+`emulator-5554`, the only attached device, started with `-avd Pixel_6_API_34 -port 5554 -no-window
+-gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save`: API 34,
+fingerprint `google/sdk_gphone64_arm64/emu64a:14/UE1A.230829.050/12077443:userdebug/dev-keys`.
+Window, transition and animator scales were 0, `accelerometer_rotation=1`, `user_rotation=0` and
+the keyguard was not showing, recorded before and after every device run and identical each time.
+Every device run started with its connected-result directory deleted by literal path.
+
+### 19.5 Commit 2 gates and repository, visual, and device evidence
+
+Commit 2 was made first; every gate below ran on the committed tree `3cdf72357` (porcelain empty).
+Before the commit, a dry run of the same content was GREEN on the topology gate under both Pythons,
+and the transcription audit (Section 19.7) was EQUAL.
+
+| # | Command | Executed | Parsed result |
+| ---: | --- | ---: | --- |
+| 1 | `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | both Pythons, byte-identical; adds `all-exercises catalogs, semantic State, suppressions, previews, test identities, and explicit factory flow are exact` to commit 1's three lines |
+| 2 | ten-module Native command, exactly the edited workflow's (`--continue --full-stacktrace`) | 283/283 | 49 fresh XML files, 238 cases, 0/0/0: kit 2, navigation 1, mvi 14, start-mode 2, core plan-editor 20, image-viewer 13, feature plan-editor 43, archive 26, all-trainings 50, all-exercises 67 (11 files: the ten suites 5/24/2/1/11/2/9/4/4/4 and the scene; no tuple missing or unexpected; the U+2014 name as in Section 19.4) |
+| 3 | `python3 .github/scripts/assert_kmp_ios_smoke.py` on gate 2's XML | GREEN | both Pythons, byte-identical: `native gate live:` and `feature:all-exercises: 67 executed / 0 skipped / 0 failed / 0 errored — verified 67 exact identities`; the other nine modules unchanged |
+| 4 | ten-module `linkDebugTestIosArm64`, exactly the edited workflow's | 273/273 | the workflow's binary-assert step run verbatim: `10/10 linked`, every `test.kexe` fresh |
+| 5 | `./gradlew detekt --continue`, alone | 63/63 | 55 fresh reports, 0 findings |
+| 6 | workflow static checks | GREEN | YAML parses (Ruby Psych): jobs `build`, `release-bundles`, `kmp-ios-kit-smoke`, job name `KMP iOS kit smoke`; ten simulator tasks, ten link tasks, ten upload paths, `echo "$linked/10 linked"`; actionlint reports only the pre-existing `77:9: shellcheck reported issue in this script: SC2129:style:1:1`, at the base and at commit 2 |
+| 7 | boundary, hygiene and PNG (static) | GREEN | `diff --check` clean for base..C1, C1..C2 and base..C2; 211 changed paths without rename pairing (115 with), 202 under the module and exactly the 9 Section 9.2 code paths outside it, commit 1 touching 7 of them (the six app paths and the topology script) and commit 2 the 3 CI paths; the module's 102 tracked paths as in Section 19.2; the PNG proof of Section 19.4 repeated (528/528 on-disk bytes equal their blobs) |
+
+On the committed tree, after `./gradlew clean` (`72 actionable tasks: 45 executed, 27 up-to-date`,
+not a positive gate), each Section 12.4 command ran as its own invocation, in sequence, so detekt
+never ran beside tests:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2631/2631 | 453 fresh host XML files across 32 modules, 3,175 test cases, 0/0/0 (2,854 unique module/classname/name triples); all-exercises 10 files, 66 cases, names equal Section 3.2, the U+2014 name byte-exact; lint: 36 modules `Lint found no errors or warnings`, and `app:app`, `app:dev` and `app:store` `Lint found 75 warnings` each, all dependency-version checks (GradleDependency 37, NewerVersionAvailable 32, AndroidGradlePluginVersion 6) in `gradle/libs.versions.toml` and `gradle-wrapper.properties`, none in source, as in 7.9 |
+| `detekt --continue` | 63/63 | 55 fresh reports, 0 findings |
+| `assembleDebugAndroidTest --continue` | 2169/2169 | GREEN; all-exercises `packageAndroidDeviceTest` and `assembleAndroidDeviceTest` executed |
+| `verifyPaparazziDebug` | 647/647 | 13 liveness lines, 456 golden cases executed for 456 images: all-exercises 52/52, all-trainings 50/50, archive 14/14, exercise 48/48, exercise-chart 30/30, home 42/42, kit 86/86, live-workout 60/60, past-session 30/30, core plan-editor 18/18, settings 12/12, single-training 12/12, start-mode 2/2; 169 fresh XML files, 1,730 cases, 0/0/0; all-exercises 118 cases (52 golden and 66 portable); no `recordPaparazzi` task |
+| `:lint-rules:test` | 9/9 | 16 suites, 151 tests, 0/0/0 |
+| `python3 documentation/personal_data_gate.py -v` | GREEN | `[PASS] no personal data in tracked files`; six excused lines, all pre-existing, in paths this branch does not touch |
+| device: Smoke suite — `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --continue --max-workers=2` | 2129/2129 | 15 fresh XML files, 44 cases: 41 passed and exactly the three documented skips, `ArchiveScreenTest`, `AllTrainingsScreenTest` and `AllExercisesScreenTest` `pendingFeatureRewrite`; 0 failures and errors. `AllExercisesScreenTest` carries a class-level `@Smoke`, so `blockedArchiveDialogListsBlockingTrainings` passed here too. Then, as `run_smoke_ui_tests.sh` does, `assert_mvi_device_identities.py`: `core:ui:mvi (androidDeviceTest): 2 executed / 0 skipped / 0 failed / 0 errored — verified 2 exact identities` |
+| device: Regression suite — the same with `…annotations.Regression` | 2129/2129 | 15 fresh XML owners, 88 cases, all executed, 0 skip, failure or error: app:app 49 (among them `AllTrainingsExtensionDbVisibilityTest` 1, `RouteReachabilityTest` 15, `ApplicationBottomBarTest` 4, `UiGenerationSwapTest` 1, `AppRuntimeUiHandshakeDeviceTest` 1, `UiAdmissionRaceTest` 3), core:data:database 35, core:data:exercise 1, feature:all-exercises 1 (`blockedArchiveDialogListsBlockingTrainings`), feature:wear-bridge 2, the other owners 0, the same membership as 7.9 |
+| boundary, hygiene and PNG (static) | GREEN | as gate 7 above |
+| mockup shell gate | static GREEN | checks 7 and 8 unverified locally (Section 19.8) |
+
+Every connected result directory was deleted by literal path before each device suite, and the
+device state was identical before and after each. Another checkout on this host (a different
+repository clone, on its own daemon registry, so neither side's `--stop` reaches the other) built
+and tested its own tree while these gates ran. Before the Smoke suite, the gate wrapper waited
+until no other checkout's Gradle client ran at all. Before the Regression suite, it waited until
+none ran a device-capable task: connected, install, managed-device or device check (Section 19.8
+says why the wait changed). Before both, it waited until nothing was instrumenting on
+`emulator-5554`. While each suite ran, it sampled every foreign client's command line every 15 s.
+During the Smoke suite it took 98 samples: the other checkout's `detekt`, `clean`, and
+`assembleDebug lintDebug testDebugUnitTest`, none of them device-capable. During the Regression
+suite it took 52 samples, all of them the other checkout's host-only
+`:app:wear:testStoreDebugUnitTest` runs, 0 device-capable.
+
+### 19.6 Mandatory known-negative controls
+
+All 37 controls of Section 13 — 1–17, 19–32 and 34–39; 18 and 33 have no counterpart — ran on the
+committed tree `3cdf72357`: fresh GREEN → one named observable RED → automatic exact restoration →
+fresh GREEN. No mutation was committed.
+
+The Python-scored controls (1–14, 17, 29–32, 34, 38, 39) and the PNG-scored control 24 ran in a
+detached worktree at `3cdf72357` (2,607 tracked files, porcelain empty), removed afterwards with
+`git worktree remove`, through a scratch harness that refuses to start unless HEAD is that commit
+and the porcelain is empty. Per control it takes a fresh GREEN, snapshots every touched path (bytes
+and mode, or absence) and every directory the mutation would create, and applies one mutation whose
+text anchors occur exactly once. It accepts a RED only with a non-zero exit, the gate's failure
+header, no Traceback, and every named fragment present. It restores in `finally` with SIGTERM,
+SIGINT and SIGHUP ignored during the restore, proves sha256 and mode equal and created paths absent,
+requires an empty porcelain, and takes a fresh GREEN whose output is byte-equal to the pre-GREEN. The
+topology scorer ran exactly as CI runs it. The whole pass ran once with macOS Python 3.9.6 and once
+with Homebrew Python 3.14.8 as scorer; the two outputs are byte-identical, each ending
+`SUMMARY: 23/23 controls RED-as-named and restored; problems=[]` and `END porcelain empty: True`.
+Control 24's scorer is a scratch PNG assertion that hashes the on-disk bytes of every PNG and
+requires the 52 blobs, the blob-set hash, and the all-PNG and Paparazzi manifests to equal the base
+manifests with the 52 paths rewritten.
+
+The Gradle- and device-scored controls (15, 16, 19–23, 25–28 and 35–37), the GREEN observations
+Section 13 asks for under 35 and 39, and one extra run beyond Section 13 (control 25's
+compile-validity run, below) ran in the branch worktree through
+`documentation/mockups/mutation_harness.py` in one-shot mode, driven by a scratch script. Per
+control the script requires the target file to equal HEAD's blob and the porcelain to be empty,
+passes `--no-configuration-cache --console=plain` inside `--task` (the harness stops the daemon and
+adds `--rerun-tasks --no-build-cache` itself), reads the RED at once from fresh XML or console
+output, proves the mutated file's sha256 equal to HEAD's blob and the porcelain empty, and takes a
+fresh GREEN. A compile error would have scored INVALID; no run did. Scorers:
+
+- one invocation of `:feature:all-exercises:testAndroidHostTest
+  :feature:all-exercises:iosSimulatorArm64Test --continue` for 19–22, 26–28 and 36, control 39's
+  GREEN observation, and the extra compile-validity run under control 25's mutation (GREEN:
+  250/250, host 66/66, Native 67/67);
+- the same plus `:core:ui:kit:testAndroidHostTest :core:ui:kit:iosSimulatorArm64Test` for 35
+  (GREEN: 277/277; kit host 415/415, kit Native 2/2, all-exercises 66/66 and 67/67);
+- the ten-module Native command, then the oracle, for 23 (GREEN: 283/283, oracle GREEN);
+- root `detekt --continue`, alone, for 25 (GREEN: 63/63, 55 fresh reports, 0 findings);
+- device: `UiAdmissionRaceTest` for 15 and 16, `ANDROID_SERIAL=emulator-5554 ./gradlew
+  :app:app:connectedDebugAndroidTest
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.UiAdmissionRaceTest
+  --continue --max-workers=2` (GREEN: 741/741, 3/3);
+- device: `AllExercisesScreenTest` for 37, `ANDROID_SERIAL=emulator-5554 ./gradlew
+  :feature:all-exercises:connectedDebugAndroidTest --continue --max-workers=2` (GREEN: 224/224,
+  `blockedArchiveDialogListsBlockingTrainings` passed and `pendingFeatureRewrite` skipped).
+
+The connected result directory was deleted before every device run, and the device state was
+recorded before and after each device group, identical each time. Within a group, one control's
+post-GREEN served as the next one's pre-GREEN, because nothing changed between them (same HEAD,
+empty porcelain, the next target byte-equal to HEAD): 19 → 20 → 21 → 22 → 26 → 27 → 28 → 36 →
+control 39's observation → the compile-validity run, and 15 → 16. The harness's own verdict line
+knows only test failures. It reads `GREEN — GATE HOLE` for 23, whose scorer is the oracle, and for
+the two runs whose expected result is GREEN (39's observation and the compile-validity run). It
+reads `RED (no named test — check)` for 25, whose scorer is detekt's report.
+
+| # | Mutation | Observable RED (quoted) | GREEN before/after |
+| ---: | --- | --- | --- |
+| 1 | delete `ui/components/TopBarMode.kt` | `feature:all-exercises: source manifest mismatch; missing=['src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TopBarMode.kt'], extra=[]` | topology GREEN |
+| 2 | copy `di/AllExercisesScope.kt` into `src/main/kotlin/…/di/` | `feature:all-exercises: legacy source set src/main still contains ['src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesScope.kt']` (plus the manifest's `extra=[…]` and `unexpected Kotlin-bearing source set src/main`) | topology GREEN |
+| 3 | move `ui/components/TopBarMode.kt` to `ui/TopBarMode.kt` | `feature:all-exercises: source manifest mismatch; missing=['src/commonMain/…/ui/components/TopBarMode.kt'], extra=['src/commonMain/…/ui/TopBarMode.kt']` | topology GREEN |
+| 4 | `import android.util.Log` in `ui/components/PagingTailKind.kt` | `feature:all-exercises: src/commonMain/…/ui/components/PagingTailKind.kt imports a platform API in commonMain: 'import android.'` | topology GREEN |
+| 5 | rename the EN key `feature_all_exercises_paging_retry` to `…_renamed` | `feature:all-exercises: exact private CMP catalog mismatch in feature/all-exercises/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_all_exercises_paging_retry: expected='Retry', actual=None"], unexpected=['feature_all_exercises_paging_retry_renamed'], order=drifted` (plus two ownership-drift lines, old and new key) | topology GREEN |
+| 6 | append a second word to the RU value of `feature_all_exercises_paging_retry` | `feature:all-exercises: exact private CMP catalog mismatch in feature/all-exercises/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["feature_all_exercises_paging_retry: expected=<RU value>, actual=('string', 'feature_all_exercises_paging_retry', <mutated RU value>)"], unexpected=[], order=exact` (the two RU values are named here, not quoted) | topology GREEN |
+| 7 | move the EN `feature_all_exercises_paging_retry` into `feature/settings/src/main/res/values/strings.xml` | `feature:all-exercises: resource ownership drift for feature_all_exercises_paging_retry; expected=['feature/all-exercises/src/commonMain/composeResources/values-ru/strings.xml', 'feature/all-exercises/src/commonMain/composeResources/values/strings.xml'], actual=['feature/all-exercises/src/commonMain/composeResources/values-ru/strings.xml', 'feature/settings/src/main/res/values/strings.xml']` (plus the EN catalog mismatch) | topology GREEN |
+| 8 | `val titleRes: Int = 0` in `State` | `feature:all-exercises: Store State must stay semantic with exactly ((…the seven Section 12.1 fields…)); actual=(…, ('titleRes', 'Int = 0'))` | topology GREEN |
+| 9 | `.copy(footerLabel = resourceWrapper.getString(0))` on `PagingHandler`'s mapped item | `feature:all-exercises: src/commonMain/…/mvi/handler/PagingHandler.kt resolves all-exercises copy through ResourceWrapper.getString; use the private Compose resources` (plus the copy contract's `copy contract requires 'getString(' exactly zero times; found 1` and `reads copy outside the StringResolver: 'getString(' 1 time(s), 0 through stringResolver`) | topology GREEN |
+| 10 | `val label = getString(TITLE)` inside `ClickHandler`'s bulk-confirm `updateStateImmediate` | `feature:all-exercises: updateStateImmediate in src/commonMain/…/mvi/handler/ClickHandler.kt resolves a resource inside the State lambda: 'getString('` (plus `reads copy outside the StringResolver: 'getString(' 2 time(s), 1 through stringResolver`) | topology GREEN |
+| 11 | `uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES` on `ExerciseRow`'s Dark preview | `…/ui/components/ExerciseRow.kt contains forbidden platform/lookup API 'android.content'` and `… 'uiMode'` (plus `ExerciseRow.kt preview contract requires '@Preview(name = "Dark", showBackground = true)' exactly once`) | topology GREEN |
+| 12 | `LocalContext.current` and `context.appDeps<AllExercisesGraph.Factory>()` in `AllExercisesFeature` | `…/di/AllExercisesFeature.kt contains forbidden platform/lookup API 'LocalContext'`, `… 'appDeps<'`, `remaining Context.appDeps readers are not the exact 8 unported entries; expected={…the eight…}, …` and `factory invocation must occur exactly inside retained Store creation` | topology GREEN |
+| 13 | delete `val allExercisesGraphFactory: AllExercisesGraph.Factory` and its KDoc from `AppRootDeps` | `feature:all-exercises: exact root-factory flow requires 'val allExercisesGraphFactory: AllExercisesGraph.Factory' once in app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt` | topology GREEN |
+| 14 | `val graph = factory.createAllExercisesGraph()` before `rememberMetroStoreProcessor` | `feature:all-exercises: factory invocation must occur exactly inside retained Store creation` | topology GREEN |
+| 15 | a second `(context.applicationContext as AppRootDepsHolder).appRootDeps()` inside the admitted `remember(currentPhase.id) { … }` in `App.kt` | device: `UiAdmissionRaceTest`, 741/741: `admittedGeneration_composesTheRegion_andResolvesItsDependencies` `java.lang.AssertionError: an admitted region resolves the generation's app-scope deps expected:<1> but was:<2>`; the two retired cases passed (fresh XML 2 passed, 1 failed) | 741/741, 3/3 |
+| 16 | hoist `val deps = remember(currentPhase.id) { …appRootDeps() }` above `if (admission.granted) {` | device: `UiAdmissionRaceTest`, 741/741: `retiredGeneration_composesNothing_andResolvesNothing` `java.lang.AssertionError: a retired generation must resolve NOTHING — not even the app root deps expected:<0> but was:<1>`; `retirementBetweenPublicationAndFrame_resolvesNothing` `java.lang.AssertionError: the stale generation's region must resolve NOTHING expected:<0> but was:<1>`; the admitted case passed | 741/741, 3/3 |
+| 17 | identity helper `= asContribution<AllExercisesGraph.Factory>()` | `feature:all-exercises: extension identities must not bypass AppRootDeps via asContribution` (plus the identity-helper root-fragment line) | topology GREEN |
+| 18 | archive-specific; no counterpart (Section 13) | — | — |
+| 19 | `ListSurface.kt`: refresh `Loading` → `ListSurface.FIRST_RUN` | 250/250: host `ListSurfaceTest > an unsettled refresh with no rows is loading not empty` and `loading outranks selection and the filter`, each `org.opentest4j.AssertionFailedError: expected: <LOADING> but was: <FIRST_RUN>`; Native the same two identities, `kotlin.AssertionError: Expected <LOADING>, actual <FIRST_RUN>.`; and the scene `Failed to perform isDisplayed check. Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'AllExercisesColdOpen')`; passed/failed: host 64/2, Native 64/3 | 250/250 |
+| 20 | `PagingTailKind.kt`: append `Error` → `PagingTailKind.NONE` | 250/250: host `PagingTailKindTest > a failed page draws the error footer not silence` `expected: <ERROR> but was: <NONE>`, Native `Expected <ERROR>, actual <NONE>.`, and the scene `… could not find any node that satisfies: ((TestTag = 'AllExercisesPagingError') && (hasAnyAncestorThat(TestTag = 'AllExercisesList')))`; host 65/1, Native 65/2 | 250/250 |
+| 21 | the scene's `setContent { AppTheme { AllExercisesScreen(…) } }` body → `setContent { }` | 250/250: Native `AllExercisesFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch[iosSimulatorArm64]` `Failed to perform isDisplayed check. Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'AllExercisesColdOpen')`; host 66/66 passed, Native 66/1 | 250/250 |
+| 22 | production `AllExercisesScreen.kt`: the selection-bar close `onClick = { consume(Action.Click.OnSelectionExit) },` → `onClick = { },` | 250/250: Native scene `kotlin.AssertionError: Expected <OnSelectionExit>, actual <OnClearTagFilter>.`; host 66/66, Native 66/1 | 250/250 |
+| 23 | rename the scene method to `renamedSceneSubstitute` | Gradle GREEN (283/283; all-exercises 67 cases passing), then the oracle: `native gate FAILED (every module was checked, so no verdict is hidden):` and `feature:all-exercises: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest' name='resourcesPagingBranchesSelectionAndActionsRenderAndDispatch[iosSimulatorArm64]', found 0; parsed 67 testcase(s): ['io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest.renamedSceneSubstitute[iosSimulatorArm64]', …]`; the other nine modules `ok:` | 283/283 and oracle GREEN |
+| 24 | flip (XOR 0xFF) the last byte of `…golden_AllExercisesGoldenTest_rowWeighted_light.png` | `all-exercises blob drift: …rowWeighted_light.png expected=9899c2e088928ede769051c95810050fec5a3670 actual=6e5b5b56a33c21857b9d9e0f219dcea1546c3e10`, `blob-set hash drift: expected sha256=4e71615e…e432 entries=52, actual sha256=1a304a70…22fa entries=52`, `all-PNG mode/blob/path manifest drift: expected sha256=ce590ad5…3f36 entries=528, actual sha256=0a477a83…9b12 entries=528`, and the Paparazzi mode/blob/path drift (456 entries); the path list does not drift | PNG assertion GREEN |
+| 25 | compile-valid overlong assertion at `commonTest/…/ui/components/PagingTailKindTest.kt:16` (a `kotlin.test` message argument) | root detekt, alone, 63/63: `> Task :feature:all-exercises:detekt FAILED` and `BUILD FAILED`; 55 fresh reports, 8 findings, all on line 16 of that file: `detekt.MaxLineLength` `:16:1` `Line detected, which is longer than the defined maximum line length in the code style.`, `detekt.MaximumLineLength` `:16:1` `Exceeded max line length (120)`, and six `detekt.ArgumentListWrapping` (`Argument should be on a separate line (unless all arguments can fit a single line)` at columns 22, 46, 61 and 81; `Missing newline before ")"` at 78 and 193); its compile validity is shown by the extra run below | 63/63, 55 reports, 0 findings |
+| 26 | `lastTrainedRelativeLabel`: the sub-hour delta divided by `HOUR_MS` instead of `MINUTE_MS` | 250/250: host `AllExercisesUiMapperTest > composeFooterLabel minute granularity for sub-hour deltas` `expected: <last 15m ago> but was: <last 0m ago>`, Native the same identity `Expected <last 15m ago>, actual <last 0m ago>.`, and the scene `Expected <[12 sessions · in 3 trainings · last 4d ago, 1 session · in 1 training · last just now, in 2 trainings · last 2h ago, 5 sessions · last 15m ago, ]>, actual <[…, 5 sessions · last 0m ago, ]>.`; host 65/1, Native 65/2 | 250/250 |
+| 27 | `toBlockedArchiveDialog`: `archivedCount.takeIf { it > 0 }` → `archivedCount.takeIf { false }`, so `archivedSummary` is always `null` | 250/250: host `AllExercisesUiMapperTest > toBlockedArchiveDialog truncates trainings and sets archived summary on partial block` `expected: <1 archived> but was: <null>` and `ClickHandlerTest > OnBulkDeleteConfirm opens blocked dialog with archived summary on partial block` `actual value is null ==> expected: not <null>`; Native the same two, `Expected <1 archived>, actual <null>.` and `Expected value to be not null.`; and the scene `Expected <[1 exercise archived, 3 exercises archived, null]>, actual <[null, null, null]>.`; host 64/2, Native 64/3 | 250/250 |
+| 28 | `MAX_TRAININGS_SHOWN = 2` → `3` | 250/250: host `AllExercisesUiMapperTest > toBlockedArchiveDialog truncates trainings and sets archived summary on partial block` `expected: <used in Push, Pull +2 more> but was: <used in Push, Pull, Legs +1 more>`, Native `Expected <used in Push, Pull +2 more>, actual <used in Push, Pull, Legs +1 more>.`, and the scene `Expected <[used in Push, Pull +2 more, used in Legs, used in Push, Legs]>, actual <[used in Push, Pull, Legs +1 more, used in Legs, used in Push, Legs]>.`; host 65/1, Native 65/2 | 250/250 |
+| 29 | `ShowBulkDeleteSuccess(val archivedCount: Int)` | `feature:all-exercises: src/commonMain/…/mvi/store/AllExercisesStore.kt ShowBulkDeleteSuccess parameters must be exactly ['message: String']; actual=['archivedCount: Int']` | topology GREEN |
+| 30 | `ClickHandler` imports CMP's top-level `getString` and calls it for `permanent_delete_success` | `feature:all-exercises: src/commonMain/…/mvi/handler/ClickHandler.kt imports CMP's top-level getString; read copy outside composition through the injected StringResolver` (plus `copy contract requires 'stringResolver.getString(' exactly once; found 0` and `reads copy outside the StringResolver: 'getString(' 1 time(s), 0 through stringResolver`) | topology GREEN |
+| 31 | `BackHandler(enabled = processor.state.value.interceptBack) {` → `BackHandler {` | `feature:all-exercises: src/commonMain/…/ui/AllExercisesGraph.kt back contract requires 'BackHandler(enabled = processor.state.value.interceptBack)' exactly once; found 0` | topology GREEN |
+| 32 | EN `feature_all_exercises_session_count[one]` `%1$d session` → `%d session` | `compose-resource placeholder is not %N$d or %N$s with N >= 1: feature/all-exercises/src/commonMain/composeResources/values/strings.xml key feature_all_exercises_session_count[one] token '%d'` (plus the EN catalog mismatch) | topology GREEN |
+| 33 | no counterpart (Section 13) | — | — |
+| 34 | a 67th `@Test`, `a sixty-seventh identity nobody declared`, in `TopBarModeTest` | `feature:all-exercises: exact test identities drifted in src/commonTest/…/ui/components/TopBarModeTest.kt; missing=[], unexpected=['a sixty-seventh identity nobody declared']` | topology GREEN |
+| 35 | core:ui:kit's `ComposeStringResolver.getPluralString` always calls the no-argument overload: the `if (formatArgs.isEmpty()) … else …` body → `composeGetPluralString(resource, quantity)` | 277/277: only the scene fails, on Native, at its first filled-catalog assertion: `kotlin.AssertionError: Expected <[Delete ‘Bench’ permanently?, 1 session, 2 sessions, in 1 training, in 2 trainings, last 1m ago, …, used in Push, Pull, +1 more, +2 more]>, actual <[Delete ‘Bench’ permanently?, %1$d session, %1$d sessions, in %1$d training, in %1$d trainings, last %1$dm ago, last %1$dm ago, last %1$dh ago, last %1$dh ago, last %1$dd ago, last %1$dd ago, %1$d selected, %1$d selected, %1$d exercise archived, %1$d exercises archived, %1$d exercise will move to archive. Restore from Settings → Archive., %1$d exercises will move to archive. Restore from Settings → Archive., used in Push, Pull, +%1$d more, +%1$d more]>.` All 18 filled plural values show the raw template, and the two filled strings, which `getString` reads, stay correct; kit host 415/415, kit Native 2/2, all-exercises host 66/66, Native 66/1 | 277/277 |
+| 36 | the mapper's `session_count` read drops its format argument: `getPluralString(…, count, count)` → `getPluralString(…, count)` | 250/250: on host and Native the four footer identities with sessions, `composeFooterLabel renders all three segments when present`, `composeFooterLabel hides linked-trainings segment when count is zero`, `composeFooterLabel hides last-trained segment when value is null` and `ExerciseListItemDomain toUi propagates non-zero stats into the model`, each `java.lang.IllegalStateException: a plural read passes its quantity as its one format argument; got []` (Native `kotlin.IllegalStateException: …`); and the scene's footers show the raw template: `Expected <[12 sessions · in 3 trainings · last 4d ago, 1 session · in 1 training · last just now, in 2 trainings · last 2h ago, 5 sessions · last 15m ago, ]>, actual <[%1$d sessions · in 3 trainings · last 4d ago, %1$d session · in 1 training · last just now, in 2 trainings · last 2h ago, %1$d sessions · last 15m ago, ]>.`; host 62/4, Native 62/5 | 250/250 |
+| 37 | `AllExercisesScreenTest` reads `feature_all_exercises_blocked_archive_title` in place of `_confirm` (an aliased import) | device: `AllExercisesScreenTest`, 224/224, fresh XML: `blockedArchiveDialogListsBlockingTrainings` `java.lang.IllegalArgumentException: Expected action OnBlockedArchiveDismiss not found. Captured: []` (clicking the title does not dismiss); `pendingFeatureRewrite` skipped as always | 224/224, 1 passed and the documented skip |
+| 38 | `ShowPermanentDeleteSuccess` branch of ui/AllExercisesGraph.kt shows `getString(Res.string.feature_all_exercises_permanent_delete_success)` instead of `event.message` | `feature:all-exercises: src/commonMain/…/ui/AllExercisesGraph.kt reads copy outside composition under ui/: 'getString('` | topology GREEN |
+| 39 | the days segment hardcoded as `"last ${days}d ago"` in place of its `stringResolver.getPluralString(…)` call | `feature:all-exercises: src/commonMain/…/mvi/mapper/AllExercisesUiMapper.kt copy contract requires 'stringResolver.getPluralString(' exactly seven times; found 6` | topology GREEN |
+
+Control 35's observations: under its mutation `:core:ui:kit:testAndroidHostTest` (415/415) and kit's
+Native identities (2/2) stayed GREEN, as Section 13 expects, because kit's catalog holds no plural.
+The all-exercises host suite stayed GREEN too (66/66): its mapper identities use the strict fake. The
+scene is the only executed guard. It stops at the first failed assertion, its filled catalog, so its
+later footer assertion is not reached under this mutation. The footers' raw template is shown under
+control 36, whose mapper-side mutation reaches the real resolver with no format argument. Control 35
+ran twice. The first run's RED (277/277, the same failing test, the same counts) was logged cut at
+400 characters, before its actual value, and its post-GREEN overwrote the XML. It was run again, with
+its own pre- and post-GREEN (277/277 each), keeping the RED XML, which the row quotes.
+
+One run goes beyond Section 13 and is not one of its expectations: control 25's mutation scored by
+the module's compiled tests instead of detekt. It follows 7.9's control-25 compile-validity run,
+which covered the Android host only (7.9 Section 19.8). Here it covered host and Native: 250/250,
+host 66/66 and Native 67/67, all passing. The overlong assertion compiles on both targets, so
+control 25's RED is detekt's finding, not a compile failure.
+
+Control 39's observation: under its mutation, `:feature:all-exercises:testAndroidHostTest
+:feature:all-exercises:iosSimulatorArm64Test` stayed GREEN, 250/250, host 66/66 and Native 67/67
+with the scene passing, as Section 13 expects. The strict fake and the EN catalog both produce
+`last 4d ago`, so only the copy contract's resolver-call count names the mutation (row 39).
+
+### 19.7 Deviations, spec gaps, and implementation decisions
+
+- **D5 — a test-scope `core:data:database` edge (maintainer decision, 2026-10-13).** Section
+  11.1's domain fakes must implement `ExerciseRepository`, whose adhoc-plan members
+  (`getAdhocPlans`, `getAdhocPlan`, `setAdhocPlan`) name `PlanSetDataModel` from
+  `core:data:database`, and `core:data:exercise` keeps that module implementation-scoped, so the
+  type is absent from this module's compile classpath and `setAdhocPlan`'s parameter cannot be
+  written (Section 19.1, measured). The precedent is `feature:plan-editor`, whose `commonMain`
+  declares the same edge and whose gate contract pins it. The maintainer approved exactly one
+  line, `implementation(project(":core:data:database"))` in `commonTest.dependencies`, and no
+  other build change; `core:data:exercise` is untouched. For this line only, D5 supersedes Section
+  10's `commonTest` block, the dependency facts of Section 3.5 and the build_fragments row of
+  Section 12.1, and it corrects Section 11.1's member count: `ExerciseRepository` has 34 abstract
+  members (33 functions and `val exercises`), not 33. `ALL_EXERCISES_ENTRY.build_fragments` carries
+  the line, the build file's D5 comment does not repeat it, and `check_feature_entry` is unchanged.
+  Sections 0–18 stay the historical specification. The leaky implementation edge in
+  `core:data:exercise` (a public interface naming an implementation-scoped type) is reported as a
+  follow-up, not fixed here.
+- **Commit-1 topology delta (7.8 G1).** Commit 1 carries only `MODULES["feature:all-exercises"]`
+  (the 101 `src` paths, built from Sections 3.1–3.3 and 9.1, equal to the tree) and the reader
+  removed from `EXPECTED_APP_DEPS_READERS`; every all-exercises contract check is in commit 2.
+- **The `FEATURE_ENTRIES` line.** Section 12.1 lists the tuple among the additive changes; it is
+  the topology script's only removed line, replaced by the three-entry tuple. `check_feature_entry`,
+  `ARCHIVE_ENTRY`, `ALL_TRAININGS_ENTRY` and both all-trainings checks are byte-identical.
+- **Transcription.** `ALL_EXERCISES_ENTRY` and the oracle's 67 tuples were transcribed from this
+  specification's tables by a script that reads only this document, never the files they check.
+  An independent audit with its own parser of this text, which read nothing under
+  `feature/all-exercises` or `app/`, reported `AUDIT VERDICT: EQUAL (12 checks)`. Its 38 synthetic
+  probes showed that every copy-contract and back-contract rule fails when broken. A perturbation
+  self-check found exactly the two planted differences. Before the commit, the transcribed entry
+  was also GREEN against the commit-1 tree.
+- **Copy contract details.** Every count runs over comment-stripped source, as Section 12.1 says.
+  Fragments must occur exactly the stated number of times, and an existing but empty file is
+  counted, not skipped (7.9's F1). One guard goes beyond Section 12.1: the contract fails if its
+  `mvi/` or `ui/` walk finds no file. The back contract counts raw source, as
+  `all_trainings_back_contract` does, because Section 12.1's comment-stripping sentence covers the
+  copy contract only.
+- **Rename similarity.** Every move is a `git mv`. Four files fall below git's default 50%
+  similarity because the specification rewrites them, so default `git diff -M` and
+  `git log --follow` show them as delete/add pairs: `ui/components/ExercisesEmptyState.kt` (the
+  Section 5.3 imports and the preview split in a 42-line file), `domain/AllExercisesInteractorImplTest.kt`
+  (two in-file repository fakes), `mvi/handler/NavigationHandlerTest.kt` (an in-file navigator)
+  and `mvi/handler/PagingHandlerTest.kt` (three in-file fakes). All four pair at `-M10%`. 7.9 shows
+  the same pattern.
+- **Build file.** With comments removed it equals Section 10's block plus D5's line. The module's
+  own history comments (the Metro and Paparazzi plugin comments, the `includeJavax` comment) moved
+  verbatim; 7.9's two `api` rationale comments and the Compose-BOM and test-utils GUARD comments
+  were added, adapted. None holds a dependency fragment or a forbidden build token.
+- **Strict resolver fakes.** Each fake answers by `when (resource)` on the generated
+  `Res.string.…` / `Res.plurals.…` objects and throws on any other resource. It checks arguments:
+  no format argument for `footer_separator`, `last_trained_just_now` and
+  `permanent_delete_success`; exactly one for `blocked_archive_used_in_format`; and
+  `formatArgs == [quantity]` for every plural. The return values are Section 11.1's table. The two
+  `stubBlockedArchiveStrings()` calls disappeared with the strict mock they configured: the fake
+  always answers those three resources.
+- **Recorded launches.** `ClickHandlerTest`'s store fake records each `launch` as two closures,
+  both built inside the generic `launch<T>` and sharing one `MutableList<T>`. One runs the action
+  and the other runs `onSuccess`, so the three bulk-confirm identities keep today's order (action,
+  then the `bulkArchive` assertion, then `onSuccess`) with no cast. `OnConfirmPermanentDelete with
+  pending…` records its launch and never runs it.
+- **Fail-fast members.** Every fake member that no identity reaches throws. That includes the
+  interactor's suspend operations, where 7.9 had kept the relaxed defaults: Section 11.1 says
+  "members no identity reaches fail fast". `PagingHandlerTest`'s store records `Flow.launch` and
+  never runs it; `state` is not read, because `PagingUiState` builds its flow lazily.
+- **Inherited assertions under `kotlin.test` contracts.** `assertTrue(x is T)` and `assertNotNull(x)`
+  carry contracts, so the inherited `(… as Event.Haptic)`, `(result as ArchiveResult.Blocked)`,
+  `pending!!` and `dialog?.…` now draw "No cast needed", "Unnecessary non-null assertion" and
+  "Unnecessary safe call" warnings. Section 11.1 allows no assertion change, and a warning is not a
+  suppression, so these lines are kept.
+- **MockK verifications became recorded-state assertions**, as in 7.9: `verify { sendEvent(capture) }`
+  became the last recorded event; `verify(exactly = 0)` became an empty list or a zero count;
+  `verify(exactly = 1) { sendEvent(ofType<…>()) }` became a count of that event type; and
+  `coVerify` became `assertContains` on the recorded calls.
+- **Identity helper shape.** Section 6 writes the `allExercises()` helper on one line; it is split
+  over two lines like 7.9's. The gate compares whitespace-compacted source.
+- **Native scene decisions** (none changes a gate or an identity). Step 1 reads all 48 catalog
+  values as stored (30 strings and both EN quantities of 9 plurals) and the 20
+  placeholder-bearing ones filled (18 plural quantities, `permanent_delete_title` with `"Bench"`,
+  `blocked_archive_used_in_format` with `"Push, Pull"`); this is a superset of both readings of
+  "each is read twice". Its expected values were transcribed mechanically from Section 3.4.
+  Step 2's fixtures are Section 11.4's five rows at `NOW = 1_720_000_000_000L`; step 4's rows are
+  those models, and the scene asserts every row's name and meta line. The kit's cancel label is read
+  through the same resolver. The permanent-delete dialog uses a fixture uuid. The 14 dispatched
+  actions follow Section 11.4's table order.
+- **Device result path.** The module's device results land under
+  `build/outputs/androidTest-results/connected/` (7.9 recorded `connected/androidMain` for
+  all-trainings). The run prints `Starting 2 tests` and then `Finished 3 tests` for one ignored and
+  one executed method; the fresh XML is authoritative and holds exactly the two cases.
+- **Re-pointed tech-debt anchor.** Row 456's old anchor `PagingHandler.kt:49-52` already pointed at
+  `invoke`'s `when` at the base. At the new path it reads `:56-60`, the `updateStateImmediate`
+  mapping block it describes.
+- **Observations.** The compile keeps three inherited "only one @Inject-annotated constructor"
+  notes (`ClickHandler`, `NavigationHandler`, `PagingHandler`) and the expected portable-BackHandler
+  deprecation ("Use NavigationEventHandler instead").
+
+### 19.8 Rejected runs, local limitations, and the remote evidence boundary
+
+Runs that did not measure what they appear to were excluded, and their proof was rerun fresh:
+
+- The first attempt at the early Native gate died eight seconds in with
+  `Gradle build daemon has been stopped: stop command received`. Another checkout on this host had
+  run `./gradlew --stop`. The attempt wrote no XML and was rerun at once. The gate wrapper then
+  learned to retry such a run. Its foreign-client check had matched the wrapper's main class, which
+  never appears on a `java -jar gradle-wrapper.jar` command line; it was corrected to match the jar
+  and to ignore clients on their own daemon registry, which neither stop nor are stopped by this
+  checkout's `--stop`. No accepted gate was affected.
+- Baseline 2's XML was overwritten by baseline 3's Paparazzi run before its names were read.
+  Baseline 2 was retaken (173/173, 66 exact, archived at once); every later gate copies its XML aside
+  immediately.
+- Control 35's first run is described with its row (Section 19.6). Its RED was logged cut off
+  before the actual value, so the control was run again with the RED XML kept.
+- The first launch of the repository gates was interrupted inside `assembleDebug lintDebug
+  testDebugUnitTest` when the session that hosted it ended. Its `./gradlew clean` had completed, but
+  no gate result was accepted from it. The gates were rerun from a fresh `./gradlew clean`
+  (Section 19.5).
+- In the rerun, the device wait first required that no Gradle client of any other checkout run at
+  all. Before the Smoke suite it found its gap after 56 polls (about 18 minutes). Before the
+  Regression suite it found none in 540 polls (3 hours), because the other checkout ran host-only
+  builds and tests back to back, and the wait gave up without starting Gradle. No result came from
+  that attempt. The wait was then narrowed to what can reach the device, a device-capable foreign
+  task or instrumentation on the serial, and the Regression suite ran alone on the same committed
+  tree (Section 19.5).
+
+Local limitations:
+
+- The ten iosArm64 device test binaries are linked, never run, by design: there is no device.
+- Section 5.6's inherited locale property is accepted, not tested.
+- `ComposeStringResolver.getPluralString` has no Android-host route (D2, Section 11.5). Its
+  delegation runs on Android in production and in the app journeys whenever a row has stats, with
+  no text assertion; the RU plural forms are pinned statically by the topology gate's catalog check
+  only.
+- The mockup shell gate (`--base "$(git merge-base origin/dev HEAD)" -v`, base `97c03dfe1`,
+  Homebrew Python 3.14.8) passes checks 1–6, 9 and 10. No headless browser is on `PATH`, so its
+  precondition row fails and checks 7 and 8 are `UNMEASURED` (`the probe stopped at 'no-browser'`).
+  The permanent known negative `--target f52462c7` fails checks 6, 9 and 10, as required. Checks 7
+  and 8 are unverified locally; the remote `Mockup Appearance Gate` is their authority. This branch
+  changes neither `documentation/mockups/pass2d.html` nor `AppColors.kt`.
+- The Gradle-scored controls ran the Native oracle (control 23) under Homebrew Python 3.14.8 only.
+  Commit 2's own oracle gate ran it under both Pythons, with byte-identical output (Section 19.5).
+- The repository gates shared the host with another checkout's builds. No foreign client was
+  device-capable during either device suite (Section 19.5), and every gate passed under that load.
+
+This documentation commit must exist before its SHA, the push, GitHub's signature verification of
+the three commits, the required contexts on the final head, the CI run and job IDs, and the review
+can exist. Those facts, and every review finding's classification, are recorded in the PR, not
+predeclared here.
+
+### 19.9 Documentation boundary
+
+This commit updates the canonical facts the implementation made stale, in the places 7.9's
+`3a941f1f` updated for all-trainings and the four testing.md places Section 9.2 names:
+
+- `architecture.md`: all-exercises joins archive and all-trainings as a plain-shape
+  factory-resolution exception; `AppGraph.allExercisesGraphFactory` implements its `AppRootDeps`
+  accessor; the feature/dialog Context readers fall from 9 to 8.
+- `ci-cd.md`: the `KMP iOS kit smoke` row, the KMP-shaped alias list, the Native job's module list,
+  the all-exercises validator (66 portable tuples plus the scene, 67 exact), ten uploaded result
+  directories, and ten linked device binaries (`N/10 linked`).
+- `testing.md`: a "Shared all-exercises feature" subsection (the 66 identities, the strict resolver
+  fakes, D5, the scene, the D2 limitation); "Shared string resolver" now says that the plural
+  delegation first runs on Native in that scene and that the mapper identities use a fake; the
+  `AppGraph.stringResolver` bullet says the accessor still has no production reader and that
+  all-exercises' handlers receive the binding by injection; the device-test table row names the one
+  existing file under `src/androidDeviceTest`.
+- `tech-debt.md`: the two links into old all-exercises paths re-pointed (rows 456 and 539 at the
+  base), with the line reference corrected to `:56-60`.
+
+Left untouched on purpose (Section 9.2), each re-located on this tree:
+
+- `documentation/features.md` lines 79, 92 and 97–99;
+- `.claude/skills/*` (D4): `add-feature`, `compose-state-discipline`, `mvi-dialog-state` and
+  `refactor-with-mvi-rules` teach `R` / `ResourceWrapper` copy, and `write-handler-test` keeps its
+  stale all-exercises line;
+- `documentation/kmp-migration-assessment.md`, `documentation/research/*` and the historical
+  feature specs (`exercises.md`, `all-exercises-delta.md`, `archive-delta.md`, `exercise-image.md`,
+  `trainings.md`, `v2.*`, `wear-lifecycle-ui.md`, `kmp-phase-5-evidence/*`);
+- `kmp-string-resolver.md`'s R5 sentence (a complete specification; `testing.md` carries the
+  correction);
+- `tech-debt.md`'s "Resolved" list (line 797);
+- `graphify-out/`.
+
+Maintainer decision (2026-10-14): Section 9.2 omitted four `testing.md` places that the move made
+stale, so this PR fixes them in a separate documentation commit. It adds all-exercises where 7.9's
+`3a941f1f` added all-trainings: the Native command block under "Running tests"
+(`:feature:all-exercises:iosSimulatorArm64Test`) and the device-link block
+(`:feature:all-exercises:linkDebugTestIosArm64`, whose comment now reads `10/10`). The visual-gate
+paragraph's two module lists now name all-exercises among the KMP modules with goldens in
+`src/androidHostTest`, no longer among the classic ones in `src/test`. The sentence naming the
+KMP-shaped modules that both alias spellings cover now includes `:feature:archive`,
+`:feature:all-trainings` and `:feature:all-exercises`, which closes the gap 7.8 and 7.9 left there;
+`--dry-run` shows both spellings resolving on all three (maintainer decision, 2026-10-14). Every
+module count in those places reads ten. Nothing else changes.

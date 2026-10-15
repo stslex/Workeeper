@@ -212,11 +212,12 @@ the Activity's store, silently process-scoping every Store
 
 1. Plain `Feature` — the feature resolves `context.appDeps<XxxGraph.Factory>()`, creates its graph
    extension, and reads the Store accessor. Plain features have no route arguments (e.g.
-   `Screen.BottomBar.Home`). The shared archive and all-trainings entries are the plain-shape
-   factory-resolution exceptions: the generation-owned root passes the required
-   `ArchiveGraph.Factory` / `AllTrainingsGraph.Factory` through `AppNavigationHost` and
-   `archiveGraph` / `allTrainingsGraph` into `ArchiveFeature` / `AllTrainingsFeature`, which invoke
-   it only inside the `rememberMetroStoreProcessor` creation lambda.
+   `Screen.BottomBar.Home`). The shared archive, all-trainings, and all-exercises entries are the
+   plain-shape factory-resolution exceptions: the generation-owned root passes the required
+   `ArchiveGraph.Factory` / `AllTrainingsGraph.Factory` / `AllExercisesGraph.Factory` through
+   `AppNavigationHost` and `archiveGraph` / `allTrainingsGraph` / `allExercisesGraph` into
+   `ArchiveFeature` / `AllTrainingsFeature` / `AllExercisesFeature`, which invoke it only inside the
+   `rememberMetroStoreProcessor` creation lambda.
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
@@ -486,13 +487,13 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, and all-trainings no longer use
-the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
-`AppGraph.planEditorGraphFactory`, `AppGraph.archiveGraphFactory`, and
-`AppGraph.allTrainingsGraphFactory` implement the accessors declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. Exactly 9 feature/dialog Context readers
-remain.
+not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, and all-exercises
+no longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
+`AppGraph.planEditorGraphFactory`, `AppGraph.archiveGraphFactory`,
+`AppGraph.allTrainingsGraphFactory`, and `AppGraph.allExercisesGraphFactory` implement the
+accessors declared by `AppRootDeps`, and the admitted composition reads that root contract exactly
+once. Retired generations and generations that lose the publication race resolve it zero times.
+Exactly 8 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 
