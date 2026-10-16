@@ -168,9 +168,12 @@ jobs:
       ref: ${{ needs.guard.outputs.sha }}
     secrets: inherit
 
+  # `always()` so a build or ui_tests skipped by its input does not skip this job. That also lifts
+  # the implicit guard dependency, and a failed guard skips build and ui_tests exactly like those
+  # inputs do, so the guard's own result must be required here (release-flow.md §7.3).
   deploy:
     needs: [ guard, build, ui_tests ]
-    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
+    if: ${{ always() && needs.guard.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     name: Deploy to Play, tag, merge PR
     runs-on: ubuntu-24.04
     timeout-minutes: 60
