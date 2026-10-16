@@ -1294,8 +1294,10 @@ class FeatureEntry:
 
     `root` and `identity_test` are repo-relative, as are extra_root_fragments' keys;
     build/test/suppression paths are relative to `root`; store_file, feature_file, graph_file,
-    resource_wrapper_readers and preview_subjects' keys are relative to
-    root/src/commonMain/kotlin/<package_dir>. Containers keep the type their failure text embeds:
+    resource_wrapper_readers, preview_subjects' keys, preview_inventory's keys and
+    resource_wrapper_dates' keys are relative to root/src/commonMain/kotlin/<package_dir>. An
+    empty device_test means the module has no device test: its file is not read, and
+    device_fragments must then be empty. Containers keep the type their failure text embeds:
     lists stay lists and tuples stay tuples, because a repr is part of the message. Never hash an
     entry; it holds lists and dicts.
     """
@@ -1334,6 +1336,11 @@ class FeatureEntry:
     identity_accessor: str
     extra_root_fragments: dict = field(default_factory=dict)
     extra_checks: tuple = ()
+    # Additive shape fields (kmp-phase-7-11-past-session-feature.md Section 12.0). The defaults
+    # keep every earlier entry's checks and failure text byte-identical.
+    create_args: str = ""
+    preview_inventory: dict = field(default_factory=dict)
+    resource_wrapper_dates: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1585,6 +1592,10 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
 
     # ResourceWrapper stays with its declared readers, and copy never resolves through it.
     readers = {common_main / relative for relative in entry.resource_wrapper_readers}
+    dates = {
+        common_main / relative: methods
+        for relative, methods in entry.resource_wrapper_dates.items()
+    }
     for path, source in common_sources.items():
         if path not in readers and "ResourceWrapper" in source:
             failures.append(
@@ -1595,10 +1606,29 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             r"formatMediumDate)\s*\(",
             source,
         ):
+            if match.group(1) in dates.get(path, {}):
+                continue
             failures.append(
                 f"{module}: {path.relative_to(root)} resolves {entry.short_name} copy through "
                 f"ResourceWrapper.{match.group(1)}; use the private Compose resources"
             )
+    for path, methods in dates.items():
+        relative = path.relative_to(root)
+        if path not in readers:
+            failures.append(
+                f"{module}: {relative} declares a ResourceWrapper date but is not a declared reader"
+            )
+        source = common_sources.get(path)
+        if source is None:
+            failures.append(f"{module}: {relative} declares a ResourceWrapper date but is missing")
+            continue
+        for method, expected in methods.items():
+            found = len(re.findall(rf"resourceWrapper\s*\.\s*{re.escape(method)}\s*\(", source))
+            if found != expected:
+                failures.append(
+                    f"{module}: {relative} must read the ResourceWrapper.{method} date exactly "
+                    f"{expected} time(s); found {found}"
+                )
 
     # State lambdas only copy State: resources resolve before updateState, never inside it.
     update_count = 0
@@ -1622,7 +1652,9 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         failures.append(f"{module}: no updateState lambdas were inspected")
 
     # Exactly the portable previews: every subject, each Light and Dark.
-    preview_count = 2 * len(entry.preview_subjects)
+    preview_count = 2 * len(entry.preview_subjects) + sum(
+        len(arguments) for arguments in entry.preview_inventory.values()
+    )
     total_previews = sum(source.count("@Preview(") for source in common_sources.values())
     if total_previews != preview_count:
         failures.append(
@@ -1645,6 +1677,14 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 failures.append(
                     f"{module}: {path.name} preview contract requires {fragment!r} exactly once"
                 )
+    for relative, expected_arguments in entry.preview_inventory.items():
+        path = common_main / relative
+        actual_arguments = re.findall(r"@Preview\(([^)]*)\)", common_sources.get(path, ""))
+        if actual_arguments != expected_arguments:
+            failures.append(
+                f"{module}: {path.name} preview inventory must be exactly {expected_arguments!r}; "
+                f"actual={actual_arguments!r}"
+            )
 
     # Exactly the declared production and Native test-name suppressions.
     actual_suppressions: dict[str, list[str]] = {}
@@ -1692,12 +1732,17 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             f"{module}: golden methods must be exactly {entry.golden_methods}; "
             f"actual={golden_methods}"
         )
-    device_source = (root / entry.device_test).read_text(encoding="utf-8")
-    for fragment in entry.device_fragments:
-        if device_source.count(fragment) != 1:
-            failures.append(
-                f"{module}: device placeholder must keep {fragment!r} exactly once"
-            )
+    if entry.device_test:
+        device_source = (root / entry.device_test).read_text(encoding="utf-8")
+        for fragment in entry.device_fragments:
+            if device_source.count(fragment) != 1:
+                failures.append(
+                    f"{module}: device placeholder must keep {fragment!r} exactly once"
+                )
+    elif entry.device_fragments:
+        failures.append(
+            f"{module}: device fragments {list(entry.device_fragments)!r} need a device test"
+        )
 
     # The explicit generation-owned factory flow, and nothing that bypasses it.
     graph_factory = f"{entry.graph_interface}.Factory"
@@ -1742,7 +1787,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         f"""
         rememberMetroStoreProcessor<{entry.store_impl}> {{
             factory
-                .{entry.create_method}()
+                .{entry.create_method}({entry.create_args})
                 .{entry.store_accessor}
         }}
         """
@@ -1756,7 +1801,8 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     # One declaration on the graph's Factory plus the one retained invocation.
     if graph_calls != 2 or feature_source.count(create_call) != 1:
         failures.append(
-            f"{module}: {entry.create_method}() must be invoked once, inside the Store lambda"
+            f"{module}: {entry.create_method}({entry.create_args}) must be invoked once, inside "
+            "the Store lambda"
         )
     optional_factory = (
         rf"(?:factory|{re.escape(entry.factory_accessor)})\s*:\s*"
