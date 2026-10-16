@@ -10,11 +10,11 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, and archive feature Native tests plus exact identities on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, archive feature, all-trainings feature, and all-exercises feature Native tests plus exact identities on `macos-26`, then links the same ten modules' iosArm64 test binaries, never run). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
-| `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix) | Bumps the version (minor from `dev`, patch from `master`), pushes a `release/release-v.X.Y.Z` branch and opens the release PR. |
+| `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix; `dry_run`) | Bumps the version (minor from `dev`, patch from `master`), makes the bump commit through the REST Git database API so that GitHub signs it, creates the `release/release-v.X.Y.Z` branch at it, proves the commit ([release cut and merge guards](#release-cut-and-merge-guards)) and opens the release PR. `dry_run` runs the same path on `ci/bump-dry-run-<run id>`, deletes that branch and opens no PR. Dispatched from `dev` for now ([release-flow.md](release-flow.md) §6.1). |
 | `sync_master_to_dev.yml` | push to `master` | Opens an automated PR propagating `master` (version bumps, hotfixes) back onto `dev`. |
 | `android_deploy_beta.yml` | `workflow_dispatch` only | Bumps version, generates a Play Store changelog, uploads to the Beta track via Fastlane, tags `beta-v<version>`. |
 | `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`, then calls `android_deploy_wear.yml`. |
@@ -30,14 +30,26 @@ manual dispatch, or inside the production deploy — never on a PR.
 
 ## Build and unit-test workflow
 
-`android_build_unified.yml` runs a single `build` job on `ubuntu-latest`.
+`android_build_unified.yml` runs a single `build` job on `ubuntu-24.04`.
 
 ### Setup steps
 
 1. **Checkout** with `actions/checkout@v4`.
 2. **Decrypt the keystore.** The `KEYSTORE` secret is a GPG-encrypted blob; the workflow pipes
    it through `gpg -d --passphrase "$KEYSTORE_PASSPHRASE" --batch keystore.jks.asc`.
-3. **Java 21 (Temurin)** with `actions/setup-java@v4` and Gradle cache enabled.
+3. **Java 21 (Temurin)** with `actions/setup-java@v4`, without its Gradle cache, then **Gradle
+   User Home caching** with `gradle/actions/setup-gradle@v5`, which also covers the local build
+   cache (`caches/build-cache-1`). Only push runs on `master` and `dev` write; pull requests,
+   `workflow_dispatch` and `workflow_call` runs restore the closest entry they can read (for a
+   pull request: its own ref, its base branch and `master`) and save nothing. The action's own
+   default lets only the default branch write, hence the `cache-read-only` expression. A pull
+   request's entry is visible to that pull request alone, and setup-java's cache — one exact-key
+   entry per hash of every Gradle file and the version catalog, saved on every miss — wrote a
+   4–5 GB entry for each such pull request and pushed the repository past its 10 GB cache limit. The
+   major is pinned on purpose: v5 is the last whose caching is MIT. v6's default provider
+   (`enhanced`) is the proprietary `gradle-actions-caching` component under Gradle's Terms of Use,
+   and v6's `basic` provider has no restore keys, cleanup or deduplication, so it reproduces the
+   setup-java behavior above. Moving to v6 is a maintainer decision.
 4. **Generate `keystore.properties`** from the `KEYSTORE_KEY_ALIAS`,
    `KEYSTORE_KEY_PASSWORD`, and `KEYSTORE_STORE_PASSWORD` secrets so Gradle can sign the dev
    debug builds it needs for testing.
@@ -46,14 +58,24 @@ manual dispatch, or inside the production deploy — never on a PR.
 6. **Copy CI-tuned Gradle properties** from `.github/properties/gradle-ci.properties` to
    `gradle.properties` and `.github/properties/gradle-convention-ci.properties` to
    `build-logic/gradle.properties`. These override local memory settings for CI.
-7. **Restore Gradle build cache** via `actions/cache@v4` keyed on
-   `settings.gradle.kts`, every `**/build.gradle.kts`, `gradle/libs.versions.toml`, and
-   `gradle.properties`.
+7. **Restore the Kotlin/Native toolchain** (`~/.konan`, ~1 GB) with `actions/cache/restore@v4`.
+   A script step computes the key `konan-<RUNNER_OS>-kotlin-<kotlin>-<targets>` from the catalog's
+   `kotlin = "<v>"` line and the native `kmpExtension.<target>()` calls in
+   `KmpLibraryConventionPlugin.configureTargets()` (sorted, joined with `-`), and fails when either
+   is empty. The restore falls back to the newest entry with the same Kotlin version. The key names
+   the target set because Kotlin/Native writes per-target content into `~/.konan` (the commonized
+   platform libraries and, on macOS, per-dependency compiler caches) and an exact hit is never
+   saved again; it does not hash the whole catalog, which holds `versionCode` and would re-key the
+   toolchain on every release. The job's last step saves the entry, only on a `master` or `dev`
+   push that missed the exact key. The `KMP iOS kit smoke` job runs the same script and save rule.
+   The key carries no dependency fingerprint, so after a dependency bump on the same Kotlin version
+   and target set the macOS job rebuilds the bumped dependencies' compiler caches on every run
+   until the Kotlin version or the target set changes.
 
 ### Verification steps
 
 ```bash
-./gradlew assembleDebug --full-stacktrace
+bash .github/scripts/run_with_resource_samples.sh ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
 python3 .github/scripts/assert_mvi_source_topology.py
 python3 .github/scripts/assert_kmp_ui_source_topology.py
@@ -75,7 +97,10 @@ bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --
 The last line proves the Wear release boundary on **storeRelease**, the variant that ships: the
 release runtime is the connected owner-backed runtime of
 [wear-paired-transport.md](feature-specs/wear-paired-transport.md) §7.7, no synthetic source or
-acceptance receiver is reachable, and with an empty cache the Tile declares no freshness interval.
+acceptance receiver is reachable, with an empty cache the Tile declares no freshness interval, and
+the release factory's runtime forwards the phone's change signal
+([wear-live-sync.md](feature-specs/wear-live-sync.md) §10.1). The release boundary test, M-S20's
+named test, runs only here.
 The `Assert Wear transport privacy gate` step of the same job runs
 `.github/scripts/assert_wear_transport_gate.py` (self-test first): no tracked Kotlin source names
 the Data Layer outside the four allowlisted files
@@ -89,7 +114,7 @@ the property out.
 `testDebugUnitTest` is not pure Gradle on this repository: the Wear module's alias depends on
 `:app:wear:verifyEmulatorAcceptanceRunner`, an `Exec` task that runs
 `python3 documentation/wear-emulator-acceptance/run_parser_tests.py`. The step therefore needs
-`python3` on PATH (ubuntu-latest ships it; the same holds for every local root gate), and the
+`python3` on PATH (ubuntu-24.04 ships it; the same holds for every local root gate), and the
 runner verifies an exact identity inventory (`EXPECTED_TESTS`, 65 ids): a missing, renamed or
 extra parser test fails the task before any test runs, and every listed id must leave a passing
 testcase in `app/wear/build/test-results/verifyEmulatorAcceptanceRunner/`.
@@ -98,23 +123,24 @@ The Wear module runs its host tests once per flavor. Its two flavors differ by o
 meta-data line, and the second run doubled the module's share of the unit-test step, so
 `pull_request` passes `-PwearUnitTestFlavors=store` and runs the shipping flavor only. The
 property defaults to `dev,store`, an unknown value fails the build, and the dev-flavor Wear unit
-tests keep running on `master` pushes, `workflow_dispatch`, `workflow_call` and in every local
-root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
+tests keep running on `master` and `dev` pushes, `workflow_dispatch`, `workflow_call` and in every
+local root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
 name and **runs** by execution. The two Wear flavors share test names, so on pull requests
 **tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
 Heap, `forkEvery` and timeouts are unchanged.
 
-For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores that PR's build cache and executes only what changed.
+For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores the build cache the latest `master` or `dev` push saved (pull-request runs save none) and executes whatever that cache does not cover.
 
-The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
-block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
-`du -sh /tmp` under a 5 s `timeout` (the JVM's default temp dir on Linux; a local root gate wrote
-~7 GiB of transient temp, with Robolectric's native-runtime extraction as the candidate), PSI for
-cpu/memory/io, and the eight largest processes by RSS. A sample whose `du` exceeds 5 s has no
-`/tmp` line. It lives in the step log rather than an artifact because a runner that receives a
-shutdown signal cancels every later step and `failure()` is false on cancellation. The cause of the
-Wear stack's mid-step runner shutdowns is unmeasured; these samples are the instrument for the next
-occurrence.
+Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
+`Run Unit Tests`. The wrapper writes a `[res]` sample block into each step's log every 15 s:
+`uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`, `du -sh /tmp` under a 5 s
+`timeout` (the JVM's default temp dir on Linux; a local root gate wrote ~7 GiB of transient temp,
+with Robolectric's native-runtime extraction as the candidate), PSI for cpu/memory/io, and the
+eight largest processes by RSS. A sample whose `du` exceeds 5 s has no `/tmp` line. The samples
+live in the step log rather than an artifact because a runner that receives a shutdown signal
+cancels every later step and `failure()` is false on cancellation. The cause of the Wear stack's
+mid-step runner shutdowns is unmeasured; these samples are the instrument for the next occurrence.
+On `Build with Gradle` they are the dev baseline a new compile target's cost is read against.
 
 `:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
 plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
@@ -131,7 +157,8 @@ against the tree as checked out, before any step could rewrite it. `:lint-rules:
 
 Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`, `:core:ui:navigation`,
 `:core:ui:mvi`, `:core:ui:start-mode`, `:core:ui:plan-editor`, `:feature:image-viewer`,
-`:feature:plan-editor`, and `:feature:archive`: the KMP
+`:feature:plan-editor`, `:feature:archive`, `:feature:all-trainings`, and
+`:feature:all-exercises`: the KMP
 conventions register `assembleDebug`, `testDebugUnitTest`, `lintDebug`,
 `assembleDebugAndroidTest` and `verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks
 (`assemble`, `testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`,
@@ -179,7 +206,7 @@ bundle per run: `--aab <path> --role phone|wear --toml gradle/libs.versions.toml
 | G6 | Wear: the application meta-data `com.google.android.wearable.standalone` is `false`. Not applicable to phone. |
 | G7 | Every `lib/armeabi-v7a/*.so` has the same file under `lib/arm64-v8a/` of the same module. Counts per ABI and module are printed; zero native libraries is a valid, reported result. |
 | G8 | Advertising ID off, for both roles: none of `com.google.android.gms.permission.AD_ID`, `android.permission.ACCESS_ADSERVICES_AD_ID` or `android.permission.ACCESS_ADSERVICES_ATTRIBUTION` in the base manifest (`uses-permission` or `uses-permission-sdk-23`), and the application meta-data `google_analytics_adid_collection_enabled` is exactly `false` (below Android 13 the ID is readable without the permission). The apps show no ads: each application manifest removes the three permissions that `firebase-analytics` brings and sets the meta-data. The optional `android.ext.adservices` library entry is not a permission and stays. `app/dev` ships no store bundle, so review covers it. |
-| G9 | Both roles: the base resource table has `array/android_wear_capabilities` with exactly one configuration, `(default)`, holding exactly one item: `workeeper_phone_active_workout_v1` (phone, `WearProtocol.PHONE_CAPABILITY`) or `workeeper_watch_active_workout_v1` (Wear). Google Play services reads the array by name, so nothing in code references it, and R8's resource shrinker (the default since AGP 9.0) drops it unless a keep file under `res/raw` names it: a `tools:keep` on the root of a values file is not read. Without it the phone advertises no capability, the watch finds no phone node, and the link reports the phone unreachable. Item escapes other than `\\` and `\"` (bundletool spells control characters, such as `\n`) make the item invalid. An absent array is a FAIL, not a gate error. |
+| G9 | Both roles: the base resource table has `array/android_wear_capabilities` with exactly one configuration, `(default)`, holding exactly one item: `workeeper_phone_active_workout_v1` (phone, `WearProtocol.PHONE_CAPABILITY`) or `workeeper_watch_active_workout_v1` (Wear, `WearProtocol.WATCH_CAPABILITY`). Google Play services reads the array by name, so nothing in code references it, and R8's resource shrinker (the default since AGP 9.0) drops it unless a keep file under `res/raw` names it: a `tools:keep` on the root of a values file is not read. Without it the phone advertises no capability, the watch finds no phone node, and the link reports the phone unreachable. Item escapes other than `\\` and `\"` (bundletool spells control characters, such as `\n`) make the item invalid. An absent array is a FAIL, not a gate error. |
 | G10 | Phone: exactly one `<service>` has an intent filter with the action `com.google.android.gms.wearable.REQUEST_RECEIVED`. It is `android:exported="true"`, neither it nor the application sets `android:enabled` to anything but `true`, neither declares an `android:permission` (Play services binds the listener, and an application permission applies to every component that sets none), and that filter's data is exactly scheme `wear`, host `*` and path `/workeeper/wear/v1/rpc` (`WearProtocol.RPC_PATH`), with no `pathPrefix`, `pathPattern` or other data attribute. Not applicable to Wear. |
 | G11 | Both roles: `application android:icon` is `@mipmap/ic_launcher`, there is no other `android:roundIcon`, and no launcher activity or `activity-alias` (MAIN + LAUNCHER) names another icon. `@mipmap/ic_launcher` has at least one `anydpi` entry (density 65534), and each one's compiled XML in the bundle is an `<adaptive-icon>` with a `<background>` and a `<foreground>`, each filled (an `android:drawable` or a child drawable): the adaptive icon the phone ships, with layers instead of a bare glyph. The gate reads that file's aapt2 proto XML with a stdlib wire-format reader (root element name, child element names and their `android:drawable`). |
 | G12 | Wear: exactly one `<service>` has an intent filter with the action `com.google.android.gms.wearable.MESSAGE_RECEIVED`: the watch's change listener ([wear-live-sync.md](feature-specs/wear-live-sync.md) §7.1). It is `android:exported="true"`, neither it nor the application sets `android:enabled` to anything but `true`, neither declares an `android:permission` (Play services binds the listener with the app closed too), and that filter's data is exactly scheme `wear`, host `*` and path `/workeeper/wear/v1/changed` (`WearProtocol.CHANGED_PATH`), with no `pathPrefix`, `pathPattern` or other data attribute. Not applicable to phone. |
@@ -234,9 +261,9 @@ so one run reports both, but not when the bundle build failed), and runs the swa
 mismatch alone. It is a job of its own because the phone release bundle compiles every module's
 release variant and the build job's worst green run took 47.1 of its 60 minutes. It uses no Gradle
 caching, neither `setup-java`'s nor the build cache: the repository's Actions cache is near its
-10 GB limit, and on a key change this job would race the build job to save `setup-java`'s entry with
-a dependency set that lacks every test library. Every run is therefore a clean, executed build, and
-`--no-build-cache` keeps it so if a cache is ever added back.
+10 GB limit, and setup-gradle keys its Gradle User Home entry by job, so caching here would add a
+second entry beside the build job's on every `master` and `dev` push. Every run is therefore a
+clean, executed build, and `--no-build-cache` keeps it so if a cache is ever added back.
 
 PR CI must not upload mapping files (F07 above). The phone release variant uploads its mapping
 unconditionally, so the job's task list carries `-x :app:store:uploadCrashlyticsMappingFileRelease`,
@@ -268,7 +295,7 @@ built from. Nine checks: `:root` unchanged against a baseline unless declared, n
 screen, two **render** checks driven through headless Chromium, and token parity between the
 mockup's `:root` and `AppColors.kt`.
 
-One job, `mockup-gate`, on `ubuntu-latest`, `timeout-minutes: 10`. It needs no keystore, no
+One job, `mockup-gate`, on `ubuntu-24.04`, `timeout-minutes: 10`. It needs no keystore, no
 `google-services.json` and no secret of any kind, so it also runs on fork PRs. Five things about
 it are deliberate and are commented at length in the workflow itself:
 
@@ -325,15 +352,20 @@ property of the workflow.
 
 The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
 required context for the Phase-7 native tests. One forced Gradle invocation executes the
-`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene),
+`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene and the
+`StringResolver` catalog reads),
 `:core:ui:navigation` (all 12 routes through the production serialization registry),
 `:core:ui:mvi` (lifetime/event/navigation/processor contracts), `:core:ui:start-mode`
 (production sheet composition, migrated resources, selected-state semantics, and callback),
 `:core:ui:plan-editor` (common reducer coverage plus the production read-only-to-editable scene),
 `:feature:image-viewer` (12 common handler cases plus the production resource, branch, Coil, and
 action scene), `:feature:plan-editor` (all 42 portable cases plus the production resource,
-branch, and action scene), and `:feature:archive` (all 25 portable cases plus the production
-resource, paging-branch, and action scene).
+branch, and action scene), `:feature:archive` (all 25 portable cases plus the production
+resource, paging-branch, and action scene), `:feature:all-trainings` (all 49 portable cases
+plus the production resource, mapper and snackbar copy, paging-branch, selection, and action
+scene), and `:feature:all-exercises` (all 66 portable cases plus the production scene: the
+catalog and mapper copy through the real `StringResolver`, paging branches, selection, the three
+dialogs, and dispatch).
 It uses `--continue` so one module's failure cannot mask whether the others ran. The job selects
 `/Applications/Xcode_26.6.app` explicitly, asserts
 `xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
@@ -361,16 +393,54 @@ and the script says so plainly. It is skipped when the job is cancelled, and whe
 never ran because an earlier setup step (checkout, Xcode selection, JDK, signing material) failed —
 asserting there would bury the real setup failure under a misleading `result directory … does not
 exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
-the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, or
-archive feature verdict. The image-viewer validator requires
+the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature,
+archive feature, all-trainings feature, or all-exercises feature verdict. The kit validator
+requires two tuples,
+`io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest.sheetLayoutRendersMigratedStringFontAndIcon`
+and
+`io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`,
+each exactly once. The image-viewer validator requires
 `io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
 exactly once. The plan-editor feature validator requires all 42 portable tuples and
 `io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
 exactly once, for exactly 43 target tuples. The archive feature validator requires all 25
 portable tuples and
 `io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest.resourcesPagingBranchesAndActionsRenderAndDispatch`
-exactly once, for exactly 26 target tuples. All eight result directories upload under
+exactly once, for exactly 26 target tuples. The all-trainings feature validator requires all 49
+portable tuples and
+`io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+exactly once, for exactly 50 target tuples. The all-exercises feature validator requires all 66
+portable tuples and
+`io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+exactly once, for exactly 67 target tuples. All ten result directories upload under
 `if: always()` regardless.
+
+The same ten modules' iosArm64 (device) test binaries are then linked in one forced invocation
+(`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
+started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
+each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/10 linked`, and fails naming every
+module without a binary. Device tests are compiled and linked, never run: CI has no device. The
+Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
+`assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
+happens only here.
+
+Both jobs' `~/.konan` caches use the computed key from [setup step 7](#setup-steps); with iosArm64
+declared it is `konan-<os>-kotlin-<kotlin>-iosArm64-iosSimulatorArm64`. The target token matters
+because Kotlin/Native writes per-target content into that directory: the commonized platform
+libraries for the two iOS targets under `klib/commonized/<version>/(ios_arm64, ios_simulator_arm64)`,
+and on macOS the per-dependency compiler caches the device link writes under
+`klib/cache/ios_arm64-gSTATIC-user-pl/` (about 1.1 GB for 70 dependencies, measured locally). Only
+`master` and `dev` pushes save the key. Until the first `dev` push after the device target landed
+saves it, pull-request runs restore the older iosSimulatorArm64-only entry through the
+`konan-<os>-kotlin-<kotlin>-` prefix, so on every pull-request run the Linux job runs the commonizer
+and the macOS job builds the ios_arm64 compiler caches cold.
+
+The job's timeout is 120 minutes, against 60 for the Linux jobs. Pull-request runs never save
+`~/.konan`, so every run of a pull request that changes the Kotlin version starts without it.
+Without the device link the job took 33.7–39.8 min cold (runs 37241235866 and 37198040443); the
+device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min together,
+an upper estimate since those runs also had a cold Gradle home. That attempt's whole job, link
+included, took 55.2 min; warm with the link it took 10m35s (attempt 2).
 
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
@@ -402,8 +472,12 @@ Two parallel jobs (`smoke-tests` and `regression-tests`) gate their own executio
 2. Set up JDK 21 and the Android SDK via `android-actions/setup-android@v3`.
 3. Decrypt the keystore, write `keystore.properties`, decode both `google-services.json` files.
 4. Restore the Gradle build cache (with `save-always: true`, so a run warms the cache it
-   depends on even when a test goes red) and the AVD snapshot cache (keyed on
-   `api-level/target/arch`).
+   depends on even when a test goes red). There is no AVD snapshot cache: its 2.85 GB
+   `avd-34-google_apis-x86_64` entry evicted dev's caches under the repository's 10 GB cache
+   limit, so the emulator step creates the AVD and the emulator cold-boots on every run. The
+   scheduled run reads `ui_tests.yml` from `master` and `android_deploy_prod.yml` calls it from
+   the ref the deploy runs on, so the change takes effect with the next release; a manual
+   dispatch uses the file on the ref it is dispatched on.
 5. Assemble everything **before the emulator exists** (`./gradlew assembleDebug
    assembleDebugAndroidTest`), then stop the Gradle daemons — compiling the androidTest
    legs concurrently with a 4 GB emulator is what killed runners; with the APKs prebuilt,
@@ -598,6 +672,33 @@ zero compared items, two adopt round trips (an emptied and a reordered screensho
 OK against the same Play state, and case-variant names (`images/Icon.PNG`, `images/PhoneScreenshots/`)
 compared from the names committed, as supply's case-insensitive glob uploads them.
 
+### Release cut and merge guards
+
+Two helpers decide whether a release can go on once `master` requires verified signatures
+([release-signing.md](feature-specs/release-signing.md) §4.2, §4.3). Their self-tests run next to
+the others in the `Release bundle identity` job's "Self-test the release decision helpers" step.
+
+`.github/scripts/release_bump_guard.py --commit <json> --parent <sha> --path <path>` decides on the
+REST commit that `cut_release.yml` reads back after making the bump commit. `DECISION PASS` (exit 0)
+needs `commit.verification.verified` true, the source head as the only parent, and
+`gradle/libs.versions.toml` as the only file, `modified`. `DECISION RETRY` (exit 3) means that
+`verification.reason` is `gpgverify_unavailable` or `gpgverify_error`: GitHub has not checked the
+signature yet, and the cut reads the commit again, up to 5 times, 5 s apart. Anything else is
+`DECISION FAIL` (exit 1), naming every failed check and the reason; unreadable input exits 2. The
+cut runs it from a sparse checkout of the dispatch ref into `.ci`, because the source branch lacks
+it until this change reaches it. `--self-test` runs 9 fixtures: a pass, an unsigned commit, both
+retry reasons, two parents, another parent, two files, another file and an added file.
+
+`.github/scripts/release_pr_guard.py --pr <json> --head <sha>` decides on
+`gh pr view <n> --json number,mergeable,mergeStateStatus,headRefOid`. PASS needs `mergeable`
+`MERGEABLE`, `mergeStateStatus` `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, and the pinned SHA as the head;
+RETRY means either field is `UNKNOWN` with the head matching; anything else fails, printing every
+value. `android_deploy_prod.yml` runs it with `PUSH_TOKEN` in the guard job and again right before
+the Play upload, reading the PR again on RETRY, up to 6 times, 10 s apart
+([release-flow.md](release-flow.md) §6.1 step 3.1, §8.11). `--self-test` runs 25 fixtures: every
+pair of the 3 `mergeable` and 8 `mergeStateStatus` values with the pinned head, and one passing pair
+whose head moved.
+
 ### GitHub APK release
 
 `github_release_apk.yml` triggers on either a manual dispatch (with optional `tag_name` input)
@@ -646,7 +747,7 @@ Configured under repository secrets in GitHub:
 | `KEYSTORE_KEY_ALIAS`, `KEYSTORE_KEY_PASSWORD`, `KEYSTORE_STORE_PASSWORD` | every job that signs | Written into the generated `keystore.properties`. |
 | `GOOGLE_SERVICES_JSON_STORE`, `GOOGLE_SERVICES_JSON_DEV` | build / UI / release | Base64 of the per-variant `google-services.json`. |
 | `PLAY_CONFIG_JSON` | beta / prod / Wear deploy | Base64 of the Play Console service-account JSON used by Fastlane. |
-| `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Token used to push the version-bump commit and the release tag back to the repo. |
+| `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Creates the release branch at the bump commit, and deletes a branch the cut created but opened no PR for. Opens and merges release PRs, pushes the release tag, and runs the sync. Three of these writes rely on the owner's bypass of the `all` ruleset: creating a branch at the unchecked bump commit, the cut's delete, and the merge's `--delete-branch`. Opening PRs and pushing the tag do not, because `all` is a branch ruleset. The workflow token makes the bump commit's blob, tree and commit, and writes no ref. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | `claude.yml`, `claude-code-review.yml` | Auth for `anthropics/claude-code-action`. |
 
 Generated at build time on CI (never committed):
@@ -707,7 +808,9 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
 
 ## Branch model
 
-- `master` is the long-lived main branch. Pushes to `master` retrigger the unified build.
+- `master` is the long-lived main branch. Pushes to `master` and `dev` retrigger the unified build,
+  unless every changed file is Markdown; only those push runs write the Gradle and Kotlin/Native
+  caches.
 - `dev` is used for ongoing development; PRs typically open against `dev`. The unified build
   runs for any PR target.
 - Release tags follow `beta-v<version>` and `release-v<version>` and are produced by the deploy

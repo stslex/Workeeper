@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.wear.ongoing
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
@@ -16,13 +17,11 @@ import io.github.stslex.workeeper.wear.cache.WatchSnapshotCache
 import io.github.stslex.workeeper.wear.state.ActiveFreshness
 import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.SnapshotReduction
-import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchReducerState
 import io.github.stslex.workeeper.wear.state.WorkoutSourceVersion
 import io.github.stslex.workeeper.wear.state.safeMonotonicAdd
 import io.github.stslex.workeeper.wear.state.sourceVersion
-import io.github.stslex.workeeper.wear.state.targetKeyOrNull
 
 /**
  * Single serialized cache/lifecycle owner. Publish the reducer's candidate state only after
@@ -60,6 +59,7 @@ internal class WatchOngoingCoordinator(
         reducerState: WatchReducerState,
         receivedAtElapsedRealtimeMs: Long,
         bootCount: Int,
+        selection: OutlineSelection?,
     ): OngoingStatus {
         if (!reduction.accepted) return status()
         val effectiveWindow = eligibleWindow(response.snapshot, reduction, reducerState, receivedAtElapsedRealtimeMs)
@@ -73,7 +73,7 @@ internal class WatchOngoingCoordinator(
             notification.cancel()
             lifecycle = null
         }
-        persist(response, receivedAtElapsedRealtimeMs, bootCount, effectiveWindow, publishDeadline)
+        persist(response, receivedAtElapsedRealtimeMs, bootCount, effectiveWindow, publishDeadline, selection)
         if (publishDeadline != null) {
             val next = Lifecycle(response.snapshot, receivedAtElapsedRealtimeMs, publishDeadline)
             lifecycle = next
@@ -105,7 +105,7 @@ internal class WatchOngoingCoordinator(
         } else {
             null
         }
-        lifecycle = if (restored?.snapshot?.payload is SnapshotPayload.ActiveWithTarget &&
+        lifecycle = if (restored?.snapshot?.payload is SnapshotPayload.Active &&
             deadline != null && clock.nowMs() < deadline
         ) {
             Lifecycle(restored.snapshot, restored.receivedAtElapsedRealtimeMs, deadline)
@@ -224,8 +224,9 @@ internal class WatchOngoingCoordinator(
         return window.takeIf { clock.nowMs() in receivedAtMs until freshUntil }
     }
 
+    /** §7.6 (D9): a fresh granted lease on any `Active` outline, whatever its exercises' states. */
     private fun hasFreshAuthority(snapshot: SnapshotData, state: WatchReducerState, freshUntil: Long): Boolean {
-        val active = snapshot.payload as? SnapshotPayload.ActiveWithTarget ?: return false
+        val active = snapshot.payload as? SnapshotPayload.Active ?: return false
         val grant = active.mutationAuthority as? MutationAuthority.Granted ?: return false
         val display = state.display as? WatchDisplayState.Active ?: return false
         if (display.snapshot != snapshot || display.freshness != ActiveFreshness.FRESH) return false
@@ -234,16 +235,15 @@ internal class WatchOngoingCoordinator(
             grant.mutationLeaseGeneration,
             freshUntil,
             snapshot.sourceVersion(),
-            snapshot.targetKeyOrNull(),
         )
         return state.authority.leaseSignature() == expected
     }
 
     private fun LocalMutationAuthority.leaseSignature(): LeaseSignature? = when (this) {
         is LocalMutationAuthority.Available ->
-            LeaseSignature(leaseId, leaseGeneration, effectiveDeadlineMs, source, target)
+            LeaseSignature(leaseId, leaseGeneration, effectiveDeadlineMs, source)
         is LocalMutationAuthority.AttemptBound ->
-            LeaseSignature(leaseId, leaseGeneration, effectiveDeadlineMs, source, target)
+            LeaseSignature(leaseId, leaseGeneration, effectiveDeadlineMs, source)
         LocalMutationAuthority.Retired -> null
     }
 
@@ -252,7 +252,6 @@ internal class WatchOngoingCoordinator(
         val generation: Long,
         val deadlineMs: Long,
         val source: WorkoutSourceVersion,
-        val target: TargetKey?,
     )
 
     private fun persist(
@@ -261,6 +260,7 @@ internal class WatchOngoingCoordinator(
         bootCount: Int,
         windowMs: Long?,
         deadlineMs: Long?,
+        selection: OutlineSelection?,
     ) {
         if (response.snapshot.payload is SnapshotPayload.NoSession) {
             cache.replaceWithNoSessionTombstone(receivedAtMs, bootCount, CachedConnection.CONNECTED)
@@ -272,6 +272,7 @@ internal class WatchOngoingCoordinator(
                 effectiveMutationWindowMs = windowMs,
                 ongoingStopAtElapsedRealtimeMs = deadlineMs,
                 connection = CachedConnection.CONNECTED,
+                selection = selection,
             )
         }
         cachedSnapshotReceivedAtMs = receivedAtMs

@@ -313,6 +313,12 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   binding (`RestoreStateRepositoryImpl`, contributed by `@ContributesBinding(AppScope)` in
   `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
+- `AppGraph.stringResolver` still has **no production reader**: no production code reads
+  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler` receive the
+  binding by constructor injection through their graph extension, which inherits it from
+  `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
+  `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
+  `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
   resolved there at all. That is why the ordering pins in `AppRuntimeReplacementTest` record a
   database touch with
@@ -411,6 +417,121 @@ The 14 archive goldens moved byte-identical to `androidHostTest`. Android keeps 
 `ArchiveExtensionIdentityTest` cases, which resolve the factory through
 `appGraph.archiveGraphFactory`, and `ArchiveScreenTest.pendingFeatureRewrite` in
 `androidDeviceTest` as the one documented `@Smoke` skip.
+
+#### Shared all-trainings feature
+
+`feature:all-trainings` keeps its nine portable suites in `commonTest`, so the same 49 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 3, click handler
+18, navigation handler 2, start-blank gate 3, clearance 2, list surface 9, paging tail 4, top-bar
+mode 4, and trailing slot 4. They use `kotlin.test`, `kotlinx-coroutines-test` (two suites) and
+private in-file fakes. The click-handler fake reproduces the old relaxed store: it applies state
+updates, records events, consumed actions and each Store-scope `launch` without running it, and
+fails fast on every member the handler must not touch; only the bulk-confirm identity runs its
+recorded launch, and it also asserts the semantic `ShowBulkDeleteSuccess(archivedCount = 2,
+blockedNames = empty)` event. The domain suite's repository fakes import `core:data` shapes
+directly; the KMP test source sets' exemption in `DomainLayerPurityRule` is what keeps them out of
+the production-domain check. Two `StartBlankGateTest` names contain U+2014; the Native XML reports
+both byte-exactly, the first non-ASCII test names run on Native in this repository. No suite
+needs a Native test-name suppression.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` with deterministic `PagingData` and a fixed clock.
+It resolves the whole private EN catalog, the status and relative-time copy through the production
+mapper, and the bulk-archive snackbar copy through the graph's `bulkArchiveMessage`; renders the
+cold-open loading and refresh-error verdicts, the first-run empty state with and without a running
+session, the filtered and selection empty states, populated rows with their meta line, both append
+tails, the resting and selection bars, and the archive confirm dialog; and asserts the eleven
+dispatched actions as one exact ordered list. It settles each paging branch in bounded steps until
+that branch's production tag exists, as archive's scene does. Together with the 49 portable cases,
+the all-trainings Native XML contains exactly 50 passing cases with no skip, failure, or error. No
+Android host test reaches the mapper or snackbar copy (the goldens build their rows from fixed
+fixtures), so this scene is that copy's proof. It is a headless Compose scene, not an iOS app,
+UIKit, or XCTest claim.
+
+The 50 all-trainings goldens moved byte-identical to `androidHostTest`. Android keeps the two
+`AllTrainingsExtensionIdentityTest` cases, which resolve the factory through
+`appGraph.allTrainingsGraphFactory`; the `@Regression` `AllTrainingsExtensionDbVisibilityTest`,
+which reads the factory from `MetroTestGraphHolder.graph` and composes
+`allTrainingsGraph(factory = factory)`; and `AllTrainingsScreenTest.pendingFeatureRewrite` in
+`androidDeviceTest` as the one documented `@Smoke` skip.
+
+#### Shared all-exercises feature
+
+`feature:all-exercises` keeps its ten portable suites in `commonTest`, so the same 66 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 5, click handler
+24, navigation handler 2, paging handler 1, UI mapper 11, clearance 2, list surface 9, paging tail
+4, top-bar mode 4, and trailing slot 4. They use `kotlin.test`, `kotlinx-coroutines-test` and
+private in-file fakes. The click-handler and paging-handler store fakes reproduce the old relaxed
+store: they apply state updates, record events, consumed actions and each Store-scope `launch`
+(and `Init`'s `Flow.launch`) without running it, and fail fast on every member the handler must
+not touch. The three bulk-confirm identities run their recorded launch's action and then its
+`onSuccess`, in that order.
+
+Copy outside composition resolves through the injected `StringResolver`, so 14 identities run
+through it: the 11 mapper identities and the three bulk-confirm ones. Each suite fakes it strictly
+and in-file. The fake switches on the generated resource objects, returns the strings the old
+`ResourceWrapper` stubs returned (the mapper suite's `"$count sessions"` family, the click
+suite's relaxed `""`), and throws on any other resource and on any read that does not pass
+exactly the arguments production passes: none for a plain string, one for `used_in_format`,
+and the quantity as the only format argument of every plural. A plural read that dropped its
+count would otherwise ship the raw template. The domain suite's repository fakes import
+`core:data` shapes directly; `ExerciseRepository` names `core:data:database`'s `PlanSetDataModel`,
+which `core:data:exercise` keeps implementation-scoped, so the module's `commonTest` carries
+that one edge (decision D5 of
+[kmp-phase-7-10-all-exercises-feature.md](feature-specs/kmp-phase-7-10-all-exercises-feature.md)).
+One `ClickHandlerTest` name contains U+2014; the Native XML reports it byte-exactly. No suite
+needs a Native test-name suppression.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` with deterministic `PagingData` and a fixed clock.
+Every read outside composition goes through one real `ComposeStringResolver`; the scene declares
+no fake. It resolves the whole private EN catalog as stored and filled, the footer copy through the
+production mapper and the blocked-archive copy through `toBlockedArchiveDialog`; renders the
+cold-open loading and refresh-error verdicts, the first-run, filtered and selection empty states,
+populated rows with their meta line, both append tails, the resting and selection bars, and the
+bulk-archive, blocked-archive and permanent-delete dialogs; and asserts the fourteen dispatched
+actions as one exact ordered list. Together with the 66 portable cases, the all-exercises Native
+XML contains exactly 67 passing cases with no skip, failure, or error. It is a headless Compose
+scene, not an iOS app, UIKit, or XCTest claim.
+
+This scene is the only executed guard of `ComposeStringResolver.getPluralString`'s delegation:
+kit's catalog has no plural, and Android host has no route to this module's plurals (a shared
+feature's build may not take Robolectric, and its generated `Res` is private, so neither kit nor
+app can read the catalog). On Android the delegation runs in production and in the app journeys
+whenever a row has stats, with no text assertion; the RU plural forms are pinned statically by
+the topology gate's catalog check only.
+
+The 52 all-exercises goldens moved byte-identical to `androidHostTest`; their fixtures carry
+fixed strings, so neither the mapper nor the resolver reaches a golden. Android keeps the two
+`AllExercisesExtensionIdentityTest` cases, which resolve the factory through
+`appGraph.allExercisesGraphFactory`, and the two `AllExercisesScreenTest` identities in
+`androidDeviceTest`: `pendingFeatureRewrite`, the one documented `@Smoke` skip, and the
+`@Regression` `blockedArchiveDialogListsBlockingTrainings`, which reads its confirm label through
+`ComposeStringResolver` from the module's own Compose resources.
+
+#### Shared string resolver
+
+`core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside
+composition and with no fake. On the Android host, under Robolectric,
+`ComposeStringResolverTest.resolvesTheEnglishCatalog` reads the EN catalog and
+`ComposeStringResolverRuTest.resolvesTheRussianCatalog` the RU one; the Russian half is a second
+class in the same file with `@Config(sdk = [33], qualifiers = "ru")`, as
+`CommonHandlerComposeResourceTest.kt` does, because the Robolectric JUnit 5 extension forbids
+method-level `@Config`. Each method reads
+four rows in one `runBlocking` (a plain string, a one-argument string, a two-argument string in
+argument order, and a placeholder string read without arguments) and asserts them with
+`assertAll`, so every failing row is reported. On Native, the exact identity
+`io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`
+reads the same four EN rows, and the kit validator pins it.
+
+Kit's catalog has no plural, so neither kit test reaches `getPluralString`. Its delegation first
+runs on Native, in `feature:all-exercises`' production scene, which reads all nine of that
+module's plurals through the real resolver; Android host has no route to it (see
+[Shared all-exercises feature](#shared-all-exercises-feature)). The mapper identities use a fake,
+so they do not execute it. Feature tests fake the interface in-file, switching on the generated
+resource objects; there is no shared fake or fixtures module.
 
 #### Shared MVI runtime
 
@@ -887,8 +1008,8 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 | Feature | Test class |
 |---|---|
-| `feature/all-trainings` | `feature/all-trainings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
-| `feature/all-exercises` | `feature/all-exercises/src/androidTest/.../AllExercisesScreenTest.kt`, `AllExercisesScreenAccessibilityTest.kt`, `AllExercisesScreenEdgeCasesTest.kt` |
+| `feature/all-trainings` | `feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
+| `feature/all-exercises` | `feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt`, `ExerciseFormBasicsTest.kt` |
 | `feature/settings` | `feature/settings/src/androidTest/.../SettingsScreenTest.kt` |
@@ -897,11 +1018,13 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 ## Visual gate — Paparazzi screenshot goldens
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
-`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), and `feature/`{`all-exercises`,
-`all-trainings`, `exercise`, `exercise-chart`, `home`, `live-workout`, `past-session`, `settings`,
-`single-training`}. Goldens live in `src/test/snapshots/images/` in classic Android modules and in
-`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
-`:core:ui:plan-editor`, `:core:ui:start-mode`, `:feature:archive`), and are committed. The shared harness
+`:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
+`:feature:all-exercises` (KMP), and `feature/`{`exercise`, `exercise-chart`, `home`,
+`live-workout`, `past-session`, `settings`, `single-training`}. Goldens live in
+`src/test/snapshots/images/` in classic Android modules and in
+`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`), and
+are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
@@ -914,8 +1037,9 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ./gradlew :core:ui:kit:recordPaparazziDebug
 ```
 
-Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`, and
-`:core:ui:start-mode` too: on a KMP module Paparazzi registers
+Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, and `:feature:all-exercises`
+too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
 repo-wide commands above keep reaching every golden module.
@@ -1075,8 +1199,24 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:image-viewer:iosSimulatorArm64Test \
   :feature:plan-editor:iosSimulatorArm64Test \
   :feature:archive:iosSimulatorArm64Test \
+  :feature:all-trainings:iosSimulatorArm64Test \
+  :feature:all-exercises:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
+
+# The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 10/10.
+./gradlew :core:ui:kit:linkDebugTestIosArm64 \
+  :core:ui:navigation:linkDebugTestIosArm64 \
+  :core:ui:mvi:linkDebugTestIosArm64 \
+  :core:ui:start-mode:linkDebugTestIosArm64 \
+  :core:ui:plan-editor:linkDebugTestIosArm64 \
+  :feature:image-viewer:linkDebugTestIosArm64 \
+  :feature:plan-editor:linkDebugTestIosArm64 \
+  :feature:archive:linkDebugTestIosArm64 \
+  :feature:all-trainings:linkDebugTestIosArm64 \
+  :feature:all-exercises:linkDebugTestIosArm64 \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities
 ./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
@@ -1126,7 +1266,8 @@ in [ci-cd.md](ci-cd.md).
 
 ## CI behavior
 
-- **Unit tests run on every PR and on pushes to `master`** as part of `android_build_unified.yml`.
+- **Unit tests run on every PR and on pushes to `master` and `dev`** as part of
+  `android_build_unified.yml`; a push whose changed files are all Markdown skips the workflow.
 - **UI tests do not gate PRs.** The `ui_tests.yml` workflow runs weekly (Mondays
   05:00 UTC, against `dev`; the cron only evaluates from the default branch, so it
   activates once the workflow reaches `master` with a release) and on manual dispatch

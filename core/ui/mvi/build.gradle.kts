@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-
 plugins {
     alias(libs.plugins.convention.kmpComposeLibrary)
     // Contributes app-scoped impls here to AppGraph; includeJavax keeps the dispatcher qualifiers.
@@ -87,15 +84,6 @@ dependencies {
     // GUARD: carries the @Smoke / @Regression annotations — without this edge androidx.test
     // silently drops ui_tests.yml's filter. Enforced by `verifyInstrumentedSuiteClasspath`.
     "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
-}
-
-// GUARD: the classic convention compiled this module with -Xjvm-default=all, which emits the
-// `$default` argument helpers onto the interfaces themselves and no DefaultImpls at all. Kotlin
-// 2.4's default ENABLE would move those helpers into HandlerStore$DefaultImpls /
-// StoreConsumer$DefaultImpls compatibility classes, changing this module's JVM interface ABI.
-// Module-local on purpose — the shared KMP convention keeps the toolchain default.
-tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
 }
 
 // GUARD: the Robolectric JUnit-5 bridge installs Android instrumentation through this interceptor.

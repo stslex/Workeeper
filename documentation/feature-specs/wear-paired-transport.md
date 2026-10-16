@@ -10,6 +10,8 @@ that call its two transport files the only Data Layer files (§4, §5.5, §6.1, 
 and bridge clauses of §6.4; the "no polling" invariant of §7.2; and the push item of §13 are
 superseded by [Wear live sync](wear-live-sync.md).
 
+**Amended on 2026-10-11** by [Wear Phase 2](wear-phase-2-exercise-list.md) (protocol v2).
+
 - **Specification base:** `dev` at `e7e662442`. The release-pipeline stack (#297, #298, #299)
   merges before this work starts. It touches no protocol, runtime, bridge or gate source this
   specification relies on, but it shifts line numbers in `gradle/libs.versions.toml` (F2, F20) and

@@ -28,7 +28,7 @@ class UiLayerNoDataRule(
         super.visitImportDirective(importDirective)
 
         val filePath = importDirective.containingKtFile.virtualFilePath
-        if (filePath.isInTestSourceSet()) return
+        if (TestSourceSets.isTestFile(filePath)) return
         if (!filePath.isInUiLayer()) return
 
         val importPath = importDirective.importPath?.pathStr ?: return
@@ -53,9 +53,6 @@ class UiLayerNoDataRule(
             contains("/ui/") &&
             !contains("/core/data/")
     }
-
-    private fun String.isInTestSourceSet(): Boolean =
-        contains("/src/test/") || contains("/src/androidTest/")
 
     private fun String.isDataModelLike(): Boolean {
         val simpleName = substringAfterLast('.')

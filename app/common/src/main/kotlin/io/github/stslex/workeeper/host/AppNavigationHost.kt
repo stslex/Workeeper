@@ -27,7 +27,9 @@ import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.archive.ui.archiveGraph
@@ -51,6 +53,8 @@ internal fun AppNavigationHost(
     imageViewerGraphFactory: ImageViewerGraph.Factory,
     planEditorGraphFactory: PlanEditorGraph.Factory,
     archiveGraphFactory: ArchiveGraph.Factory,
+    allTrainingsGraphFactory: AllTrainingsGraph.Factory,
+    allExercisesGraphFactory: AllExercisesGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -126,11 +130,13 @@ internal fun AppNavigationHost(
                             .testTag("HomeGraph"),
                     )
                     allTrainingsGraph(
+                        factory = allTrainingsGraphFactory,
                         modifier = bottomBarModifier
                             .reportScreenPlace<Screen.BottomBar.AllTrainings>()
                             .testTag("AllTrainingsGraph"),
                     )
                     allExercisesGraph(
+                        factory = allExercisesGraphFactory,
                         modifier = bottomBarModifier
                             .reportScreenPlace<Screen.BottomBar.AllExercises>()
                             .testTag("AllExercisesGraph"),

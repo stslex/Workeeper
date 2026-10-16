@@ -160,7 +160,11 @@ interface LiveWorkoutStore :
             data class OnRemoveLastSet(val performedExerciseUuid: String) : Click
             data class OnEditPlan(val performedExerciseUuid: String) : Click
             data class OnResetSets(val performedExerciseUuid: String) : Click
-            data class OnSkipExercise(val performedExerciseUuid: String) : Click
+            /**
+             * The exercise menu's skip item: [skipped] is the intent of the label it showed, so a skip
+             * from the watch that arrived while the menu was open is not undone (wear-phase-2 P14).
+             */
+            data class OnSkipExercise(val performedExerciseUuid: String, val skipped: Boolean) : Click
             data object OnFinishClick : Click
             data object OnCancelSessionClick : Click
             data object OnDeleteSessionMenuClick : Click

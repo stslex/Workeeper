@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkout
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.bestOfDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSkipDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
@@ -20,6 +22,8 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
@@ -326,6 +330,11 @@ internal object LiveWorkoutMapper {
         reps = reps,
         type = type.toDomain(),
     )
+
+    fun ExternalWriteDomain.toUi(): ExternalWriteUiModel = when (this) {
+        is ExternalSetDomain -> toUi()
+        is ExternalSkipDomain -> ExternalSkipUiModel(performedExerciseUuid = performedExerciseUuid, skipped = skipped)
+    }
 
     /** The watch's values, as the phone's own completion marks a set (wear-live-sync.md §6.4). */
     fun ExternalSetDomain.toUi(): ExternalSetUiModel = ExternalSetUiModel(

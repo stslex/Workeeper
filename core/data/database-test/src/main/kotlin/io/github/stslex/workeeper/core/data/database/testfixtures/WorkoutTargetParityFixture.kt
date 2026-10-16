@@ -75,6 +75,23 @@ object WorkoutTargetParityFixture {
             expectedBridgeState = BridgeState.PHONE_ACTION_REQUIRED,
         ),
         Scenario(
+            name = "an extra set past a 2-set plan, with every planned set done",
+            planSize = 2,
+            performedPositions = listOf(0, 1, 2),
+            skipped = false,
+            expectedPhoneDone = true,
+            expectedBridgeState = BridgeState.WORKOUT_COMPLETE,
+        ),
+        Scenario(
+            name = "an extra set past a 2-set plan, with the planned sets open",
+            planSize = 2,
+            performedPositions = listOf(2),
+            skipped = false,
+            expectedPhoneDone = false,
+            expectedBridgeState = BridgeState.ACTIVE_TARGET,
+            expectedTargetPosition = 0,
+        ),
+        Scenario(
             name = "skipped planned exercise is excluded from the bridge traversal",
             planSize = 2,
             performedPositions = emptyList(),

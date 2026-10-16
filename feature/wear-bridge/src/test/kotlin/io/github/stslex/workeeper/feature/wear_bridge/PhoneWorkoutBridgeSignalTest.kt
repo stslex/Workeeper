@@ -11,15 +11,12 @@ import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrite
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrite
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandRouting
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetBody
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetRequest
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandRouting
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.GetActiveWorkoutRequest
 import io.github.stslex.workeeper.core.wear.protocol.ImmutableTypeField
@@ -29,6 +26,9 @@ import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandRequest
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.feature.wear_bridge.transport.SignalSeed
 import io.github.stslex.workeeper.feature.wear_bridge.transport.seedActiveWorkout
@@ -67,7 +67,7 @@ internal class PhoneWorkoutBridgeSignalTest {
     private lateinit var leaseStore: WearMutationLeaseStore
     private lateinit var collector: Job
     private val known = WatchKnownRevisions()
-    private val externalSetWrites = ExternalSetWrites()
+    private val externalSessionWrites = ExternalSessionWrites()
     private val published = mutableListOf<Published>()
 
     /** A key no response of these tests carries. */
@@ -83,7 +83,7 @@ internal class PhoneWorkoutBridgeSignalTest {
         // Unconfined and undispatched: each publication runs this collector inside publish(), so it
         // records whether a bridge transaction was open at that moment.
         collector = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
-            externalSetWrites.writes.collect { write -> published += Published(write, transition.inTransaction) }
+            externalSessionWrites.writes.collect { write -> published += Published(write, transition.inTransaction) }
         }
     }
 
@@ -133,7 +133,7 @@ internal class PhoneWorkoutBridgeSignalTest {
 
         val response = newBridge().handshake(NODE_A)
 
-        val active = response.snapshot.payload as SnapshotPayload.ActiveWithTarget
+        val active = response.snapshot.payload as SnapshotPayload.Active
         assertTrue(active.mutationAuthority is MutationAuthority.Unavailable, "the read-only refresh answered")
         assertNotEquals(prepared, response.snapshot.key(), "the phone edit advanced the revision")
         assertTrue(known.holds(NODE_A, response.snapshot.key()), "the returned response is what the node shows")
@@ -146,25 +146,26 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val applied = bridge.completeCurrentSet(NODE_A, command)
-        assertEquals(CompleteCommandOutcome.Applied, applied.outcome)
+        val applied = bridge.executeCommand(NODE_A, command)
+        assertEquals(CommandOutcome.Applied, applied.outcome)
         assertEquals(WatchStateKey.of(seed.sessionUuid, revision(seed)), applied.replacement.key())
         assertTrue(known.holds(NODE_A, applied.replacement.key()), "the command's replacement")
 
         known.record(NODE_A, null)
-        val replay = bridge.completeCurrentSet(NODE_A, command.copy(correlationId = CanonicalUuid.random()))
-        assertEquals(CompleteCommandOutcome.AlreadyApplied, replay.outcome)
+        val replay = bridge.executeCommand(NODE_A, command.copy(correlationId = CanonicalUuid.random()))
+        assertEquals(CommandOutcome.AlreadyApplied, replay.outcome)
         assertTrue(known.holds(NODE_A, replay.replacement.key()), "the replay's replacement")
 
         known.record(NODE_A, null)
-        val stale = bridge.completeCurrentSet(NODE_A, command.another())
-        assertNotEquals(CompleteCommandOutcome.Applied, stale.outcome)
+        val stale = bridge.executeCommand(NODE_A, command.another())
+        // §5.4 step 5: the applied command advanced the revision this one still carries.
+        assertEquals(CommandOutcome.StaleRevision, stale.outcome)
         assertTrue(known.holds(NODE_A, stale.replacement.key()), "the rejection's replacement")
 
         known.record(NODE_A, null)
         val rejected = bridge.protocolRejected(
             NODE_A,
-            CompleteCommandRouting(
+            CommandRouting(
                 schemaVersion = WearProtocol.SCHEMA_VERSION,
                 correlationId = CanonicalUuid.random(),
                 commandId = CanonicalUuid.random(),
@@ -199,11 +200,11 @@ internal class PhoneWorkoutBridgeSignalTest {
         database.seedActiveWorkout()
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
-        val first = bridge.completeCurrentSet(NODE_A, command)
-        assertEquals(CompleteCommandOutcome.Applied, first.outcome)
+        val first = bridge.executeCommand(NODE_A, command)
+        assertEquals(CommandOutcome.Applied, first.outcome)
         known.record(NODE_A, elsewhere)
 
-        val cached = bridge.completeCurrentSet(NODE_A, command)
+        val cached = bridge.executeCommand(NODE_A, command)
 
         assertSame(first, cached, "the identical request was answered from the cache")
         assertTrue(known.holds(NODE_A, cached.replacement.key()), "the node shows the cached response")
@@ -248,10 +249,10 @@ internal class PhoneWorkoutBridgeSignalTest {
             }
         }
 
-        val response = bridge.completeCurrentSet(NODE_A, command)
+        val response = bridge.executeCommand(NODE_A, command)
 
-        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
-        val active = response.replacement.payload as SnapshotPayload.ActiveWithTarget
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        val active = response.replacement.payload as SnapshotPayload.Active
         assertTrue(active.mutationAuthority is MutationAuthority.Unavailable, "the read-only refresh answered")
         val preparedKey = requireNotNull(prepared) { "the hook ran before the lease publication" }
         assertNotEquals(preparedKey, response.replacement.key(), "the phone edit advanced the revision")
@@ -269,20 +270,20 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val response = bridge.completeCurrentSet(NODE_A, command)
+        val response = bridge.executeCommand(NODE_A, command)
 
-        assertEquals(CompleteCommandOutcome.Applied, response.outcome)
-        val expected = ExternalSetWrite(
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        val expected = ExternalSessionWrite.SetMarked(
             sessionUuid = seed.sessionUuid.toString(),
             performedExerciseUuid = seed.performedUuid.toString(),
-            position = command.body.setPosition,
-            weight = command.body.weightHundredthsKg?.div(HUNDREDTHS_PER_KG),
-            reps = command.body.reps,
+            position = command.set().setPosition,
+            weight = command.set().weightHundredthsKg?.div(HUNDREDTHS_PER_KG),
+            reps = command.set().reps,
             type = SetsDataType.WORK,
         )
         assertEquals(listOf(Published(expected, inTransaction = false)), published)
         val row = requireNotNull(
-            database.setDao.getByPerformedAndPosition(seed.performedUuid, command.body.setPosition),
+            database.setDao.getByPerformedAndPosition(seed.performedUuid, command.set().setPosition),
         )
         assertEquals(expected.reps, row.reps, "the published values are the written ones")
         assertEquals(expected.weight, row.weight)
@@ -293,12 +294,47 @@ internal class PhoneWorkoutBridgeSignalTest {
         database.seedActiveWorkout()
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
-        bridge.completeCurrentSet(NODE_A, command)
+        bridge.executeCommand(NODE_A, command)
         published.clear()
 
-        val replay = bridge.completeCurrentSet(NODE_A, command.copy(correlationId = CanonicalUuid.random()))
+        val replay = bridge.executeCommand(NODE_A, command.copy(correlationId = CanonicalUuid.random()))
 
-        assertEquals(CompleteCommandOutcome.AlreadyApplied, replay.outcome)
+        assertEquals(CommandOutcome.AlreadyApplied, replay.outcome)
+        assertEquals(emptyList<Published>(), published)
+    }
+
+    @Test
+    fun `an Applied skip publishes exactly one SkipChanged, after the transaction`() = runTest {
+        val seed = database.seedActiveWorkout()
+        val bridge = newBridge()
+        val skip = bridge.handshake(NODE_A).command(
+            WatchCommandBody.SetExerciseSkipped(seed.performedUuid.toWireUuid(), skipped = true),
+        )
+
+        val response = bridge.executeCommand(NODE_A, skip)
+
+        assertEquals(CommandOutcome.Applied, response.outcome)
+        val expected = ExternalSessionWrite.SkipChanged(
+            sessionUuid = seed.sessionUuid.toString(),
+            performedExerciseUuid = seed.performedUuid.toString(),
+            skipped = true,
+        )
+        assertEquals(listOf(Published(expected, inTransaction = false)), published)
+    }
+
+    @Test
+    fun `an exact skip replay publishes nothing`() = runTest {
+        val seed = database.seedActiveWorkout()
+        val bridge = newBridge()
+        val skip = bridge.handshake(NODE_A).command(
+            WatchCommandBody.SetExerciseSkipped(seed.performedUuid.toWireUuid(), skipped = true),
+        )
+        assertEquals(CommandOutcome.Applied, bridge.executeCommand(NODE_A, skip).outcome)
+        published.clear()
+
+        val replay = bridge.executeCommand(NODE_A, skip.copy(correlationId = CanonicalUuid.random()))
+
+        assertEquals(CommandOutcome.AlreadyApplied, replay.outcome)
         assertEquals(emptyList<Published>(), published)
     }
 
@@ -308,16 +344,19 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val stale = bridge.completeCurrentSet(NODE_A, command.another(revisionDelta = 1))
-        val moved = bridge.completeCurrentSet(
+        val stale = bridge.executeCommand(NODE_A, command.another(revisionDelta = 1))
+        val moved = bridge.executeCommand(
             NODE_A,
+            // §10.1: the next planned set is now admitted (V3), so this aims at a position the
+            // outline does not have.
             bridge.handshake(NODE_A).command().let { fresh ->
-                fresh.another().copy(body = fresh.body.copy(setPosition = fresh.body.setPosition + 1))
+                fresh.another().copy(body = fresh.set().copy(setPosition = fresh.set().setPosition + UNKNOWN_OFFSET))
             },
         )
 
-        assertNotEquals(CompleteCommandOutcome.Applied, stale.outcome)
-        assertNotEquals(CompleteCommandOutcome.Applied, moved.outcome)
+        // §5.4 step 5 and step 8 (an unknown position is not completable).
+        assertEquals(CommandOutcome.StaleRevision, stale.outcome)
+        assertEquals(CommandOutcome.TargetChanged, moved.outcome)
         assertEquals(emptyList<Published>(), published)
     }
 
@@ -326,9 +365,9 @@ internal class PhoneWorkoutBridgeSignalTest {
         database.seedActiveWorkout()
         val bridge = newBridge(writer = { throw SQLiteException("synthetic busy") })
 
-        val failed = bridge.completeCurrentSet(NODE_A, bridge.handshake(NODE_A).command())
+        val failed = bridge.executeCommand(NODE_A, bridge.handshake(NODE_A).command())
 
-        assertEquals(CompleteCommandOutcome.RetryableTemporaryFailure, failed.outcome)
+        assertEquals(CommandOutcome.RetryableTemporaryFailure, failed.outcome)
         assertEquals(emptyList<Published>(), published)
     }
 
@@ -338,9 +377,9 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val response = bridge.completeCurrentSet(NODE_A, command.another(revisionDelta = 1))
+        val response = bridge.executeCommand(NODE_A, command.another(revisionDelta = 1))
 
-        assertRejectedUnpublished(CompleteCommandOutcome.StaleRevision, response)
+        assertRejectedUnpublished(CommandOutcome.StaleRevision, response)
     }
 
     @Test
@@ -350,9 +389,9 @@ internal class PhoneWorkoutBridgeSignalTest {
         val command = bridge.handshake(NODE_A).command()
         database.sessionDao.finishSession(seed.sessionUuid, finishedAt = 2)
 
-        val response = bridge.completeCurrentSet(NODE_A, command)
+        val response = bridge.executeCommand(NODE_A, command)
 
-        assertRejectedUnpublished(CompleteCommandOutcome.NoActiveSession, response)
+        assertRejectedUnpublished(CommandOutcome.NoActiveSession, response)
     }
 
     @Test
@@ -360,12 +399,14 @@ internal class PhoneWorkoutBridgeSignalTest {
         database.seedActiveWorkout()
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
-        val nextPosition = command.body.copy(setPosition = command.body.setPosition + 1)
-        val moved = bindSyntheticLease(command.copy(body = nextPosition))
+        // §10.1: the next planned set is now admitted (V3), so this aims at a position the outline
+        // does not have.
+        val unknownPosition = command.set().copy(setPosition = command.set().setPosition + UNKNOWN_OFFSET)
+        val moved = bindSyntheticLease(command.copy(body = unknownPosition))
 
-        val response = bridge.completeCurrentSet(NODE_A, moved)
+        val response = bridge.executeCommand(NODE_A, moved)
 
-        assertRejectedUnpublished(CompleteCommandOutcome.TargetChanged, response)
+        assertRejectedUnpublished(CommandOutcome.TargetChanged, response)
     }
 
     @Test
@@ -374,9 +415,9 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val response = bridge.completeCurrentSet(NODE_B, command)
+        val response = bridge.executeCommand(NODE_B, command)
 
-        assertRejectedUnpublished(CompleteCommandOutcome.AuthorizationExpired, response)
+        assertRejectedUnpublished(CommandOutcome.AuthorizationExpired, response)
     }
 
     @Test
@@ -384,18 +425,18 @@ internal class PhoneWorkoutBridgeSignalTest {
         database.seedActiveWorkout()
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
-        assertEquals(CompleteCommandOutcome.Applied, bridge.completeCurrentSet(NODE_A, command).outcome)
+        assertEquals(CommandOutcome.Applied, bridge.executeCommand(NODE_A, command).outcome)
         published.clear()
         // The same command id with another attempt fingerprint after an Applied write.
         val reused = command.copy(
             correlationId = CanonicalUuid.random(),
-            body = command.body.copy(reps = command.body.reps + 1),
+            body = command.set().copy(reps = command.set().reps + 1),
         )
 
-        val response = bridge.completeCurrentSet(NODE_A, reused)
+        val response = bridge.executeCommand(NODE_A, reused)
 
         assertRejectedUnpublished(
-            CompleteCommandOutcome.ProtocolRejected(ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH),
+            CommandOutcome.ProtocolRejected(ProtocolRejectionReason.COMMAND_FINGERPRINT_MISMATCH),
             response,
         )
     }
@@ -406,10 +447,10 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val response = bridge.completeCurrentSet(NODE_A, command.copy(body = command.body.copy(reps = 0)))
+        val response = bridge.executeCommand(NODE_A, command.copy(body = command.set().copy(reps = 0)))
 
         assertRejectedUnpublished(
-            CompleteCommandOutcome.InvalidValues(NumericField.REPS, InvalidValueReason.BELOW_MINIMUM),
+            CommandOutcome.InvalidValues(NumericField.REPS, InvalidValueReason.BELOW_MINIMUM),
             response,
         )
     }
@@ -420,13 +461,13 @@ internal class PhoneWorkoutBridgeSignalTest {
         val bridge = newBridge()
         val command = bridge.handshake(NODE_A).command()
 
-        val response = bridge.completeCurrentSet(
+        val response = bridge.executeCommand(
             NODE_A,
-            command.copy(body = command.body.copy(exerciseType = ExerciseTypeWire.WEIGHTLESS)),
+            command.copy(body = command.set().copy(exerciseType = ExerciseTypeWire.WEIGHTLESS)),
         )
 
         assertRejectedUnpublished(
-            CompleteCommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE),
+            CommandOutcome.ImmutableTypeMismatch(ImmutableTypeField.EXERCISE_TYPE),
             response,
         )
     }
@@ -448,18 +489,22 @@ internal class PhoneWorkoutBridgeSignalTest {
             snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
             leaseStore = leaseStore,
             clock = PhoneMonotonicClock { 0L },
-            mutationWriter = writer,
+            writers = WearMutationWriters(writer, RoomWearSkipMutationWriter(database)),
             knownRevisions = known,
-            externalSetWrites = externalSetWrites,
+            externalSessionWrites = externalSessionWrites,
         )
 
     private suspend fun PhoneWorkoutBridgeImpl.handshake(node: String): ActiveWorkoutSnapshotResponse =
         getActiveWorkout(node, GetActiveWorkoutRequest(WearProtocol.SCHEMA_VERSION, CanonicalUuid.random()))
 
-    private fun ActiveWorkoutSnapshotResponse.command(): CompleteCurrentSetRequest {
-        val active = snapshot.payload as SnapshotPayload.ActiveWithTarget
+    /** A `complete_set` of rule R's set under the handshake's lease. */
+    private fun ActiveWorkoutSnapshotResponse.command(): WatchCommandRequest =
+        command((snapshot.payload as SnapshotPayload.Active).completeTargetBody())
+
+    private fun ActiveWorkoutSnapshotResponse.command(body: WatchCommandBody): WatchCommandRequest {
+        val active = snapshot.payload as SnapshotPayload.Active
         val authority = active.mutationAuthority as MutationAuthority.Granted
-        return CompleteCurrentSetRequest(
+        return WatchCommandRequest(
             schemaVersion = WearProtocol.SCHEMA_VERSION,
             correlationId = CanonicalUuid.random(),
             commandId = CanonicalUuid.random(),
@@ -468,26 +513,21 @@ internal class PhoneWorkoutBridgeSignalTest {
             sessionRevision = active.sessionRevision,
             mutationLeaseId = authority.mutationLeaseId,
             mutationLeaseGeneration = authority.mutationLeaseGeneration,
-            body = CompleteCurrentSetBody(
-                performedExerciseUuid = active.target.performedExerciseUuid,
-                setPosition = active.target.setPosition,
-                reps = active.target.reps,
-                weightHundredthsKg = active.target.weightHundredthsKg,
-                exerciseType = active.target.exerciseType,
-                setType = active.target.setType,
-            ),
+            body = body,
         )
     }
 
+    private fun WatchCommandRequest.set(): WatchCommandBody.CompleteSet = body as WatchCommandBody.CompleteSet
+
     /** A different command under the same lease: new ids, optionally another revision. */
-    private fun CompleteCurrentSetRequest.another(revisionDelta: Long = 0) = copy(
+    private fun WatchCommandRequest.another(revisionDelta: Long = 0) = copy(
         correlationId = CanonicalUuid.random(),
         commandId = CanonicalUuid.random(),
         sessionRevision = sessionRevision + revisionDelta,
     )
 
     /** What a protocol rejection of this command carries: its routing under new ids. */
-    private fun CompleteCurrentSetRequest.routing() = CompleteCommandRouting(
+    private fun WatchCommandRequest.routing() = CommandRouting(
         schemaVersion = schemaVersion,
         correlationId = CanonicalUuid.random(),
         commandId = CanonicalUuid.random(),
@@ -499,11 +539,10 @@ internal class PhoneWorkoutBridgeSignalTest {
     )
 
     /**
-     * A valid current lease bound to [request]'s target, as PhoneWorkoutBridgeImplTest's
-     * bindSyntheticLease installs one for a deliberately non-canonical target. This bridge's clock
-     * reads 0, so the lease is fresh for its whole window.
+     * A valid current session lease for [request], as PhoneWorkoutBridgeImplTest's bindSyntheticLease
+     * installs one. This bridge's clock reads 0, so the lease is fresh for its whole window.
      */
-    private suspend fun bindSyntheticLease(request: CompleteCurrentSetRequest): CompleteCurrentSetRequest {
+    private suspend fun bindSyntheticLease(request: WatchCommandRequest): WatchCommandRequest {
         val sync = requireNotNull(database.wearSyncDao.getSessionSync(Uuid.parse(request.sessionUuid.value)))
         assertEquals(
             1,
@@ -524,8 +563,6 @@ internal class PhoneWorkoutBridgeSignalTest {
                     sessionUuid = bound.sessionUuid,
                     databaseEpoch = bound.databaseEpoch,
                     sessionRevision = bound.sessionRevision,
-                    performedExerciseUuid = bound.body.performedExerciseUuid,
-                    setPosition = bound.body.setPosition,
                     leaseId = leaseId,
                     leaseGeneration = bound.mutationLeaseGeneration,
                     leaseRemainingAtPhoneSendMs = WearProtocol.MAX_MUTATION_WINDOW_MS,
@@ -536,7 +573,7 @@ internal class PhoneWorkoutBridgeSignalTest {
         return bound
     }
 
-    private fun assertRejectedUnpublished(expected: CompleteCommandOutcome, response: CompleteCurrentSetResponse) {
+    private fun assertRejectedUnpublished(expected: CommandOutcome, response: WatchCommandResponse) {
         assertEquals(expected, response.outcome)
         assertEquals(emptyList<Published>(), published, "a rejection publishes nothing")
     }
@@ -546,7 +583,7 @@ internal class PhoneWorkoutBridgeSignalTest {
     private suspend fun revision(seed: SignalSeed): Long =
         requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision
 
-    private data class Published(val write: ExternalSetWrite, val inTransaction: Boolean)
+    private data class Published(val write: ExternalSessionWrite, val inTransaction: Boolean)
 
     /**
      * Records whether a bridge transaction is open (the wrapper pattern of PhoneWorkoutBridgeImplTest's
@@ -585,5 +622,8 @@ internal class PhoneWorkoutBridgeSignalTest {
         const val NODE_A = "watch-node-a-7f3a"
         const val NODE_B = "watch-node-b-7f3a"
         const val HUNDREDTHS_PER_KG = 100.0
+
+        /** Added to a planned position: a position the seeded outline does not have. */
+        const val UNKNOWN_OFFSET = 10
     }
 }

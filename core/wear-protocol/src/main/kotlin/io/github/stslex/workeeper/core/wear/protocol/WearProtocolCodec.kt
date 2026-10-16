@@ -29,7 +29,7 @@ sealed interface WatchDecodeResult {
     data class ProtocolMismatch(val failure: DecodeFailure) : WatchDecodeResult
 }
 
-data class CompleteCommandRouting(
+data class CommandRouting(
     val schemaVersion: Int,
     val correlationId: CanonicalUuid,
     val commandId: CanonicalUuid,
@@ -43,9 +43,12 @@ data class CompleteCommandRouting(
 sealed interface PhoneDecodeResult {
     data class Success(val request: WearEnvelope) : PhoneDecodeResult
     data class CorrelatedProtocolRejection(
-        val routing: CompleteCommandRouting,
+        val routing: CommandRouting,
         val reason: ProtocolRejectionReason,
     ) : PhoneDecodeResult
+
+    /** A request of another schema version: answered with [WearProtocolCodec.VERSION_ANSWER] (P3). */
+    data object UnsupportedVersion : PhoneDecodeResult
 
     data object Dropped : PhoneDecodeResult
 }
@@ -64,20 +67,30 @@ object WearProtocolCodec {
         useArrayPolymorphism = false
     }
 
+    /**
+     * The phone's whole answer to a request of another schema version (wear-phase-2-exercise-list.md
+     * §5.1, P3): a v1 watch decodes it as an unsupported schema and asks for an update.
+     */
+    val VERSION_ANSWER: ByteArray
+        get() = VERSION_ANSWER_JSON.toByteArray(StandardCharsets.UTF_8)
+
     fun encode(envelope: WearEnvelope): ByteArray {
         require(envelope.schemaVersion == WearProtocol.SCHEMA_VERSION)
-        if (envelope is CompleteCurrentSetResponse) {
+        if (envelope is WatchCommandResponse) {
             require(ProtocolPairingValidator.isValid(envelope.outcome, envelope.replacement.payload)) {
                 "Command outcome/replacement pairing is not permitted"
             }
         }
-        val bytes = json.encodeToString(WearEnvelope.serializer(), envelope)
-            .toByteArray(StandardCharsets.UTF_8)
+        val bytes = serialize(envelope)
         if (bytes.size > WearProtocol.MAX_ENVELOPE_BYTES) {
             throw EnvelopeTooLargeException(bytes.size)
         }
         return bytes
     }
+
+    /** The envelope's bytes with no pairing or size check: the budget measures sizes with it (§5.7). */
+    internal fun serialize(envelope: WearEnvelope): ByteArray =
+        json.encodeToString(WearEnvelope.serializer(), envelope).toByteArray(StandardCharsets.UTF_8)
 
     fun decodeForWatch(bytes: ByteArray): WatchDecodeResult {
         if (bytes.size > WearProtocol.MAX_ENVELOPE_BYTES) {
@@ -92,12 +105,12 @@ object WearProtocolCodec {
         }
         val operation = root.strictString("operation")
             ?: return WatchDecodeResult.ProtocolMismatch(DecodeFailure.Malformed)
-        if (operation != ACTIVE_SNAPSHOT_OPERATION && operation != COMPLETE_RESPONSE_OPERATION) {
+        if (operation != ACTIVE_SNAPSHOT_OPERATION && operation != COMMAND_RESPONSE_OPERATION) {
             return WatchDecodeResult.ProtocolMismatch(DecodeFailure.UnknownOperation)
         }
         val decoded = runCatching { json.decodeFromJsonElement<WearEnvelope>(root) }
             .getOrElse { return WatchDecodeResult.ProtocolMismatch(DecodeFailure.Malformed) }
-        if (decoded is CompleteCurrentSetResponse &&
+        if (decoded is WatchCommandResponse &&
             !ProtocolPairingValidator.isValid(decoded.outcome, decoded.replacement.payload)
         ) {
             return WatchDecodeResult.ProtocolMismatch(DecodeFailure.InvalidPairing)
@@ -115,17 +128,16 @@ object WearProtocolCodec {
         }
         val root = parseObject(bytes) ?: return PhoneDecodeResult.Dropped
         val operation = root.strictString("operation") ?: return PhoneDecodeResult.Dropped
+        val schema = root.strictInt("schemaVersion") ?: return PhoneDecodeResult.Dropped
+        if (schema != WearProtocol.SCHEMA_VERSION) return PhoneDecodeResult.UnsupportedVersion
         return when (operation) {
             GET_OPERATION -> decodeGet(root)
-            COMPLETE_OPERATION -> decodeComplete(root)
+            COMMAND_OPERATION -> decodeCommand(root)
             else -> PhoneDecodeResult.Dropped
         }
     }
 
     private fun decodeGet(root: JsonObject): PhoneDecodeResult {
-        if (root.strictInt("schemaVersion") != WearProtocol.SCHEMA_VERSION) {
-            return PhoneDecodeResult.Dropped
-        }
         val request = runCatching { json.decodeFromJsonElement<WearEnvelope>(root) }
             .getOrElse { return PhoneDecodeResult.Dropped }
         return if (request is GetActiveWorkoutRequest) {
@@ -135,14 +147,18 @@ object WearProtocolCodec {
         }
     }
 
-    private fun decodeComplete(root: JsonObject): PhoneDecodeResult {
+    private fun decodeCommand(root: JsonObject): PhoneDecodeResult {
         val routing = decodeRouting(root) ?: return PhoneDecodeResult.Dropped
         val body = root["body"] as? JsonObject ?: return PhoneDecodeResult.Dropped
-        if (!body.hasStrictInt("reps") || !body.hasStrictNullableInt("weightHundredthsKg")) {
-            return PhoneDecodeResult.CorrelatedProtocolRejection(
-                routing = routing,
-                reason = ProtocolRejectionReason.INVALID_NUMERIC_ENCODING,
-            )
+        when (body.strictString("kind")) {
+            COMPLETE_SET_KIND -> if (!body.hasStrictInt("reps") || !body.hasStrictNullableInt("weightHundredthsKg")) {
+                return PhoneDecodeResult.CorrelatedProtocolRejection(
+                    routing = routing,
+                    reason = ProtocolRejectionReason.INVALID_NUMERIC_ENCODING,
+                )
+            }
+            SET_EXERCISE_SKIPPED_KIND -> if (!body.hasStrictBoolean("skipped")) return PhoneDecodeResult.Dropped
+            else -> return PhoneDecodeResult.Dropped
         }
         val decoded = try {
             json.decodeFromJsonElement<WearEnvelope>(root)
@@ -151,19 +167,19 @@ object WearProtocolCodec {
         } catch (_: IllegalArgumentException) {
             return PhoneDecodeResult.Dropped
         }
-        return if (decoded is CompleteCurrentSetRequest) {
+        return if (decoded is WatchCommandRequest) {
             PhoneDecodeResult.Success(decoded)
         } else {
             PhoneDecodeResult.Dropped
         }
     }
 
-    private fun decodeRouting(root: JsonObject): CompleteCommandRouting? {
+    private fun decodeRouting(root: JsonObject): CommandRouting? {
         val schema = root.strictInt("schemaVersion") ?: return null
         if (schema != WearProtocol.SCHEMA_VERSION) return null
-        if (root.strictString("operation") != COMPLETE_OPERATION) return null
+        if (root.strictString("operation") != COMMAND_OPERATION) return null
         return runCatching {
-            CompleteCommandRouting(
+            CommandRouting(
                 schemaVersion = schema,
                 correlationId = CanonicalUuid.parse(root.strictString("correlationId") ?: return null),
                 commandId = CanonicalUuid.parse(root.strictString("commandId") ?: return null),
@@ -221,41 +237,52 @@ object WearProtocolCodec {
             )
     }
 
-    private fun isCanonicalIntegerToken(token: String): Boolean = INTEGER_TOKEN.matches(token)
-
     private const val GET_OPERATION = "get_active_workout"
-    private const val COMPLETE_OPERATION = "complete_current_set"
+    private const val COMMAND_OPERATION = "watch_command"
     private const val ACTIVE_SNAPSHOT_OPERATION = "active_workout_snapshot"
-    private const val COMPLETE_RESPONSE_OPERATION = "complete_current_set_response"
+    private const val COMMAND_RESPONSE_OPERATION = "watch_command_response"
+    private const val COMPLETE_SET_KIND = "complete_set"
+    private const val SET_EXERCISE_SKIPPED_KIND = "set_exercise_skipped"
+    private const val VERSION_ANSWER_JSON =
+        "{\"operation\":\"unsupported_version\",\"schemaVersion\":${WearProtocol.SCHEMA_VERSION}}"
     private const val MAX_SOURCE_NODE_ID_UTF8_BYTES = 1_024
-    private val INTEGER_TOKEN = Regex("-?(0|[1-9][0-9]*)")
 }
 
+/** A JSON `true` or `false` literal: a quoted "true" is a string, not a boolean. */
+private fun JsonObject.hasStrictBoolean(name: String): Boolean {
+    val primitive = get(name) as? JsonPrimitive ?: return false
+    return !primitive.isString && (primitive.content == "true" || primitive.content == "false")
+}
+
+private fun isCanonicalIntegerToken(token: String): Boolean = INTEGER_TOKEN.matches(token)
+
+private val INTEGER_TOKEN = Regex("-?(0|[1-9][0-9]*)")
+
+/** wear-phase-2-exercise-list.md §5.5: the replacements each outcome may carry, on both sides. */
 object ProtocolPairingValidator {
 
-    fun isValid(outcome: CompleteCommandOutcome, payload: SnapshotPayload): Boolean = when (outcome) {
-        is CompleteCommandOutcome.NoActiveSession -> payload is SnapshotPayload.NoSession
-        is CompleteCommandOutcome.TargetChanged -> payload !is SnapshotPayload.NoSession
-        is CompleteCommandOutcome.InvalidValues,
-        is CompleteCommandOutcome.ImmutableTypeMismatch,
-        -> payload.isUnavailableTarget()
-        is CompleteCommandOutcome.ProtocolRejected -> payload.isReadOnly()
-        is CompleteCommandOutcome.RetryableTemporaryFailure -> payload.isGrantedTarget()
+    fun isValid(outcome: CommandOutcome, payload: SnapshotPayload): Boolean = when (outcome) {
+        is CommandOutcome.NoActiveSession -> payload is SnapshotPayload.NoSession
+        is CommandOutcome.TargetChanged -> payload !is SnapshotPayload.NoSession
+        is CommandOutcome.InvalidValues,
+        is CommandOutcome.ImmutableTypeMismatch,
+        -> payload.isUnavailableActive()
+        is CommandOutcome.ProtocolRejected -> payload.isReadOnly()
+        is CommandOutcome.RetryableTemporaryFailure -> payload.isGrantedActive()
         else -> true
     }
 
-    private fun SnapshotPayload.isUnavailableTarget(): Boolean =
-        this is SnapshotPayload.ActiveWithTarget && mutationAuthority is MutationAuthority.Unavailable
+    private fun SnapshotPayload.isUnavailableActive(): Boolean =
+        this is SnapshotPayload.Active && mutationAuthority is MutationAuthority.Unavailable
 
-    private fun SnapshotPayload.isGrantedTarget(): Boolean =
-        this is SnapshotPayload.ActiveWithTarget && mutationAuthority is MutationAuthority.Granted
+    private fun SnapshotPayload.isGrantedActive(): Boolean =
+        this is SnapshotPayload.Active && mutationAuthority is MutationAuthority.Granted
 
     private fun SnapshotPayload.isReadOnly(): Boolean = when (this) {
         is SnapshotPayload.NoSession,
-        is SnapshotPayload.PhoneActionRequired,
-        is SnapshotPayload.WorkoutComplete,
+        is SnapshotPayload.PayloadTooLarge,
         -> true
-        is SnapshotPayload.ActiveWithTarget -> mutationAuthority is MutationAuthority.Unavailable
+        is SnapshotPayload.Active -> mutationAuthority is MutationAuthority.Unavailable
     }
 }
 

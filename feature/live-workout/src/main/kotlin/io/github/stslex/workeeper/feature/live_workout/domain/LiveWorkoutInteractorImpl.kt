@@ -6,7 +6,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
@@ -20,7 +20,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkout
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
@@ -47,7 +47,7 @@ class LiveWorkoutInteractorImpl internal constructor(
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     private val personalRecordRepository: PersonalRecordRepository,
-    private val externalSetWrites: ExternalSetWrites,
+    private val externalSessionWrites: ExternalSessionWrites,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
 
@@ -175,8 +175,8 @@ class LiveWorkoutInteractorImpl internal constructor(
     }
 
     // GUARD: filter and map only, no dispatching operator (see the interface).
-    override fun observeExternalSetWrites(sessionUuid: String): Flow<ExternalSetDomain> =
-        externalSetWrites.writes
+    override fun observeExternalWrites(sessionUuid: String): Flow<ExternalWriteDomain> =
+        externalSessionWrites.writes
             .filter { write -> write.sessionUuid == sessionUuid }
             .map { write -> write.toDomain() }
 

@@ -19,15 +19,15 @@ internal class WatchWorkoutReducerCacheRestoreTest {
         val cached = ReducerTestFixtures.active(revision = 9)
         reducer.restoreDisplayOnly(cached)
         val display = assertIs<WatchDisplayState.Active>(reducer.state.display)
-        val payload = display.snapshot.payload as SnapshotPayload.ActiveWithTarget
+        val payload = display.snapshot.payload as SnapshotPayload.Active
         assertEquals(9L, payload.sessionRevision)
-        assertEquals(8, payload.target.reps)
+        assertEquals(8, ReducerTestFixtures.ruleROpenSet(display.snapshot).second.reps)
         assertEquals(ActiveFreshness.REFRESH_REQUIRED, display.freshness)
         assertEquals(
             MutationAuthority.Unavailable(MutationUnavailableReason.FRESH_HANDSHAKE_REQUIRED),
             payload.mutationAuthority,
         )
-        assertIs<MutationAuthority.Granted>((cached.payload as SnapshotPayload.ActiveWithTarget).mutationAuthority)
+        assertIs<MutationAuthority.Granted>((cached.payload as SnapshotPayload.Active).mutationAuthority)
         assertEquals(LocalMutationAuthority.Retired, reducer.state.authority)
         assertTrue(reducer.state.refreshRequired)
         assertNull(reducer.state.draft)
@@ -49,7 +49,7 @@ internal class WatchWorkoutReducerCacheRestoreTest {
             reducer.receiveSnapshot(request.correlationId, ReducerTestFixtures.active(revision = 8), 1_001).accepted,
         )
         val display = assertIs<WatchDisplayState.Active>(reducer.state.display)
-        assertEquals(9L, (display.snapshot.payload as SnapshotPayload.ActiveWithTarget).sessionRevision)
+        assertEquals(9L, (display.snapshot.payload as SnapshotPayload.Active).sessionRevision)
         assertEquals(LocalMutationAuthority.Retired, reducer.state.authority)
     }
 

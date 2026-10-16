@@ -87,7 +87,14 @@ internal fun ExerciseMenuSheetContent(
                 stringResource(R.string.feature_live_workout_action_skip)
             },
             icon = AppIcons.Skip,
-            onClick = { consume(LiveWorkoutStore.Action.Click.OnSkipExercise(uuid)) },
+            onClick = {
+                consume(
+                    LiveWorkoutStore.Action.Click.OnSkipExercise(
+                        performedExerciseUuid = uuid,
+                        skipped = exercise.status != ExerciseStatusUiModel.SKIPPED,
+                    ),
+                )
+            },
             modifier = Modifier.testTag("ExerciseMenu_Skip"),
         )
         AppSheetItem(

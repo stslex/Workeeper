@@ -25,14 +25,17 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.data.exercise.session.ExternalSetWrites
+import io.github.stslex.workeeper.core.data.exercise.session.ExternalSessionWrites
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
@@ -91,6 +94,10 @@ internal interface AppGraph :
     override val planEditorGraphFactory: PlanEditorGraph.Factory
 
     override val archiveGraphFactory: ArchiveGraph.Factory
+
+    override val allTrainingsGraphFactory: AllTrainingsGraph.Factory
+
+    override val allExercisesGraphFactory: AllExercisesGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 
@@ -153,10 +160,11 @@ internal interface AppGraph :
     val phoneChangeNotifier: PhoneChangeNotifier
 
     /**
-     * The in-process signal the phone bridge publishes a watch-written set into (wear-live-sync.md
-     * §6.4). Its only reader here is the live-workout extension identity test.
+     * The in-process signal the phone bridge publishes a watch-written set or skip into (wear-live-sync.md
+     * §6.4, wear-phase-2-exercise-list.md §6.5). Its only reader here is the live-workout extension
+     * identity test.
      */
-    val externalSetWrites: ExternalSetWrites
+    val externalSessionWrites: ExternalSessionWrites
 
     /**
      * The per-watch keys the phone bridge records and the change notifier reads (wear-live-sync.md
@@ -164,6 +172,12 @@ internal interface AppGraph :
      * `WatchKnownRevisionsIdentityTest`.
      */
     val watchKnownRevisions: WatchKnownRevisions
+
+    /**
+     * Compose-resource strings for code outside composition (kmp-string-resolver.md). Its only
+     * reader here is the graph identity test, `StringResolverIdentityTest`.
+     */
+    val stringResolver: StringResolver
 
     @Provides
     @SingleIn(AppScope::class)

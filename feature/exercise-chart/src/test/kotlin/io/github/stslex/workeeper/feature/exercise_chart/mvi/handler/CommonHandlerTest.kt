@@ -201,7 +201,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `loadChart with a single point is sub-threshold — empty state, no readout`() {
+    fun `loadChart with a single point is sub-threshold — empty state no readout`() {
         // §4.8: the chart appears after two recorded sessions. One point is no line.
         val flow = MutableStateFlow(
             State.create(initialUuid = "uuid-1").copy(

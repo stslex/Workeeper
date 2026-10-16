@@ -29,8 +29,6 @@ internal data class PendingMutationLease(
     val sessionUuid: CanonicalUuid,
     val databaseEpoch: CanonicalUuid,
     val sessionRevision: Long,
-    val performedExerciseUuid: CanonicalUuid,
-    val setPosition: Int,
     val leaseId: CanonicalUuid,
     val leaseGeneration: Long,
     val leaseRemainingAtPhoneSendMs: Long,
@@ -45,7 +43,10 @@ internal sealed interface LeaseAdmission {
     data object CommandFingerprintMismatch : LeaseAdmission
 }
 
-/** One bounded, process-only authority slot per source node and phone session. */
+/**
+ * One bounded, process-only authority slot per source node and phone session. A lease is scoped to
+ * the session and its revision, never to a target: the command names its target (V3).
+ */
 @SingleIn(AppScope::class)
 internal class WearMutationLeaseStore @Inject constructor(
     transition: DbTransitionRunner,
@@ -90,8 +91,6 @@ internal class WearMutationLeaseStore @Inject constructor(
         databaseEpoch: CanonicalUuid,
         sessionUuid: CanonicalUuid,
         sessionRevision: Long,
-        performedExerciseUuid: CanonicalUuid,
-        setPosition: Int,
         leaseId: CanonicalUuid,
         leaseGeneration: Long,
         stableFingerprint: FingerprintValue,
@@ -103,8 +102,6 @@ internal class WearMutationLeaseStore @Inject constructor(
         val presentation = LeasePresentation(
             databaseEpoch = databaseEpoch,
             sessionRevision = sessionRevision,
-            performedExerciseUuid = performedExerciseUuid,
-            setPosition = setPosition,
             leaseId = leaseId,
             leaseGeneration = leaseGeneration,
             admittedAtPhoneElapsedRealtimeMs = admittedAtPhoneElapsedRealtimeMs,
@@ -171,8 +168,6 @@ internal class WearMutationLeaseStore @Inject constructor(
     private fun PendingMutationLease.matches(presentation: LeasePresentation): Boolean {
         if (databaseEpoch != presentation.databaseEpoch) return false
         if (sessionRevision != presentation.sessionRevision) return false
-        if (performedExerciseUuid != presentation.performedExerciseUuid) return false
-        if (setPosition != presentation.setPosition) return false
         if (leaseId != presentation.leaseId) return false
         if (leaseGeneration != presentation.leaseGeneration) return false
         return true
@@ -241,8 +236,6 @@ internal class WearMutationLeaseStore @Inject constructor(
     private data class LeasePresentation(
         val databaseEpoch: CanonicalUuid,
         val sessionRevision: Long,
-        val performedExerciseUuid: CanonicalUuid,
-        val setPosition: Int,
         val leaseId: CanonicalUuid,
         val leaseGeneration: Long,
         val admittedAtPhoneElapsedRealtimeMs: Long,

@@ -29,7 +29,7 @@ concurrency:
 jobs:
   guard:
     name: Validate release branch and TOML coherence
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version_name: ${{ steps.toml.outputs.version_name }}
       version_code: ${{ steps.toml.outputs.version_code }}
@@ -120,6 +120,37 @@ jobs:
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "Open PR: #$pr_number"
 
+      # Release signing spec §4.3: a release PR that master's ruleset would refuse (an unverified
+      # commit, a moved head, a conflict) stops the release here, and again right before the upload.
+      - name: Check that the release PR can merge
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PINNED_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          # The first read, then up to 6 more, 10 s apart, while GitHub has not computed it (exit 3).
+          reads=0
+          while :; do
+            reads=$((reads + 1))
+            decision=0
+            if ! gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"; then
+              echo "::error::Could not read release PR #$PR_NUMBER. Nothing was uploaded. See release-flow.md §8.11."
+              exit 1
+            fi
+            python3 .github/scripts/release_pr_guard.py --pr "$RUNNER_TEMP/release-pr.json" --head "$PINNED_SHA" \
+              || decision=$?
+            if [[ "$decision" -eq 0 ]]; then
+              break
+            fi
+            if [[ "$decision" -eq 3 && "$reads" -le 6 ]]; then
+              echo "Read $reads: GitHub has not computed whether PR #$PR_NUMBER can merge; reading again in 10 s."
+              sleep 10
+              continue
+            fi
+            echo "::error::Release PR #$PR_NUMBER cannot merge into master at $PINNED_SHA (after $reads reads). Nothing was uploaded. See release-flow.md §8.11."
+            exit 1
+          done
+
   build:
     needs: guard
     if: ${{ !inputs.skip_buid_checks }}
@@ -141,7 +172,7 @@ jobs:
     needs: [ guard, build, ui_tests ]
     if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     name: Deploy to Play, tag, merge PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: production
     steps:
@@ -157,7 +188,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Set up Ruby 3.3
         uses: ruby/setup-ruby@v1
@@ -232,6 +262,38 @@ jobs:
           fi
           echo "Generating Play changelog from $PREV_TAG to $HEAD_SHA"
           bash ./.github/scripts/generate_changelog.sh "$PREV_TAG" "$HEAD_SHA" play "$VERSION_CODE"
+
+      # GUARD: right before the upload, the last point where a stop leaves nothing live. It catches a
+      # push to the release branch, or a rule change, during the build and UI tests (release signing
+      # spec §4.3).
+      - name: Check again that the release PR can merge
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          PR_NUMBER: ${{ needs.guard.outputs.pr_number }}
+          PINNED_SHA: ${{ needs.guard.outputs.sha }}
+        run: |
+          # The first read, then up to 6 more, 10 s apart, while GitHub has not computed it (exit 3).
+          reads=0
+          while :; do
+            reads=$((reads + 1))
+            decision=0
+            if ! gh pr view "$PR_NUMBER" --json number,mergeable,mergeStateStatus,headRefOid > "$RUNNER_TEMP/release-pr.json"; then
+              echo "::error::Could not read release PR #$PR_NUMBER. Nothing was uploaded. See release-flow.md §8.11."
+              exit 1
+            fi
+            python3 .github/scripts/release_pr_guard.py --pr "$RUNNER_TEMP/release-pr.json" --head "$PINNED_SHA" \
+              || decision=$?
+            if [[ "$decision" -eq 0 ]]; then
+              break
+            fi
+            if [[ "$decision" -eq 3 && "$reads" -le 6 ]]; then
+              echo "Read $reads: GitHub has not computed whether PR #$PR_NUMBER can merge; reading again in 10 s."
+              sleep 10
+              continue
+            fi
+            echo "::error::Release PR #$PR_NUMBER cannot merge into master at $PINNED_SHA (after $reads reads). Nothing was uploaded. See release-flow.md §8.11."
+            exit 1
+          done
 
       # The lane checks the store listing for Play Console edits before its upload (spec §8).
       - name: Distribute app to Prod track 🚀

@@ -220,7 +220,7 @@ internal class ClickHandlerTest {
 
     /** The card sends one action carrying nothing, so this uuid came from the body in state. */
     @Test
-    fun `OnStartActionClick under a Forgotten body starts THAT training, no picker`() {
+    fun `OnStartActionClick under a Forgotten body starts THAT training no picker`() {
         val flow = MutableStateFlow(
             baseState.copy(
                 startCardMode = StartCardModeUi.FORGOTTEN_TRAINING,

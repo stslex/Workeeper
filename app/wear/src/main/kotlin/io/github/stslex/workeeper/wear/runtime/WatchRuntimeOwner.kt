@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.wear.runtime
 
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCurrentSetResponse
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandResponse
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.wear.cache.AtomicRecordStorage
 import io.github.stslex.workeeper.wear.cache.BootCountProvider
@@ -31,12 +32,14 @@ import io.github.stslex.workeeper.wear.state.SnapshotReduction
 import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchInteractionEligibility
+import io.github.stslex.workeeper.wear.state.WatchReducerState
 import io.github.stslex.workeeper.wear.state.WatchWorkoutReducer
 import io.github.stslex.workeeper.wear.state.WearDraftPolicy
 import io.github.stslex.workeeper.wear.state.WorkoutSourceVersion
+import io.github.stslex.workeeper.wear.state.activeOutlineOrNull
+import io.github.stslex.workeeper.wear.state.openSetOrNull
 import io.github.stslex.workeeper.wear.state.safeMonotonicAdd
 import io.github.stslex.workeeper.wear.state.sourceVersion
-import io.github.stslex.workeeper.wear.state.targetKeyOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,9 +59,13 @@ internal class WatchRuntimeOwner(
 ) : WatchRuntime {
     private val lock = Any()
     private var reducer = WatchWorkoutReducer()
-    private var cache = newCache()
-    private var ongoing = newCoordinator()
+    private var cache = newCache(storage, clock, bootCount, notification)
+    private var ongoing = WatchOngoingCoordinator(cache, clock, notification, policy)
     private var pendingDraft: PendingDraft? = null
+    private var selection: WatchSelection? = null
+
+    /** The session of the outline [selection] was made on (§7.2 rule 1). */
+    private var selectionSession: CanonicalUuid? = null
     private var receivedAtMs: Long? = null
     private var tombstone = false
     private var recoveryRequired = false
@@ -132,7 +139,7 @@ internal class WatchRuntimeOwner(
      * Returns whether that snapshot was accepted, or null when the reducer did not admit the response
      * at all, which the transport treats as no response.
      */
-    fun receiveCommandResponse(response: CompleteCurrentSetResponse): Boolean? = transition {
+    fun receiveCommandResponse(response: WatchCommandResponse): Boolean? = transition {
         if (response.schemaVersion != WearProtocol.SCHEMA_VERSION) return@transition null
         val currentBoot = bootCount.currentBootCount() ?: return@transition null
         val receivedAt = clock.nowMs()
@@ -202,7 +209,9 @@ internal class WatchRuntimeOwner(
         receivedAt: Long,
         currentBoot: Int,
     ) {
-        ongoing.acceptSnapshot(response, reduction, reducer.state, receivedAt, currentBoot)
+        selection = selection.reconciledWith(response.snapshot, selectionSession)
+        selectionSession = selectionSession.selectionSessionAfter(response.snapshot)
+        ongoing.acceptSnapshot(response, reduction, reducer.state, receivedAt, currentBoot, selection)
         receivedAtMs = receivedAt
         tombstone = response.snapshot.payload is SnapshotPayload.NoSession
         reconcileDraft(response.snapshot)
@@ -211,15 +220,15 @@ internal class WatchRuntimeOwner(
 
     override fun onAction(action: ControllerAction): WatchActionResult = transition {
         val eligibility = if (tombstone) WatchInteractionEligibility() else {
-            WatchInteractionEligibility.from(reducer.state.copy(draft = pendingDraft?.values))
+            WatchInteractionEligibility.from(reducer.state.copy(draft = pendingDraft?.values), selection)
         }
         when (action) {
-            is ControllerAction.AdjustDraft -> editDraft(eligibility.editing) { draft, target ->
+            is ControllerAction.AdjustDraft -> editDraft(eligibility.editing) { draft, exerciseType ->
                 when {
                     action.steps == 0 -> null
                     action.field == NumericField.REPS ->
                         draft.copy(reps = WearDraftPolicy.adjustReps(draft.reps, action.steps))
-                    target.exerciseType == ExerciseTypeWire.WEIGHTED -> draft.copy(
+                    exerciseType == ExerciseTypeWire.WEIGHTED -> draft.copy(
                         weightHundredthsKg = WearDraftPolicy.adjustWeight(draft.weightHundredthsKg, action.steps),
                     )
                     else -> null
@@ -228,15 +237,23 @@ internal class WatchRuntimeOwner(
             is ControllerAction.SetReps -> editDraft(eligibility.editing) { draft, _ ->
                 if (action.value in 0..WearProtocol.MAX_WEAR_REPS) draft.copy(reps = action.value) else null
             }
-            is ControllerAction.SetWeight -> editDraft(eligibility.editing) { draft, target ->
+            is ControllerAction.SetWeight -> editDraft(eligibility.editing) { draft, exerciseType ->
                 val valid = action.value == null || action.value in 0..WearProtocol.MAX_WEAR_WEIGHT_HUNDREDTHS_KG
-                if (valid && target.exerciseType == ExerciseTypeWire.WEIGHTED) {
+                if (valid && exerciseType == ExerciseTypeWire.WEIGHTED) {
                     draft.copy(weightHundredthsKg = action.value)
                 } else {
                     null
                 }
             }
-            ControllerAction.CompleteSet -> if (eligibility.completion) issueCommand() else WatchActionResult.Rejected
+            ControllerAction.CompleteSet -> reducer.state.completeSetBody(selection, pendingDraft?.values)
+                ?.takeIf { eligibility.completion }
+                ?.let(::issueCommand)
+                ?: WatchActionResult.Rejected
+            is ControllerAction.SelectExercise,
+            is ControllerAction.SelectSet,
+            is ControllerAction.SkipExercise,
+            is ControllerAction.ReturnExercise,
+            -> onOutlineAction(action)
             ControllerAction.Retry -> when {
                 eligibility.retry -> reducer.retryCommand(identity.ids.nextId(), clock.nowMs())
                 // The link-failure surface (§7.5): a Loading display after a failed handshake refreshes.
@@ -279,10 +296,12 @@ internal class WatchRuntimeOwner(
 
     private fun restoreLocked() {
         reducer = WatchWorkoutReducer()
-        cache = newCache()
-        ongoing = newCoordinator()
+        cache = newCache(storage, clock, bootCount, notification)
+        ongoing = WatchOngoingCoordinator(cache, clock, notification, policy)
         receivedAtMs = null
         tombstone = false
+        selection = null
+        selectionSession = null
         when (val restored = ongoing.restore()) {
             is CacheReadResult.Absent -> {
                 if (restored.reason == CacheAbsentReason.IO_FAILURE) throw IOException("Snapshot cache read failed")
@@ -294,6 +313,15 @@ internal class WatchRuntimeOwner(
             }
             is CacheReadResult.DisplayOnly -> {
                 reducer.restoreDisplayOnly(restored.snapshot)
+                // The cached selection belongs to the cached snapshot's session; it is reconciled as usual (§7.5).
+                val session = when (val payload = restored.snapshot.payload) {
+                    is SnapshotPayload.Active -> payload.sessionUuid
+                    is SnapshotPayload.PayloadTooLarge -> payload.sessionUuid
+                    SnapshotPayload.NoSession -> null
+                }
+                selection = restored.selection.reconciledWith(restored.snapshot, session)
+                selectionSession = session
+                if (selection != restored.selection) cache.updateSelection(selection)
                 reconcileDraft(restored.snapshot)
                 if (restored.connection == CachedConnection.DISCONNECTED) reducer.markDisconnected()
                 receivedAtMs = restored.receivedAtElapsedRealtimeMs
@@ -322,6 +350,8 @@ internal class WatchRuntimeOwner(
     private fun resetDisplay() {
         reducer = WatchWorkoutReducer()
         pendingDraft = null
+        selection = null
+        selectionSession = null
         receivedAtMs = null
         tombstone = false
         ongoing.displayChanged(WatchDisplayState.Loading)
@@ -338,48 +368,80 @@ internal class WatchRuntimeOwner(
             noSession = tombstone,
             locale = selectedLocale,
             link = link,
+            selection = selection,
         )
         scheduleNextBoundary()
     }
 
+    /** One edit of the draft on the selected `Open` set, which is then its target (§7.3, P6). */
     private fun editDraft(
         enabled: Boolean,
-        change: (CommandDraft, io.github.stslex.workeeper.core.wear.protocol.ActiveTarget) -> CommandDraft?,
+        change: (CommandDraft, ExerciseTypeWire) -> CommandDraft?,
     ): WatchActionResult {
         reducer.expireAuthority(clock.nowMs())
         if (!enabled || reducer.state.authority !is LocalMutationAuthority.Available) return WatchActionResult.Rejected
         val snapshot = (reducer.state.display as? WatchDisplayState.Active)?.snapshot
             ?: return WatchActionResult.Rejected
-        val target = (snapshot.payload as SnapshotPayload.ActiveWithTarget).target
-        val current = pendingDraft?.values ?: CommandDraft(target.reps, target.weightHundredthsKg)
-        val updated = change(current, target) ?: return WatchActionResult.Rejected
-        pendingDraft = if (updated == CommandDraft(target.reps, target.weightHundredthsKg)) {
+        val (exercise, set) = snapshot.selectedOpenSet(selection) ?: return WatchActionResult.Rejected
+        val planned = CommandDraft(set.reps, set.weightHundredthsKg)
+        val current = pendingDraft?.values ?: planned
+        val updated = change(current, exercise.exerciseType) ?: return WatchActionResult.Rejected
+        pendingDraft = if (updated == planned) {
             null
         } else {
-            PendingDraft(snapshot.sourceVersion(), requireNotNull(snapshot.targetKeyOrNull()), updated)
+            PendingDraft(snapshot.sourceVersion(), TargetKey(exercise.performedExerciseUuid, set.position), updated)
         }
         return WatchActionResult.Updated
     }
 
+    /**
+     * §7.3: the draft goes when the source or the selected set changes, or when it equals the
+     * selected set's planned values.
+     */
     private fun reconcileDraft(snapshot: SnapshotData) {
         val pending = pendingDraft ?: return
-        val target = (snapshot.payload as? SnapshotPayload.ActiveWithTarget)?.target
-        val sameSourceAndTarget = snapshot.sourceVersion() == pending.source &&
-            snapshot.targetKeyOrNull() == pending.target
-        if (target == null || !sameSourceAndTarget ||
-            pending.values == CommandDraft(target.reps, target.weightHundredthsKg)
+        val selected = snapshot.selectedOpenSet(selection)
+        val sameSourceAndTarget = selected != null && snapshot.sourceVersion() == pending.source &&
+            TargetKey(selected.first.performedExerciseUuid, selected.second.position) == pending.target
+        if (selected == null || !sameSourceAndTarget ||
+            pending.values == CommandDraft(selected.second.reps, selected.second.weightHundredthsKg)
         ) {
             pendingDraft = null
         }
     }
 
-    private fun issueCommand(): WatchActionResult {
+    /** §7.2 and §7.4: a selection on the admitted outline, or a skip or return it allows. */
+    private fun onOutlineAction(action: ControllerAction): WatchActionResult {
+        val outline = reducer.state.display.activeOutlineOrNull()
+        return when (action) {
+            is ControllerAction.SelectExercise ->
+                outline?.exerciseSelection(action.performedExerciseUuid)?.let(::select)
+            is ControllerAction.SelectSet ->
+                outline?.setSelection(action.performedExerciseUuid, action.setPosition)?.let(::select)
+            is ControllerAction.SkipExercise ->
+                reducer.state.setSkippedBody(action.performedExerciseUuid, skipped = true)?.let(::issueCommand)
+            is ControllerAction.ReturnExercise ->
+                reducer.state.setSkippedBody(action.performedExerciseUuid, skipped = false)?.let(::issueCommand)
+            else -> null
+        } ?: WatchActionResult.Rejected
+    }
+
+    /** A selection the user made (§7.2): a changed one drops the draft (P6) and is cached (§7.5). */
+    private fun select(next: WatchSelection): WatchActionResult {
+        if (next != selection) {
+            selection = next
+            pendingDraft = null
+            cache.updateSelection(next)
+        }
+        return WatchActionResult.Updated
+    }
+
+    private fun issueCommand(body: WatchCommandBody): WatchActionResult {
         val active = (reducer.state.display as? WatchDisplayState.Active)?.snapshot
             ?: return WatchActionResult.Rejected
-        val payload = active.payload as SnapshotPayload.ActiveWithTarget
+        val payload = active.payload as SnapshotPayload.Active
         val authority = reducer.state.authority as? LocalMutationAuthority.Available
             ?: return WatchActionResult.Rejected
-        val draft = pendingDraft?.values ?: CommandDraft(payload.target.reps, payload.target.weightHundredthsKg)
         // §7.6: a command always follows an accepted handshake, which resolved the node id.
         val sourceNodeId = identity.sourceNodeId ?: return WatchActionResult.Rejected
         val fingerprint = FingerprintCommand(
@@ -389,12 +451,7 @@ internal class WatchRuntimeOwner(
             databaseEpoch = active.databaseEpoch,
             sessionUuid = payload.sessionUuid,
             sessionRevision = payload.sessionRevision,
-            performedExerciseUuid = payload.target.performedExerciseUuid,
-            setPosition = payload.target.setPosition,
-            reps = draft.reps,
-            weightHundredthsKg = draft.weightHundredthsKg,
-            exerciseType = payload.target.exerciseType,
-            setType = payload.target.setType,
+            body = body,
             mutationLeaseId = authority.leaseId,
             mutationLeaseGeneration = authority.leaseGeneration,
         )
@@ -421,12 +478,42 @@ internal class WatchRuntimeOwner(
         return listOfNotNull(authority, ongoingDeadline, cacheDeadline).minOrNull()
     }
 
-    private fun newCache() = WatchSnapshotCache(storage, clock, bootCount, OngoingExpiryHandler(notification::cancel))
-
-    private fun newCoordinator() = WatchOngoingCoordinator(cache, clock, notification, policy)
-
     private data class PendingDraft(val source: WorkoutSourceVersion, val target: TargetKey, val values: CommandDraft)
 }
+
+internal fun newCache(
+    storage: AtomicRecordStorage,
+    clock: ElapsedRealtimeClock,
+    bootCount: BootCountProvider,
+    notification: OngoingNotification,
+) = WatchSnapshotCache(storage, clock, bootCount, OngoingExpiryHandler(notification::cancel))
+
+/** `set_exercise_skipped` for a skip or a return the outline allows now (§7.1, §7.4), else null. */
+internal fun WatchReducerState.setSkippedBody(uuid: CanonicalUuid, skipped: Boolean): WatchCommandBody? =
+    WatchCommandBody.SetExerciseSkipped(uuid, skipped)
+        .takeIf { WatchInteractionEligibility.canSetSkipped(this, uuid, skipped) }
+
+/** `complete_set` for the selected `Open` set: its types from the outline, [draft] or its plan. */
+internal fun WatchReducerState.completeSetBody(
+    selection: WatchSelection?,
+    draft: CommandDraft?,
+): WatchCommandBody.CompleteSet? {
+    val snapshot = (display as? WatchDisplayState.Active)?.snapshot ?: return null
+    val (exercise, set) = snapshot.selectedOpenSet(selection) ?: return null
+    val values = draft ?: CommandDraft(set.reps, set.weightHundredthsKg)
+    return WatchCommandBody.CompleteSet(
+        performedExerciseUuid = exercise.performedExerciseUuid,
+        setPosition = set.position,
+        reps = values.reps,
+        weightHundredthsKg = values.weightHundredthsKg,
+        exerciseType = exercise.exerciseType,
+        setType = set.setType,
+    )
+}
+
+/** The selected exercise and its `Open` set on this snapshot's outline, else null. */
+internal fun SnapshotData.selectedOpenSet(selection: WatchSelection?) =
+    selection?.let { current -> (payload as? SnapshotPayload.Active)?.openSetOrNull(current) }
 
 /**
  * wear-paired-transport.md §7.5: a retryable command issues its one further attempt with its current

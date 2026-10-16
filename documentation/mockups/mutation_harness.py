@@ -256,11 +256,11 @@ CASES: list[tuple[str, str, str, str, str]] = [
     ),
     (
         "blank-start CTA stops withdrawing while a session runs (B27's guard)",
-        "feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/"
+        "feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/"
         "mvi/store/AllTrainingsStore.kt",
         "        val showStartBlank: Boolean get() = hasActiveSession.not()",
         "        val showStartBlank: Boolean get() = true",
-        ":feature:all-trainings:testDebugUnitTest --tests *StartBlankGateTest*",
+        ":feature:all-trainings:testAndroidHostTest --tests *StartBlankGateTest*",
     ),
 ]
 

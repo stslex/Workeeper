@@ -157,7 +157,7 @@ internal class HomeUiMapperTest {
     }
 
     @Test
-    fun `week mapper renders count as digits, resolves the unit plural, fills trained days`() {
+    fun `week mapper renders count as digits resolves the unit plural fills trained days`() {
         val week = WeekReadoutDomain(
             sessionsThisWeek = 3,
             trainedDayIndexes = setOf(0, 2, 4),
@@ -202,7 +202,7 @@ internal class HomeUiMapperTest {
     // ---- start card readout → body -------------------------------------------------------
 
     @Test
-    fun `days-since readout renders digits, unit and the name-date anchor`() {
+    fun `days-since readout renders digits unit and the name-date anchor`() {
         val body = StartCardReadoutDomain.DaysSince(
             daysSince = 4,
             lastTrainingName = "Ноги",
@@ -245,7 +245,7 @@ internal class HomeUiMapperTest {
     }
 
     @Test
-    fun `tag-idle readout with all groups trained today draws empty bars, not NaN`() {
+    fun `tag-idle readout with all groups trained today draws empty bars not NaN`() {
         val body = StartCardReadoutDomain.TagIdle(
             entries = listOf(
                 StartCardReadoutDomain.TagIdle.Entry(name = "спина", daysIdle = 0),

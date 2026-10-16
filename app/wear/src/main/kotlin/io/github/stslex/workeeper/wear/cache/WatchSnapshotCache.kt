@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.wear.cache
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
@@ -37,6 +38,8 @@ internal sealed interface CacheReadResult {
         val persistedEffectiveMutationWindowMs: Long?,
         val ongoingStopAtElapsedRealtimeMs: Long?,
         val mutationWindowElapsed: Boolean,
+        /** The selection the watch had on this outline (wear-phase-2-exercise-list.md §7.5). */
+        val selection: OutlineSelection?,
     ) : CacheReadResult
 }
 
@@ -72,6 +75,7 @@ internal class WatchSnapshotCache(
         effectiveMutationWindowMs: Long?,
         ongoingStopAtElapsedRealtimeMs: Long?,
         connection: CachedConnection,
+        selection: OutlineSelection?,
     ) {
         publish(
             CacheRecord(
@@ -81,8 +85,19 @@ internal class WatchSnapshotCache(
                 ongoingStopAtElapsedRealtimeMs = ongoingStopAtElapsedRealtimeMs,
                 connection = connection,
                 payload = encodedSnapshot.copyOf(),
+                selection = selection,
             ),
         )
+    }
+
+    /**
+     * §7.5: rewrites the published snapshot record with [selection], its payload and metadata kept.
+     * Nothing to write without one: no record, or a no-session tombstone, which has no selection.
+     */
+    fun updateSelection(selection: OutlineSelection?) {
+        val record = publishedRecord?.takeUnless(CacheRecord::isNoSessionTombstone) ?: return
+        val replacement = record.copy(selection = selection)
+        if (replacement != record) publish(replacement)
     }
 
     fun replaceWithNoSessionTombstone(
@@ -159,11 +174,12 @@ internal class WatchSnapshotCache(
             persistedEffectiveMutationWindowMs = record.effectiveMutationWindowMs,
             ongoingStopAtElapsedRealtimeMs = record.ongoingStopAtElapsedRealtimeMs,
             mutationWindowElapsed = mutationWindowElapsed,
+            selection = record.selection,
         )
     }
 
     private fun SnapshotData.withoutMutationAuthority(): SnapshotData {
-        val active = payload as? SnapshotPayload.ActiveWithTarget ?: return this
+        val active = payload as? SnapshotPayload.Active ?: return this
         return copy(
             payload = active.copy(
                 mutationAuthority = MutationAuthority.Unavailable(

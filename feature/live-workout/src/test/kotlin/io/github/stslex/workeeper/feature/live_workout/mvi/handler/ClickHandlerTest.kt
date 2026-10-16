@@ -11,8 +11,10 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -123,7 +125,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnExerciseHeaderClick collapse is pure — sets, statuses and siblings untouched`() {
+    fun `OnExerciseHeaderClick collapse is pure — sets statuses and siblings untouched`() {
         val stateFlow = MutableStateFlow(
             baseState(loggedExercise()).copy(
                 expandedExerciseUuids = persistentSetOf("pe-1"),
@@ -223,7 +225,7 @@ internal class ClickHandlerTest {
             store = store,
         )
 
-        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        handler.invoke(Action.Click.OnSkipExercise("pe-1", skipped = true))
         store.runLatestLaunch(this)
 
         // §6.1 / C9: no dialog, no wipe — the logged set survives the skip.
@@ -246,12 +248,62 @@ internal class ClickHandlerTest {
             store = store,
         )
 
-        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        handler.invoke(Action.Click.OnSkipExercise("pe-1", skipped = false))
         store.runLatestLaunch(this)
 
         assertTrue(store.state.value.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
         assertEquals(1, store.state.value.exercises.first().performedSets.size)
         coVerify(exactly = 1) { interactor.setSkipped("pe-1", false) }
+    }
+
+    @Test
+    fun `P14 - a watch skip that lands while the menu shows Skip exercise survives the tap and nothing is written`() =
+        runTest {
+            val store = FakeLiveWorkoutHandlerStore(
+                baseState(loggedExercise()).copy(bottomSheetState = BottomSheetState.ExerciseMenu("pe-1")),
+            )
+            val handler = ClickHandler(
+                interactor = interactor,
+                resourceWrapper = resourceWrapper,
+                pickerHandler = pickerHandler,
+                setMutator = setMutator,
+                store = store,
+            )
+            // The menu showed "Skip exercise", so its item carries that intent; the watch's skip lands first.
+            val tap = Action.Click.OnSkipExercise("pe-1", skipped = true)
+            store.updateState { setMutator.applyExternalWrite(it, ExternalSkipUiModel("pe-1", skipped = true)) }
+
+            handler.invoke(tap)
+            store.runLatestLaunch(this)
+
+            assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercises.first().status)
+            coVerify(exactly = 0) { interactor.setSkipped(any(), any()) }
+        }
+
+    @Test
+    fun `the phone's own skip and return give the state the same skip and return from the watch give`() = runTest {
+        listOf(
+            loggedExercise() to true,
+            loggedExercise().copy(status = ExerciseStatusUiModel.SKIPPED) to false,
+        ).forEach { (exercise, skipped) ->
+            val initial = baseState(exercise)
+            val store = FakeLiveWorkoutHandlerStore(initial)
+            val handler = ClickHandler(
+                interactor = interactor,
+                resourceWrapper = resourceWrapper,
+                pickerHandler = pickerHandler,
+                setMutator = setMutator,
+                store = store,
+            )
+
+            handler.invoke(Action.Click.OnSkipExercise("pe-1", skipped = skipped))
+
+            assertEquals(
+                setMutator.applyExternalWrite(initial, ExternalSkipUiModel("pe-1", skipped = skipped)),
+                store.state.value,
+                "skipped = $skipped",
+            )
+        }
     }
 
     @Test

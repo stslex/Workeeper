@@ -74,9 +74,11 @@ internal class WorkoutTileRenderer(private val context: Context) {
             copy(model.statusCopy()),
         )
         WearSurfaceKind.ACTIVE -> activeLines(model)
+        // wear-phase-2-exercise-list.md §7.6: a selected `Blocked` set or an exercise without sets.
         WearSurfaceKind.PHONE_ACTION_NO_SETS,
         WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
         -> listOf(
+            model.trainingName ?: context.getString(R.string.workout_generic),
             model.exerciseName ?: context.getString(R.string.exercise_generic),
             copy(model.statusCopy()),
         )
@@ -127,6 +129,6 @@ internal class WorkoutTileRenderer(private val context: Context) {
     private fun copy(copy: WearCopy): String = context.getString(copy.resource)
 
     private companion object {
-        const val RESOURCE_VERSION = "wear_phase_1_v1"
+        const val RESOURCE_VERSION = "wear_phase_2_v1"
     }
 }

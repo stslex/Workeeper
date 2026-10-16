@@ -519,7 +519,7 @@ internal class ClickHandlerTest {
 
     /** §4 row 2: `✕` is a draft edit; its undo restores the item where it stood. */
     @Test
-    fun `remove emits the undo toast and the undo restores item, position and expansion`() {
+    fun `remove emits the undo toast and the undo restores item position and expansion`() {
         stateFlow.value = stateFlow.value.copy(
             mode = State.Mode.Edit(isCreate = false),
             exercises = persistentListOf(exercise("ex-1"), exercise("ex-2", position = 1)),

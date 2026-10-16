@@ -156,7 +156,7 @@ internal class ExerciseDeferredDeleteDbTest {
 
     /** The real catalog resolves the label — no static mock — and Back rides after the queue. */
     @Test
-    fun `back is consumed only after the snackbar is queued, with the real undo label`() = runTest {
+    fun `back is consumed only after the snackbar is queued with the real undo label`() = runTest {
         val uuid = seedExercise()
 
         val pending = confirmDelete(uuid)

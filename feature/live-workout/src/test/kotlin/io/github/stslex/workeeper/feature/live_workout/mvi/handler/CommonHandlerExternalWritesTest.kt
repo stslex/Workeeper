@@ -17,6 +17,8 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalSkipDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExternalWriteDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PerformedExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
@@ -28,6 +30,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.undoPending
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
@@ -80,12 +83,12 @@ internal class CommonHandlerExternalWritesTest {
     private val scheduler = TestCoroutineScheduler()
     private val dispatcher = StandardTestDispatcher(scheduler)
     private val lifetime = AppScopeLifetime()
-    private val writes = MutableSharedFlow<ExternalSetDomain>(extraBufferCapacity = WRITE_BUFFER)
+    private val writes = MutableSharedFlow<ExternalWriteDomain>(extraBufferCapacity = WRITE_BUFFER)
     private val loads = Loads()
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
-        every { observeExternalSetWrites(SESSION) } returns writes
+        every { observeExternalWrites(SESSION) } returns writes
         coEvery { loadSession(SESSION) } coAnswers { loads.next() }
     }
     private val handlerStore = LiveWorkoutHandlerStoreImpl()
@@ -163,7 +166,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `A - an open undo window that holds the exercise gets the same patch, so undo keeps the set`() {
+    fun `A - an open undo window that holds the exercise gets the same patch so undo keeps the set`() {
         open()
         val before = store.state.value
         store.updateState {
@@ -252,10 +255,164 @@ internal class CommonHandlerExternalWritesTest {
 
     // endregion
 
+    // region skips (wear-phase-2-exercise-list.md §6.5)
+
+    @Test
+    fun `A - a skip for a shown exercise sets its status and keeps its sets and drafts`() {
+        open()
+        emit(watchSet(PE_1, position = 0))
+        store.updateState {
+            it.copy(
+                setDrafts = persistentMapOf(State.DraftKey(PE_1, 1) to draft(position = 1, weight = 90.0, reps = 3)),
+            )
+        }
+        val before = store.state.value
+
+        emit(watchSkip(PE_1, skipped = true))
+
+        val skipped = store.state.value
+        assertEquals(ExerciseStatusUiModel.SKIPPED, skipped.exercise(PE_1).status)
+        assertEquals(before.exercise(PE_1).performedSets, skipped.exercise(PE_1).performedSets)
+        assertEquals(before.setDrafts, skipped.setDrafts)
+        assertEquals(1, loads.count, "applied in place, the session was not read again")
+
+        emit(watchSkip(PE_1, skipped = false))
+
+        val returned = store.state.value
+        assertTrue(returned.exercise(PE_1).status != ExerciseStatusUiModel.SKIPPED, "returned to the session")
+        assertEquals(before.exercise(PE_1).performedSets, returned.exercise(PE_1).performedSets)
+        assertEquals(before.setDrafts, returned.setDrafts)
+    }
+
+    @Test
+    fun `A - an open undo window that holds the exercise gets the same skip so undo keeps it`() {
+        open()
+        val before = store.state.value
+        store.updateState {
+            it.copy(pendingUndo = undoWindow(before, restoreExercises = before.exercises))
+        }
+
+        emit(watchSkip(PE_1, skipped = true))
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercise(PE_1).status)
+        with(handlerStore) { undoPending(interactor, setMutator, onError = {}) }
+
+        assertNull(store.state.value.pendingUndo)
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercise(PE_1).status)
+    }
+
+    @Test
+    fun `B - a skip for a soft-deleted exercise patches only the undo window`() {
+        open()
+        val before = store.state.value
+        store.updateState {
+            it.copy(
+                exercises = before.exercises.filterNot { exercise -> exercise.performedExerciseUuid == PE_2 }
+                    .toImmutableList(),
+                pendingUndo = undoWindow(before, restoreExercises = before.exercises),
+            )
+        }
+        val deleted = store.state.value
+
+        emit(watchSkip(PE_2, skipped = true))
+
+        val after = store.state.value
+        assertEquals(deleted.exercises, after.exercises, "the screen does not show the deleted exercise again")
+        val restored = requireNotNull(after.pendingUndo).restoreExercises
+            .first { it.performedExerciseUuid == PE_2 }
+        assertEquals(ExerciseStatusUiModel.SKIPPED, restored.status)
+    }
+
+    @Test
+    fun `C - a skip for an exercise in neither is ignored`() {
+        open()
+        val before = store.state.value
+
+        emit(watchSkip("pe-unknown", skipped = true))
+
+        assertEquals(before, store.state.value)
+    }
+
+    @Test
+    fun `a skip applied twice gives the state of the skip applied once`() {
+        open()
+
+        emit(watchSkip(PE_1, skipped = true))
+        val once = store.state.value
+        emit(watchSkip(PE_1, skipped = true))
+
+        assertEquals(ExerciseStatusUiModel.SKIPPED, once.exercise(PE_1).status)
+        assertEquals(once, store.state.value, "the flag is set, never toggled")
+    }
+
+    @Test
+    fun `a skip changes the exercise status and leaves every other screen state as it was`() {
+        open()
+        store.updateState {
+            it.copy(
+                setDrafts = persistentMapOf(
+                    State.DraftKey(PE_1, 0) to draft(position = 0, weight = 90.0, reps = 3),
+                    State.DraftKey(PE_2, 0) to draft(position = 0, weight = 60.0, reps = 10),
+                ),
+                rowCountOverrides = persistentMapOf(PE_2 to 4),
+                activeExerciseUuids = persistentSetOf(PE_2),
+                expandedExerciseUuids = persistentSetOf(PE_1, PE_2),
+                dialogState = DialogState.DeleteDialog(sessionName = "Push Day", progressLabel = "0/2"),
+                bottomSheetState = BottomSheetState.ExerciseMenu(PE_1),
+                trainingNameDraft = "Push Day B",
+                isTrainingNameEditing = true,
+            )
+        }
+        val before = store.state.value
+
+        emit(watchSkip(PE_1, skipped = true))
+
+        val after = store.state.value
+        assertEquals(ExerciseStatusUiModel.SKIPPED, after.exercise(PE_1).status)
+        assertEquals(before.exercise(PE_1).performedSets, after.exercise(PE_1).performedSets)
+        assertEquals(before.setDrafts, after.setDrafts)
+        assertEquals(before.rowCountOverrides, after.rowCountOverrides)
+        assertEquals(before.expandedExerciseUuids, after.expandedExerciseUuids)
+        assertEquals(before.dialogState, after.dialogState)
+        assertEquals(before.bottomSheetState, after.bottomSheetState, "an open exercise menu stays open")
+        assertEquals(before.trainingNameDraft, after.trainingNameDraft)
+        assertEquals(before.isTrainingNameEditing, after.isTrainingNameEditing)
+        assertEquals(before.isFinishInFlight, after.isFinishInFlight)
+        assertEquals(before.isAddExerciseInFlight, after.isAddExerciseInFlight)
+        assertEquals(before.pendingUndo, after.pendingUndo)
+        assertEquals(1, loads.count, "no re-read of the session")
+    }
+
+    @Test
+    fun `Init - a skip delivered between the load's read and its apply is shown after the load`() {
+        loads.gated = true
+        open()
+
+        emit(watchSkip(PE_1, skipped = true))
+        loads.release()
+
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercise(PE_1).status)
+    }
+
+    @Test
+    fun `processReload - a skip delivered between the load's read and its apply is shown after the load`() {
+        open()
+        loads.gated = true
+        store.consume(Action.Common.PlanResultReceived(saved = true))
+        scheduler.runCurrent()
+
+        emit(watchSkip(PE_1, skipped = true))
+        loads.release()
+
+        assertEquals(2, loads.count)
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercise(PE_1).status)
+    }
+
+    // endregion
+
     // region loads (D10)
 
     @Test
-    fun `Init starts its load only once the subscription is active, and a write between them is applied`() {
+    fun `Init starts its load only once the subscription is active and a write between them is applied`() {
         // Committed and published just after the load's read began: the read does not hold it.
         loads.onRead = {
             loads.committed += watchSet(PE_1, position = 0)
@@ -294,7 +451,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `a return to the screen without a save, then a write, shows the write`() {
+    fun `a return to the screen without a save then a write shows the write`() {
         open()
         store.dispose()
         scheduler.runCurrent()
@@ -309,12 +466,12 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `a return with a save keeps a write delivered during both loads, the Init load applied last`() {
+    fun `a return with a save keeps a write delivered during both loads the Init load applied last`() {
         returnWithSave(initLoadLast = true)
     }
 
     @Test
-    fun `a return with a save keeps a write delivered during both loads, the reload applied last`() {
+    fun `a return with a save keeps a write delivered during both loads the reload applied last`() {
         returnWithSave(initLoadLast = false)
     }
 
@@ -358,7 +515,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `Init with a plan's training starts the session, subscribes before its load and shows a later write`() {
+    fun `Init with a plan's training starts the session subscribes before its load and shows a later write`() {
         route = State.create(sessionUuid = null, trainingUuid = TRAINING)
         coEvery { interactor.startSession(TRAINING) } returns SESSION
 
@@ -369,7 +526,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     @Test
-    fun `Init from Quick start creates the ad-hoc session, subscribes before its load and shows a later write`() {
+    fun `Init from Quick start creates the ad-hoc session subscribes before its load and shows a later write`() {
         route = State.create(sessionUuid = null, trainingUuid = null)
         coEvery { interactor.createAdhocSession(name = "", exerciseUuids = emptyList()) } returns
             AdhocSessionResult(sessionUuid = SESSION, trainingUuid = TRAINING)
@@ -385,9 +542,10 @@ internal class CommonHandlerExternalWritesTest {
     // region atomic writes (D14)
 
     @Test
-    fun `no store write reads then writes across Init, a load, a watch write, timer ticks and a failed load`() {
+    fun `no store write reads then writes across Init a load a watch write timer ticks and a failed load`() {
         open()
         emit(watchSet(PE_1, position = 0))
+        emit(watchSkip(PE_2, skipped = true))
         val shown = mutableListOf(store.state.value.nowMillis)
         repeat(TIMER_TICKS) {
             // Each tick reads the wall clock; let it move before the next one.
@@ -467,7 +625,7 @@ internal class CommonHandlerExternalWritesTest {
     }
 
     /** The bridge's order: the write commits, then it is published. */
-    private fun emit(write: ExternalSetDomain) {
+    private fun emit(write: ExternalWriteDomain) {
         loads.committed += write
         check(writes.tryEmit(write))
         scheduler.runCurrent()
@@ -481,6 +639,9 @@ internal class CommonHandlerExternalWritesTest {
         assertEquals(WATCH_REPS, set.reps)
         assertTrue(set.isDone)
     }
+
+    private fun State.exercise(uuid: String): LiveExerciseUiModel =
+        exercises.first { it.performedExerciseUuid == uuid }
 
     private fun undoWindow(state: State, restoreExercises: List<LiveExerciseUiModel>) =
         PendingUndo(
@@ -499,7 +660,7 @@ internal class CommonHandlerExternalWritesTest {
         var gated = false
         var count = 0
         var onRead: () -> Unit = {}
-        val committed = mutableListOf<ExternalSetDomain>()
+        val committed = mutableListOf<ExternalWriteDomain>()
         val subscribersAtRead = mutableListOf<Int>()
         val pending = ArrayDeque<CompletableDeferred<SessionSnapshotDomain>>()
 
@@ -542,6 +703,11 @@ internal class CommonHandlerExternalWritesTest {
             set = PlanSetDomain(weight = WATCH_WEIGHT, reps = WATCH_REPS, type = SetTypeDomain.WORK),
         )
 
+        fun watchSkip(exercise: String, skipped: Boolean) = ExternalSkipDomain(
+            performedExerciseUuid = exercise,
+            skipped = skipped,
+        )
+
         fun draft(position: Int, weight: Double, reps: Int) = LiveSetUiModel(
             position = position,
             weight = weight,
@@ -551,7 +717,7 @@ internal class CommonHandlerExternalWritesTest {
         )
 
         /** The session as the database holds it, with [committed] watch writes. */
-        fun snapshot(committed: List<ExternalSetDomain> = emptyList()) = SessionSnapshotDomain(
+        fun snapshot(committed: List<ExternalWriteDomain> = emptyList()) = SessionSnapshotDomain(
             session = SessionDomain(
                 uuid = SESSION,
                 trainingUuid = TRAINING,
@@ -572,27 +738,32 @@ internal class CommonHandlerExternalWritesTest {
             uuid: String,
             exerciseUuid: String,
             position: Int,
-            committed: List<ExternalSetDomain>,
+            committed: List<ExternalWriteDomain>,
         ) = LiveExerciseDomain(
             performed = PerformedExerciseDomain(
                 uuid = uuid,
                 sessionUuid = SESSION,
                 exerciseUuid = exerciseUuid,
                 position = position,
-                skipped = false,
+                skipped = committed.filterIsInstance<ExternalSkipDomain>()
+                    .lastOrNull { it.performedExerciseUuid == uuid }
+                    ?.skipped
+                    ?: false,
                 exerciseName = "Bench press",
             ),
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             planSets = List(3) { PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK) },
-            performedSets = committed.filter { it.performedExerciseUuid == uuid }.map { write ->
-                SetDomain(
-                    uuid = "set-$uuid-${write.position}",
-                    weight = write.set.weight,
-                    reps = write.set.reps,
-                    type = write.set.type,
-                    position = write.position,
-                )
-            },
+            performedSets = committed.filterIsInstance<ExternalSetDomain>()
+                .filter { it.performedExerciseUuid == uuid }
+                .map { write ->
+                    SetDomain(
+                        uuid = "set-$uuid-${write.position}",
+                        weight = write.set.weight,
+                        reps = write.set.reps,
+                        type = write.set.type,
+                        position = write.position,
+                    )
+                },
             isPlanAttached = true,
         )
     }

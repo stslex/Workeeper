@@ -2,12 +2,15 @@
 package io.github.stslex.workeeper.wear.runtime
 
 import io.github.stslex.workeeper.core.wear.protocol.ActiveWorkoutSnapshotResponse
-import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.WatchCommandBody
 import io.github.stslex.workeeper.core.wear.protocol.WatchDecodeResult
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import io.github.stslex.workeeper.core.wear.protocol.exercise
 import io.github.stslex.workeeper.wear.cache.CacheFraming
 import io.github.stslex.workeeper.wear.ongoing.OngoingNotification
 import io.github.stslex.workeeper.wear.ongoing.OngoingNotificationRequest
@@ -81,7 +84,7 @@ internal class WatchRuntimeOwnerTest {
         assertNull(env.owner.surface.value.weightHundredthsKg)
         assertEquals(12, env.owner.surface.value.reps)
         assertTrue(env.owner.surface.value.hasUnsubmittedDraft)
-        assertEquals(10_000, cachedActive(env).target.weightHundredthsKg)
+        assertEquals(10_000, ruleRSet(cachedActive(env)).weightHundredthsKg)
     }
 
     @Test
@@ -96,8 +99,9 @@ internal class WatchRuntimeOwnerTest {
             env.owner.onAction(ControllerAction.CompleteSet),
             "Completion must return an issued command bound to its fingerprint",
         )
-        assertNull(result.fingerprint.weightHundredthsKg)
-        assertEquals(0, result.fingerprint.setPosition)
+        val body = result.fingerprint.body as WatchCommandBody.CompleteSet
+        assertNull(body.weightHundredthsKg)
+        assertEquals(0, body.setPosition)
         assertEquals(1, env.owner.surface.value.setOrdinal)
         assertEquals(CompletionUnavailableReason.COMMAND_IN_FLIGHT, env.owner.surface.value.completionUnavailableReason)
         assertFalse(env.owner.surface.value.completeEnabled)
@@ -105,7 +109,7 @@ internal class WatchRuntimeOwnerTest {
         assertNull(env.owner.surface.value.weightHundredthsKg)
         assertEquals(8, env.owner.surface.value.reps)
         assertEquals(WatchActionResult.Rejected, env.owner.onAction(ControllerAction.CompleteSet))
-        assertEquals(0, cachedActive(env).target.setPosition)
+        assertEquals(0, ruleRSet(cachedActive(env)).position)
     }
 
     @Test
@@ -175,9 +179,7 @@ internal class WatchRuntimeOwnerTest {
         val env = RuntimeTestEnvironment()
         env.accept()
         env.owner.onAction(ControllerAction.SetReps(12))
-        val incoming = ReducerTestFixtures.active(leaseGeneration = 2)
-        val payload = incoming.payload as SnapshotPayload.ActiveWithTarget
-        env.accept(incoming.copy(payload = payload.copy(target = payload.target.copy(reps = 12))))
+        env.accept(ReducerTestFixtures.withRuleRReps(ReducerTestFixtures.active(leaseGeneration = 2), reps = 12))
         assertEquals(12, env.owner.surface.value.reps)
         assertFalse(env.owner.surface.value.hasUnsubmittedDraft)
     }
@@ -190,15 +192,30 @@ internal class WatchRuntimeOwnerTest {
         env.trace.clear()
         val collection = env.recordPublications()
         try {
-            assertTrue(env.accept(completeSnapshot()))
-            assertTrue(env.trace.indexOf("cancel") < env.trace.indexOf("surface:WORKOUT_COMPLETE"))
-            assertTrue(env.trace.indexOf("cache:null") < env.trace.indexOf("surface:WORKOUT_COMPLETE"))
-            assertEquals(WearSurfaceKind.WORKOUT_COMPLETE, env.owner.surface.value.kind)
+            assertTrue(env.accept(tooLargeSnapshot()))
+            assertTrue(env.trace.indexOf("cancel") < env.trace.indexOf("surface:PAYLOAD_TOO_LARGE"))
+            assertTrue(env.trace.indexOf("cache:null") < env.trace.indexOf("surface:PAYLOAD_TOO_LARGE"))
+            assertEquals(WearSurfaceKind.PAYLOAD_TOO_LARGE, env.owner.surface.value.kind)
             assertFalse(env.owner.surface.value.hasUnsubmittedDraft)
             assertEquals(OngoingStatus.Inactive, env.owner.ongoingStatus.value)
         } finally {
             collection.cancel()
         }
+    }
+
+    @Test
+    fun allFinishedOutlineShowsWorkoutCompleteAndKeepsTheOngoingIndicator() {
+        val env = RuntimeTestEnvironment()
+        env.accept()
+        env.owner.onAction(ControllerAction.SetReps(12))
+
+        assertTrue(env.accept(completeSnapshot()))
+
+        assertEquals(WearSurfaceKind.WORKOUT_COMPLETE, env.owner.surface.value.kind)
+        assertFalse(env.owner.surface.value.hasUnsubmittedDraft)
+        // §7.6: received at 1 000 ms, the full 120 000 ms window and the 5 000 ms reconnect window.
+        assertEquals(OngoingStatus.Scheduled(126_000L), env.owner.ongoingStatus.value)
+        assertNull(env.owner.snapshot.value.selection, "an outline without an open exercise has no selection")
     }
 
     @Test
@@ -242,11 +259,10 @@ internal class WatchRuntimeOwnerTest {
     @Test
     fun writeFailureAfterAtomicPublicationRecoversDurableSuccessorReadOnly() {
         val matching = ReducerTestFixtures.active(leaseGeneration = 2)
-        val active = matching.payload as SnapshotPayload.ActiveWithTarget
         val successors = listOf(
             ReducerTestFixtures.active(revision = 2, leaseGeneration = 2, targetPosition = 1),
             ReducerTestFixtures.active(revision = 2, leaseGeneration = 2),
-            matching.copy(payload = active.copy(target = active.target.copy(reps = 12))),
+            ReducerTestFixtures.withRuleRReps(matching, reps = 12),
         )
         successors.forEach { successor ->
             val env = RuntimeTestEnvironment()
@@ -260,8 +276,8 @@ internal class WatchRuntimeOwnerTest {
             assertFalse(env.owner.surface.value.completeEnabled)
             env.storage.failure = null
             val recovered = WearSurfaceMapper.map(env.owner.onWake())
-            val target = (successor.payload as SnapshotPayload.ActiveWithTarget).target
-            assertEquals(target.setOrdinal, recovered.setOrdinal)
+            val (ordinal, target) = ReducerTestFixtures.ruleROpenSet(successor)
+            assertEquals(ordinal, recovered.setOrdinal)
             assertEquals(target.reps, recovered.reps, "Recovery must reconcile with the durable canonical values")
             assertFalse(recovered.hasUnsubmittedDraft, "Changed source or accepted canonical values clear the draft")
             assertFalse(recovered.completeEnabled)
@@ -525,20 +541,30 @@ internal class WatchRuntimeOwnerTest {
         assertEquals(1, env.notification.posts.size)
     }
 
-    private fun cachedActive(env: RuntimeTestEnvironment): SnapshotPayload.ActiveWithTarget {
-        val record = requireNotNull(CacheFraming.decode(requireNotNull(env.storage.bytes)))
-        val decoded = WearProtocolCodec.decodeForWatch(requireNotNull(record.payload)) as WatchDecodeResult.Success
-        return (decoded.envelope as ActiveWorkoutSnapshotResponse).snapshot.payload as SnapshotPayload.ActiveWithTarget
+    private fun ruleRSet(payload: SnapshotPayload.Active): OutlineSet.Open {
+        val selection = requireNotNull(OutlineRules.defaultSelection(payload))
+        val exercise = requireNotNull(payload.exercise(selection.performedExerciseUuid))
+        return exercise.sets.single { it.position == selection.setPosition } as OutlineSet.Open
     }
 
-    private fun completeSnapshot(): SnapshotData = SnapshotData(
+    private fun cachedActive(env: RuntimeTestEnvironment): SnapshotPayload.Active {
+        val record = requireNotNull(CacheFraming.decode(requireNotNull(env.storage.bytes)))
+        val decoded = WearProtocolCodec.decodeForWatch(requireNotNull(record.payload)) as WatchDecodeResult.Success
+        return (decoded.envelope as ActiveWorkoutSnapshotResponse).snapshot.payload as SnapshotPayload.Active
+    }
+
+    /** Every exercise finished or skipped: workout complete, still `Active` (§5.3, §7.1). */
+    private fun completeSnapshot(): SnapshotData {
+        val active = ReducerTestFixtures.active(revision = 2, leaseGeneration = 2)
+        val exercises = listOf(
+            ReducerTestFixtures.outlineExercise(ReducerTestFixtures.exerciseA, listOf(ReducerTestFixtures.done(0))),
+            ReducerTestFixtures.outlineExercise(ReducerTestFixtures.laterExercise, emptyList(), skipped = true),
+        )
+        return active.copy(payload = (active.payload as SnapshotPayload.Active).copy(exercises = exercises))
+    }
+
+    private fun tooLargeSnapshot(): SnapshotData = SnapshotData(
         ReducerTestFixtures.epoch,
-        SnapshotPayload.WorkoutComplete(
-            ReducerTestFixtures.sessionA,
-            2,
-            BoundedDisplayName.Value("Training"),
-            2,
-            2,
-        ),
+        SnapshotPayload.PayloadTooLarge(ReducerTestFixtures.sessionA, 2),
     )
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
-import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
+import io.github.stslex.workeeper.core.wear.protocol.CommandOutcome
 import io.github.stslex.workeeper.wear.state.CommandIssueResult
 import io.github.stslex.workeeper.wear.state.CommandStatus
 import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
@@ -63,7 +63,7 @@ internal class WearRefreshRequiredCompletionTest {
             receiveCommandResponse(
                 ReducerTestFixtures.response(
                     correlationId = correlation,
-                    outcome = CompleteCommandOutcome.Applied,
+                    outcome = CommandOutcome.Applied,
                     replacement = ReducerTestFixtures.active(revision = 4, leaseGeneration = 2, targetPosition = 1),
                 ),
                 1_002,

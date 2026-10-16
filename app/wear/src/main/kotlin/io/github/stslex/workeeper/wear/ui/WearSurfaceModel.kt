@@ -5,17 +5,25 @@ import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
 import io.github.stslex.workeeper.core.wear.protocol.ExerciseTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
-import io.github.stslex.workeeper.core.wear.protocol.PhoneActionReason
+import io.github.stslex.workeeper.core.wear.protocol.OutlineExercise
+import io.github.stslex.workeeper.core.wear.protocol.OutlineRules
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSelection
+import io.github.stslex.workeeper.core.wear.protocol.OutlineSet
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
+import io.github.stslex.workeeper.core.wear.protocol.exercise
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.state.ActiveFreshness
+import io.github.stslex.workeeper.wear.state.CommandTarget
+import io.github.stslex.workeeper.wear.state.LogicalCommand
 import io.github.stslex.workeeper.wear.state.ReducerEvent
+import io.github.stslex.workeeper.wear.state.TargetKey
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchInteractionEligibility
 import io.github.stslex.workeeper.wear.state.WatchReducerState
 import io.github.stslex.workeeper.wear.state.WearDraftPolicy
-import io.github.stslex.workeeper.wear.state.sourceVersion
-import io.github.stslex.workeeper.wear.state.targetKeyOrNull
+import io.github.stslex.workeeper.wear.state.activeOutlineOrNull
+import io.github.stslex.workeeper.wear.state.isSelectable
+import io.github.stslex.workeeper.wear.state.matchesCommandSource
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import java.util.Locale
@@ -91,8 +99,9 @@ internal object WearSurfaceMapper {
         if (state.display is WatchDisplayState.ProtocolMismatch) {
             return WearSurfaceModel(kind = WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale)
         }
-        val eligibility = WatchInteractionEligibility.from(state)
-        if (eligibility.retry) {
+        val selection = state.display.activeOutlineOrNull()?.let { outline -> shownSelection(outline, snapshot) }
+        val eligibility = WatchInteractionEligibility.from(state, selection)
+        if (eligibility.retry && state.command.showsOn(selection)) {
             return WearSurfaceModel(
                 kind = WearSurfaceKind.RETRYABLE_ERROR,
                 retryEnabled = !snapshot.recoveryRequired && !snapshot.readOnly,
@@ -115,9 +124,42 @@ internal object WearSurfaceMapper {
             is WatchDisplayState.NoSession -> WearSurfaceModel(WearSurfaceKind.NO_SESSION, selectedLocale = locale)
             is WatchDisplayState.ProtocolMismatch ->
                 WearSurfaceModel(WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale)
-            is WatchDisplayState.Active -> active(display, snapshot, eligibility)
-            is WatchDisplayState.PhoneActionRequired -> phoneAction(display, locale)
-            is WatchDisplayState.WorkoutComplete -> complete(display, locale)
+            is WatchDisplayState.Active -> outline(display, snapshot, eligibility, selection)
+            is WatchDisplayState.PayloadTooLarge ->
+                WearSurfaceModel(kind = WearSurfaceKind.PAYLOAD_TOO_LARGE, selectedLocale = locale)
+        }
+    }
+
+    /**
+     * The Phase 1 controller on the watch's selection (wear-phase-2-exercise-list.md §12.1 step 2):
+     * a selected `Open` set is the active surface, a `Blocked` one and an exercise without sets ask
+     * for the phone, and no selection is the finished workout.
+     */
+    private fun outline(
+        display: WatchDisplayState.Active,
+        snapshot: WatchRuntimeSnapshot,
+        eligibility: WatchInteractionEligibility,
+        selection: OutlineSelection?,
+    ): WearSurfaceModel {
+        val payload = display.snapshot.payload as SnapshotPayload.Active
+        val locale = snapshot.locale
+        selection ?: return complete(payload, locale)
+        val exercise = requireNotNull(payload.exercise(selection.performedExerciseUuid))
+        return when (val set = exercise.sets.firstOrNull { it.position == selection.setPosition }) {
+            is OutlineSet.Open -> active(display, snapshot, eligibility, exercise, set)
+            is OutlineSet.Blocked -> WearSurfaceModel(
+                kind = WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
+                trainingName = payload.trainingName.valueOrNull(),
+                exerciseName = exercise.name.valueOrNull(),
+                fieldError = set.field,
+                selectedLocale = locale,
+            )
+            else -> WearSurfaceModel(
+                kind = WearSurfaceKind.PHONE_ACTION_NO_SETS,
+                trainingName = payload.trainingName.valueOrNull(),
+                exerciseName = exercise.name.valueOrNull(),
+                selectedLocale = locale,
+            )
         }
     }
 
@@ -125,34 +167,38 @@ internal object WearSurfaceMapper {
         display: WatchDisplayState.Active,
         snapshot: WatchRuntimeSnapshot,
         eligibility: WatchInteractionEligibility,
+        exercise: OutlineExercise,
+        set: OutlineSet.Open,
     ): WearSurfaceModel {
         val state = snapshot.workout
         val blocked = snapshot.recoveryRequired || snapshot.readOnly
-        val payload = display.snapshot.payload as SnapshotPayload.ActiveWithTarget
+        val payload = display.snapshot.payload as SnapshotPayload.Active
+        val progress = OutlineRules.exerciseProgress(payload)
         val draft = state.draft
-        val reps = draft?.reps ?: payload.target.reps
+        val reps = draft?.reps ?: set.reps
         // A present draft may explicitly clear the weight; only an absent draft uses the snapshot.
-        val weight = if (draft != null) draft.weightHundredthsKg else payload.target.weightHundredthsKg
+        val weight = if (draft != null) draft.weightHundredthsKg else set.weightHundredthsKg
         val available = eligibility.authorityAvailable
         val commandIdle = eligibility.commandIdle
         val submittedDraft = state.command?.takeUnless { commandIdle }?.let { command ->
             command.draft == draft &&
-                command.source == display.snapshot.sourceVersion() &&
-                command.target == display.snapshot.targetKeyOrNull()
+                display.snapshot.matchesCommandSource(command.source) &&
+                command.target == CommandTarget.CompleteSet(TargetKey(exercise.performedExerciseUuid, set.position))
         } == true
         val completeEnabled = !blocked && eligibility.completion
+        val inFlightShown = state.command.showsOn(OutlineSelection(exercise.performedExerciseUuid, set.position))
         return WearSurfaceModel(
             kind = activeKind(display.freshness, snapshot),
             trainingName = payload.trainingName.valueOrNull(),
-            exerciseName = payload.target.exerciseName.valueOrNull(),
-            completedExercises = payload.completedExercises,
-            totalExercises = payload.totalExercises,
-            setOrdinal = payload.target.setOrdinal,
-            totalSets = payload.target.totalSets,
+            exerciseName = exercise.name.valueOrNull(),
+            completedExercises = progress.finished,
+            totalExercises = progress.total,
+            setOrdinal = exercise.sets.indexOf(set) + 1,
+            totalSets = exercise.sets.size,
             reps = reps,
             weightHundredthsKg = weight,
             hasUnsubmittedDraft = !snapshot.readOnly && draft != null && !submittedDraft,
-            weighted = payload.target.exerciseType == ExerciseTypeWire.WEIGHTED,
+            weighted = exercise.exerciseType == ExerciseTypeWire.WEIGHTED,
             controlsVisible = true,
             controlsEnabled = !blocked && eligibility.editing,
             completeEnabled = completeEnabled,
@@ -167,7 +213,7 @@ internal object WearSurfaceMapper {
                     commandIdle,
                     available,
                     eligibility.invalidField,
-                )
+                ).takeUnless { it == CompletionUnavailableReason.COMMAND_IN_FLIGHT && !inFlightShown }
             },
             fieldError = state.events.filterIsInstance<ReducerEvent.FieldError>().lastOrNull()?.field,
             selectedLocale = snapshot.locale,
@@ -198,36 +244,35 @@ internal object WearSurfaceMapper {
         else -> error("A blocked active completion must have an unavailable reason")
     }
 
-    private fun phoneAction(display: WatchDisplayState.PhoneActionRequired, locale: Locale): WearSurfaceModel {
-        val payload = display.snapshot.payload as SnapshotPayload.PhoneActionRequired
-        return when (val reason = payload.reason) {
-            is PhoneActionReason.NoSetRows -> WearSurfaceModel(
-                kind = WearSurfaceKind.PHONE_ACTION_NO_SETS,
-                exerciseName = reason.exerciseName.valueOrNull(),
-                selectedLocale = locale,
-            )
-            is PhoneActionReason.UnsupportedNumericValues -> WearSurfaceModel(
-                kind = WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
-                exerciseName = reason.exerciseName.valueOrNull(),
-                fieldError = reason.field,
-                selectedLocale = locale,
-            )
-            is PhoneActionReason.PayloadTooLarge -> WearSurfaceModel(
-                kind = WearSurfaceKind.PAYLOAD_TOO_LARGE,
-                selectedLocale = locale,
-            )
-        }
-    }
+    /** The owner keeps its selection on the outline (§7.2); a snapshot without one shows rule R. */
+    private fun shownSelection(outline: SnapshotPayload.Active, snapshot: WatchRuntimeSnapshot): OutlineSelection? =
+        snapshot.selection?.takeIf { outline.isSelectable(it) } ?: OutlineRules.defaultSelection(outline)
 
-    private fun complete(display: WatchDisplayState.WorkoutComplete, locale: Locale): WearSurfaceModel {
-        val payload = display.snapshot.payload as SnapshotPayload.WorkoutComplete
+    /** No selection: the workout is complete (§5.3), with the exercise progress of P13. */
+    private fun complete(payload: SnapshotPayload.Active, locale: Locale): WearSurfaceModel {
+        val progress = OutlineRules.exerciseProgress(payload)
         return WearSurfaceModel(
             kind = WearSurfaceKind.WORKOUT_COMPLETE,
             trainingName = payload.trainingName.valueOrNull(),
-            completedExercises = payload.completedExercises,
-            totalExercises = payload.totalExercises,
+            completedExercises = progress.finished,
+            totalExercises = progress.total,
             selectedLocale = locale,
         )
+    }
+
+    /**
+     * §7.2: the in-flight state ("Sending…", Retry) shows only where the selection is the command's
+     * target: its set for `complete_set`, its exercise for a skip or a return. Elsewhere completion
+     * stays disabled and names no reason. Without a selection the state shows, as before.
+     */
+    private fun LogicalCommand?.showsOn(selection: OutlineSelection?): Boolean {
+        val target = this?.target ?: return true
+        selection ?: return true
+        return when (target) {
+            is CommandTarget.CompleteSet ->
+                target.key == TargetKey(selection.performedExerciseUuid, selection.setPosition ?: return false)
+            is CommandTarget.SetSkipped -> target.performedExerciseUuid == selection.performedExerciseUuid
+        }
     }
 
     private fun BoundedDisplayName.valueOrNull(): String? =

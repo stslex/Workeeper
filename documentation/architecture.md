@@ -35,7 +35,7 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 ### `core/`
 
-- `core/core` — KMP base module (android + iosSimulatorArm64). `commonMain`: `AppCoroutineScope`,
+- `core/core` — KMP base module (android + iosArm64 + iosSimulatorArm64). `commonMain`: `AppCoroutineScope`,
   dispatcher qualifiers (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`,
   `IODispatcher`), Firebase logging holders, the platform expect/actual seams
   (`PlatformInfoProvider`, `AppReinitializer`), `ResourceWrapper`/`ImageStorage` interfaces,
@@ -55,7 +55,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `DataStoreProviderFactory`).
 - `core/ui/kit` — reusable Compose UI: theme (`AppTheme`, `AppDimension`, `AppUi`), components
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
-  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`.
+  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`, and
+  `StringResolver`, which reads Compose-resource strings outside composition (see
+  [Localization](#localization)).
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
 - `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
   command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),
@@ -85,7 +87,7 @@ point. Current feature modules live under `feature/`, including `feature/home`,
 `feature/exercise`, `feature/live-workout`, `feature/past-session`,
 `feature/settings`, `feature/archive`, and `feature/image-viewer`. Image-viewer is the first shared
 feature entry: its Store, handlers, Metro extension, UI, and private resources compile from
-`commonMain` for Android and `iosSimulatorArm64`. Feature contents are detailed in
+`commonMain` for Android, `iosArm64` and `iosSimulatorArm64`. Feature contents are detailed in
 [features.md](features.md); their conventional layout is described under
 [Per-feature MVI layout](#per-feature-mvi-layout).
 
@@ -105,7 +107,8 @@ Custom Detekt rule set, centralized `detekt.yml` and `lint.xml`, single baseline
 ## MVI contract
 
 The MVI contract lives in the KMP module `core/ui/mvi`. Its Store runtime and processor are in
-`commonMain`; Android and `iosSimulatorArm64` supply only the platform telemetry and host seams.
+`commonMain`; Android and the two iOS targets (`iosArm64`, `iosSimulatorArm64`) supply only the
+platform telemetry and host seams.
 Three roles cooperate:
 
 1. UI dispatches an `Action` via the store's `consume` callback.
@@ -209,9 +212,11 @@ the Activity's store, silently process-scoping every Store
 
 1. Plain `Feature` — the feature resolves `context.appDeps<XxxGraph.Factory>()`, creates its graph
    extension, and reads the Store accessor. Plain features have no route arguments (e.g.
-   `Screen.BottomBar.Home`). The shared archive is the plain-shape factory-resolution exception:
-   its generation-owned root passes the required `ArchiveGraph.Factory` through
-   `AppNavigationHost` and `archiveGraph` into `ArchiveFeature`, which invokes it only inside the
+   `Screen.BottomBar.Home`). The shared archive, all-trainings, and all-exercises entries are the
+   plain-shape factory-resolution exceptions: the generation-owned root passes the required
+   `ArchiveGraph.Factory` / `AllTrainingsGraph.Factory` / `AllExercisesGraph.Factory` through
+   `AppNavigationHost` and `archiveGraph` / `allTrainingsGraph` / `allExercisesGraph` into
+   `ArchiveFeature` / `AllTrainingsFeature` / `AllExercisesFeature`, which invoke it only inside the
    `rememberMetroStoreProcessor` creation lambda.
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
@@ -231,8 +236,8 @@ In both cases the helper:
 - Wires `init()` / `dispose()` to a `DisposableEffect` keyed on the Store and the
   current `LifecycleOwner` so the Store's `AppCoroutineScope` follows screen lifecycle.
 - Reports the Store's screen name to `FirebaseCrashlyticsHolder`, `FirebaseAnalyticsHolder`, and
-  the common `ScreenRenderRecorder` seam. Android supplies the real Firebase frame recorder; the
-  iOS simulator target supplies an explicit no-op recorder.
+  the common `ScreenRenderRecorder` seam. Android supplies the real Firebase frame recorder; both
+  iOS targets (`iosArm64`, `iosSimulatorArm64`) share an explicit no-op recorder from `iosMain`.
 - Returns a `StoreProcessor` exposing `state: ComposeState<S>`, `consume(action)`, and a
   `Handle { event -> ... }` composable for one-shot UI side effects.
 
@@ -293,9 +298,10 @@ Briefly:
   - The screen renders via `when (state.dialogState)` / `when (state.bottomSheetState)`.
   - Open: handler calls `updateState { it.copy(dialogState = DialogState.X(...)) }`.
     Close: handler calls `updateState { it.copy(dialogState = DialogState.Hidden) }`.
-  - Display strings are pre-resolved in the handler via `ResourceWrapper`
-    (consistent with the "no `R.*` in domain, no computation inside `updateState`
-    lambdas" rules) — never resolved in the Composable.
+  - Display strings are pre-resolved in the handler via `ResourceWrapper`, or via
+    `StringResolver` for Compose-resource strings (consistent with the "no `R.*` in
+    domain, no computation inside `updateState` lambdas" rules) — never resolved in
+    the Composable.
   - The `interceptBack: Boolean` derived property (where present) reads
     `dialogState` / `bottomSheetState` so the back gesture dismisses the topmost
     dialog before propagating.
@@ -338,9 +344,9 @@ Briefly:
 
 `BaseStore.updateState` and `updateStateImmediate` schedule the lambda on `Main.immediate`.
 The lambda's job is **state transformation only** — given `current`, return a copy with
-new field values. Mapping, formatting, and any work involving `ResourceWrapper` or
-domain-to-UI conversions runs *before* the lambda body, in the collector or handler that
-calls `updateState`.
+new field values. Mapping, formatting, and any work involving `ResourceWrapper`,
+`StringResolver` or domain-to-UI conversions runs *before* the lambda body, in the collector
+or handler that calls `updateState`.
 
 Wrong:
 
@@ -366,8 +372,8 @@ thread. The lambda receives an already-mapped value and just produces the new St
 
 Pure state transforms — operations that read only `current` and return a new `current`,
 e.g. `current.tags.filterNot { ... }` — are exempt; they're cheap and lifting them out
-introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`, or building
-a UI model from non-state inputs, hoist it.
+introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`,
+`StringResolver`, or building a UI model from non-state inputs, hoist it.
 
 ## Per-feature MVI layout
 
@@ -481,12 +487,13 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`). Image-viewer, plan-editor, and archive no longer use the
-feature-side Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
-and `AppGraph.archiveGraphFactory` implement the accessors declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. Exactly 10 feature/dialog Context readers
-remain.
+not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, and all-exercises
+no longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
+`AppGraph.planEditorGraphFactory`, `AppGraph.archiveGraphFactory`,
+`AppGraph.allTrainingsGraphFactory`, and `AppGraph.allExercisesGraphFactory` implement the
+accessors declared by `AppRootDeps`, and the admitted composition reads that root contract exactly
+once. Retired generations and generations that lose the publication race resolve it zero times.
+Exactly 8 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -629,8 +636,8 @@ construction in the tree.
   `TrackNowConflict`, `SaveResult`, `BulkArchiveResult`,
   `StartSessionConflict`).
 - The domain layer never imports `androidx.compose.*`, never references
-  `R.*`, never injects `ResourceWrapper`. Display fallbacks live in UI
-  mappers, not in domain.
+  `R.*`, never injects `ResourceWrapper` or `StringResolver`. Display
+  fallbacks live in UI mappers, not in domain.
 - Repository INTERFACES (e.g. `ExerciseRepository`,
   `SessionConflictResolver`) are abstractions, not data models — they
   remain importable by interactor implementations and use cases. The
@@ -1231,8 +1238,8 @@ The graph composable **never** mutates the back stack directly, **never**
 consumes an `Event.Navigate*` (such an event must not exist — it would be
 misnamed), and **never** captures the `NavBackStack` outside the bridge.
 
-Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
-(graph) and `feature/all-trainings/mvi/handler/NavigationHandler.kt`
+Reference implementation: `feature/all-trainings/src/commonMain/.../ui/AllTrainingsGraph.kt`
+(graph) and `feature/all-trainings/src/commonMain/.../mvi/handler/NavigationHandler.kt`
 (handler). For an assisted-injected route-arg variant, see
 `feature/exercise/ui/ExerciseGraph.kt` +
 `feature/exercise/ui/mvi/handler/NavigationHandler.kt`.
@@ -2074,6 +2081,33 @@ It does **not** apply to:
 - Domain identifiers (entity types, set types, action names in MVI) — these stay English
   in code, translated on display.
 
+#### Shared (KMP) modules and which reader a string takes
+
+Shared (KMP) modules keep their copy in Compose Resources instead of Android resources:
+
+```
+<module>/src/commonMain/composeResources/values/strings.xml     — English (default fallback)
+<module>/src/commonMain/composeResources/values-ru/strings.xml  — Russian overlay
+```
+
+Each such module generates its own `Res` through `compose.resources { packageOfResClass = … }`
+in its build file.
+
+The reader is chosen by the catalog a string lives in, not by the module kind:
+
+- **An Android `R` string:** `stringResource(R.string.*)` in composition, `ResourceWrapper`
+  outside it.
+- **A Compose-resource string** (`Res.string.*` / `Res.plurals.*`, in any module, including kit
+  strings read by Android-only features): `org.jetbrains.compose.resources.stringResource` /
+  `pluralStringResource` in composition, an injected `StringResolver` (`core/ui/kit`) outside
+  it, never CMP's top-level `getString` / `getPluralString` (only `ComposeStringResolver`
+  itself calls those). The six production files that predate this rule are a debt row
+  ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
+
+Compose resources choose by the **primary** system locale only and format arguments with
+`toString()`. That holds for every Compose-resource string and for `StringResolver`; the remedy
+is a maintainer decision ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
+
 #### Naming convention
 
 ```
@@ -2153,6 +2187,16 @@ When creating a new feature module:
    means the missing locale falls back to English (which is acceptable but visible).
 4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
    `context.getString(R.string.xxx)` from non-Compose code.
+
+For a shared (KMP) feature module the same four steps read:
+
+1. Create `src/commonMain/composeResources/values/strings.xml` with all English strings, and
+   give the module its own `Res` with `compose.resources { packageOfResClass = … }`.
+2. Create `src/commonMain/composeResources/values-ru/strings.xml` with the Russian
+   translations.
+3. Both files must contain the same set of keys, as above.
+4. Reference all strings via `stringResource(Res.string.xxx)` from Composables and an injected
+   `StringResolver` from non-Compose code.
 
 ## Compose UI conventions
 

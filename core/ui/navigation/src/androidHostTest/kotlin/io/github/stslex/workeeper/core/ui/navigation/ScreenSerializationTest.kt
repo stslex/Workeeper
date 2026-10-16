@@ -64,9 +64,10 @@ internal class ScreenSerializationTest {
             assertEquals(instance, decoded) { "Round trip failed for ${leaf.qualifiedName}" }
         }
 
-        // The module pins JvmDefaultMode.NO_COMPATIBILITY (the classic -Xjvm-default=all ABI):
-        // both getters stay Java default methods and no DefaultImpls bridge may exist —
-        // Kotlin 2.4's ENABLE default would generate both bridges without failing a compile.
+        // The KMP convention owns JvmDefaultMode.NO_COMPATIBILITY (the classic -Xjvm-default=all
+        // ABI); this proves it reached the module: both getters stay Java default methods and no
+        // DefaultImpls bridge may exist — Kotlin 2.4's ENABLE default would generate both bridges
+        // without failing a compile.
         assertTrue(Screen::class.java.getMethod("isSingleTop").isDefault) {
             "Screen.isSingleTop must compile as a Java interface default method"
         }

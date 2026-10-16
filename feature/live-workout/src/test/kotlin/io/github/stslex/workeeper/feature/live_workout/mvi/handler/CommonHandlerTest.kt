@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 internal class CommonHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
-        every { observeExternalSetWrites(any()) } returns emptyFlow()
+        every { observeExternalWrites(any()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))
@@ -83,7 +83,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `a session that is not there is abandoned the same way, not shown as empty`() {
+    fun `a session that is not there is abandoned the same way not shown as empty`() {
         coEvery { interactor.loadSession(any()) } returns null
         val (stateFlow, handler, store) = setup(
             State.create(sessionUuid = "session-1", trainingUuid = "training-1"),

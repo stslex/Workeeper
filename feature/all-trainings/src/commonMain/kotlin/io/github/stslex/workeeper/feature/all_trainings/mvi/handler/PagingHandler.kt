@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
+
+import androidx.paging.PagingData
+import androidx.paging.map
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsScope
+import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
+import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.TrainingListItemMapper.toUi
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.TagUiMapper.toUi as toTagUi
+
+@SingleIn(AllTrainingsScope::class)
+internal class PagingHandler @Inject constructor(
+    private val interactor: AllTrainingsInteractor,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    store: AllTrainingsHandlerStore,
+) : Handler<Action.Paging>, AllTrainingsHandlerStore by store {
+
+    val pagingUiState: PagingUiState<PagingData<TrainingListItemUi>> = PagingUiState {
+        state.map { it.activeTagFilter }
+            .distinctUntilChanged()
+            .flatMapLatest { filter ->
+                interactor.observeTrainings(filter)
+                    .map { pagingData -> pagingData.map { it.toUi() } }
+            }
+            .flowOn(defaultDispatcher)
+    }
+
+    override fun invoke(action: Action.Paging) {
+        when (action) {
+            Action.Paging.Init -> {
+                observeAvailableTags()
+                observeActiveSession()
+            }
+        }
+    }
+
+    private fun observeAvailableTags() {
+        interactor.observeAvailableTags().launch { tags ->
+            updateStateImmediate { current ->
+                current.copy(
+                    availableTags = tags.map { it.toTagUi() }.toImmutableList(),
+                )
+            }
+        }
+    }
+
+    /**
+     * Gates the empty state's blank-start CTA. See `State.showStartBlank` for why it exists and
+     * B27 for the hole underneath it — in short, the route it guards inserts a second
+     * `IN_PROGRESS` session unconditionally, and a running ad-hoc workout is invisible in this
+     * screen's own list.
+     */
+    private fun observeActiveSession() {
+        interactor.observeHasActiveSession().launch { hasActive ->
+            updateStateImmediate { current -> current.copy(hasActiveSession = hasActive) }
+        }
+    }
+}

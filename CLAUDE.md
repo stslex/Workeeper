@@ -34,6 +34,14 @@ the classification before pushing fixes. Waiting on review does not block the ne
 state the stack in both PR descriptions, and re-run every gate after a rebase.
 Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Merge flow".
 
+## Parallel work
+
+A parallel task runs in a worktree under the gitignored `.claude/worktrees/<name>`, created from
+`origin/dev` (`claude -w` branches from `origin/HEAD`, which is `master`) — never a sibling copy or
+`/tmp`. Each one carries its own Gradle outputs (2–8 GB): remove it with `git worktree remove`
+(no `--force`) once its PR is merged or closed.
+Full rule: [AGENTS.md](AGENTS.md) § "Parallel work".
+
 ## Signed commits
 
 The ruleset requires **verified signatures**, so an unsigned commit cannot merge — it costs a
@@ -88,9 +96,13 @@ specification described in the canonical workflow.
   `feature/<X>/mvi/mapper/`.
 - Two Detekt rules guard this boundary: `DomainLayerPurityRule` and
   `DomainLayerNoUiRule`.
-- Display strings and resource fallbacks live in UI mappers via
-  `stringResource(R.string.*)` or `resourceWrapper.getString(...)`. The domain layer
-  never injects `ResourceWrapper` and never imports `R.*`.
+- Display strings and resource fallbacks live in UI mappers. An Android `R` string is read
+  with `stringResource(R.string.*)` in composition and `resourceWrapper.getString(...)`
+  outside it. A Compose-resource string (`Res.string.*` / `Res.plurals.*`, in any module) is
+  read with CMP's `stringResource` / `pluralStringResource` in composition and an injected
+  `StringResolver` outside it, never CMP's top-level `getString` / `getPluralString`. The
+  domain layer injects neither `ResourceWrapper` nor `StringResolver` and never imports
+  `R.*`.
 
 ## Available skills
 

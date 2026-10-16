@@ -68,10 +68,10 @@ class CommandValidationTest {
     }
 
     private fun assertInvalid(
-        actual: CompleteCommandOutcome.InvalidValues?,
+        actual: CommandOutcome.InvalidValues?,
         field: NumericField,
         reason: InvalidValueReason,
     ) {
-        assertEquals(CompleteCommandOutcome.InvalidValues(field, reason), actual)
+        assertEquals(CommandOutcome.InvalidValues(field, reason), actual)
     }
 }

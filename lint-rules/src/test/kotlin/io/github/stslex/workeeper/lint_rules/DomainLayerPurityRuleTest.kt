@@ -249,6 +249,77 @@ internal class DomainLayerPurityRuleTest {
         assertEquals(0, findings.size, "test sources are exempt, got: $findings")
     }
 
+    @Test
+    fun `flags core data model import in commonMain feature domain`() {
+        val findings = rule.lintForPath(
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/example/domain/ExampleInteractor.kt",
+            """
+            package io.github.stslex.workeeper.feature.example.domain
+
+            import io.github.stslex.workeeper.core.data.example.model.ExampleDataModel
+
+            interface ExampleInteractor {
+                suspend fun get(): ExampleDataModel?
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "commonMain is production code, got: $findings")
+        assertTrue(findings.single().message.contains("ExampleDataModel"))
+    }
+
+    @Test
+    fun `allows core data model import in commonTest domain sources`() {
+        assertTestSourceSetExempt("commonTest")
+    }
+
+    @Test
+    fun `allows core data model import in iosTest domain sources`() {
+        assertTestSourceSetExempt("iosTest")
+    }
+
+    @Test
+    fun `allows core data model import in androidHostTest domain sources`() {
+        assertTestSourceSetExempt("androidHostTest")
+    }
+
+    @Test
+    fun `allows core data model import in androidDeviceTest domain sources`() {
+        assertTestSourceSetExempt("androidDeviceTest")
+    }
+
+    @Test
+    fun `flags core data model import in main domain of a checkout under a test-named src directory`() {
+        // detekt passes the absolute path, so directories above the checkout are part of it.
+        val checkout = "/home/dev/src/testProjects/Workeeper/feature/example"
+        val findings = rule.lintForPath(
+            "$checkout/src/main/kotlin/io/github/stslex/workeeper/feature/example/domain/ExampleInteractor.kt",
+            """
+            package io.github.stslex.workeeper.feature.example.domain
+
+            import io.github.stslex.workeeper.core.data.example.model.ExampleDataModel
+
+            interface ExampleInteractor {
+                suspend fun get(): ExampleDataModel?
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "only the module's own src/<set> counts, got: $findings")
+    }
+
+    private fun assertTestSourceSetExempt(sourceSet: String) {
+        val findings = rule.lintForPath(
+            "src/$sourceSet/kotlin/io/github/stslex/workeeper/feature/example/domain/ExampleInteractorTest.kt",
+            """
+            package io.github.stslex.workeeper.feature.example.domain
+
+            import io.github.stslex.workeeper.core.data.example.model.ExampleDataModel
+
+            class ExampleInteractorTest { fun stub(): ExampleDataModel? = null }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "src/$sourceSet is a test source set, got: $findings")
+    }
+
     /** GUARD: `lint(String)` synthesises a path no predicate matches — compile at a path. */
     private fun DomainLayerPurityRule.lintForPath(
         virtualPath: String,

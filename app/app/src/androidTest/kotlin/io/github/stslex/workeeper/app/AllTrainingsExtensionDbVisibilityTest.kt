@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.TestSingleScreenHost
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
+import io.github.stslex.workeeper.harness.MetroTestGraphHolder
 import io.github.stslex.workeeper.harness.MetroTestRule
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -58,11 +59,13 @@ internal class AllTrainingsExtensionDbVisibilityTest {
             )
         }
 
+        val factory = MetroTestGraphHolder.graph.allTrainingsGraphFactory
+
         composeRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 SharedTransitionLayout {
                     TestSingleScreenHost(start = Screen.BottomBar.AllTrainings) {
-                        allTrainingsGraph()
+                        allTrainingsGraph(factory = factory)
                     }
                 }
             }

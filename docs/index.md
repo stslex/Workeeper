@@ -18,12 +18,15 @@ the cases described below.
 ### Wear OS companion app
 
 If you install Workeeper on a Wear OS watch paired with your phone, the phone app sends the watch
-only what the watch needs to show the current set of a workout that is active on the phone: the
-workout and exercise names, the set number and type, the weight and reps, the workout progress, and
-technical identifiers. When you complete a set on the watch, the watch sends that set's weight,
-reps and type, with technical identifiers, back to the phone, which records the set. Your workout
-history stays on the phone. The watch keeps only a temporary copy of the current state: the app
-stops using it after 24 hours or after the watch restarts, and deletes it the next time it runs.
+only what the watch needs to show a workout that is active on the phone: the workout name; the names
+of its exercises, including skipped ones, and whether each is skipped and uses weight; for each
+exercise, its sets with their number, type, weight and reps and whether they are done; and technical
+identifiers. When you complete a set on the watch, the watch sends that set's weight, reps and type
+back to the phone, which records the set. When you skip an exercise on the watch or return it to the
+workout, the watch tells the phone which exercise. Both go with technical identifiers. Your past
+workouts stay on the phone. The watch keeps only a temporary copy of the current state, including
+the set you chose on the watch: the app stops using it after 24 hours or after the watch restarts,
+and deletes it the next time it runs.
 
 This data moves only between your phone and your watch, through the Wear OS Data Layer of Google
 Play services. When the devices are connected by Bluetooth, the data normally goes directly between
@@ -112,7 +115,7 @@ you believe your child has provided personal information, please contact us for 
 
 We may update this Privacy Policy from time to time. Changes will be posted on this page.
 
-Last updated: **29 September 2026**
+Last updated: **13 October 2026**
 
 ### Contact Us
 
@@ -142,13 +145,16 @@ If you have any questions or suggestions about this Privacy Policy, contact us:
 ### Приложение для Wear OS
 
 Если вы установите Workeeper на часы с Wear OS, сопряжённые с вашим телефоном, приложение на
-телефоне будет передавать часам только то, что нужно для показа текущего подхода тренировки, начатой
-на телефоне: названия тренировки и упражнения, номер и тип подхода, вес и количество повторений,
-прогресс тренировки и технические идентификаторы. Когда вы завершаете подход на часах, часы
-отправляют на телефон вес, количество повторений и тип этого подхода вместе с техническими
-идентификаторами, и телефон записывает подход. История тренировок остаётся на телефоне. Часы хранят
-только временную копию текущего состояния: приложение перестаёт её использовать через 24 часа или
-после перезагрузки часов и удаляет её при следующем запуске.
+телефоне будет передавать часам только то, что нужно для показа тренировки, начатой на телефоне:
+название тренировки; названия её упражнений, включая пропущенные, с отметками о пропуске и об
+использовании веса; для каждого упражнения его подходы с номером, типом, весом, количеством
+повторений и отметкой о выполнении; технические идентификаторы. Когда вы завершаете подход на часах,
+часы отправляют на телефон вес, количество повторений и тип этого подхода, и телефон записывает
+подход. Когда вы пропускаете упражнение на часах или возвращаете его в тренировку, часы сообщают
+телефону, какое это упражнение. И то и другое передаётся вместе с техническими идентификаторами.
+Прошедшие тренировки остаются на телефоне. Часы хранят только временную копию текущего состояния, в
+том числе выбранный на часах подход: приложение перестаёт её использовать через 24 часа или после
+перезагрузки часов и удаляет её при следующем запуске.
 
 Эти данные передаются только между вашим телефоном и вашими часами через Wear OS Data Layer
 (компонент сервисов Google Play). Когда устройства соединены по Bluetooth, данные обычно передаются
@@ -243,7 +249,7 @@ Google, как и данные других приложений. Этой ре�
 Мы можем обновлять настоящую Политику конфиденциальности. Все изменения будут опубликованы на этой
 странице.
 
-Последнее обновление: **29 сентября 2026 г.**
+Последнее обновление: **13 октября 2026 г.**
 
 ### Контакты
 

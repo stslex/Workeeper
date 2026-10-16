@@ -4,6 +4,7 @@
 The manifest is intentionally path-based rather than count-based: moving a reviewed file into a
 different source set while adding a same-count replacement must fail. Add future shared UI leaves
 as new manifest entries instead of weakening the checks for the first migrated leaf.
+Future shared feature entries are FeatureEntry data in FEATURE_ENTRIES, not new checkers.
 
 Run from the repository root:
 
@@ -13,6 +14,7 @@ Run from the repository root:
 import re
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -239,6 +241,234 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:all-trainings": {
+        "root": Path("feature/all-trainings"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/AllTrainingsInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/AllTrainingsInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/mapper/AllTrainingsDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/model/BulkArchiveResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/model/TagDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/model/TrainingListItemDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/PagingHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/mapper/TagUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/mapper/TrainingListItemMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/model/TagUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/model/TrainingListItemUi.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/store/AllTrainingsStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/store/AllTrainingsStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/ArrivedEmptyStates.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/ListSurface.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/PagingTailKind.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/PagingTails.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TagFilterRow.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TopBarMode.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrailingSlotKind.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingsEmptyState.kt",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/AllTrainingsInteractorImplTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/store/StartBlankGateTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsClearanceTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/ListSurfaceTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/PagingTailKindTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TopBarModeTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrailingSlotKindTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/golden/AllTrainingsGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_coldOpenError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_coldOpenError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_coldOpenLoading_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_coldOpenLoading_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_confirmDialogContent_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_confirmDialogContent_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_emptyState_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_emptyState_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_filteredEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_filteredEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_pagingError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_pagingError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_pagingLoading_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_pagingLoading_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowActiveSelected_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowActiveSelected_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowActive_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowActive_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowClamped_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowClamped_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowLongName_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowLongName_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowPlain_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowPlain_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowSelected_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowSelected_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowUnselectedInSelection_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_rowUnselectedInSelection_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenColdOpen_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenColdOpen_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenFilteredEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenFilteredEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenFirstRunEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenFirstRunEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenList_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenList_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenRefreshError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenRefreshError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelectionEmptyUnfiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelectionEmptyUnfiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelectionEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelectionEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelection_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_screenSelection_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_selectionEmptyFiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_selectionEmptyFiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_selectionEmptyUnfiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_selectionEmptyUnfiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_tagFilterBand_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_trainings.golden_AllTrainingsGoldenTest_tagFilterBand_light.png",
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
+    "feature:all-exercises": {
+        "root": Path("feature/all-exercises"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/AllExercisesInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/AllExercisesInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/mapper/AllExercisesDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/ArchiveResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/BulkArchiveResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/ExerciseDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/ExerciseListItemDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/model/TagDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/mapper/AllExercisesUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/model/ExerciseTypeUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/model/ExerciseUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/model/TagUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/store/AllExercisesStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/store/AllExercisesStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/AllExercisesGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/AllExercisesScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ArrivedEmptyStates.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ExerciseRow.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ExercisesEmptyState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ListSurface.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/PagingTailKind.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/PagingTails.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TagFilterRow.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TopBarMode.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TrailingSlotKind.kt",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/AllExercisesInteractorImplTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/mapper/AllExercisesUiMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/AllExercisesClearanceTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ListSurfaceTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/PagingTailKindTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TopBarModeTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TrailingSlotKindTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/golden/AllExercisesGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_blockedArchiveDialogContent_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_blockedArchiveDialogContent_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_coldOpenError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_coldOpenError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_coldOpenLoading_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_coldOpenLoading_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_confirmDialogContent_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_confirmDialogContent_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_emptyState_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_emptyState_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_filteredEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_filteredEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_pagingError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_pagingError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_pagingLoading_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_pagingLoading_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowClamped_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowClamped_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowLongName_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowLongName_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowSelected_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowSelected_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowTypeIsolated_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowTypeIsolated_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowUnselectedInSelection_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowUnselectedInSelection_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowWeighted_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowWeighted_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowWeightless_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_rowWeightless_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenColdOpen_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenColdOpen_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenFilteredEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenFilteredEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenFirstRunEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenFirstRunEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenList_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenList_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenRefreshError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenRefreshError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelectionEmptyUnfiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelectionEmptyUnfiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelectionEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelectionEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelection_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_screenSelection_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_selectionEmptyFiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_selectionEmptyFiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_selectionEmptyUnfiltered_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_selectionEmptyUnfiltered_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_tagFilterBand_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.all_exercises.golden_AllExercisesGoldenTest_tagFilterBand_light.png",
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -285,8 +515,6 @@ IMAGE_VIEWER_CATALOGS = {
 }
 
 EXPECTED_APP_DEPS_READERS = {
-    Path("feature/all-exercises/src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesFeature.kt"): "AllExercisesGraph.Factory",
-    Path("feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt"): "AllTrainingsGraph.Factory",
     Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
     Path("feature/exercise-chart/src/main/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt"): "ExerciseChartGraph.Factory",
     Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
@@ -725,8 +953,8 @@ def check_image_viewer_contract() -> list[str]:
     }
     if actual_readers != expected_readers:
         failures.append(
-            "remaining Context.appDeps readers are not the exact 10 unported entries; "
-            f"expected={expected_readers!r}, actual={actual_readers!r}"
+            f"remaining Context.appDeps readers are not the exact {len(EXPECTED_APP_DEPS_READERS)} "
+            f"unported entries; expected={expected_readers!r}, actual={actual_readers!r}"
         )
 
     return failures
@@ -1060,199 +1288,168 @@ def check_plan_editor_feature_contract() -> list[str]:
     return failures
 
 
-ARCHIVE_ROOT = Path("feature/archive")
+@dataclass(frozen=True)
+class FeatureEntry:
+    """One shared feature entry, checked field by field by check_feature_entry.
 
-ARCHIVE_COMMON_MAIN = ARCHIVE_ROOT / "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive"
+    `root` and `identity_test` are repo-relative, as are extra_root_fragments' keys;
+    build/test/suppression paths are relative to `root`; store_file, feature_file, graph_file,
+    resource_wrapper_readers and preview_subjects' keys are relative to
+    root/src/commonMain/kotlin/<package_dir>. Containers keep the type their failure text embeds:
+    lists stay lists and tuples stay tuples, because a repr is part of the message. Never hash an
+    entry; it holds lists and dicts.
+    """
 
-ARCHIVE_CATALOG_PATHS = (
-    ARCHIVE_ROOT / "src/commonMain/composeResources/values/strings.xml",
-    ARCHIVE_ROOT / "src/commonMain/composeResources/values-ru/strings.xml",
+    module: str
+    short_name: str
+    root: Path
+    package_dir: str
+    build_fragments: tuple
+    kotlin_test_count: int
+    catalog: tuple
+    resource_prefix: str
+    payload_files: frozenset
+    store_file: str
+    state_fields: tuple
+    resource_wrapper_readers: frozenset
+    preview_subjects: dict
+    suppressions: dict
+    test_names: dict
+    golden_test: str
+    golden_methods: list
+    device_test: str
+    device_fragments: tuple
+    feature_class: str
+    graph_interface: str
+    graph_function: str
+    factory_accessor: str
+    create_method: str
+    store_impl: str
+    store_accessor: str
+    feature_file: str
+    graph_file: str
+    identity_test: Path
+    identity_fragments: tuple
+    identity_names: list
+    identity_accessor: str
+    extra_root_fragments: dict = field(default_factory=dict)
+    extra_checks: tuple = ()
+
+    @property
+    def common_main(self) -> Path:
+        return self.root / "src/commonMain/kotlin" / self.package_dir
+
+    @property
+    def catalog_paths(self) -> tuple:
+        return (
+            self.root / "src/commonMain/composeResources/values/strings.xml",
+            self.root / "src/commonMain/composeResources/values-ru/strings.xml",
+        )
+
+
+APP_ROOT_DEPS_PATH = Path(
+    "app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"
+)
+APP_GRAPH_PATH = Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt")
+APP_PATH = Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt")
+APP_NAVIGATION_HOST_PATH = Path(
+    "app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
 )
 
-# Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
-# ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
-# all contractual (kmp-phase-7-8-archive-feature.md §3.4, with the session count's six items
-# made positional by decision P1, §19.8).
-ARCHIVE_RESOURCES = (
-    ("string", "feature_archive_title", "Archive", "Архив"),
-    ("string", "feature_archive_action_more", "More", "Ещё"),
-    ("string", "feature_archive_segment_exercises", "Exercises (%1$d)", "Упражнения (%1$d)"),
-    ("string", "feature_archive_segment_trainings", "Trainings (%1$d)", "Тренировки (%1$d)"),
-    ("string", "feature_archive_action_restore", "Restore", "Восстановить"),
-    ("string", "feature_archive_action_permanent_delete", "Delete permanently", "Удалить навсегда"),
-    ("string", "feature_archive_kind_exercise", "exercise", "упражнение"),
-    ("string", "feature_archive_kind_training", "training", "тренировка"),
-    ("string", "feature_archive_label_archived", "archived", "в архиве"),
-    (
-        "string",
-        "feature_archive_label_archived_since_format",
-        "archived since %1$s",
-        "в архиве с %1$s",
-    ),
-    ("string", "feature_archive_meta_separator", "·", "·"),
-    ("string", "feature_archive_empty_headline", "Nothing archived", "Архив пуст"),
-    (
-        "string",
-        "feature_archive_empty_supporting_exercises",
-        "Archived exercises appear here for restore or permanent delete.",
-        "Здесь будут архивированные упражнения — для восстановления или удаления навсегда.",
-    ),
-    (
-        "string",
-        "feature_archive_empty_supporting_trainings",
-        "Archived trainings appear here for restore or permanent delete.",
-        "Здесь будут архивированные тренировки — для восстановления или удаления навсегда.",
-    ),
-    (
-        "string",
-        "feature_archive_dialog_permanent_delete_title",
-        "Delete ‘%1$s’ permanently?",
-        "Удалить «%1$s» навсегда?",
-    ),
-    (
-        "string",
-        "feature_archive_dialog_permanent_delete_body_no_history",
-        "This action cannot be undone.",
-        "Это действие нельзя отменить.",
-    ),
-    (
-        "string",
-        "feature_archive_dialog_impact_summary_empty",
-        "No session history affected",
-        "Сессии истории не затронуты",
-    ),
-    ("string", "feature_archive_dialog_confirm_delete", "Delete", "Удалить"),
-    ("string", "feature_archive_snackbar_restored_format", "%1$s restored", "«%1$s» восстановлено"),
-    (
-        "string",
-        "feature_archive_snackbar_deleted_format",
-        "%1$s permanently deleted",
-        "«%1$s» удалено навсегда",
-    ),
-    ("string", "feature_archive_snackbar_undo", "Undo", "Отменить"),
-    (
-        "plurals",
-        "feature_archive_session_count",
-        (("one", "%1$d session"), ("other", "%1$d sessions")),
-        (
-            ("one", "%1$d сессия"),
-            ("few", "%1$d сессии"),
-            ("many", "%1$d сессий"),
-            ("other", "%1$d сессии"),
-        ),
-    ),
-    (
-        "plurals",
-        "feature_archive_dialog_permanent_delete_body_with_history",
-        (
-            ("one", "%1$d session of history will also be deleted. This action cannot be undone."),
-            ("other", "%1$d sessions of history will also be deleted. This action cannot be undone."),
-        ),
-        (
-            ("one", "Также будет удалена %1$d сессия истории. Это действие нельзя отменить."),
-            ("few", "Также будут удалены %1$d сессии истории. Это действие нельзя отменить."),
-            ("many", "Также будет удалено %1$d сессий истории. Это действие нельзя отменить."),
-            ("other", "Также будет удалено %1$d сессии истории. Это действие нельзя отменить."),
-        ),
-    ),
-    ("string", "feature_archive_paging_loading", "Loading", "Загружаю"),
-    ("string", "feature_archive_paging_error", "Couldn’t load more", "Не удалось загрузить дальше"),
-    ("string", "feature_archive_paging_retry", "Retry", "Повторить"),
-    ("string", "feature_archive_refresh_error", "Couldn’t load the archive", "Не удалось загрузить архив"),
+# The admitted composed region every feature factory is read from, once per generation.
+APP_ADMISSION_FRAGMENTS = (
+    "if (admission.granted) {",
+    "val deps = remember(currentPhase.id)",
+    "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+    "AppGenerationContent(deps)",
+    "private fun AppGenerationContent(deps: AppRootDeps)",
 )
 
-# Store State stays semantic: plain strings and counts, never a generated handle or an Int id.
-ARCHIVE_STATE_FIELDS = (
-    ("selectedSegment", "Segment"),
-    ("exerciseCount", "Int"),
-    ("trainingCount", "Int"),
-    ("exerciseSegmentLabel", "String"),
-    ("trainingSegmentLabel", "String"),
-    ("archivedExercisesPaging", "PagingUiState<PagingData<ArchivedItemUi.Exercise>>"),
-    ("archivedTrainingsPaging", "PagingUiState<PagingData<ArchivedItemUi.Training>>"),
-    ("pendingDeleteImpact", "Int?"),
-    ("pendingDeleteTarget", "ArchivedItem?"),
-    ("deleteImpactLoading", "Boolean"),
+FEATURE_FORBIDDEN_BUILD_TOKENS = (
+    "convention.composeLibrary",
+    "publicResClass",
+    "androidTestImplementation",
+    "debugImplementation",
+    "testImplementation(",
+    "paging.testing",
+    "androidMain",
+    "iosMain",
+    "mockk",
+    "robolectric",
 )
 
-# The only suppressions the target may carry: two inherited production annotations and the three
-# Native test-name annotations §4.4 authorizes. Anything else is a new suppression.
-ARCHIVE_SUPPRESSIONS = {
-    "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt": [
-        '"UNCHECKED_CAST"',
-    ],
-    "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt": [
-        '"TooManyFunctions"',
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
-        '"INVALID_CHARACTERS_NATIVE_ERROR"',
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
-        '"INVALID_CHARACTERS_NATIVE_ERROR"',
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
-        '"INVALID_CHARACTERS_NATIVE_ERROR"',
-    ],
-}
+FEATURE_FORBIDDEN_COMMON_TOKENS = (
+    "androidx.compose.ui.platform.LocalContext",
+    "LocalContext",
+    "appDeps<",
+    "android.content",
+    "uiMode",
+    "VisibleForTesting",
+    "CompositionLocal",
+    "ServiceLocator",
+    "FactoryRegistry",
+    ".format(",
+)
 
-# The exact portable test-name inventory: 25 inherited identities plus the one Native scene.
-ARCHIVE_TEST_NAMES = {
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveClickHandlerTest.kt": [
-        "OnSegmentChange updates selectedSegment and emits SegmentTick haptic",
-        "OnSegmentChange to current segment is no-op",
-        "OnRestoreClick emits ContextClick haptic",
-        "OnUndoRestore emits ContextClick haptic",
-        "OnDeleteDismiss does not emit haptic",
-        "OnDeleteDismiss clears pending delete state",
-        "OnPermanentDeleteClick emits LongPress haptic and stores target",
-        "OnDeleteConfirm emits LongPress haptic and clears target",
-        "OnDeleteConfirm without target does nothing",
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandlerTest.kt": [
-        "placeholder",
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
-        "an exercise leads with its kind word",
-        "a training leads with the other kind word",
-        "the kind is first, ahead of the date",
-        "tags come last, after the date",
-        "no tags leaves no dangling separator",
-        "the date is day-and-month, not a relative span",
-        "a missing timestamp degrades to the bare word rather than a wrong date",
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
-        "rows win over everything",
-        "an unsettled refresh with no rows is loading, not empty",
-        "a failed first page is its own verdict",
-        "settled with no rows is the empty state",
-    ],
-    "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
-        "appending draws the loading footer",
-        "a failed page draws the error footer, not silence",
-        "exhausted draws no footer at all",
-        "idle mid-list draws no footer either",
-    ],
-    "src/iosTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveFeatureSceneIosTest.kt": [
-        "resourcesPagingBranchesAndActionsRenderAndDispatch",
-    ],
-}
+FEATURE_PAYLOAD_TOKENS = (
+    "StringResource",
+    "PluralStringResource",
+    ".resources.",
+    "Res.string",
+    "Res.plurals",
+    "StringRes",
+    "PluralsRes",
+    "ResourceWrapper",
+)
 
-ARCHIVE_GOLDEN_METHODS = [
-    "rowExercise",
-    "rowTraining",
-    "rowClamped",
-    "pagingLoading",
-    "pagingError",
-    "screenExercisesNoRows",
-    "screenTrainingsNoRows",
-]
+FEATURE_STATE_LAMBDA_SIDE_EFFECTS = (
+    "getString(",
+    "getPluralString(",
+    "stringResource(",
+    "pluralStringResource(",
+    "resourceWrapper.",
+    "Res.",
+)
 
-ARCHIVE_IDENTITY_TEST_NAMES = [
-    "extension resolves the store through the parent graph",
-    "store's app-scoped deps are the SAME instances the parent holds",
-    "the two handler-store keys resolve to ONE instance",
-    "the emitter the Store bound itself into is the one the handlers delegate through",
-]
+FEATURE_FORBIDDEN_TEST_APIS = ("org.junit", "io.mockk", "@Disabled", "@Ignore")
+
+NATIVE_TEST_NAME_SUPPRESSION = '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")'
+
+NUMBER_WORDS = (
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+    "nineteen", "twenty",
+)
+
+
+def number_word(count: int) -> str:
+    return NUMBER_WORDS[count] if 0 <= count < len(NUMBER_WORDS) else str(count)
+
+
+def every(count: int, singular: str, plural: str) -> str:
+    """'the one X', 'both Xs' or 'all four Xs'."""
+    if count == 1:
+        return f"the one {singular}"
+    if count == 2:
+        return f"both {plural}"
+    return f"all {number_word(count)} {plural}"
+
+
+def kotlin_test_rule(count: int) -> str:
+    # Two is the shared convention: one kotlin("test") in commonTest and one in iosTest.
+    if count == 2:
+        return "exactly once in commonTest and iosTest"
+    return "exactly once" if count == 1 else f"exactly {number_word(count)} times"
+
+
+def suppression_census(suppressions: dict) -> str:
+    production = sum(1 for relative in suppressions if relative.startswith("src/commonMain/"))
+    native = sum(1 for relative in suppressions if relative.startswith("src/commonTest/"))
+    return (
+        f"{number_word(production)} inherited production and "
+        f"{number_word(native)} Native test-name annotations"
+    )
+
 
 KOTLIN_TEST_NAME = re.compile(r"@Test\s+fun\s+(?:`([^`]+)`|(\w+))\s*\(")
 
@@ -1277,19 +1474,375 @@ def read_catalog(path: Path) -> list[tuple]:
     return entries
 
 
-def check_archive_feature_contract() -> list[str]:
+def check_feature_entry(entry: FeatureEntry) -> list[str]:
     failures: list[str] = []
-    root = ARCHIVE_ROOT
+    module = entry.module
+    root = entry.root
+    common_main = entry.common_main
 
-    # Exact 50-path topology: MODULES pins the 49 files under src; the build file is the 50th.
+    # Exact topology: MODULES pins every file under src; the build file is the only one beside it.
     top_level_files = sorted(path.name for path in root.iterdir() if path.is_file())
     if top_level_files != ["build.gradle.kts"]:
         failures.append(
-            f"feature:archive: module root must hold exactly build.gradle.kts; found {top_level_files}"
+            f"{module}: module root must hold exactly build.gradle.kts; found {top_level_files}"
         )
 
     build_source = (root / "build.gradle.kts").read_text(encoding="utf-8")
-    required_build_fragments = [
+    for fragment in entry.build_fragments:
+        if build_source.count(fragment) != 1:
+            failures.append(
+                f"{module}: build contract must contain {fragment!r} exactly once"
+            )
+    if build_source.count('implementation(kotlin("test"))') != entry.kotlin_test_count:
+        failures.append(
+            f"{module}: kotlin(test) must exist {kotlin_test_rule(entry.kotlin_test_count)}"
+        )
+    for forbidden in FEATURE_FORBIDDEN_BUILD_TOKENS:
+        if forbidden in build_source:
+            failures.append(
+                f"{module}: forbidden build dependency/configuration remains: {forbidden}"
+            )
+
+    # Exact private catalogs, in order, with the Android res owner gone.
+    for locale_index, catalog in enumerate(entry.catalog_paths):
+        expected = [
+            (tag, name, values[locale_index])
+            for tag, name, *values in entry.catalog
+        ]
+        actual = read_catalog(catalog) if catalog.is_file() else []
+        if actual != expected:
+            actual_by_name = {row[1]: row for row in actual}
+            mismatches = [
+                f"{name}: expected={value!r}, actual={actual_by_name.get(name)!r}"
+                for tag, name, value in expected
+                if actual_by_name.get(name) != (tag, name, value)
+            ]
+            extra = sorted(set(actual_by_name) - {name for _, name, _ in expected})
+            failures.append(
+                f"{module}: exact private CMP catalog mismatch in {catalog}; "
+                f"mismatched={mismatches}, unexpected={extra}, "
+                f"order={'exact' if [e[1] for e in actual] == [e[1] for e in expected] else 'drifted'}"
+            )
+    owners: dict[str, list[str]] = {}
+    for catalog in source_files("strings.xml"):
+        for row in read_catalog(catalog):
+            if row[1].startswith(entry.resource_prefix):
+                owners.setdefault(row[1], []).append(catalog.as_posix())
+    expected_owners = sorted(path.as_posix() for path in entry.catalog_paths)
+    for name, paths in sorted(owners.items()):
+        if sorted(paths) != expected_owners:
+            failures.append(
+                f"{module}: resource ownership drift for {name}; "
+                f"expected={expected_owners}, actual={sorted(paths)}"
+            )
+
+    common_sources = {
+        path: path.read_text(encoding="utf-8")
+        for path in sorted((root / "src/commonMain/kotlin").rglob("*.kt"))
+    }
+    for path, source in common_sources.items():
+        relative = path.relative_to(root)
+        for token in FEATURE_FORBIDDEN_COMMON_TOKENS:
+            if token in source:
+                failures.append(
+                    f"{module}: {relative} contains forbidden platform/lookup API {token!r}"
+                )
+        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE):
+            failures.append(f"{module}: {relative} contains a forbidden expect/actual shim")
+        if "@Preview(" in source and "ThemeMode" not in source:
+            failures.append(f"{module}: {relative} previews must use portable ThemeMode")
+
+    # No generated resource handle or Int id in Store, model or domain payloads.
+    payload_paths = [
+        path
+        for path in common_sources
+        if "/domain/" in path.as_posix()
+        or path.name in entry.payload_files
+    ]
+    for path in payload_paths:
+        source = common_sources[path]
+        for token in FEATURE_PAYLOAD_TOKENS:
+            if token in source:
+                failures.append(
+                    f"{module}: {path.relative_to(root)} carries a resource handle/lookup "
+                    f"{token!r} in a Store/domain payload"
+                )
+    store_source = strip_kotlin_comments(common_sources[common_main / entry.store_file])
+    state_block = re.search(r"data class State\((?P<params>.*?)\)\s*:\s*Store\.State", store_source, re.DOTALL)
+    state_fields = (
+        tuple(
+            (name, type_.strip())
+            for name, type_ in re.findall(r"val\s+(\w+)\s*:\s*([^,]+),", state_block.group("params"))
+        )
+        if state_block
+        else ()
+    )
+    if state_fields != entry.state_fields:
+        failures.append(
+            f"{module}: Store State must stay semantic with exactly "
+            f"{entry.state_fields!r}; actual={state_fields!r}"
+        )
+
+    # ResourceWrapper stays with its declared readers, and copy never resolves through it.
+    readers = {common_main / relative for relative in entry.resource_wrapper_readers}
+    for path, source in common_sources.items():
+        if path not in readers and "ResourceWrapper" in source:
+            failures.append(
+                f"{module}: {path.relative_to(root)} must not read ResourceWrapper"
+            )
+        for match in re.finditer(
+            r"resourceWrapper\s*\.\s*(getString|getQuantityString|getAbbreviatedRelativeTime|"
+            r"formatMediumDate)\s*\(",
+            source,
+        ):
+            failures.append(
+                f"{module}: {path.relative_to(root)} resolves {entry.short_name} copy through "
+                f"ResourceWrapper.{match.group(1)}; use the private Compose resources"
+            )
+
+    # State lambdas only copy State: resources resolve before updateState, never inside it.
+    update_count = 0
+    for path, source in common_sources.items():
+        if "/mvi/handler/" not in path.as_posix():
+            continue
+        for call in ("updateState", "updateStateImmediate"):
+            for body in braced_call_bodies(source, call):
+                update_count += 1
+                if ".copy(" not in compact(body):
+                    failures.append(
+                        f"{module}: {call} in {path.relative_to(root)} must return a State copy"
+                    )
+                for side_effect in FEATURE_STATE_LAMBDA_SIDE_EFFECTS:
+                    if side_effect in body:
+                        failures.append(
+                            f"{module}: {call} in {path.relative_to(root)} resolves a "
+                            f"resource inside the State lambda: {side_effect!r}"
+                        )
+    if update_count == 0:
+        failures.append(f"{module}: no updateState lambdas were inspected")
+
+    # Exactly the portable previews: every subject, each Light and Dark.
+    preview_count = 2 * len(entry.preview_subjects)
+    total_previews = sum(source.count("@Preview(") for source in common_sources.values())
+    if total_previews != preview_count:
+        failures.append(
+            f"{module}: exactly {number_word(preview_count)} portable previews are required; "
+            f"found {total_previews}"
+        )
+    for relative, subject in entry.preview_subjects.items():
+        path = common_main / relative
+        source = common_sources[path]
+        for fragment in (
+            '@Preview(name = "Light", showBackground = true)',
+            f"{subject}LightPreview()",
+            f"{subject}Preview(themeMode = ThemeMode.LIGHT)",
+            '@Preview(name = "Dark", showBackground = true)',
+            f"{subject}DarkPreview()",
+            f"{subject}Preview(themeMode = ThemeMode.DARK)",
+            "AppTheme(themeMode = themeMode)",
+        ):
+            if source.count(fragment) != 1:
+                failures.append(
+                    f"{module}: {path.name} preview contract requires {fragment!r} exactly once"
+                )
+
+    # Exactly the declared production and Native test-name suppressions.
+    actual_suppressions: dict[str, list[str]] = {}
+    for path in sorted((root / "src").rglob("*.kt")):
+        found = re.findall(r"@(?:file:)?Suppress\(([^)]*)\)", path.read_text(encoding="utf-8"))
+        if found:
+            actual_suppressions[path.relative_to(root).as_posix()] = [args.strip() for args in found]
+    if actual_suppressions != entry.suppressions:
+        failures.append(
+            f"{module}: suppressions must be exactly the {suppression_census(entry.suppressions)}; "
+            f"expected={entry.suppressions!r}, "
+            f"actual={actual_suppressions!r}"
+        )
+    for relative in entry.suppressions:
+        if "/commonTest/" in relative:
+            source = (root / relative).read_text(encoding="utf-8")
+            if NATIVE_TEST_NAME_SUPPRESSION not in source:
+                failures.append(
+                    f"{module}: {relative} Native test-name suppression must be file-scoped"
+                )
+
+    # The exact portable/Native test names, and no Android test API in commonTest.
+    for relative, expected_names in entry.test_names.items():
+        path = root / relative
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        actual_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(source)]
+        if sorted(actual_names) != sorted(expected_names):
+            failures.append(
+                f"{module}: exact test identities drifted in {relative}; "
+                f"missing={sorted(set(expected_names) - set(actual_names))}, "
+                f"unexpected={sorted(set(actual_names) - set(expected_names))}"
+            )
+    for path in sorted((root / "src/commonTest/kotlin").rglob("*.kt")):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in FEATURE_FORBIDDEN_TEST_APIS:
+            if forbidden in source:
+                failures.append(
+                    f"{module}: {path.relative_to(root)} contains forbidden test API "
+                    f"{forbidden!r}"
+                )
+    golden_source = (root / entry.golden_test).read_text(encoding="utf-8")
+    golden_methods = re.findall(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source)
+    if golden_methods != entry.golden_methods:
+        failures.append(
+            f"{module}: golden methods must be exactly {entry.golden_methods}; "
+            f"actual={golden_methods}"
+        )
+    device_source = (root / entry.device_test).read_text(encoding="utf-8")
+    for fragment in entry.device_fragments:
+        if device_source.count(fragment) != 1:
+            failures.append(
+                f"{module}: device placeholder must keep {fragment!r} exactly once"
+            )
+
+    # The explicit generation-owned factory flow, and nothing that bypasses it.
+    graph_factory = f"{entry.graph_interface}.Factory"
+    feature_path = common_main / entry.feature_file
+    feature_source = common_sources[feature_path]
+    graph_path = common_main / entry.graph_file
+    graph_source = common_sources[graph_path]
+    required_root_fragments = [
+        (APP_ROOT_DEPS_PATH, [f"val {entry.factory_accessor}: {graph_factory}"]),
+        (APP_GRAPH_PATH, [f"override val {entry.factory_accessor}: {graph_factory}"]),
+        (
+            APP_PATH,
+            [*APP_ADMISSION_FRAGMENTS, f"{entry.factory_accessor} = deps.{entry.factory_accessor}"],
+        ),
+        (
+            APP_NAVIGATION_HOST_PATH,
+            [
+                f"{entry.factory_accessor}: {graph_factory},",
+                f"{entry.graph_function}(factory = {entry.factory_accessor},",
+            ],
+        ),
+        (
+            graph_path,
+            [f"factory: {graph_factory},", f"navComponentScreen({entry.feature_class}(factory))"],
+        ),
+        (
+            feature_path,
+            [f"internal class {entry.feature_class}(", f"private val factory: {graph_factory}"],
+        ),
+        (entry.identity_test, list(entry.identity_fragments)),
+        *((Path(path), list(fragments)) for path, fragments in entry.extra_root_fragments.items()),
+    ]
+    for path, fragments in required_root_fragments:
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        compact_source = compact(source)
+        for fragment in fragments:
+            if compact_source.count(compact(fragment)) != 1:
+                failures.append(
+                    f"{module}: exact root-factory flow requires {fragment!r} once in {path}"
+                )
+    retained_factory = compact(
+        f"""
+        rememberMetroStoreProcessor<{entry.store_impl}> {{
+            factory
+                .{entry.create_method}()
+                .{entry.store_accessor}
+        }}
+        """
+    )
+    if compact(feature_source).count(retained_factory) != 1:
+        failures.append(
+            f"{module}: factory invocation must occur exactly inside retained Store creation"
+        )
+    create_call = f"{entry.create_method}("
+    graph_calls = sum(source.count(create_call) for source in common_sources.values())
+    # One declaration on the graph's Factory plus the one retained invocation.
+    if graph_calls != 2 or feature_source.count(create_call) != 1:
+        failures.append(
+            f"{module}: {entry.create_method}() must be invoked once, inside the Store lambda"
+        )
+    optional_factory = (
+        rf"(?:factory|{re.escape(entry.factory_accessor)})\s*:\s*"
+        rf"{re.escape(entry.graph_interface)}\.Factory\s*[?=]"
+    )
+    for source in (graph_source, feature_source):
+        if re.search(optional_factory, source):
+            failures.append(f"{module}: factory parameters must be required and non-null")
+    if f"object {entry.feature_class}" in feature_source:
+        failures.append(
+            f"{module}: {entry.feature_class} must take its factory, not be an object"
+        )
+
+    identity_source = entry.identity_test.read_text(encoding="utf-8")
+    if "asContribution" in identity_source:
+        failures.append(
+            f"{module}: extension identities must not bypass AppRootDeps via asContribution"
+        )
+    identity_count = len(entry.identity_names)
+    identity_noun = "extension identity" if identity_count == 1 else "extension identities"
+    identity_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(identity_source)]
+    if identity_names != entry.identity_names:
+        failures.append(
+            f"{module}: the {number_word(identity_count)} {identity_noun} must stay exact; "
+            f"actual={identity_names}"
+        )
+    if len(re.findall(entry.identity_accessor, identity_source)) != identity_count:
+        failures.append(
+            f"{module}: {every(identity_count, 'extension identity', 'extension identities')} "
+            "must reach the graph through the accessor"
+        )
+
+    app_common_build = Path("app/common/build.gradle.kts").read_text(encoding="utf-8")
+    if app_common_build.count(f'api(project(":{module}"))') != 1:
+        failures.append(f"app:common: {entry.short_name} edge must be exactly one api dependency")
+    if f'implementation(project(":{module}"))' in app_common_build:
+        failures.append(f"app:common: {entry.short_name} edge must not remain implementation")
+    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
+    if app_build.count(f'implementation(project(":{module}"))') != 1:
+        failures.append(
+            f"app:app: direct {entry.short_name} aggregation edge must remain implementation"
+        )
+
+    for extra_check in entry.extra_checks:
+        failures.extend(extra_check(entry, common_sources))
+
+    return failures
+
+
+def archive_item_ui_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    failures: list[str] = []
+    item_ui_source = strip_kotlin_comments(common_sources[entry.common_main / "mvi/model/ArchivedItemUi.kt"])
+    item_ui_fields = sorted(set(re.findall(r"val\s+(\w+)\s*:\s*([\w.]+)", item_ui_source)))
+    expected_item_ui_fields = sorted(
+        {
+            ("item", "ArchivedItem"),
+            ("item", "ArchivedItem.Exercise"),
+            ("item", "ArchivedItem.Training"),
+            ("metaLine", "String"),
+        }
+    )
+    if item_ui_fields != expected_item_ui_fields:
+        failures.append(
+            "feature:archive: ArchivedItemUi must carry only item and the plain metaLine; "
+            f"actual={item_ui_fields!r}"
+        )
+    return failures
+
+
+def archive_day_month_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    failures: list[str] = []
+    # ResourceWrapper stays for formatDayMonth only, in the paging handler only.
+    paging_path = entry.common_main / "mvi/handler/ArchivePagingHandler.kt"
+    if common_sources[paging_path].count("resourceWrapper.formatDayMonth(") != 1:
+        failures.append(
+            "feature:archive: ResourceWrapper must serve exactly one formatDayMonth date"
+        )
+    return failures
+
+
+ARCHIVE_ENTRY = FeatureEntry(
+    module="feature:archive",
+    short_name="archive",
+    root=Path("feature/archive"),
+    package_dir="io/github/stslex/workeeper/feature/archive",
+    build_fragments=(
         "alias(libs.plugins.convention.kmpComposeLibrary)",
         "alias(libs.plugins.metro)",
         "alias(libs.plugins.paparazzi)",
@@ -1314,383 +1867,1295 @@ def check_archive_feature_contract() -> list[str]:
         '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
         '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
         'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
-    ]
-    for fragment in required_build_fragments:
-        if build_source.count(fragment) != 1:
-            failures.append(
-                f"feature:archive: build contract must contain {fragment!r} exactly once"
-            )
-    if build_source.count('implementation(kotlin("test"))') != 2:
-        failures.append(
-            "feature:archive: kotlin(test) must exist exactly once in commonTest and iosTest"
-        )
-    for forbidden in (
-        "convention.composeLibrary",
-        "publicResClass",
-        "androidTestImplementation",
-        "debugImplementation",
-        "testImplementation(",
-        "paging.testing",
-        "androidMain",
-        "iosMain",
-        "mockk",
-        "robolectric",
-    ):
-        if forbidden in build_source:
-            failures.append(
-                f"feature:archive: forbidden build dependency/configuration remains: {forbidden}"
-            )
-
-    # Exact private catalogs, in order, with the Android res owner gone.
-    for locale_index, catalog in enumerate(ARCHIVE_CATALOG_PATHS):
-        expected = [
-            (tag, name, values[locale_index])
-            for tag, name, *values in ARCHIVE_RESOURCES
-        ]
-        actual = read_catalog(catalog) if catalog.is_file() else []
-        if actual != expected:
-            actual_by_name = {entry[1]: entry for entry in actual}
-            mismatches = [
-                f"{name}: expected={value!r}, actual={actual_by_name.get(name)!r}"
-                for tag, name, value in expected
-                if actual_by_name.get(name) != (tag, name, value)
-            ]
-            extra = sorted(set(actual_by_name) - {name for _, name, _ in expected})
-            failures.append(
-                f"feature:archive: exact private CMP catalog mismatch in {catalog}; "
-                f"mismatched={mismatches}, unexpected={extra}, "
-                f"order={'exact' if [e[1] for e in actual] == [e[1] for e in expected] else 'drifted'}"
-            )
-    owners: dict[str, list[str]] = {}
-    for catalog in source_files("strings.xml"):
-        for entry in read_catalog(catalog):
-            if entry[1].startswith("feature_archive_"):
-                owners.setdefault(entry[1], []).append(catalog.as_posix())
-    expected_owners = sorted(path.as_posix() for path in ARCHIVE_CATALOG_PATHS)
-    for name, paths in sorted(owners.items()):
-        if sorted(paths) != expected_owners:
-            failures.append(
-                f"feature:archive: resource ownership drift for {name}; "
-                f"expected={expected_owners}, actual={sorted(paths)}"
-            )
-
-    common_sources = {
-        path: path.read_text(encoding="utf-8")
-        for path in sorted((root / "src/commonMain/kotlin").rglob("*.kt"))
-    }
-    forbidden_common_tokens = (
-        "androidx.compose.ui.platform.LocalContext",
-        "LocalContext",
-        "appDeps<",
-        "android.content",
-        "uiMode",
-        "VisibleForTesting",
-        "CompositionLocal",
-        "ServiceLocator",
-        "FactoryRegistry",
-        ".format(",
-    )
-    for path, source in common_sources.items():
-        relative = path.relative_to(root)
-        for token in forbidden_common_tokens:
-            if token in source:
-                failures.append(
-                    f"feature:archive: {relative} contains forbidden platform/lookup API {token!r}"
-                )
-        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE):
-            failures.append(f"feature:archive: {relative} contains a forbidden expect/actual shim")
-        if "@Preview(" in source and "ThemeMode" not in source:
-            failures.append(f"feature:archive: {relative} previews must use portable ThemeMode")
-
-    # No generated resource handle or Int id in Store, model or domain payloads.
-    payload_paths = [
-        path
-        for path in common_sources
-        if "/domain/" in path.as_posix()
-        or path.name in {"ArchiveStore.kt", "ArchivedItemUi.kt", "ArchiveUiMapper.kt"}
-    ]
-    for path in payload_paths:
-        source = common_sources[path]
-        for token in (
-            "StringResource",
-            "PluralStringResource",
-            ".resources.",
-            "Res.string",
-            "Res.plurals",
-            "StringRes",
-            "PluralsRes",
-            "ResourceWrapper",
-        ):
-            if token in source:
-                failures.append(
-                    f"feature:archive: {path.relative_to(root)} carries a resource handle/lookup "
-                    f"{token!r} in a Store/domain payload"
-                )
-    store_source = strip_kotlin_comments(common_sources[ARCHIVE_COMMON_MAIN / "mvi/store/ArchiveStore.kt"])
-    state_block = re.search(r"data class State\((?P<params>.*?)\)\s*:\s*Store\.State", store_source, re.DOTALL)
-    state_fields = (
-        tuple(
-            (name, type_.strip())
-            for name, type_ in re.findall(r"val\s+(\w+)\s*:\s*([^,]+),", state_block.group("params"))
-        )
-        if state_block
-        else ()
-    )
-    if state_fields != ARCHIVE_STATE_FIELDS:
-        failures.append(
-            "feature:archive: Store State must stay semantic with exactly "
-            f"{ARCHIVE_STATE_FIELDS!r}; actual={state_fields!r}"
-        )
-    item_ui_source = strip_kotlin_comments(common_sources[ARCHIVE_COMMON_MAIN / "mvi/model/ArchivedItemUi.kt"])
-    item_ui_fields = sorted(set(re.findall(r"val\s+(\w+)\s*:\s*([\w.]+)", item_ui_source)))
-    expected_item_ui_fields = sorted(
-        {
-            ("item", "ArchivedItem"),
-            ("item", "ArchivedItem.Exercise"),
-            ("item", "ArchivedItem.Training"),
-            ("metaLine", "String"),
-        }
-    )
-    if item_ui_fields != expected_item_ui_fields:
-        failures.append(
-            "feature:archive: ArchivedItemUi must carry only item and the plain metaLine; "
-            f"actual={item_ui_fields!r}"
-        )
-
-    # ResourceWrapper stays for formatDayMonth only, in the paging handler only.
-    paging_path = ARCHIVE_COMMON_MAIN / "mvi/handler/ArchivePagingHandler.kt"
-    for path, source in common_sources.items():
-        if path != paging_path and "ResourceWrapper" in source:
-            failures.append(
-                f"feature:archive: {path.relative_to(root)} must not read ResourceWrapper"
-            )
-        for match in re.finditer(
-            r"resourceWrapper\s*\.\s*(getString|getQuantityString|getAbbreviatedRelativeTime|"
-            r"formatMediumDate)\s*\(",
-            source,
-        ):
-            failures.append(
-                f"feature:archive: {path.relative_to(root)} resolves archive copy through "
-                f"ResourceWrapper.{match.group(1)}; use the private Compose resources"
-            )
-    if common_sources[paging_path].count("resourceWrapper.formatDayMonth(") != 1:
-        failures.append(
-            "feature:archive: ResourceWrapper must serve exactly one formatDayMonth date"
-        )
-
-    # State lambdas only copy State: resources resolve before updateState, never inside it.
-    update_count = 0
-    for path, source in common_sources.items():
-        if "/mvi/handler/" not in path.as_posix():
-            continue
-        for call in ("updateState", "updateStateImmediate"):
-            for body in braced_call_bodies(source, call):
-                update_count += 1
-                if ".copy(" not in compact(body):
-                    failures.append(
-                        f"feature:archive: {call} in {path.relative_to(root)} must return a State copy"
-                    )
-                for side_effect in (
-                    "getString(",
-                    "getPluralString(",
-                    "stringResource(",
-                    "pluralStringResource(",
-                    "resourceWrapper.",
-                    "Res.",
-                ):
-                    if side_effect in body:
-                        failures.append(
-                            f"feature:archive: {call} in {path.relative_to(root)} resolves a "
-                            f"resource inside the State lambda: {side_effect!r}"
-                        )
-    if update_count == 0:
-        failures.append("feature:archive: no updateState lambdas were inspected")
-
-    # Exactly four portable previews: ArchiveScreen and ArchivedItemRow, each Light and Dark.
-    preview_contract = {
-        ARCHIVE_COMMON_MAIN / "ui/ArchiveScreen.kt": "ArchiveScreen",
-        ARCHIVE_COMMON_MAIN / "ui/components/ArchivedItemRow.kt": "ArchivedItemRow",
-    }
-    total_previews = sum(source.count("@Preview(") for source in common_sources.values())
-    if total_previews != 4:
-        failures.append(
-            f"feature:archive: exactly four portable previews are required; found {total_previews}"
-        )
-    for path, subject in preview_contract.items():
-        source = common_sources[path]
-        for fragment in (
-            '@Preview(name = "Light", showBackground = true)',
-            f"{subject}LightPreview()",
-            f"{subject}Preview(themeMode = ThemeMode.LIGHT)",
-            '@Preview(name = "Dark", showBackground = true)',
-            f"{subject}DarkPreview()",
-            f"{subject}Preview(themeMode = ThemeMode.DARK)",
-            "AppTheme(themeMode = themeMode)",
-        ):
-            if source.count(fragment) != 1:
-                failures.append(
-                    f"feature:archive: {path.name} preview contract requires {fragment!r} exactly once"
-                )
-
-    # Exactly the two inherited production and three Native test-name suppressions.
-    actual_suppressions: dict[str, list[str]] = {}
-    for path in sorted((root / "src").rglob("*.kt")):
-        found = re.findall(r"@(?:file:)?Suppress\(([^)]*)\)", path.read_text(encoding="utf-8"))
-        if found:
-            actual_suppressions[path.relative_to(root).as_posix()] = [args.strip() for args in found]
-    if actual_suppressions != ARCHIVE_SUPPRESSIONS:
-        failures.append(
-            "feature:archive: suppressions must be exactly the two inherited production and three "
-            f"Native test-name annotations; expected={ARCHIVE_SUPPRESSIONS!r}, "
-            f"actual={actual_suppressions!r}"
-        )
-    for relative in ARCHIVE_SUPPRESSIONS:
-        if "/commonTest/" in relative:
-            source = (root / relative).read_text(encoding="utf-8")
-            if '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")' not in source:
-                failures.append(
-                    f"feature:archive: {relative} Native test-name suppression must be file-scoped"
-                )
-
-    # The exact 26 portable/Native test names, and no Android test API in commonTest.
-    for relative, expected_names in ARCHIVE_TEST_NAMES.items():
-        path = root / relative
-        source = path.read_text(encoding="utf-8") if path.is_file() else ""
-        actual_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(source)]
-        if sorted(actual_names) != sorted(expected_names):
-            failures.append(
-                f"feature:archive: exact test identities drifted in {relative}; "
-                f"missing={sorted(set(expected_names) - set(actual_names))}, "
-                f"unexpected={sorted(set(actual_names) - set(expected_names))}"
-            )
-    for path in sorted((root / "src/commonTest/kotlin").rglob("*.kt")):
-        source = path.read_text(encoding="utf-8")
-        for forbidden in ("org.junit", "io.mockk", "@Disabled", "@Ignore"):
-            if forbidden in source:
-                failures.append(
-                    f"feature:archive: {path.relative_to(root)} contains forbidden test API "
-                    f"{forbidden!r}"
-                )
-    golden_source = (
-        root
-        / "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/archive/golden/ArchiveGoldenTest.kt"
-    ).read_text(encoding="utf-8")
-    golden_methods = re.findall(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source)
-    if golden_methods != ARCHIVE_GOLDEN_METHODS:
-        failures.append(
-            f"feature:archive: golden methods must be exactly {ARCHIVE_GOLDEN_METHODS}; "
-            f"actual={golden_methods}"
-        )
-    device_source = (
-        root
-        / "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt"
-    ).read_text(encoding="utf-8")
-    for fragment in (
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
+    # ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
+    # all contractual (kmp-phase-7-8-archive-feature.md §3.4, with the session count's six items
+    # made positional by decision P1, §19.8).
+    catalog=(
+        ("string", "feature_archive_title", "Archive", "Архив"),
+        ("string", "feature_archive_action_more", "More", "Ещё"),
+        ("string", "feature_archive_segment_exercises", "Exercises (%1$d)", "Упражнения (%1$d)"),
+        ("string", "feature_archive_segment_trainings", "Trainings (%1$d)", "Тренировки (%1$d)"),
+        ("string", "feature_archive_action_restore", "Restore", "Восстановить"),
+        ("string", "feature_archive_action_permanent_delete", "Delete permanently", "Удалить навсегда"),
+        ("string", "feature_archive_kind_exercise", "exercise", "упражнение"),
+        ("string", "feature_archive_kind_training", "training", "тренировка"),
+        ("string", "feature_archive_label_archived", "archived", "в архиве"),
+        (
+            "string",
+            "feature_archive_label_archived_since_format",
+            "archived since %1$s",
+            "в архиве с %1$s",
+        ),
+        ("string", "feature_archive_meta_separator", "·", "·"),
+        ("string", "feature_archive_empty_headline", "Nothing archived", "Архив пуст"),
+        (
+            "string",
+            "feature_archive_empty_supporting_exercises",
+            "Archived exercises appear here for restore or permanent delete.",
+            "Здесь будут архивированные упражнения — для восстановления или удаления навсегда.",
+        ),
+        (
+            "string",
+            "feature_archive_empty_supporting_trainings",
+            "Archived trainings appear here for restore or permanent delete.",
+            "Здесь будут архивированные тренировки — для восстановления или удаления навсегда.",
+        ),
+        (
+            "string",
+            "feature_archive_dialog_permanent_delete_title",
+            "Delete ‘%1$s’ permanently?",
+            "Удалить «%1$s» навсегда?",
+        ),
+        (
+            "string",
+            "feature_archive_dialog_permanent_delete_body_no_history",
+            "This action cannot be undone.",
+            "Это действие нельзя отменить.",
+        ),
+        (
+            "string",
+            "feature_archive_dialog_impact_summary_empty",
+            "No session history affected",
+            "Сессии истории не затронуты",
+        ),
+        ("string", "feature_archive_dialog_confirm_delete", "Delete", "Удалить"),
+        ("string", "feature_archive_snackbar_restored_format", "%1$s restored", "«%1$s» восстановлено"),
+        (
+            "string",
+            "feature_archive_snackbar_deleted_format",
+            "%1$s permanently deleted",
+            "«%1$s» удалено навсегда",
+        ),
+        ("string", "feature_archive_snackbar_undo", "Undo", "Отменить"),
+        (
+            "plurals",
+            "feature_archive_session_count",
+            (("one", "%1$d session"), ("other", "%1$d sessions")),
+            (
+                ("one", "%1$d сессия"),
+                ("few", "%1$d сессии"),
+                ("many", "%1$d сессий"),
+                ("other", "%1$d сессии"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_archive_dialog_permanent_delete_body_with_history",
+            (
+                ("one", "%1$d session of history will also be deleted. This action cannot be undone."),
+                ("other", "%1$d sessions of history will also be deleted. This action cannot be undone."),
+            ),
+            (
+                ("one", "Также будет удалена %1$d сессия истории. Это действие нельзя отменить."),
+                ("few", "Также будут удалены %1$d сессии истории. Это действие нельзя отменить."),
+                ("many", "Также будет удалено %1$d сессий истории. Это действие нельзя отменить."),
+                ("other", "Также будет удалено %1$d сессии истории. Это действие нельзя отменить."),
+            ),
+        ),
+        ("string", "feature_archive_paging_loading", "Loading", "Загружаю"),
+        ("string", "feature_archive_paging_error", "Couldn’t load more", "Не удалось загрузить дальше"),
+        ("string", "feature_archive_paging_retry", "Retry", "Повторить"),
+        ("string", "feature_archive_refresh_error", "Couldn’t load the archive", "Не удалось загрузить архив"),
+    ),
+    resource_prefix="feature_archive_",
+    payload_files=frozenset({"ArchiveStore.kt", "ArchivedItemUi.kt", "ArchiveUiMapper.kt"}),
+    store_file="mvi/store/ArchiveStore.kt",
+    # Store State stays semantic: plain strings and counts, never a generated handle or an Int id.
+    state_fields=(
+        ("selectedSegment", "Segment"),
+        ("exerciseCount", "Int"),
+        ("trainingCount", "Int"),
+        ("exerciseSegmentLabel", "String"),
+        ("trainingSegmentLabel", "String"),
+        ("archivedExercisesPaging", "PagingUiState<PagingData<ArchivedItemUi.Exercise>>"),
+        ("archivedTrainingsPaging", "PagingUiState<PagingData<ArchivedItemUi.Training>>"),
+        ("pendingDeleteImpact", "Int?"),
+        ("pendingDeleteTarget", "ArchivedItem?"),
+        ("deleteImpactLoading", "Boolean"),
+    ),
+    resource_wrapper_readers=frozenset({"mvi/handler/ArchivePagingHandler.kt"}),
+    preview_subjects={
+        "ui/ArchiveScreen.kt": "ArchiveScreen",
+        "ui/components/ArchivedItemRow.kt": "ArchivedItemRow",
+    },
+    # The only suppressions the target may carry: two inherited production annotations and the three
+    # Native test-name annotations §4.4 authorizes. Anything else is a new suppression.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt": [
+            '"TooManyFunctions"',
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
+            '"INVALID_CHARACTERS_NATIVE_ERROR"',
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
+            '"INVALID_CHARACTERS_NATIVE_ERROR"',
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
+            '"INVALID_CHARACTERS_NATIVE_ERROR"',
+        ],
+    },
+    # The exact portable test-name inventory: 25 inherited identities plus the one Native scene.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchiveClickHandlerTest.kt": [
+            "OnSegmentChange updates selectedSegment and emits SegmentTick haptic",
+            "OnSegmentChange to current segment is no-op",
+            "OnRestoreClick emits ContextClick haptic",
+            "OnUndoRestore emits ContextClick haptic",
+            "OnDeleteDismiss does not emit haptic",
+            "OnDeleteDismiss clears pending delete state",
+            "OnPermanentDeleteClick emits LongPress haptic and stores target",
+            "OnDeleteConfirm emits LongPress haptic and clears target",
+            "OnDeleteConfirm without target does nothing",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandlerTest.kt": [
+            "placeholder",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/mvi/mapper/ArchiveMetaLineTest.kt": [
+            "an exercise leads with its kind word",
+            "a training leads with the other kind word",
+            "the kind is first, ahead of the date",
+            "tags come last, after the date",
+            "no tags leaves no dangling separator",
+            "the date is day-and-month, not a relative span",
+            "a missing timestamp degrades to the bare word rather than a wrong date",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/ArchiveListSurfaceTest.kt": [
+            "rows win over everything",
+            "an unsettled refresh with no rows is loading, not empty",
+            "a failed first page is its own verdict",
+            "settled with no rows is the empty state",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/archive/ui/components/PagingTailKindTest.kt": [
+            "appending draws the loading footer",
+            "a failed page draws the error footer, not silence",
+            "exhausted draws no footer at all",
+            "idle mid-list draws no footer either",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveFeatureSceneIosTest.kt": [
+            "resourcesPagingBranchesAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/archive/golden/ArchiveGoldenTest.kt"
+    ),
+    golden_methods=[
+        "rowExercise",
+        "rowTraining",
+        "rowClamped",
+        "pagingLoading",
+        "pagingError",
+        "screenExercisesNoRows",
+        "screenTrainingsNoRows",
+    ],
+    device_test=(
+        "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt"
+    ),
+    device_fragments=(
         "@Smoke",
         '@Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")',
         "fun pendingFeatureRewrite()",
-    ):
-        if device_source.count(fragment) != 1:
+    ),
+    feature_class="ArchiveFeature",
+    graph_interface="ArchiveGraph",
+    graph_function="archiveGraph",
+    factory_accessor="archiveGraphFactory",
+    create_method="createArchiveGraph",
+    store_impl="ArchiveStoreImpl",
+    store_accessor="archiveStore",
+    feature_file="di/ArchiveFeature.kt",
+    graph_file="ui/ArchiveGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/ArchiveExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.archive(): ArchiveGraph = archiveGraphFactory.createArchiveGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the two handler-store keys resolve to ONE instance",
+        "the emitter the Store bound itself into is the one the handlers delegate through",
+    ],
+    identity_accessor=r"(?<!AppGraph)\.archive\(\)",
+    extra_checks=(archive_item_ui_contract, archive_day_month_contract),
+)
+
+
+def data_class_parameters(source: str, name: str) -> list:
+    """`name: Type` (any default kept) for each parameter of `data class <name>(`; None if absent."""
+    match = re.search(rf"\bdata\s+class\s+{re.escape(name)}\s*\(", source)
+    if not match:
+        return None
+    depth = 0
+    for index in range(match.end() - 1, len(source)):
+        if source[index] == "(":
+            depth += 1
+        elif source[index] == ")":
+            depth -= 1
+            if depth == 0:
+                body = source[match.end():index]
+                break
+    else:
+        return None
+    parameters: list[str] = []
+    chunk = ""
+    nesting = 0
+    for char in body + ",":
+        if char in "(<[{":
+            nesting += 1
+        elif char in ")>]}":
+            nesting -= 1
+        if char == "," and nesting == 0:
+            text = " ".join(chunk.split())
+            if text:
+                declared = re.fullmatch(r"(?:val|var)\s+(\w+)\s*:\s*(.+)", text)
+                parameters.append(f"{declared.group(1)}: {declared.group(2)}" if declared else text)
+            chunk = ""
+        else:
+            chunk += char
+    return parameters
+
+
+def all_trainings_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D1 and D2 (kmp-phase-7-9-all-trainings-feature.md §5.2, §5.3, §12.1): the event carries
+    # semantics, copy resolves in the mapper and the graph, and no handler resolves a resource.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return common_sources[path]
+
+    store_relative = "mvi/store/AllTrainingsStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        expected_parameters = ["archivedCount: Int", "blockedNames: ImmutableList<String>"]
+        parameters = data_class_parameters(
+            strip_kotlin_comments(store_source), "ShowBulkDeleteSuccess"
+        )
+        if parameters != expected_parameters:
             failures.append(
-                f"feature:archive: device placeholder must keep {fragment!r} exactly once"
+                f"{module}: {(entry.common_main / store_relative).relative_to(entry.root)} "
+                f"ShowBulkDeleteSuccess parameters must be exactly {expected_parameters}; "
+                f"actual={parameters}"
+            )
+    for relative, fragments in (
+        (
+            "ui/AllTrainingsGraph.kt",
+            (
+                "internal suspend fun bulkArchiveMessage(",
+                "bulkArchiveMessage(event.archivedCount, event.blockedNames)",
+                "// TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md",
+            ),
+        ),
+        (
+            "mvi/mapper/TrainingListItemMapper.kt",
+            (
+                "internal suspend fun TrainingListItemDomain.toUi(",
+                "Clock.System.now().toEpochMilliseconds()",
+            ),
+        ),
+    ):
+        source = source_of(relative)
+        if source is None:
+            continue
+        for fragment in fragments:
+            count = source.count(fragment)
+            if count != 1:
+                failures.append(
+                    f"{module}: {(entry.common_main / relative).relative_to(entry.root)} copy "
+                    f"contract requires {fragment!r} exactly once; found {count}"
+                )
+    handler_prefix = (entry.common_main / "mvi/handler").as_posix() + "/"
+    handlers = [path for path in common_sources if path.as_posix().startswith(handler_prefix)]
+    if not handlers:
+        failures.append(f"{module}: copy contract found no file under mvi/handler/")
+    for path in handlers:
+        for token in ("getString(", "getPluralString(", "stringResource(", "pluralStringResource(", "Res."):
+            if token in common_sources[path]:
+                failures.append(
+                    f"{module}: {path.relative_to(entry.root)} resolves copy in a handler: {token!r}"
+                )
+    return failures
+
+
+def all_trainings_back_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # The portable BackHandler intercepts back only while selecting, and exits selection (§5.6).
+    failures: list[str] = []
+    graph_path = entry.common_main / "ui/AllTrainingsGraph.kt"
+    source = common_sources.get(graph_path, "")
+    for fragment in (
+        "import androidx.compose.ui.backhandler.BackHandler",
+        "ExperimentalComposeUiApi::class",
+        "BackHandler(enabled = processor.state.value.interceptBack)",
+        "processor.consume(Action.Click.OnSelectionExit)",
+    ):
+        count = source.count(fragment)
+        if count != 1:
+            failures.append(
+                f"{entry.module}: {graph_path.relative_to(entry.root)} back contract requires "
+                f"{fragment!r} exactly once; found {count}"
+            )
+    return failures
+
+
+ALL_TRAININGS_ENTRY = FeatureEntry(
+    module="feature:all-trainings",
+    short_name="all-trainings",
+    root=Path("feature/all-trainings"),
+    package_dir="io/github/stslex/workeeper/feature/all_trainings",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.all_trainings.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'api(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.androidx.paging.common)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.androidx.compose.paging)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.core)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        '"androidDeviceTestImplementation"(libs.bundles.android.test)',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)',
+        '"androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
+        '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
+    # ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
+    # all contractual (kmp-phase-7-9-all-trainings-feature.md §3.4, whose table already carries the
+    # 24 plural items made positional by decision P1, §5.1).
+    catalog=(
+        ("string", "feature_all_trainings_title", "Trainings", "Тренировки"),
+        (
+            "string",
+            "feature_all_trainings_empty_headline",
+            "Your trainings will appear here",
+            "Здесь появятся тренировки",
+        ),
+        (
+            "string",
+            "feature_all_trainings_empty_supporting",
+            "Build a template in advance, or start an empty one and add exercises as you go.",
+            "Собери шаблон заранее или начни пустую и добавляй упражнения по ходу.",
+        ),
+        ("string", "feature_all_trainings_fab_create", "Create training", "Создать тренировку"),
+        (
+            "string",
+            "feature_all_trainings_status_in_progress_format",
+            "in progress · started %1$s ago",
+            "в процессе · началась %1$s назад",
+        ),
+        ("string", "feature_all_trainings_status_last_format", "last: %1$s", "последняя: %1$s"),
+        ("string", "feature_all_trainings_status_never", "never trained", "ещё не было"),
+        ("string", "feature_all_trainings_relative_just_now", "just now", "только что"),
+        ("string", "feature_all_trainings_relative_minutes_format", "%1$dm", "%1$d мин"),
+        ("string", "feature_all_trainings_relative_hours_format", "%1$dh", "%1$d ч"),
+        ("string", "feature_all_trainings_relative_days_format", "%1$dd", "%1$d дн"),
+        (
+            "plurals",
+            "feature_all_trainings_exercise_count",
+            (("one", "%1$d exercise"), ("other", "%1$d exercises")),
+            (
+                ("one", "%1$d упражнение"),
+                ("few", "%1$d упражнения"),
+                ("many", "%1$d упражнений"),
+                ("other", "%1$d упражнения"),
+            ),
+        ),
+        ("string", "feature_all_trainings_selection_close", "Close selection", "Закрыть выбор"),
+        (
+            "plurals",
+            "feature_all_trainings_selected_count",
+            (("one", "%1$d selected"), ("other", "%1$d selected")),
+            (
+                ("one", "выбрана %1$d"),
+                ("few", "выбрано %1$d"),
+                ("many", "выбрано %1$d"),
+                ("other", "выбрано %1$d"),
+            ),
+        ),
+        ("string", "feature_all_trainings_bulk_archive", "Archive", "В архив"),
+        (
+            "plurals",
+            "feature_all_trainings_bulk_archive_success",
+            (("one", "%1$d training archived"), ("other", "%1$d trainings archived")),
+            (
+                ("one", "%1$d тренировка в архиве"),
+                ("few", "%1$d тренировки в архиве"),
+                ("many", "%1$d тренировок в архиве"),
+                ("other", "%1$d тренировки в архиве"),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_partial_format",
+            "Archived %1$d, blocked: %2$s",
+            "В архиве: %1$d, не получилось: %2$s",
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_confirm_title",
+            "Archive selected?",
+            "Архивировать выбранные?",
+        ),
+        (
+            "plurals",
+            "feature_all_trainings_bulk_archive_confirm_body",
+            (
+                ("one", "%1$d training will move to archive. Restore from Settings → Archive."),
+                ("other", "%1$d trainings will move to archive. Restore from Settings → Archive."),
+            ),
+            (
+                ("one", "%1$d тренировка будет перенесена в архив. Восстановить можно в Настройках → Архив."),
+                ("few", "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("many", "%1$d тренировок будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("other", "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_trainings_bulk_archive_impact",
+            "Reversible · history preserved",
+            "Обратимо · история сохранится",
+        ),
+        ("string", "feature_all_trainings_paging_loading", "Loading", "Загружаю"),
+        (
+            "string",
+            "feature_all_trainings_paging_error",
+            "Couldn’t load more",
+            "Не удалось загрузить дальше",
+        ),
+        ("string", "feature_all_trainings_paging_retry", "Retry", "Повторить"),
+        ("string", "feature_all_trainings_empty_create", "Create a training", "Создать тренировку"),
+        (
+            "string",
+            "feature_all_trainings_empty_start_blank",
+            "Start an empty training",
+            "Начать пустую тренировку",
+        ),
+        (
+            "string",
+            "feature_all_trainings_filtered_empty_headline",
+            "Nothing matches these tags",
+            "По этим тегам ничего нет",
+        ),
+        ("string", "feature_all_trainings_filtered_empty_clear", "Clear filter", "Сбросить фильтр"),
+        (
+            "string",
+            "feature_all_trainings_selection_empty_headline",
+            "Nothing here, but your selection is kept",
+            "Здесь пусто, но выбор цел",
+        ),
+        (
+            "string",
+            "feature_all_trainings_selection_empty_supporting",
+            "Your selection stays until you leave selection mode.",
+            "Отметки останутся, пока не выйдешь из режима.",
+        ),
+        (
+            "string",
+            "feature_all_trainings_refresh_error",
+            "Couldn’t load the list",
+            "Не удалось загрузить список",
+        ),
+    ),
+    resource_prefix="feature_all_trainings_",
+    # TrainingListItemMapper.kt is deliberately absent: under D2 it is where copy resolves (§12.1).
+    payload_files=frozenset({"AllTrainingsStore.kt", "TrainingListItemUi.kt", "TagUiModel.kt"}),
+    store_file="mvi/store/AllTrainingsStore.kt",
+    # Store State stays semantic: paging, tags, filter, selection and plain flags (§12.1).
+    state_fields=(
+        ("pagingUiState", "PagingUiState<PagingData<TrainingListItemUi>>"),
+        ("availableTags", "ImmutableList<TagUiModel>"),
+        ("activeTagFilter", "ImmutableSet<String>"),
+        ("selectionMode", "SelectionMode"),
+        ("pendingBulkDelete", "PendingBulkDelete?"),
+        ("hasActiveSession", "Boolean"),
+    ),
+    # ResourceWrapper leaves the feature entirely (§5.2, §5.3).
+    resource_wrapper_readers=frozenset(),
+    preview_subjects={
+        "ui/components/TagFilterRow.kt": "TagFilterRow",
+        "ui/components/TrainingRow.kt": "TrainingRow",
+        "ui/components/ArrivedEmptyStates.kt": "ArrivedEmptyStates",
+        "ui/components/TrainingsEmptyState.kt": "TrainingsEmptyState",
+    },
+    # The only suppressions the target may carry: the four inherited production annotations of §3.1.
+    # Nothing under commonTest: PR-N left no Native-illegal test name (§4.4).
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandler.kt": [
+            '"TooManyFunctions"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsGraph.kt": [
+            '"LongMethod"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsScreen.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+    },
+    # The exact portable test-name inventory: the 49 identities of §3.2 plus the one Native scene
+    # of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/domain/AllTrainingsInteractorImplTest.kt": [
+            "archiveTrainings delegates to repository bulkArchive",
+            "deleteTrainings returns target count and delegates",
+            "canPermanentlyDelete delegates to repository",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/ClickHandlerTest.kt": [
+            "OnTrainingClick emits haptic and navigates to OpenDetail",
+            "OnFabClick emits haptic and navigates to OpenCreate",
+            "OnFabClick with selection fires no haptic and sets pendingBulkDelete",
+            "OnTagFilterToggle adds tag when not selected",
+            "OnTagFilterToggle removes tag when already selected",
+            "OnSelectionExit clears selection mode",
+            "OnBulkDeleteConfirm calls archiveTrainings and clears selection on success",
+            "OnBulkDeleteDismiss clears pending delete",
+            "entering selection by long press fires LongPress",
+            "toggling an item inside selection fires ContextClick not LongPress",
+            "untoggling an item inside selection fires ContextClick",
+            "long press inside selection fires ContextClick not a second LongPress",
+            "toggling a tag filter fires no haptic",
+            "confirmed bulk archive fires Confirm",
+            "OnClearTagFilter empties the whole filter in one act",
+            "OnClearTagFilter fires no haptic",
+            "OnClearTagFilter on an already-empty filter changes nothing",
+            "OnEmptyCreate opens create and fires no haptic",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/NavigationHandlerTest.kt": [
+            "OpenDetail navigates to Screen Training with uuid",
+            "OpenCreate navigates to Screen Training with null uuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/store/StartBlankGateTest.kt": [
+            "no workout running — the drawn pair is whole",
+            "a workout is running — the blank-start CTA withdraws",
+            "before the first emission the CTA is withheld not offered",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsClearanceTest.kt": [
+            "list bottom clearance is the drawn 88 not the 72 it shipped with",
+            "each drawn part is the value the mockup gives it",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/ListSurfaceTest.kt": [
+            "rows win over everything",
+            "an unsettled refresh with no rows is loading not empty",
+            "loading outranks selection and the filter",
+            "a failed first page is its own verdict",
+            "no rows nothing done is the first-run empty",
+            "a filter that matches nothing is its own state not the first-run empty",
+            "selection outranks the filter because the selection block carries the filter recovery",
+            "the crossfade covers the drawn blocks and neither non-block verdict",
+            "selection empty and filtered empty are both in the crossfade so the pair transits",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/PagingTailKindTest.kt": [
+            "appending draws the loading footer",
+            "a failed page draws the error footer not silence",
+            "exhausted draws no footer at all",
+            "idle mid-list draws no footer either",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TopBarModeTest.kt": [
+            "off is the resting bar",
+            "on is the selection bar",
+            "different selections are one mode so the count cannot drive the crossfade",
+            "an empty selection is still the selection bar",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrailingSlotKindTest.kt": [
+            "at rest the slot promises a destination",
+            "an unselected row in selection mode draws nothing and keeps its slot",
+            "a selected row draws the check",
+            "selected outranks selecting so the mark never blanks",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsFeatureSceneIosTest.kt": [
+            "resourcesPagingBranchesSelectionAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/golden/AllTrainingsGoldenTest.kt"
+    ),
+    # The 25 methods of §3.3, in source order; each renders light and dark (50 PNGs).
+    golden_methods=[
+        "rowPlain",
+        "rowLongName",
+        "rowClamped",
+        "rowActive",
+        "rowSelected",
+        "rowActiveSelected",
+        "tagFilterBand",
+        "emptyState",
+        "rowUnselectedInSelection",
+        "pagingLoading",
+        "pagingError",
+        "confirmDialogContent",
+        "screenList",
+        "screenSelection",
+        "screenFirstRunEmpty",
+        "filteredEmpty",
+        "selectionEmptyFiltered",
+        "selectionEmptyUnfiltered",
+        "coldOpenLoading",
+        "coldOpenError",
+        "screenColdOpen",
+        "screenRefreshError",
+        "screenFilteredEmpty",
+        "screenSelectionEmpty",
+        "screenSelectionEmptyUnfiltered",
+    ],
+    device_test=(
+        "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt"
+    ),
+    device_fragments=(
+        "@Smoke",
+        '@Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")',
+        "fun pendingFeatureRewrite()",
+    ),
+    feature_class="AllTrainingsFeature",
+    graph_interface="AllTrainingsGraph",
+    graph_function="allTrainingsGraph",
+    factory_accessor="allTrainingsGraphFactory",
+    create_method="createAllTrainingsGraph",
+    store_impl="AllTrainingsStoreImpl",
+    store_accessor="allTrainingsStore",
+    feature_file="di/AllTrainingsFeature.kt",
+    graph_file="ui/AllTrainingsGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/AllTrainingsExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.allTrainings(): AllTrainingsGraph = allTrainingsGraphFactory.createAllTrainingsGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+    ],
+    identity_accessor=r"(?<!AppGraph)\.allTrainings\(\)",
+    # The one app device test that composes the graph directly passes the factory (§6).
+    extra_root_fragments={
+        "app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/AllTrainingsExtensionDbVisibilityTest.kt": (
+            "MetroTestGraphHolder.graph.allTrainingsGraphFactory",
+            "allTrainingsGraph(factory = factory)",
+        ),
+    },
+    extra_checks=(all_trainings_copy_contract, all_trainings_back_contract),
+)
+
+def all_exercises_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D1 (kmp-phase-7-10-all-exercises-feature.md §5.2, §5.3, §12.1): copy outside composition
+    # resolves through the injected StringResolver, never CMP's top-level functions, and the events
+    # and the blocked dialog keep their shape. Every count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
             )
 
-    # The explicit generation-owned factory flow, and nothing that bypasses it.
-    feature_path = ARCHIVE_COMMON_MAIN / "di/ArchiveFeature.kt"
-    feature_source = common_sources[feature_path]
-    graph_path = ARCHIVE_COMMON_MAIN / "ui/ArchiveGraph.kt"
-    graph_source = common_sources[graph_path]
-    required_root_fragments = {
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
-            "val archiveGraphFactory: ArchiveGraph.Factory",
-        ],
-        Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
-            "override val archiveGraphFactory: ArchiveGraph.Factory",
-        ],
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
-            "if (admission.granted) {",
-            "val deps = remember(currentPhase.id)",
-            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
-            "AppGenerationContent(deps)",
-            "private fun AppGenerationContent(deps: AppRootDeps)",
-            "archiveGraphFactory = deps.archiveGraphFactory",
-        ],
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
-            "archiveGraphFactory: ArchiveGraph.Factory,",
-            "archiveGraph(factory = archiveGraphFactory,",
-        ],
-        graph_path: [
-            "factory: ArchiveGraph.Factory,",
-            "navComponentScreen(ArchiveFeature(factory))",
-        ],
-        feature_path: [
-            "internal class ArchiveFeature(",
-            "private val factory: ArchiveGraph.Factory",
-        ],
-        Path("app/app/src/test/kotlin/io/github/stslex/workeeper/di/ArchiveExtensionIdentityTest.kt"): [
-            "private fun AppGraph.archive(): ArchiveGraph = archiveGraphFactory.createArchiveGraph()",
-        ],
-    }
-    for path, fragments in required_root_fragments.items():
-        source = path.read_text(encoding="utf-8") if path.is_file() else ""
-        compact_source = compact(source)
-        for fragment in fragments:
-            if compact_source.count(compact(fragment)) != 1:
+    store_relative = "mvi/store/AllExercisesStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        for name, expected_parameters in (
+            ("ShowPermanentDeleteSuccess", ["message: String"]),
+            ("ShowBulkDeleteSuccess", ["message: String"]),
+            (
+                "BlockedArchiveDialog",
+                ["archivedSummary: String?", "items: ImmutableList<BlockedArchiveItem>"],
+            ),
+        ):
+            parameters = data_class_parameters(store_source, name)
+            if parameters != expected_parameters:
                 failures.append(
-                    f"feature:archive: exact root-factory flow requires {fragment!r} once in {path}"
+                    f"{module}: {shown(store_relative)} {name} parameters must be exactly "
+                    f"{expected_parameters}; actual={parameters}"
                 )
-    retained_factory = compact(
-        """
-        rememberMetroStoreProcessor<ArchiveStoreImpl> {
-            factory
-                .createArchiveGraph()
-                .archiveStore
-        }
-        """
+
+    mapper_relative = "mvi/mapper/AllExercisesUiMapper.kt"
+    mapper_source = source_of(mapper_relative)
+    if mapper_source is not None:
+        for fragment, expected in (
+            ("suspend fun ExerciseListItemDomain.toUi(", 1),
+            ("suspend fun composeFooterLabel(", 1),
+            ("suspend fun BulkArchiveResult.toBlockedArchiveDialog(", 1),
+            ("Clock.System.now().toEpochMilliseconds()", 2),
+            ("stringResolver.getString(", 3),
+            ("stringResolver.getPluralString(", 7),
+        ):
+            require(mapper_relative, mapper_source, fragment, expected)
+
+    click_relative = "mvi/handler/ClickHandler.kt"
+    click_source = source_of(click_relative)
+    if click_source is not None:
+        for fragment in (
+            "private val stringResolver: StringResolver,",
+            "stringResolver.getString(",
+            "stringResolver.getPluralString(",
+        ):
+            require(click_relative, click_source, fragment, 1)
+
+    paging_relative = "mvi/handler/PagingHandler.kt"
+    paging_source = source_of(paging_relative)
+    if paging_source is not None:
+        require(paging_relative, paging_source, "private val stringResolver: StringResolver,", 1)
+        for fragment in ("getString(", "getPluralString("):
+            require(paging_relative, paging_source, fragment, 0)
+
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
     )
-    if compact(feature_source).count(retained_factory) != 1:
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        if posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
         failures.append(
-            "feature:archive: factory invocation must occur exactly inside retained Store creation"
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
         )
-    graph_calls = sum(source.count("createArchiveGraph(") for source in common_sources.values())
-    # One declaration on ArchiveGraph.Factory plus the one retained invocation.
-    if graph_calls != 2 or feature_source.count("createArchiveGraph(") != 1:
-        failures.append(
-            "feature:archive: createArchiveGraph() must be invoked once, inside the Store lambda"
-        )
-    for source in (graph_source, feature_source):
-        if re.search(r"(?:factory|archiveGraphFactory)\s*:\s*ArchiveGraph\.Factory\s*[?=]", source):
-            failures.append("feature:archive: factory parameters must be required and non-null")
-    if "object ArchiveFeature" in feature_source:
-        failures.append("feature:archive: ArchiveFeature must take its factory, not be an object")
-
-    identity_source = Path(
-        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/ArchiveExtensionIdentityTest.kt"
-    ).read_text(encoding="utf-8")
-    if "asContribution" in identity_source:
-        failures.append(
-            "feature:archive: extension identities must not bypass AppRootDeps via asContribution"
-        )
-    identity_names = [quoted or plain for quoted, plain in KOTLIN_TEST_NAME.findall(identity_source)]
-    if identity_names != ARCHIVE_IDENTITY_TEST_NAMES:
-        failures.append(
-            f"feature:archive: the four extension identities must stay exact; actual={identity_names}"
-        )
-    if len(re.findall(r"(?<!AppGraph)\.archive\(\)", identity_source)) != 4:
-        failures.append(
-            "feature:archive: all four extension identities must reach the graph through the accessor"
-        )
-
-    app_common_build = Path("app/common/build.gradle.kts").read_text(encoding="utf-8")
-    if app_common_build.count('api(project(":feature:archive"))') != 1:
-        failures.append("app:common: archive edge must be exactly one api dependency")
-    if 'implementation(project(":feature:archive"))' in app_common_build:
-        failures.append("app:common: archive edge must not remain implementation")
-    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
-    if app_build.count('implementation(project(":feature:archive"))') != 1:
-        failures.append("app:app: direct archive aggregation edge must remain implementation")
-
     return failures
+
+
+def all_exercises_back_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # The portable BackHandler intercepts back only while selecting, and exits selection (§5.5).
+    failures: list[str] = []
+    graph_path = entry.common_main / entry.graph_file
+    source = common_sources.get(graph_path, "")
+    for fragment in (
+        "import androidx.compose.ui.backhandler.BackHandler",
+        "ExperimentalComposeUiApi::class",
+        "BackHandler(enabled = processor.state.value.interceptBack)",
+        "processor.consume(Action.Click.OnSelectionExit)",
+    ):
+        count = source.count(fragment)
+        if count != 1:
+            failures.append(
+                f"{entry.module}: {graph_path.relative_to(entry.root)} back contract requires "
+                f"{fragment!r} exactly once; found {count}"
+            )
+    return failures
+
+
+ALL_EXERCISES_ENTRY = FeatureEntry(
+    module="feature:all-exercises",
+    short_name="all-exercises",
+    root=Path("feature/all-exercises"),
+    package_dir="io/github/stslex/workeeper/feature/all_exercises",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count. Decision D5 (§19) adds commonTest's
+    # core:data:database edge for the domain suite's in-file ExerciseRepository fake.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.all_exercises.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'api(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.androidx.paging.common)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.androidx.compose.paging)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.core)",
+        "implementation(libs.coroutine.test)",
+        'implementation(project(":core:data:database"))',
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        '"androidDeviceTestImplementation"(libs.bundles.android.test)',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)',
+        '"androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
+        '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value). Plurals carry
+    # ordered (quantity, value) pairs. Identifier set, order, placeholders and plural categories are
+    # all contractual (kmp-phase-7-10-all-exercises-feature.md §3.4, whose table already carries the
+    # 48 plural items made positional by decision P1, §5.1, and decodes the character references
+    # of permanent_delete_title, permanent_delete_body and blocked_archive_title).
+    catalog=(
+        ("string", "feature_all_exercises_title", "Exercises", "Упражнения"),
+        (
+            "string",
+            "feature_all_exercises_empty_headline",
+            "Your exercises will appear here",
+            "Здесь появятся твои упражнения",
+        ),
+        (
+            "string",
+            "feature_all_exercises_empty_supporting",
+            "Add the first one — after that you can put it into any training.",
+            "Добавь первое — дальше его можно будет класть в любую тренировку.",
+        ),
+        ("string", "feature_all_exercises_empty_create", "Add exercise", "Добавить упражнение"),
+        ("string", "feature_all_exercises_fab_create", "Create exercise", "Создать упражнение"),
+        ("string", "feature_all_exercises_type_weighted", "with weight", "с весом"),
+        ("string", "feature_all_exercises_type_weightless", "bodyweight", "без веса"),
+        ("string", "feature_all_exercises_paging_loading", "Loading", "Загружаю"),
+        (
+            "string",
+            "feature_all_exercises_paging_error",
+            "Couldn’t load more",
+            "Не удалось загрузить дальше",
+        ),
+        ("string", "feature_all_exercises_paging_retry", "Retry", "Повторить"),
+        (
+            "string",
+            "feature_all_exercises_permanent_delete_title",
+            "Delete ‘%1$s’ permanently?",
+            "Удалить «%1$s» навсегда?",
+        ),
+        (
+            "string",
+            "feature_all_exercises_permanent_delete_body",
+            "This exercise has no history and isn’t used. This cannot be undone.",
+            "Упражнение не использовалось и не имеет истории. Это действие необратимо.",
+        ),
+        (
+            "string",
+            "feature_all_exercises_permanent_delete_impact",
+            "No history affected",
+            "История не пострадает",
+        ),
+        ("string", "feature_all_exercises_permanent_delete_confirm", "Delete", "Удалить"),
+        (
+            "string",
+            "feature_all_exercises_permanent_delete_success",
+            "Exercise deleted",
+            "Упражнение удалено",
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_session_count",
+            (("one", "%1$d session"), ("other", "%1$d sessions")),
+            (
+                ("one", "%1$d сессия"),
+                ("few", "%1$d сессии"),
+                ("many", "%1$d сессий"),
+                ("other", "%1$d сессии"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_linked_trainings_count",
+            (("one", "in %1$d training"), ("other", "in %1$d trainings")),
+            (
+                ("one", "в %1$d тренировке"),
+                ("few", "в %1$d тренировках"),
+                ("many", "в %1$d тренировках"),
+                ("other", "в %1$d тренировках"),
+            ),
+        ),
+        ("string", "feature_all_exercises_last_trained_just_now", "last just now", "только что"),
+        (
+            "plurals",
+            "feature_all_exercises_last_trained_minutes",
+            (("one", "last %1$dm ago"), ("other", "last %1$dm ago")),
+            (
+                ("one", "%1$d мин назад"),
+                ("few", "%1$d мин назад"),
+                ("many", "%1$d мин назад"),
+                ("other", "%1$d мин назад"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_last_trained_hours",
+            (("one", "last %1$dh ago"), ("other", "last %1$dh ago")),
+            (
+                ("one", "%1$d ч назад"),
+                ("few", "%1$d ч назад"),
+                ("many", "%1$d ч назад"),
+                ("other", "%1$d ч назад"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_last_trained_days",
+            (("one", "last %1$dd ago"), ("other", "last %1$dd ago")),
+            (
+                ("one", "%1$d д назад"),
+                ("few", "%1$d д назад"),
+                ("many", "%1$d д назад"),
+                ("other", "%1$d д назад"),
+            ),
+        ),
+        ("string", "feature_all_exercises_footer_separator", "·", "·"),
+        ("string", "feature_all_exercises_selection_close", "Close selection", "Закрыть выбор"),
+        (
+            "plurals",
+            "feature_all_exercises_selected_count",
+            (("one", "%1$d selected"), ("other", "%1$d selected")),
+            (
+                ("one", "выбрано %1$d"),
+                ("few", "выбрано %1$d"),
+                ("many", "выбрано %1$d"),
+                ("other", "выбрано %1$d"),
+            ),
+        ),
+        ("string", "feature_all_exercises_bulk_archive", "Archive", "В архив"),
+        (
+            "plurals",
+            "feature_all_exercises_bulk_archive_success",
+            (("one", "%1$d exercise archived"), ("other", "%1$d exercises archived")),
+            (
+                ("one", "%1$d упражнение в архиве"),
+                ("few", "%1$d упражнения в архиве"),
+                ("many", "%1$d упражнений в архиве"),
+                ("other", "%1$d упражнения в архиве"),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_exercises_bulk_archive_confirm_title",
+            "Archive selected?",
+            "Архивировать выбранные?",
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_bulk_archive_confirm_body",
+            (("one", "%1$d exercise will move to archive. Restore from Settings → Archive."), ("other", "%1$d exercises will move to archive. Restore from Settings → Archive.")),
+            (
+                ("one", "%1$d упражнение будет перенесено в архив. Восстановить можно в Настройках → Архив."),
+                ("few", "%1$d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("many", "%1$d упражнений будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+                ("other", "%1$d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив."),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_exercises_bulk_archive_impact",
+            "Reversible · history preserved",
+            "Обратимо · история сохранится",
+        ),
+        (
+            "string",
+            "feature_all_exercises_blocked_archive_title",
+            "Some couldn’t be archived",
+            "Не удалось архивировать",
+        ),
+        (
+            "string",
+            "feature_all_exercises_blocked_archive_used_in_format",
+            "used in %1$s",
+            "в тренировках: %1$s",
+        ),
+        (
+            "plurals",
+            "feature_all_exercises_blocked_archive_more",
+            (("one", "+%1$d more"), ("other", "+%1$d more")),
+            (
+                ("one", "и ещё %1$d"),
+                ("few", "и ещё %1$d"),
+                ("many", "и ещё %1$d"),
+                ("other", "и ещё %1$d"),
+            ),
+        ),
+        (
+            "string",
+            "feature_all_exercises_blocked_archive_next_step",
+            "These are still in active trainings. Remove them from those trainings first, then archive.",
+            "Они используются в активных тренировках. Сначала уберите их оттуда, затем архивируйте.",
+        ),
+        ("string", "feature_all_exercises_blocked_archive_confirm", "Got it", "Понятно"),
+        (
+            "string",
+            "feature_all_exercises_filtered_empty_headline",
+            "Nothing matches these tags",
+            "По этим тегам ничего нет",
+        ),
+        ("string", "feature_all_exercises_filtered_empty_clear", "Clear filter", "Сбросить фильтр"),
+        (
+            "string",
+            "feature_all_exercises_selection_empty_headline",
+            "Nothing here, but your selection is kept",
+            "Здесь пусто, но выбор цел",
+        ),
+        (
+            "string",
+            "feature_all_exercises_selection_empty_supporting",
+            "Your selection stays until you leave selection mode.",
+            "Отметки останутся, пока не выйдешь из режима.",
+        ),
+        (
+            "string",
+            "feature_all_exercises_refresh_error",
+            "Couldn’t load the list",
+            "Не удалось загрузить список",
+        ),
+    ),
+    resource_prefix="feature_all_exercises_",
+    # AllExercisesUiMapper.kt, ClickHandler.kt and PagingHandler.kt are deliberately absent: under D1
+    # they resolve copy through the injected StringResolver (§12.1).
+    payload_files=frozenset(
+        {"AllExercisesStore.kt", "ExerciseUiModel.kt", "ExerciseTypeUiModel.kt", "TagUiModel.kt"}
+    ),
+    store_file="mvi/store/AllExercisesStore.kt",
+    # Store State stays semantic: paging, tags, filter, the pending dialogs, selection, and the
+    # blocked dialog's pre-formatted text (§12.1).
+    state_fields=(
+        ("pagingUiState", "PagingUiState<PagingData<ExerciseUiModel>>"),
+        ("availableTags", "ImmutableList<TagUiModel>"),
+        ("activeTagFilter", "ImmutableSet<String>"),
+        ("pendingPermanentDelete", "PendingDelete?"),
+        ("selectionMode", "SelectionMode"),
+        ("pendingBulkDelete", "PendingBulkDelete?"),
+        ("blockedArchiveDialog", "BlockedArchiveDialog?"),
+    ),
+    # ResourceWrapper leaves the feature entirely (§5.2).
+    resource_wrapper_readers=frozenset(),
+    preview_subjects={
+        "ui/components/TagFilterRow.kt": "TagFilterRow",
+        "ui/components/ExerciseRow.kt": "ExerciseRow",
+        "ui/components/ArrivedEmptyStates.kt": "ArrivedEmptyStates",
+        "ui/components/ExercisesEmptyState.kt": "ExercisesEmptyState",
+    },
+    # The only suppressions the target may carry: the two inherited production annotations of §3.1.
+    # Nothing under commonTest: the inert MagicNumber suppression left the mapper suite (§0.2).
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/ClickHandler.kt": [
+            '"TooManyFunctions"',
+        ],
+    },
+    # The exact portable test-name inventory: the 66 identities of §3.2 plus the one Native scene
+    # of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/domain/AllExercisesInteractorImplTest.kt": [
+            "archiveExercise returns Success when no active trainings",
+            "archiveExercise returns Blocked when active trainings exist",
+            "restoreExercise delegates to repository",
+            "canPermanentlyDelete delegates to repository",
+            "permanentlyDelete delegates to repository",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/ClickHandlerTest.kt": [
+            "OnExerciseClick emits haptic and navigates to OpenDetail",
+            "OnFabClick emits haptic and navigates to OpenCreate",
+            "OnTagFilterToggle adds tag when not selected",
+            "OnTagFilterToggle removes tag when already selected",
+            "OnCancelPermanentDelete clears pending delete",
+            "OnConfirmPermanentDelete with no pending is no-op",
+            "OnConfirmPermanentDelete with pending clears state and emits Confirm haptic",
+            "OnBulkDelete fires no haptic — the morph is silent",
+            "OnTagFilterToggle fires no haptic",
+            "OnBulkDeleteConfirm emits Confirm haptic",
+            "OnBulkDelete with selection opens confirm dialog",
+            "OnBulkDeleteConfirm calls bulkArchive and clears selection on success",
+            "OnBulkDeleteConfirm opens blocked dialog and no snackbar when all blocked",
+            "OnBulkDeleteConfirm opens blocked dialog with archived summary on partial block",
+            "OnBlockedArchiveDismiss clears the blocked dialog",
+            "OnBulkDeleteDismiss clears pending",
+            "OnClearTagFilter empties the whole filter in one act",
+            "OnClearTagFilter fires no haptic",
+            "OnClearTagFilter on an already-empty filter changes nothing",
+            "entering selection by long press fires LongPress",
+            "long press inside selection fires ContextClick not a second LongPress",
+            "selection toggle fires ContextClick",
+            "selection exit fires ContextClick",
+            "OnEmptyCreate opens create and fires no haptic",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/NavigationHandlerTest.kt": [
+            "OpenDetail navigates to Screen Exercise with uuid",
+            "OpenCreate navigates to Screen Exercise with null uuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandlerTest.kt": [
+            "Init invokes observeAvailableTags via scope launch",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/mapper/AllExercisesUiMapperTest.kt": [
+            "composeFooterLabel hides every segment when all values are zero or null",
+            "composeFooterLabel renders all three segments when present",
+            "composeFooterLabel hides session segment when count is zero",
+            "composeFooterLabel hides linked-trainings segment when count is zero",
+            "composeFooterLabel hides last-trained segment when value is null",
+            "composeFooterLabel just-now segment when delta below one minute",
+            "composeFooterLabel minute granularity for sub-hour deltas",
+            "ExerciseListItemDomain toUi propagates non-zero stats into the model",
+            "ExerciseListItemDomain toUi yields empty footer when stats are absent",
+            "toBlockedArchiveDialog truncates trainings and sets archived summary on partial block",
+            "toBlockedArchiveDialog omits archived summary and truncation when nothing archived",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/AllExercisesClearanceTest.kt": [
+            "list bottom clearance is the drawn 88 not the 72 it shipped with",
+            "each drawn part is the value the mockup gives it",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/ListSurfaceTest.kt": [
+            "rows win over everything",
+            "an unsettled refresh with no rows is loading not empty",
+            "loading outranks selection and the filter",
+            "a failed first page is its own verdict",
+            "no rows nothing done is the first-run empty",
+            "a filter that matches nothing is its own state not the first-run empty",
+            "selection outranks the filter because the selection block carries the filter recovery",
+            "the crossfade covers the drawn blocks and neither non-block verdict",
+            "selection empty and filtered empty are both in the crossfade so the pair transits",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/PagingTailKindTest.kt": [
+            "appending draws the loading footer",
+            "a failed page draws the error footer not silence",
+            "exhausted draws no footer at all",
+            "idle mid-list draws no footer either",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TopBarModeTest.kt": [
+            "off is the resting bar",
+            "on is the selection bar",
+            "different selections are one mode so the count cannot drive the crossfade",
+            "an empty selection is still the selection bar",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/ui/components/TrailingSlotKindTest.kt": [
+            "at rest the slot promises a destination",
+            "an unselected row in selection mode draws nothing and keeps its slot",
+            "a selected row draws the check",
+            "selected outranks selecting so the mark never blanks",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesFeatureSceneIosTest.kt": [
+            "resourcesPagingBranchesSelectionAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/golden/AllExercisesGoldenTest.kt"
+    ),
+    # The 26 methods of §3.3, in source order; each renders light and dark (52 PNGs).
+    golden_methods=[
+        "rowWeighted",
+        "rowWeightless",
+        "rowTypeIsolated",
+        "rowLongName",
+        "rowClamped",
+        "rowSelected",
+        "rowUnselectedInSelection",
+        "tagFilterBand",
+        "emptyState",
+        "pagingLoading",
+        "pagingError",
+        "confirmDialogContent",
+        "blockedArchiveDialogContent",
+        "screenList",
+        "screenSelection",
+        "screenFirstRunEmpty",
+        "filteredEmpty",
+        "selectionEmptyFiltered",
+        "selectionEmptyUnfiltered",
+        "coldOpenLoading",
+        "coldOpenError",
+        "screenColdOpen",
+        "screenRefreshError",
+        "screenFilteredEmpty",
+        "screenSelectionEmpty",
+        "screenSelectionEmptyUnfiltered",
+    ],
+    device_test=(
+        "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt"
+    ),
+    # Archive's three, plus the @Regression identity and its resolver read of the label (D3, §11.3).
+    device_fragments=(
+        "@Smoke",
+        '@Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")',
+        "fun pendingFeatureRewrite()",
+        "@Regression",
+        "fun blockedArchiveDialogListsBlockingTrainings()",
+        "ComposeStringResolver().getString(Res.string.feature_all_exercises_blocked_archive_confirm)",
+    ),
+    feature_class="AllExercisesFeature",
+    graph_interface="AllExercisesGraph",
+    graph_function="allExercisesGraph",
+    factory_accessor="allExercisesGraphFactory",
+    create_method="createAllExercisesGraph",
+    store_impl="AllExercisesStoreImpl",
+    store_accessor="allExercisesStore",
+    feature_file="di/AllExercisesFeature.kt",
+    graph_file="ui/AllExercisesGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/AllExercisesExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.allExercises(): AllExercisesGraph = allExercisesGraphFactory.createAllExercisesGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+    ],
+    identity_accessor=r"(?<!AppGraph)\.allExercises\(\)",
+    extra_checks=(all_exercises_copy_contract, all_exercises_back_contract),
+)
+
+# Every shared feature entry the gate holds to its exact contract.
+FEATURE_ENTRIES = (ARCHIVE_ENTRY, ALL_TRAININGS_ENTRY, ALL_EXERCISES_ENTRY)
 
 
 # Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and
@@ -1832,7 +3297,8 @@ def main() -> None:
     failures.extend(check_plan_editor_resources())
     failures.extend(check_image_viewer_contract())
     failures.extend(check_plan_editor_feature_contract())
-    failures.extend(check_archive_feature_contract())
+    for entry in FEATURE_ENTRIES:
+        failures.extend(check_feature_entry(entry))
     placeholder_failures, placeholder_walk = check_compose_resource_placeholders()
     failures.extend(placeholder_failures)
 
@@ -1857,11 +3323,15 @@ def main() -> None:
         "  plan-editor resources, semantic State, portable BackHandler, previews, "
         "and explicit factory flow are exact"
     )
+    for entry in FEATURE_ENTRIES:
+        print(
+            f"  {entry.short_name} catalogs, semantic State, suppressions, previews, "
+            "test identities, and explicit factory flow are exact"
+        )
     print(
-        "  archive catalogs, semantic State, suppressions, previews, test identities, "
-        "and explicit factory flow are exact"
+        f"  app:common API edges and {len(EXPECTED_APP_DEPS_READERS)} remaining "
+        "Context.appDeps readers are exact"
     )
-    print("  app:common API edges and 10 remaining Context.appDeps readers are exact")
     print(
         f"  compose-resource placeholders: {len(placeholder_walk)} commonMain catalogs walked, "
         "every placeholder is %N$d or %N$s with N >= 1"

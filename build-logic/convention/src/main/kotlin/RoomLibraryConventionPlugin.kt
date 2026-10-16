@@ -15,6 +15,7 @@ import org.gradle.api.plugins.ExtensionAware
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 /**
  * One plugin id for "this module uses Room", on either module shape. GUARD: a KMP consumer must
@@ -59,6 +60,9 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
     }
 
     private fun Project.configureKmp() {
+        val kmpExtension = extensions.getByType(KotlinMultiplatformExtension::class.java)
+        val roomCompiler = libs.findLibrary("androidx-room-compiler").get()
+
         dependencies {
             // paging-common replaces the Android-only paging-runtime-ktx (phase-6 spec §0).
             add("commonMainImplementation", libs.findBundle("room").get())
@@ -67,16 +71,21 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
             // one, per target (phase-6 spec §6). Robolectric host tests cannot use it.
             add("androidMainImplementation", libs.findLibrary("androidx-sqlite-bundled").get())
 
-            // Room's KSP codegen runs once per compilation target.
-            add("kspAndroid", libs.findLibrary("androidx-room-compiler").get())
-            add("kspIosSimulatorArm64", libs.findLibrary("androidx-room-compiler").get())
+            // Room's KSP codegen runs once per compilation target; the native ones follow below.
+            add("kspAndroid", roomCompiler)
 
             add("androidDeviceTestImplementation", libs.findLibrary("androidx-room-testing").get())
         }
 
+        // GUARD: derived from the declared Kotlin/Native targets, never named: a native target
+        // without Room's KSP gets no actual for the commonMain `expect AppDatabaseConstructor`.
+        kmpExtension.targets.withType(KotlinNativeTarget::class.java).configureEach {
+            val kspConfiguration = "ksp${targetName.replaceFirstChar(Char::uppercaseChar)}"
+            project.dependencies.add(kspConfiguration, roomCompiler)
+        }
+
         // Room-KMP does not put the exported schemas on the device-test APK, which
         // MigrationTestHelper reads; androidResources must be on or `sources.assets` is null.
-        val kmpExtension = extensions.getByType(KotlinMultiplatformExtension::class.java)
         val androidDsl = (kmpExtension as ExtensionAware).extensions
             .getByName("android") as KotlinMultiplatformAndroidLibraryExtension
         androidDsl.androidResources.enable = true

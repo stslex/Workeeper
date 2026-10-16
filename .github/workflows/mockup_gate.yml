@@ -73,7 +73,7 @@ concurrency:
 jobs:
   mockup-gate:
     name: Mockup Appearance Gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Not the house's 60. This job is seconds; the only thing in it that can hang is the headless
     # browser, and the script already caps its own probe at 90s (`PROBE_TIMEOUT_S`), so anything
     # past a few minutes is a wedged runner rather than slow work.
