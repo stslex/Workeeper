@@ -293,6 +293,10 @@ on:
         type: boolean
         default: false
         description: "Skip UI tests (use only when retrying after a known-good UI run)"
+      skip_buid_checks:   # sic: the input's real name
+        type: boolean
+        default: false
+        description: "Skip build checks (use only when retrying after a known-good build)"
       allow_listing_overwrite:
         type: boolean
         default: false   # never the default; see wear-release-pipeline.md §8
@@ -309,6 +313,7 @@ jobs:
 
   build:
     needs: guard
+    if: ${{ !inputs.skip_buid_checks }}
     uses: ./.github/workflows/android_build_unified.yml
     with:
       ref: ${{ needs.guard.outputs.sha }}
@@ -325,7 +330,7 @@ jobs:
 
   deploy:
     needs: [guard, build, ui_tests]
-    if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
+    if: ${{ always() && needs.guard.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     environment: production    # required reviewer gate
     # ... fastlane deploy + tag + gh pr merge --match-head-commit <pinned-sha>
 
@@ -346,6 +351,10 @@ jobs:
 ### 7.3 Skip semantics
 
 `skip_ui_tests=true` is for retries where the developer has verified UI tests are healthy in a prior run and the deploy step itself failed. It is a new workflow run (not a re-run), so `build` will execute again. This is intentional: the build is fast and ensures we're deploying the exact current branch state.
+
+`skip_buid_checks=true` skips `build` the same way, for a retry after a build that passed in a prior run. `ui_tests` needs `build`, so a skipped build skips the UI tests too, whatever `skip_ui_tests` says.
+
+`deploy` runs under `always()` so that a `build` or `ui_tests` skipped by its input does not skip it, and it accepts their `skipped` result. A failed or cancelled guard produces the same picture, because both jobs need the guard and are skipped with it. So `deploy` also requires `needs.guard.result == 'success'`. Without it, a failed guard reads as two requested skips. Run 38878876601 (2026-10-16) was that case. The guard stopped on a `BLOCKED` release PR (§8.11), `deploy` started anyway with nothing built or tested, and only its own release PR check before the upload stopped it. The gap opened when `skip_buid_checks` (e5651e58) widened `build == 'success'` to `success || skipped`.
 
 For partial re-runs that don't change inputs (e.g., deploy step crashed on a transient error and you just want to retry it), use GitHub's native "Re-run failed jobs" UI button. This re-uses the existing run's results for upstream jobs.
 
