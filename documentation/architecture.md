@@ -222,10 +222,12 @@ the Activity's store, silently process-scoping every Store
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
-   navigation library type. The shared image-viewer is the bounded factory-resolution exception:
-   its generation-owned root passes the required `ImageViewerGraph.Factory` through
-   `AppNavigationHost` and `imageViewerGraph` into `ImageViewerFeature`; the feature invokes that
-   factory only inside the `rememberMetroStoreProcessor` creation lambda.
+   navigation library type. The shared image-viewer, plan-editor, and past-session entries are the
+   shape-B factory-resolution exceptions: their generation-owned root passes the required
+   `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` through
+   `AppNavigationHost` and `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` into
+   `ImageViewerFeature` / `PlanEditorFeature` / `PastSessionFeature`. Each invokes it only inside
+   the `rememberMetroStoreProcessor` creation lambda.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -487,13 +489,14 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, and all-exercises
-no longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
+not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
+and past-session no longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
 `AppGraph.planEditorGraphFactory`, `AppGraph.archiveGraphFactory`,
-`AppGraph.allTrainingsGraphFactory`, and `AppGraph.allExercisesGraphFactory` implement the
-accessors declared by `AppRootDeps`, and the admitted composition reads that root contract exactly
-once. Retired generations and generations that lose the publication race resolve it zero times.
-Exactly 8 feature/dialog Context readers remain.
+`AppGraph.allTrainingsGraphFactory`, `AppGraph.allExercisesGraphFactory`, and
+`AppGraph.pastSessionGraphFactory` implement the accessors declared by `AppRootDeps`, and the
+admitted composition reads that root contract exactly once. Retired generations and generations
+that lose the publication race resolve it zero times. Exactly 7 feature/dialog Context readers
+remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -2144,7 +2147,10 @@ Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions
 forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
 Write every placeholder positionally (`%1$d`, `%1$s`): Compose resources fill only that form and
 render a bare `%d` literally, and `assert_kmp_ui_source_topology.py` rejects anything else in a
-`commonMain/composeResources` catalog.
+`commonMain/composeResources` catalog. That rules out `%,d` too, so past-session groups its
+tonnage in the mapper, with a separator from its own catalog
+(`feature_past_session_tonnage_group_separator`), to keep `4,820` in en and `4 820` in ru. The
+numerals of `ChartReadoutMapper.formatGrouped` keep design-system.md's pinned NBSP.
 
 Example:
 

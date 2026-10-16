@@ -1,6 +1,6 @@
 # KMP Phase 7.11 — feature:past-session becomes a shared feature entry
 
-**Status:** SPECIFIED — authorized for implementation by the maintainer's GO of 2026-10-16 (Section 18)
+**Status:** COMPLETE — implemented by the PR whose merge brought this line to dev.
 
 **Discovery baseline:** dev @ 5beefec84f773fd69ceaf96ca2a220699c95c838 (2026-10-16, merge of #334).
 `feature/past-session` is unchanged since Phase 7.10's merge (`733377255`, #330). The only commits
@@ -1815,4 +1815,505 @@ Merge stays the maintainer's.
 
 ## 19. Implementation evidence
 
-Reserved for the implementation's documentation commit.
+This section records the bounded implementation authorized by the maintainer's GO of 2026-10-16
+(Section 18). The GO authorized exactly Section 7 and nothing in Section 8. Sections 0–18 remain the
+historical specification and are not rewritten here; where the measured tree contradicts their
+prose, Section 19.8 says so.
+
+Every load-bearing Gradle invocation below ran after `./gradlew --stop` and a check of the other
+Gradle clients on the host, with `--rerun-tasks --no-build-cache --no-configuration-cache
+--console=plain` (plus `--continue` where stated). This run's daemons used their own registry
+(`-Dorg.gradle.daemon.registry.base` in `GRADLE_OPTS`), so its `--stop` reached no other checkout's
+daemon and no other checkout's `--stop` reached it. Every "Executed" cell is the logged
+`N actionable tasks: N executed`. Only JUnit XML written after the run's recorded start was parsed,
+and each gate's XML was copied aside at once. detekt never ran in the same invocation as tests. All
+measurers, censuses and audits were scripts this one session wrote and ran, each with its own
+parser; no sub-agent took part.
+
+### 19.1 Entry, drift, and the two censuses
+
+This specification landed on `dev` as `a98865210a1dfe3880614efe927414edf96ec264`, one signed commit
+pushed as a fast-forward of `5beefec84`; its blob in the tree had the input sha256
+`97513ef0…3720`, and GitHub reports it `verified: true`, `reason: valid`. A Markdown-only push
+starts no unified run, and none started. That SHA is the implementation base.
+
+| Entry check | Result |
+| --- | --- |
+| latest push run of `Android CI/CD - Unified Build and Tests` on `dev` | run `38893076521` on `5beefec84`, `success`: `KMP iOS kit smoke`, `Release bundle identity`, `Build and Unit Tests` and both report jobs green (the base commit itself started no run) |
+| `733377255` (Phase 7.10's merge) is an ancestor of the base | yes |
+| PR-R on the base | `StringResolver.kt` and `ComposeStringResolver.kt` match `kmp-string-resolver.md` Sections 4.1–4.2 (signatures, the three annotations, the aliased imports, `AppScope` from `core.core.di`, both GUARD comments); `AppGraph` declares `val stringResolver: StringResolver`; `StringResolverIdentityTest` green (19.3) |
+| drift | `git diff 733377255..a98865210 -- feature/past-session` is empty. Commits since `733377255`: `b5ba7ffce` and `5beefec84` touch only `.github/workflows/android_deploy_prod.yml` and `documentation/release-flow.md`, no Section 9.2 path; `a98865210` adds this document, a Section 9.2 path, and conflicts with nothing |
+| open PRs touching the module | none (the one open PR, #332 into `master`, changes 389 files, none under `feature/past-session`) |
+
+Two read-only censuses reproduced Section 2's past-session row and Sections 3.1–3.7 and the member
+counts of Section 11.1 on the base, independently. Census A read only the base's git objects
+(`ls-tree`, `cat-file`, and a scratch index built with `read-tree` for the PNG manifests) with
+regex/line parsing. Census B read the clean worktree from disk with its own Kotlin lexer and token
+walker (nested comments, raw and template strings, backtick names), DOM XML parsing, and blob IDs it
+computed from the file bytes. A third script parsed the expected values out of this document's text
+and compared both censuses with them: `52/52 MATCH`, and A and B agree on every shared item.
+
+| Section | Specification | Measured (A and B agree) |
+| --- | --- | --- |
+| 2, past-session row | 29 / 2,378 / 8 / 2,067 / 20 / 30 | equal |
+| 3.1 files and lines | 29 files, 2,378 lines, per-file table | every row equal |
+| 3.1 suppressions | one production | `@Suppress("UNCHECKED_CAST")`, `di/PastSessionFeature.kt` line 27; no test suppression, no `SuppressLint`, `SuppressWarnings` or `noinspection` |
+| 3.1 Android coupling | as listed | `R` in seven files; the six UI files read 16 identifiers at 19 sites, three of them in both the screen and the graph; the mapper's 6 copy calls (4 `getString`, 2 `getQuantityString`) and 1 `formatMediumDate`; `ResourceWrapper` in the mapper and `CommonHandler`; Android `stringResource` imported beside CMP's in `PastSetEditRow.kt` and resolving nothing; `LocalContext` with `appDeps`; `@VisibleForTesting` on `NAME`; none of the listed forbidden tokens |
+| 3.2 identities | 40, 4/11/6/5/1/13, plus the gate | byte-identical to the bullets, in order; JUnit 5 in all six, MockK in all but the mapper suite; Native-legal; the one apostrophe name; 13 identities reach copy resolution (9 mapper, 4 CommonHandler) |
+| 3.3 goldens and device | 15 methods; 30 PNGs, 28 blobs, 100644; no device test | equal, including the two shared blobs (`6fd5057111d0`, `29fa73ad69a1`); three `androidTestImplementation` and one `debugImplementation` edge, no `src/androidTest` file |
+| 3.4 catalog | 20 + 2 per locale, 22 identifiers | equal, in file order, against Section 3.4's table with P1 and D1 reversed; 12 bare `%d` (EN 4, RU 8); no `xmlns:tools`; RU without comments |
+| 3.5 | `core:data:database` at line 28; no use | equal; no `src` file mentions `core.data.database`; `PlanSetDataModel` is the only `core:data:database` type on the three repositories, in `SessionRepository` |
+| 3.6 | as stated | equal: app/app and app/common `implementation`; one `pastSessionGraph(` call and the `PastSessionGraph` tag; four identities through `asContribution`; no app test composes the graph; the `@Regression` `RouteReachabilityTest` journey with `PastSessionBackButton`; no outside reader of `R` or an identifier |
+| 3.7 readers and PNG manifests | 8 readers; four hashes, three projections | 8 readers equal to `EXPECTED_APP_DEPS_READERS`; all seven hashes equal |
+| 11.1 member counts | 26 / 12 / 4 / 4 / 6 | equal (abstract members counted from each type) |
+
+Environment: Gradle 9.6.1 (wrapper), launcher and daemon JBR 21.0.11, Xcode 26.6 (17F113) with the
+iOS 26.5 and 18.2 simulator runtimes, macOS Python 3.9.6 and Homebrew Python 3.14.8. The
+implementation worktree linked `local.properties` from the main checkout; its first Gradle
+configuration failed without `keystore.properties` (the signing configuration reads it), so
+`keystore.properties` and the `keystore.jks` it names were linked too, and the first
+`assembleDebug lintDebug testDebugUnitTest` failed in `processDebugGoogleServices` without
+`app/dev/google-services.json` and `app/store/google-services.json`, which were then linked. All are
+symlinks to the main checkout's gitignored files, never copies, and none was printed. Signing:
+repository-local SSH signing (`commit.gpgsign=true`); every commit object carries an SSH `gpgsig`
+header.
+
+### 19.2 Commits and changed boundary
+
+| Commit | SHA | Boundary |
+| --- | --- | --- |
+| `ci(kmp): generalize the shared feature-entry gate` | `ba57fa99c4caeb9db4dddc2b9d4e1c7409b5046d` | `.github/scripts/assert_kmp_ui_source_topology.py` only, +57/−11 |
+| `refactor(kmp): share past-session feature entry` | `04fffdb522c19c2b8bae62dac4f341e36f53b980` | the module (Sections 3–11), the six app paths, and the minimal topology delta (`MODULES["feature:past-session"]`, the reader removed from `EXPECTED_APP_DEPS_READERS`); 80 paths with rename detection, 1,428 insertions, 349 deletions |
+| `ci(kmp): gate shared past-session feature` | `2a498ff2f0bb17d1d357c6e0053129f2103c5fd6` | exactly the three Section 9.2 CI paths: `assert_kmp_ui_source_topology.py` +423/−1, `assert_kmp_ios_smoke.py` +83/−0, `android_build_unified.yml` +10/−6 |
+| `docs(kmp): record Phase 7.11 evidence` | this commit | exactly the six Section 9.2 documentation paths |
+
+Against the base, the four commits change 155 paths counted without rename pairing: 140 under
+`feature/past-session` (the 69 legacy `src/main` and `src/test` paths removed, 70 added — the 69
+moved files and the Native scene — and `build.gradle.kts` modified) and exactly the 15 Section 9.2
+paths outside it:
+
+    app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt
+    app/app/src/test/kotlin/io/github/stslex/workeeper/di/PastSessionExtensionIdentityTest.kt
+    app/common/build.gradle.kts
+    app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt
+    app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt
+    app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt
+    .github/scripts/assert_kmp_ui_source_topology.py
+    .github/scripts/assert_kmp_ios_smoke.py
+    .github/workflows/android_build_unified.yml
+    documentation/architecture.md
+    documentation/ci-cd.md
+    documentation/design-system.md
+    documentation/testing.md
+    documentation/tech-debt.md
+    documentation/feature-specs/kmp-phase-7-11-past-session-feature.md
+
+`feature/past-session` tracks exactly 71 paths at exit: `build.gradle.kts`, `commonMain` 31 (29
+Kotlin files and 2 catalogs), `commonTest` 6, `androidHostTest` 32 (the golden test, the
+overflow-gate test and 30 PNGs) and `iosTest` 1, all mode 100644, with nothing tracked or on disk
+under `src/main`, `src/test`, `src/androidTest`, `androidMain`, `iosMain` or `androidDeviceTest`. With
+git's default rename detection the module reads 67 renames, 1 modification, and two delete/add pairs
+plus the new scene (Section 19.8); at `-M10%` it reads 69 renames, 1 addition and 1 modification.
+The 30 PNGs, the golden test, the overflow-gate test and 17 of the 29 production files are
+100%-similarity renames. The EN catalog differs from the base only by P1's four plural items, D1's
+`tonnage_format` value and separator line, and the replaced three-line tonnage comment; the RU
+catalog only by P1's eight plural items, D1's `tonnage_format` value and separator line. Roots,
+the other comments and the trailing newlines are byte-identical. `git diff --check` is clean for
+every commit and for base..head.
+
+### 19.3 Fresh baseline before any edit
+
+| Command (base tree) | Executed | Parsed result |
+| --- | ---: | --- |
+| `:feature:past-session:assembleDebug` | 119/119 | target assembled |
+| `:feature:past-session:testDebugUnitTest` | 194/194 | 7 suites, 41 cases (4/11/6/5/1/13 and the overflow gate), names equal Section 3.2 plus `weightedRowValuesFitTheirSlots` (JUnit's trailing `()` removed), 0/0/0 |
+| `:feature:past-session:verifyPaparazziDebug` | 195/195 | 8 suites, 71 cases, 0/0/0; `Visual gate live: 30 golden test case(s) executed for 30 golden image(s).`; porcelain empty |
+| `:app:app:testDebugUnitTest --tests '*PastSessionExtensionIdentityTest*' --tests '*StringResolverIdentityTest*'` | 580/580 | 2 suites, 6 cases, 0/0/0 |
+| current ten-module Native command (workflow form, `--continue --full-stacktrace`) | 283/283 | 49 XML files, 238 cases, 0/0/0 |
+| `python3 .github/scripts/assert_kmp_ios_smoke.py` | GREEN | both Pythons, byte-identical: `native gate live:` and every module `… — verified N exact identities` |
+| `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | both Pythons, byte-identical (378 lines, exit 0, empty stderr): BASE_GATE_OUTPUT |
+
+### 19.4 Commit 1: the byte-identical proof (Section 12.0)
+
+The base's topology script was saved aside as `old_gate.py`. On the committed tree `ba57fa99c`
+(porcelain empty), a scratch differential ran both scripts under both Pythons — four captures of
+stdout, stderr and exit code per state:
+
+| Step | Result |
+| --- | --- |
+| GREEN | the four captures byte-identical, exit 0, stdout byte-identical to BASE_GATE_OUTPUT |
+| M1 (`create_args`): `.also { }` between `.createAllExercisesGraph()` and `.allExercisesStore` | four identical captures, exit 1: `feature:all-exercises: factory invocation must occur exactly inside retained Store creation` |
+| M2 (`device_test`): the `    @Regression` line of `AllExercisesScreenTest.kt` deleted | four identical captures, exit 1: `feature:all-exercises: device placeholder must keep '@Regression' exactly once` |
+| M3 (`preview_inventory`): `@Preview(name = "Extra", showBackground = true)` above `ExerciseRow.kt`'s Dark preview | four identical captures, exit 1: `feature:all-exercises: exactly eight portable previews are required; found 9` |
+| M4 (`resource_wrapper_dates`): `ArchivePagingHandler.kt` `resourceWrapper.formatDayMonth(` → `resourceWrapper.formatMediumDate(` | four identical captures, exit 1: `feature:archive: src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandler.kt resolves archive copy through ResourceWrapper.formatMediumDate; use the private Compose resources` and `feature:archive: ResourceWrapper must serve exactly one formatDayMonth date` |
+| after each mutation | the file restored byte-exactly (sha256 and mode), porcelain empty, and a fresh GREEN byte-equal to the first |
+| diff | `git diff a98865210..ba57fa99c --stat`: only the topology script; every hunk lies inside `FeatureEntry` or `check_feature_entry`, and no entry, contract, `MODULES` or `FEATURE_ENTRIES` line changes |
+
+### 19.5 Commit 2: the early Native check, the scene, and the focused gates
+
+Two runs on the uncommitted tree are recorded because the procedure asks for them there:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| early Native check: `:feature:past-session:iosSimulatorArm64Test` (production and the six suites ported; no scene, no app paths yet) | 121/121 | 6 suites, 40 cases 4/11/6/5/1/13, 0/0/0, names equal Section 3.2 after stripping the classname prefix `iosSimulatorArm64Test.` and the suffix `[iosSimulatorArm64]`. It is D3's first Native measurement: commonTest compiles for Native with no `core:data:database` edge |
+| the scene's runs (Section 19.8) | 121/121 each | first run: every assertion up to the dispatch list passed — the stored and filled EN catalog equal Section 3.4, step 2's five totals equal its table, every phase, the sheet and both dialogs rendered, and `SetText` was available on the simulator; the list held two extra echo entries. Second run, after the scene fix: 7 suites, 41 cases, 0/0/0 |
+
+The Section 12.3 gates then ran on the committed tree `04fffdb52` (porcelain empty):
+
+| # | Command | Executed | Parsed result |
+| ---: | --- | ---: | --- |
+| 1 | `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | both Pythons, byte-identical: `feature:past-session: 70 exact source/resource/test files`; `app:common API edges and 7 remaining Context.appDeps readers are exact`; `compose-resource placeholders: 18 commonMain catalogs walked, every placeholder is %N$d or %N$s with N >= 1` |
+| 2 | `:feature:past-session:assembleDebug` | 344/344 | Android AAR and both iOS klibs (`compileAndroidMain`, `compileKotlinIosArm64`, `compileKotlinIosSimulatorArm64`, `compileCommonMainKotlinMetadata` executed) |
+| 3 | `:feature:past-session:testAndroidHostTest` | 196/196 | 7 suites, 41 cases, 0/0/0; names equal Section 3.2 plus `weightedRowValuesFitTheirSlots` |
+| 4 | `:feature:past-session:verifyPaparazziDebug` | 197/197 | `Visual gate live: 30 golden test case(s) executed for 30 golden image(s).`; 8 suites, 71 cases, 0/0/0; the Gradle HTML class report lists 30 distinct (method, theme) pairs equal to Section 3.3's 15 methods × {LIGHT, DARK}, all passed; no record task; porcelain empty |
+| 5 | `:feature:past-session:iosSimulatorArm64Test` | 121/121 | 7 suites, 41 tuples by name (the 40 and the scene), 0/0/0 |
+| 6 | `:app:common:assembleDebug` | 327/327 | explicit consumer compiled |
+| 7 | `:app:app:testDebugUnitTest --tests '*PastSessionExtensionIdentityTest*' --tests '*StringResolverIdentityTest*'` | 583/583 | 2 suites, 6 cases, 0/0/0: `extension resolves the store through the parent graph`, `store's app-scoped deps are the SAME instances the parent holds`, `the extension inherits the IO dispatcher key and not the Default one`, `each extension carries its own route arg into the store state`, `app graph binds the Compose string resolver`, `two reads give the one app-scoped resolver` |
+| 8 | `./gradlew detekt --continue`, alone | 63/63 | 55 fresh reports, 0 findings |
+| 9 | device: the whole `RouteReachabilityTest` class — `ANDROID_SERIAL=emulator-5554 ./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.RouteReachabilityTest --max-workers=2 --continue` | 744/744 | `Starting 15 tests`; fresh XML 15 cases, 0/0/0, among them `pastSessionOpensFromASeededFinishedSessionAndHomeReturns` |
+| 10 | prepared catalog (Section 5.2) | GREEN | below |
+| 11 | relative PNG proof | GREEN | below |
+
+**The prepared catalog.** Every `strings*.cvr` under `feature/past-session/build/` was copied aside
+right after gate 2. Each of the module's own copies that gate 2 wrote holds exactly one
+`string|feature_past_session_tonnage_group_separator|…` record. All 11 `values` copies decode to
+`2C` and all 11 `values-ru` copies to `C2 A0`:
+
+    generated/compose/resourceGenerator/preparedResources/commonMain/composeResources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    generated/compose/resourceGenerator/preparedResources/commonMain/composeResources/values/strings.commonMain.cvr: records=1 decoded=2C
+    generated/compose/resourceGenerator/assembledResources/iosArm64Main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    generated/compose/resourceGenerator/assembledResources/iosArm64Main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    generated/compose/resourceGenerator/assembledResources/iosSimulatorArm64Main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    generated/compose/resourceGenerator/assembledResources/iosSimulatorArm64Main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    generated/assets/copyAndroidMainComposeResourcesToAndroidAssets/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    generated/assets/copyAndroidMainComposeResourcesToAndroidAssets/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    processedResources/iosSimulatorArm64/main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    processedResources/iosSimulatorArm64/main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    processedResources/iosArm64/main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    processedResources/iosArm64/main/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    kotlin-multiplatform-resources/assemble-hierarchically/iosArm64ResolveSelfResources/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    kotlin-multiplatform-resources/assemble-hierarchically/iosArm64ResolveSelfResources/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    kotlin-multiplatform-resources/assemble-hierarchically/iosSimulatorArm64ResolveSelfResources/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    kotlin-multiplatform-resources/assemble-hierarchically/iosSimulatorArm64ResolveSelfResources/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    kotlin-multiplatform-resources/aggregated-resources/iosSimulatorArm64/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    kotlin-multiplatform-resources/aggregated-resources/iosSimulatorArm64/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    kotlin-multiplatform-resources/aggregated-resources/iosArm64/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    kotlin-multiplatform-resources/aggregated-resources/iosArm64/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+    intermediates/assets/androidMain/mergeAndroidMainAssets/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values-ru/strings.commonMain.cvr: records=1 decoded=C2 A0
+    intermediates/assets/androidMain/mergeAndroidMainAssets/composeResources/io.github.stslex.workeeper.feature.past_session.resources/values/strings.commonMain.cvr: records=1 decoded=2C
+
+The 36 dependency-catalog copies under the same directory (core:ui:kit's and core:ui:plan-editor's,
+in `resources-from-dependencies`, `aggregated-resources` and the merged test assets) and 4 stale
+copies left by earlier iteration builds were listed and excluded (Section 19.8).
+
+**Relative PNG proof (Section 3.7)**, at commit 2 and again at commit 3: the base manifests, with
+exactly the 30 past-session paths rewritten from `src/test/` to `src/androidHostTest/`, equal the head
+manifests byte for byte; all 528 working-tree PNGs hash to their index blobs; 13 Paparazzi owners; 30
+past-session PNGs under `src/androidHostTest/snapshots/images`, 0 under `src/test`, all 100644.
+
+| Manifest | Base | Base, 30 paths rewritten | Head |
+| --- | --- | --- | --- |
+| Paparazzi mode/blob/path (456 entries, 13 owners) | `f8792e1efeca575a6b1bfa6bf780c89b52a0475392e3f9fea3f04f90d598443b` | `cc526e47fd76e92f7427de44de3aa31e91a625a8fec12db7b59b2a09fe85cd00` | `cc526e47fd76e92f7427de44de3aa31e91a625a8fec12db7b59b2a09fe85cd00` |
+| Paparazzi path list (456) | `27b831bcc04b22f872dc2221abd310c3e33211f9f4163c42f0226822a4d6d44d` | `d855238ee9806022020e424953fbb54dd809c175e692921e418377a4f31cacc2` | `d855238ee9806022020e424953fbb54dd809c175e692921e418377a4f31cacc2` |
+| All PNGs mode/blob/path (528) | `ce590ad5c3a859541f8249cb95ea33e33104b5ba326699b323289b15c2fb3f36` | `b5ed4b9d415feb88d515bd0de3359f9f2d3b0881df29828ca98f60476911ad08` | `b5ed4b9d415feb88d515bd0de3359f9f2d3b0881df29828ca98f60476911ad08` |
+| past-session blob set (30 sorted blob IDs) | `85bb492445882305ebcbd415ab54cb0543edc8b4181f76c2c4815ea14446c22c` | — | `85bb492445882305ebcbd415ab54cb0543edc8b4181f76c2c4815ea14446c22c` |
+
+Every value equals Section 3.7's.
+
+**Gradle metadata (Section 10).** Every declared edge is used by its source set's imports
+(commonMain: `core:core`, `core:ui:kit`, `core:ui:mvi`, `core:ui:navigation`, `core:ui:plan-editor`,
+`core:data:exercise`, `cmp.ui`, `coroutines.core`, `kotlinx.collections.immutable`, `cmp.animation`
+for `animateContentSize` / `animateFloatAsState` / `tween`, `cmp.material.icons.extended` for
+`Icons.Filled.DragHandle`; commonTest `kotlin("test")` and `coroutine.test`; iosTest `kotlin("test")`
+and `cmp.ui.test`; androidHostTest the golden harness). Every import resolves to a declared edge, to
+the module itself, to Metro, to the standard library, to kit's `api` surface (CMP runtime,
+foundation, material3, ui-tooling-preview, components-resources), or, for the golden and gate tests'
+JUnit 5 annotations, to the KMP convention's `androidHostTestImplementation` of `junit-jupiter`. No
+source set imports `core.data.database`, and no build line names it (D3).
+
+The device for every device gate in this record is the AVD `Pixel_6_API_34`, serial `emulator-5554`,
+the only attached device, started with `-avd Pixel_6_API_34 -port 5554 -no-window -gpu
+swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save`: API 34, fingerprint
+`google/sdk_gphone64_arm64/emu64a:14/UE1A.230829.050/12077443:userdebug/dev-keys`. Window, transition
+and animator scales were 0, `accelerometer_rotation=1`, `user_rotation=0` and the keyguard was not
+showing, recorded before and after every device run and identical each time. The `lastUpdateTime`
+of the workeeper packages on the device was identical before and after each run (the connected task
+installs and uninstalls its own APKs). Every device run started with its connected-result directory
+deleted, after a wait until no other checkout's Gradle client ran a device-capable task and nothing
+instrumented on the serial.
+
+### 19.6 Commit 3: the transcription, the oracle, and the eleven-module gates
+
+`PAST_SESSION_ENTRY` and the oracle's 41 tuples were transcribed from this document's tables by a
+script that reads only this document. The one exception is `identity_names`: Section 6 keeps the four
+inherited names without printing them, so the transcriber took them from census A's reading of the
+base commit's git objects. An independent audit, with its own line-splitting parser of this text,
+loaded the committed scripts as modules and read nothing under `feature/past-session` or `app/` (its
+identity names came from census B). It reported `AUDIT VERDICT: EQUAL (32 checks)`. A perturbation
+self-check found exactly its two planted differences. Its 31 synthetic probes broke every rule of
+`past_session_copy_contract` and `past_session_dependency_contract` on in-memory sources, and each
+failed as named (`PROBES: 31/31 RED-as-named`). An existing empty `ui/` file is counted, not
+skipped.
+
+The topology script's diffs: commit 3 removes exactly one line, the old `FEATURE_ENTRIES` tuple.
+Commits 2 and 3 together remove exactly two, that tuple and the past-session reader. An AST
+comparison against commit 1 shows `FeatureEntry`, `check_feature_entry`, `ARCHIVE_ENTRY`,
+`ALL_TRAININGS_ENTRY`, `ALL_EXERCISES_ENTRY` and their six check functions byte-identical. The only
+new top-level names are `PAST_SESSION_ENTRY` and its two checks, and the only changed ones are
+`MODULES`, `EXPECTED_APP_DEPS_READERS` and `FEATURE_ENTRIES`.
+
+On the committed tree `2a498ff2f` (porcelain empty):
+
+| # | Command | Executed | Parsed result |
+| ---: | --- | ---: | --- |
+| 1 | `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | both Pythons, byte-identical; adds `past-session catalogs, semantic State, suppressions, previews, test identities, and explicit factory flow are exact` |
+| 2 | eleven-module Native command, exactly the edited workflow's (`--continue --full-stacktrace`) | 307/307 | 56 fresh XML files, 279 cases, 0/0/0: kit 2, navigation 1, mvi 14, start-mode 2, core plan-editor 20, image-viewer 13, feature plan-editor 43, archive 26, all-trainings 50, all-exercises 67, past-session 41 |
+| 3 | `python3 .github/scripts/assert_kmp_ios_smoke.py` on gate 2's XML | GREEN | both Pythons, byte-identical: `native gate live:` and `feature:past-session: 41 executed / 0 skipped / 0 failed / 0 errored — verified 41 exact identities`; the other ten modules unchanged |
+| 4 | eleven-module `linkDebugTestIosArm64`, exactly the edited workflow's | 296/296 | the workflow's binary-assert loop run verbatim: `11/11 linked`, every `test.kexe` fresh |
+| 5 | `./gradlew detekt --continue`, alone | 63/63 | 55 fresh reports, 0 findings |
+| 6 | workflow static checks | GREEN | the YAML parses (Ruby Psych): jobs `build`, `release-bundles`, `kmp-ios-kit-smoke`, job name `KMP iOS kit smoke`; eleven simulator tasks, eleven link tasks, eleven upload paths, `echo "$linked/11 linked"`; actionlint reports only the pre-existing `77:9: shellcheck reported issue in this script: SC2129:style:1:1`, at the base and at commit 3 |
+
+**Repository and visual gates (Section 12.4)**, each its own invocation on the committed tree, in
+sequence, so detekt never ran beside tests:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2664/2664 | 471 fresh host XML files across 32 modules, 3,334 test cases, 0/0/0 (2,971 unique module/classname/name triples); past-session 7 files, 41 cases, names equal Section 3.2 plus the gate; lint: 36 modules `Lint found no errors or warnings`, and `app:app`, `app:dev` and `app:store` `Lint found 75 warnings` each, all dependency-version checks (GradleDependency 37, NewerVersionAvailable 32, AndroidGradlePluginVersion 6) in `gradle/libs.versions.toml` and `gradle-wrapper.properties`, none in source, as in 7.10 |
+| `detekt --continue` | 63/63 | 55 fresh reports, 0 findings |
+| `assembleDebugAndroidTest --continue` | 2170/2170 | GREEN |
+| `verifyPaparazziDebug` | 649/649 | 13 liveness lines, 456 golden cases executed for 456 images: all-exercises 52/52, all-trainings 50/50, archive 14/14, exercise 48/48, exercise-chart 30/30, home 42/42, kit 86/86, live-workout 60/60, past-session 30/30, core plan-editor 18/18, settings 12/12, single-training 12/12, start-mode 2/2; 169 fresh XML files, 1,744 cases, 0/0/0; past-session 71 cases (30 golden and 41); no record task |
+| `:lint-rules:test` | 9/9 | 16 suites, 151 tests, 0/0/0 |
+| `python3 documentation/personal_data_gate.py -v` | GREEN | `[PASS] no personal data in tracked files`; six excused lines, all pre-existing, in paths this branch does not touch |
+| device: Smoke suite — `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --full-stacktrace --continue` | 2130/2130 | 11 fresh XML files, 44 cases: 41 passed and exactly the three documented skips, `ArchiveScreenTest`, `AllTrainingsScreenTest` and `AllExercisesScreenTest` `pendingFeatureRewrite`; 0 failures and errors. Then, as `run_smoke_ui_tests.sh` does, `assert_mvi_device_identities.py`: `core:ui:mvi (androidDeviceTest): 2 executed / 0 skipped / 0 failed / 0 errored — verified 2 exact identities` |
+| device: Regression suite — the same with `…annotations.Regression` | 2130/2130 | 5 fresh XML owners, 88 cases, all executed, 0 skip, failure or error: app:app 49 (among them `RouteReachabilityTest` 15 with `pastSessionOpensFromASeededFinishedSessionAndHomeReturns`, `UiAdmissionRaceTest` 3, `ApplicationBottomBarTest` 4, `AllTrainingsExtensionDbVisibilityTest` 1, `UiGenerationSwapTest` 1, `AppRuntimeUiHandshakeDeviceTest` 1), core:data:database 35, core:data:exercise 1, feature:all-exercises 1 (`blockedArchiveDialogListsBlockingTrainings`), feature:wear-bridge 2, the same membership as 7.10 |
+| boundary, hygiene and PNG (static) | GREEN | `diff --check` clean for every commit and base..head; the boundary of Section 19.2; the PNG proof of Section 19.5 repeated at commit 3 (528/528 on-disk bytes equal their blobs) |
+| mockup shell gate | static GREEN | checks 7 and 8 unverified locally (Section 19.9) |
+
+### 19.7 Mandatory known-negative controls
+
+All 40 applicable controls of Section 13 — 1–17 and 19–41; 18 has no counterpart — ran on the
+committed tree `2a498ff2f`: fresh GREEN → one named observable RED → automatic exact restoration →
+fresh GREEN. No mutation was committed.
+
+The Python-scored controls (1–14, 17, 26's topology half, 27–40) and the PNG-scored control 24 ran in
+a detached worktree at `2a498ff2f` (porcelain empty), removed afterwards with `git worktree remove`.
+They ran through a scratch harness that refuses to start unless HEAD is that commit and the
+porcelain is empty. Per control it takes a fresh GREEN and snapshots every touched path (bytes and
+mode, or absence) and every directory the mutation would create. It applies one mutation whose text
+anchors each occur exactly once, and accepts a RED only with a non-zero exit, the gate's failure
+header, no Traceback, and every named fragment present. It restores in `finally` with SIGTERM,
+SIGINT and SIGHUP ignored during the restore, proves sha256 and mode equal and created paths absent,
+requires an empty porcelain, and takes a fresh GREEN whose output is byte-equal to the first GREEN.
+The topology scorer ran exactly as CI runs it. The whole pass ran once with macOS Python 3.9.6 and
+once with Homebrew Python 3.14.8 as scorer. The two outputs are byte-identical, each ending
+`SUMMARY: 31/31 controls RED-as-named and restored; problems=[]` and `END porcelain empty: True`.
+Control 24's scorer hashes the on-disk bytes of every tracked PNG and requires the 30 past-session
+blobs, the blob-set hash, and the all-PNG and Paparazzi manifests to equal the base manifests with
+the 30 paths rewritten.
+
+The Gradle- and device-scored controls ran in the branch worktree through
+`documentation/mockups/mutation_harness.py` in one-shot mode, driven by a scratch script. Per control
+the script requires the target file to equal HEAD's blob and the porcelain to be empty. It passes
+`--no-configuration-cache --console=plain` inside `--task` (the harness stops the daemon and adds
+`--rerun-tasks --no-build-cache` itself), copies the run's fresh XML aside at once, proves the
+mutated file's blob equal to HEAD's and the porcelain empty again, and takes a fresh forced GREEN.
+Within a group, one control's post-GREEN served as the next one's pre-GREEN, because nothing changed
+between them. The groups were 19 → 20 → 21 → 22 → 26 → 27's observation → 41, then 23, then 25, then
+15 → 16. The harness's own verdict line knows only test failures: it reads `GREEN — GATE HOLE` for
+23, whose scorer is the oracle, and for 27's observation, whose expected result is GREEN. It reads
+`RED (no named test — check)` for 25, whose scorer is detekt's report.
+
+| # | Mutation | Observable RED (quoted) | GREEN before/after |
+| ---: | --- | --- | --- |
+| 1 | delete `ui/components/PastSessionSheets.kt` | `feature:past-session: source manifest mismatch; missing=['src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/PastSessionSheets.kt'], extra=[]` | topology GREEN |
+| 2 | copy `di/PastSessionScope.kt` into `src/main/kotlin/…/di/` | `feature:past-session: legacy source set src/main still contains ['src/main/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionScope.kt']` (plus the manifest's `extra=[…]` and `unexpected Kotlin-bearing source set src/main`) | topology GREEN |
+| 3 | move `ui/components/PastSessionSheets.kt` to `ui/PastSessionSheets.kt` | `feature:past-session: source manifest mismatch; missing=['src/commonMain/…/ui/components/PastSessionSheets.kt'], extra=['src/commonMain/…/ui/PastSessionSheets.kt']` | topology GREEN |
+| 4 | `import android.util.Log` in `ui/components/PastSessionSheets.kt` | `feature:past-session: src/commonMain/…/ui/components/PastSessionSheets.kt imports a platform API in commonMain: 'import android.'` | topology GREEN |
+| 5 | rename the EN key `feature_past_session_action_retry` to `…_renamed` | `feature:past-session: exact private CMP catalog mismatch in feature/past-session/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_past_session_action_retry: expected='Retry', actual=None"], unexpected=['feature_past_session_action_retry_renamed'], order=drifted` (plus two ownership-drift lines, old and new key) | topology GREEN |
+| 6 | append a second word to the RU value of `feature_past_session_action_retry` | `feature:past-session: exact private CMP catalog mismatch in feature/past-session/src/commonMain/composeResources/values-ru/strings.xml; mismatched=[…], unexpected=[], order=exact` (the two RU values are named here, not quoted) | topology GREEN |
+| 7 | move the EN `feature_past_session_action_retry` into `feature/settings/src/main/res/values/strings.xml` | `feature:past-session: resource ownership drift for feature_past_session_action_retry; expected=['feature/past-session/src/commonMain/composeResources/values-ru/strings.xml', 'feature/past-session/src/commonMain/composeResources/values/strings.xml'], actual=['feature/past-session/src/commonMain/composeResources/values-ru/strings.xml', 'feature/settings/src/main/res/values/strings.xml']` (plus the EN catalog mismatch) | topology GREEN |
+| 8 | `val titleRes: Int = 0` as State's last field | `feature:past-session: Store State must stay semantic with exactly ((…the six Section 12.1 fields…)); actual=(…, ('titleRes', 'Int = 0'))` | topology GREEN |
+| 9 | the mapper's `adhoc_label` read → `resourceWrapper.getString(0)` | `feature:past-session: src/commonMain/…/mvi/mapper/PastSessionUiMapper.kt resolves past-session copy through ResourceWrapper.getString; use the private Compose resources` (plus `copy contract requires 'stringResolver.getString(' exactly five times; found 4` and `reads copy outside the StringResolver: 'getString(' 5 time(s), 4 through stringResolver`) | topology GREEN |
+| 10 | `val label = getString(TITLE)` as the first line of `CommonHandler`'s `updateStateImmediate { current -> … }` | `feature:past-session: updateStateImmediate in src/commonMain/…/mvi/handler/CommonHandler.kt resolves a resource inside the State lambda: 'getString('` (plus `CommonHandler.kt copy contract requires 'getString(' exactly zero times; found 1`) | topology GREEN |
+| 11 | `uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES` on `PastSessionHeader.kt`'s Dark preview | `…/ui/components/PastSessionHeader.kt contains forbidden platform/lookup API 'android.content'` and `… 'uiMode'` (plus `PastSessionHeader.kt preview inventory must be exactly ['name = "Light"', 'name = "Dark"']`) | topology GREEN |
+| 12 | `LocalContext.current` and `context.appDeps<PastSessionGraph.Factory>()` in `PastSessionFeature` | `…/di/PastSessionFeature.kt contains forbidden platform/lookup API 'LocalContext'`, `… 'appDeps<'`, `remaining Context.appDeps readers are not the exact 7 unported entries; …` and `factory invocation must occur exactly inside retained Store creation` | topology GREEN |
+| 13 | delete `val pastSessionGraphFactory: PastSessionGraph.Factory` and its KDoc from `AppRootDeps` | `feature:past-session: exact root-factory flow requires 'val pastSessionGraphFactory: PastSessionGraph.Factory' once in app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt` | topology GREEN |
+| 14 | `val graph = factory.createPastSessionGraph(screen)` before `rememberMetroStoreProcessor` | `feature:past-session: createPastSessionGraph(screen) must be invoked once, inside the Store lambda` | topology GREEN |
+| 15 | a second `(context.applicationContext as AppRootDepsHolder).appRootDeps()` inside the admitted `remember(currentPhase.id) { … }` in `App.kt` | device: `UiAdmissionRaceTest`, 744/744: `admittedGeneration_composesTheRegion_andResolvesItsDependencies` `java.lang.AssertionError: an admitted region resolves the generation's app-scope deps expected:<1> but was:<2>`; the two retired cases passed (fresh XML 2 passed, 1 failed) | 744/744, 3/3 |
+| 16 | hoist `val deps = remember(currentPhase.id) { …appRootDeps() }` above `if (admission.granted) {` | device: `UiAdmissionRaceTest`, 744/744: `retiredGeneration_composesNothing_andResolvesNothing` `java.lang.AssertionError: a retired generation must resolve NOTHING — not even the app root deps expected:<0> but was:<1>`; `retirementBetweenPublicationAndFrame_resolvesNothing` `java.lang.AssertionError: the stale generation's region must resolve NOTHING expected:<0> but was:<1>`; the admitted case passed | 744/744, 3/3 |
+| 17 | identity helper `= asContribution<PastSessionGraph.Factory>()` | `feature:past-session: extension identities must not bypass AppRootDeps via asContribution` (plus the identity-helper root-fragment line) | topology GREEN |
+| 18 | archive-specific; no counterpart (Section 13) | — | — |
+| 19 | `withExpansionCarriedFrom`: `exercises.firstOrNull()` → `exercises.lastOrNull()` | 280/280: host `PastSessionUiMapperTest > first Loaded state seeds exactly the first card open` `expected: <[pe-1]> but was: <[pe-3]>` and `CommonHandlerTest > Init seeds the first card open on the first Loaded emission` `expected: <[performed-1]> but was: <[performed-2]>`, and `a re-emission carries the user's open set instead of reseeding`, which asserts the same first seed before its carry; Native the same three, `Expected <[pe-1]>, actual <[pe-3]>.`; host 38/3, Native 38/3 | 280/280 |
+| 20 | `SUMMARY_TIMES = "×"` → `"x"` | 280/280: host `mapper builds the collapsed summary per exercise type` `expected: <100×5 · 90×3> but was: <100x5 · 90x3>` and its two siblings (`mapper excludes unfilled sets from the collapsed summary`, `mapper marks a weighted set with no logged weight instead of printing bare reps`); Native the same three and the scene's T1 summaries `Expected <[12, 100×5 · 90×3, ]>, actual <[12, 100x5 · 90x3, ]>.`; host 38/3, Native 37/4 | 280/280 |
+| 21 | the scene's `setContent { AppTheme { PastSessionScreen(…) } }` body → `setContent { }` | 280/280: Native `PastSessionFeatureSceneIosTest.resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch[iosSimulatorArm64]` `Failed to perform isDisplayed check. Reason: Expected exactly '1' node but could not find any node that satisfies: ((Text + InputText + EditableText contains 'Past session' (ignoreCase: false)) && (hasAnyAncestorThat(TestTag = 'PastSessionTopBar')))`, its first node assertion; host 41/41, Native 40/1 | 280/280 |
+| 22 | production `PastSessionScreen.kt`: the back button's `onClick = { consume(Action.Click.OnBackClick) }` → `onClick = { }` | 280/280: Native, the scene's dispatch check at the back-button step: `kotlin.AssertionError: Expected <OnBackClick>, actual <OnRetryLoad>.`; host 41/41, Native 40/1 | 280/280 |
+| 23 | rename the scene method to `renamedSceneSubstitute` | Gradle GREEN (307/307; 279 cases passing, past-session 41), then the oracle on that run's XML: `native gate FAILED (every module was checked, so no verdict is hidden):` and `feature:past-session: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.past_session.PastSessionFeatureSceneIosTest' name='resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch[iosSimulatorArm64]', found 0; parsed 41 testcase(s): ['io.github.stslex.workeeper.feature.past_session.PastSessionFeatureSceneIosTest.renamedSceneSubstitute[iosSimulatorArm64]', …]`; the other ten modules `ok:` | 307/307 and oracle GREEN |
+| 24 | flip (XOR 0xFF) the last byte of `…golden_PastSessionGoldenTest_header_light.png` | `past-session blob drift: io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_header_light.png expected=53cd788cc61fef317284d6b69b2fbcbe6c75a298 actual=2406a581af172d76d508183dcbabbbe53dc95ea1`, `blob-set hash drift`, `all-PNG mode/blob/path manifest drift` and `Paparazzi mode/blob/path manifest drift` (528 and 456 entries); the path list does not drift | PNG assertion GREEN |
+| 25 | compile-valid overlong assertion at `commonTest/…/mvi/handler/NavigationHandlerTest.kt:20` (a `kotlin.test` message argument) | root detekt, alone, 63/63: `> Task :feature:past-session:detekt FAILED` and `BUILD FAILED`; 6 findings, all on line 20 of that file: `detekt.MaximumLineLength` `:20:1` `Exceeded max line length (120)`, `detekt.MaxLineLength` `:20:1` `Line detected, which is longer than the defined maximum line length in the code style.`, and four `detekt.ArgumentListWrapping` (`Argument should be on a separate line (unless all arguments can fit a single line)` at columns 22, 25 and 49; `Missing newline before ")"` at 133) | 63/63 |
+| 26 | `THOUSANDS_GROUP_SIZE = 3` → `4` | Native, 280/280: the scene's step 2 `Expected <[…, 1 exercise · 5 sets · 4,820 kg], […, 1 exercise · 3 sets · 1,000 kg], […, 1 exercise · 1 set · 1,234,567 kg], …]>, actual <[…, 1 exercise · 5 sets · 4820 kg], […, 1 exercise · 3 sets · 1000 kg], […, 1 exercise · 1 set · 123,4567 kg], …]>.`; host GREEN, 41/41; topology: `…/mvi/mapper/PastSessionUiMapper.kt copy contract requires 'THOUSANDS_GROUP_SIZE = 3' exactly once; found 0` | 280/280; topology GREEN |
+| 27 | the separator read → `val separator = ","` | topology: `…/mvi/mapper/PastSessionUiMapper.kt copy contract requires 'stringResolver.getString(' exactly five times; found 4` and `… copy contract requires 'Res.string.feature_past_session_tonnage_group_separator' exactly once; found 0` (host, Native and the scene stayed GREEN, below) | topology GREEN |
+| 28 | RU separator `&#160;` → a plain space | `feature:past-session: exact private CMP catalog mismatch in feature/past-session/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["feature_past_session_tonnage_group_separator: expected='\\xa0', actual=('string', 'feature_past_session_tonnage_group_separator', ' ')"], unexpected=[], order=exact` | topology GREEN |
+| 29 | EN `tonnage_format` `%1$s kg` → `%,d kg` | `compose-resource placeholder is not %N$d or %N$s with N >= 1: feature/past-session/src/commonMain/composeResources/values/strings.xml key feature_past_session_tonnage_format token '%,d'` (plus the EN catalog mismatch) | topology GREEN |
+| 30 | `data class ShowError(val errorType: ErrorType)` → `(val message: String)` | `feature:past-session: src/commonMain/…/mvi/store/PastSessionStore.kt ShowError parameters must be exactly ['errorType: ErrorType']; actual=['message: String']` | topology GREEN |
+| 31 | the mapper imports CMP's top-level `getString` and calls it for `adhoc_label` | `feature:past-session: src/commonMain/…/mvi/mapper/PastSessionUiMapper.kt imports CMP's top-level getString; read copy outside composition through the injected StringResolver` (plus `copy contract requires 'stringResolver.getString(' exactly five times; found 4` and `reads copy outside the StringResolver: 'getString(' 5 time(s), 4 through stringResolver`) | topology GREEN |
+| 32 | ui/PastSessionGraph.kt shows `getString(Res.string.feature_past_session_deleted_snackbar)` instead of `deletedMessage` | `feature:past-session: src/commonMain/…/ui/PastSessionGraph.kt reads copy outside composition under ui/: 'getString('` | topology GREEN |
+| 33 | `resourceWrapper.formatMediumDate(0L)` added to `CommonHandler.processInit` | `feature:past-session: src/commonMain/…/mvi/handler/CommonHandler.kt resolves past-session copy through ResourceWrapper.formatMediumDate; use the private Compose resources` | topology GREEN |
+| 34 | the mapper's date → `finishedAt.toString()` | `feature:past-session: src/commonMain/…/mvi/mapper/PastSessionUiMapper.kt must read the ResourceWrapper.formatMediumDate date exactly 1 time(s); found 0` | topology GREEN |
+| 35 | `@Preview(name = "Skipped — Collapsed")` → `@Preview(name = "Skipped")` | `feature:past-session: PastExerciseCard.kt preview inventory must be exactly ['name = "Expanded — Light"', 'name = "Collapsed — Dark"', 'name = "Skipped — Collapsed"']; actual=['name = "Expanded — Light"', 'name = "Collapsed — Dark"', 'name = "Skipped"']` | topology GREEN |
+| 36 | add `src/androidDeviceTest/kotlin/…/PastSessionScreenTest.kt` (a bare class) | `feature:past-session: source manifest mismatch; missing=[], extra=['src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/past_session/PastSessionScreenTest.kt']` and `feature:past-session: unexpected Kotlin-bearing source set src/androidDeviceTest` | topology GREEN |
+| 37 | add `implementation(project(":core:data:database"))` to commonTest's dependencies | `feature:past-session: build must not depend on :core:data:database in any source set (D3)` | topology GREEN |
+| 38 | `.createPastSessionGraph(screen)` → `.createPastSessionGraph(Screen.PastSession(sessionUuid = screen.sessionUuid))` | `feature:past-session: factory invocation must occur exactly inside retained Store creation` | topology GREEN |
+| 39 | in `PastSessionExtensionIdentityTest`, the third identity's `appGraph.pastSession("session-1")` → `("session-3")` | `feature:past-session: all four extension identities must reach the graph through the accessor` | topology GREEN |
+| 40 | a 41st `@Test`, `a forty-first identity nobody declared`, in `NavigationHandlerTest` | `feature:past-session: exact test identities drifted in src/commonTest/…/mvi/handler/NavigationHandlerTest.kt; missing=[], unexpected=['a forty-first identity nobody declared']` | topology GREEN |
+| 41 | the mapper's `exercises_count` read drops its format argument: `getPluralString(…, exerciseCount, exerciseCount)` → `getPluralString(…, exerciseCount)` | 280/280: on host and Native exactly the 13 resolver-dependent identities — the nine mapper identities that call `toUi`, `Init success loads mapped detail`, `Init flags PR set with isPersonalRecord`, `Init seeds the first card open on the first Loaded emission` and `a re-emission carries the user's open set instead of reseeding` — each `java.lang.IllegalStateException: a plural read passes its quantity as its one format argument; got []` (Native `kotlin.IllegalStateException: …`); and the scene's totals show the raw template: `actual <[[Ad-hoc workout, Apr 28, 01:30, %1$d exercises · 3 sets · 770 kg], [Push Day, May 2, 1:02:05, %1$d exercise · 5 sets · 4,820 kg], …]>`; host 28/13, Native 27/14 | 280/280 |
+
+Control 26's observation: under its mutation the Android host suite stayed GREEN (41/41), because
+every host fixture tonnage is under 1,000. Only the Native scene failed, at step 2, with exactly the
+three figures Section 13 names. Control 27's observation: under its mutation
+`:feature:past-session:testAndroidHostTest :feature:past-session:iosSimulatorArm64Test` stayed GREEN,
+280/280, host 41/41 and Native 41/41 with the scene passing, because the EN catalog holds the same
+comma. Only the topology gate's copy contract names that mutation (row 27).
+
+### 19.8 Deviations, spec gaps, and implementation decisions
+
+- **D2's field count.** Section 12.0 says "four defaulted fields". Its table and reference
+  implementation add three new ones (`create_args`, `preview_inventory`,
+  `resource_wrapper_dates`) and give the existing `device_test` a new meaning for the empty value.
+  `device_test` precedes non-default fields, so it cannot take a default. Commit 1 follows the
+  reference implementation, and its proof (Section 19.4) shows the behaviour unchanged.
+- **One production line beyond Section 5.** The first Native compile of `commonMain` failed on
+  `InputHandler.kt`'s `originalSets.putIfAbsent(setUuid, set)`. `MutableMap.putIfAbsent` is a JVM
+  member, not common stdlib, and Section 3.1's census of Android coupling did not list it. It
+  became `originalSets.getOrPut(setUuid) { set }`: the same map write, because the map's values are
+  non-null and the return value is unused. The path is inside Section 9.1, no Section 14 condition
+  covers it, and every InputHandler identity runs unchanged on both targets.
+- **Type witnesses in two suites.** kotlin.test's `assertEquals` carries `@OnlyInputTypes`, so
+  `assertEquals(listOf(Event.HapticClick(…)), store.events)` no longer infers once JUnit's untyped
+  overload is gone. Five sites became `listOf<Event>(…)` / `listOf<Action>(…)`, the form
+  image-viewer's and plan-editor's ported suites already use. The compared values are unchanged.
+- **The identity names.** Section 6 keeps the four inherited `PastSessionExtensionIdentityTest`
+  names without printing them. The transcription took them from census A's reading of the base's
+  git objects, and the audit checked them against census B.
+- **The scene's typed values.** The scene's first run passed every catalog, totals, phase, sheet
+  and dialog assertion, and `SetText` worked. Its dispatch list held two extra entries,
+  `OnSetWeightChange(set-bench-1, 100)` and `OnSetRepsChange(set-bench-1, 5)`. The set fields are
+  controlled `BasicTextField`s, and a field whose State never takes the typed value reports its
+  old text again when focus leaves it. The scene's test-held State now takes each typed value, as
+  the Store would, and the list is exactly Section 11.4's eleven entries. This is no fake Store:
+  nothing reduces actions, and the scene only sets the State it holds.
+- **Scene details** (none changes a gate or an identity). Step 1 reads the 21 strings and both EN
+  quantities of both plurals as stored (25 values), and the eight placeholder-bearing readings
+  filled; the expected values were transcribed mechanically from Section 3.4's table. "Nothing
+  below the bar" in the Loading phase is asserted as: the screen's semantics node has exactly one
+  child, the top bar. Kit's labels (`weight, kilograms`, `repetitions`, `Cancel`, the PR explainer)
+  are read through the one resolver; `PR` is kit's literal tag label.
+- **Control wording.** Control 22's RED fires at the scene's per-step dispatch check of the back
+  button (`Expected <OnBackClick>, actual <OnRetryLoad>.`), before the final list; it is the same
+  dispatch detector. Control 19 also reddens `a re-emission carries the user's open set instead of
+  reseeding`, which asserts the first seed before its carry.
+- **The prepared-catalog scope.** Section 12.3 names "every `strings.*.cvr` under
+  `feature/past-session/build/` whose directory is `values` or `values-ru`". That directory also
+  holds core:ui:kit's and core:ui:plan-editor's catalogs, which cannot hold this module's separator.
+  The check scored the module's own copies (its prepared catalog and every copy under its
+  resource package) that the measured `assembleDebug` wrote, and listed the 36 dependency copies
+  and 4 stale copies as excluded (Section 19.5).
+- **Rename similarity.** Every move is a `git mv`. Two files fall below git's default 50%
+  similarity because the port rewrites them around in-file fakes: `domain/PastSessionInteractorImplTest.kt`
+  and `mvi/handler/NavigationHandlerTest.kt`. Default `git diff -M` shows them as delete/add pairs;
+  both pair at `-M10%`.
+- **Build file.** With comments removed it equals Section 10's block. The module's history comments
+  (the Metro and Paparazzi plugin comments, the `includeJavax` comment) moved verbatim. Three
+  rationale comments were added, adapted from Section 10's bullets: the kit stays `implementation`,
+  and the two `api` groups. None holds a dependency fragment or a forbidden build token.
+- **Fakes.** Every fake member that no identity reaches fails fast, overriding its return type as
+  `Nothing` where that keeps `PlanSetDataModel` off the source. The `SetRepository` fake marks its
+  `getLastFinishedSet` override `@Deprecated`, as the interface member is, rather than drawing an
+  override-deprecation warning; that is no suppression. The three `TestStore`s are unchanged except
+  for the fail-fast `logger` getter.
+- **Observations.** The compile keeps the four inherited "only one @Inject-annotated constructor"
+  notes (the four handlers) and the inherited "No cast needed" at `CommonHandlerTest.kt:96`, after a
+  `kotlin.test` contract assertion (7.10 Section 19.7).
+- **Device suites.** They ran in testing.md's canonical form with `--max-workers=2
+  --full-stacktrace --continue`, without CI's `-Dorg.gradle.jvmargs=-Xmx3g` runner-memory flag,
+  as in 7.10.
+- **The emulator.** Phase 1 booted it to prove the device environment, then shut it down for the
+  cold host baselines (16 GB host), and booted it again with the same command line for the device
+  gates. That cold boot showed the keyguard, which `wm dismiss-keyguard` cleared before any device
+  run.
+- **Landing this document.** The auto-mode command classifier refused the agent's
+  `git push origin HEAD:dev`. The maintainer sent a guarded command (tree, parent and blob checks)
+  in their own message, and it pushed the fast-forward.
+
+### 19.9 Rejected runs, local limitations, and the remote evidence boundary
+
+Runs that did not measure what they appear to were excluded, and their proof was rerun fresh:
+
+- The first `:feature:past-session:assembleDebug` baseline failed at configuration (4/4 tasks):
+  the signing configuration needs `keystore.properties`. After the symlinks of Section 19.1 it was
+  rerun (119/119).
+- The first `assembleDebug lintDebug testDebugUnitTest` failed in the four
+  `process*GoogleServices` tasks (2534/2534 executed, everything else green) without
+  `google-services.json`. After the two symlinks it was rerun (2664/2664).
+- The first pass of the Python-scored controls scored control 28 as a problem. Its RED was right,
+  but the expected fragment held one backslash where the gate's `repr` of the mismatch list writes
+  two. The fragment was corrected and the whole pass re-run under both Pythons (Section 19.7).
+- The first launch of the device controls died before any Gradle run, on a wrong path to the
+  device-state recorder. It was relaunched with nothing changed in the tree.
+- The foreign-client sampler first read command lines through `ps` without `-ww`. A Gradle client's
+  command line is short, so its tasks were visible, but a daemon's was truncated. It was corrected,
+  and no window held a device-capable foreign client.
+
+Local limitations:
+
+- The eleven iosArm64 device test binaries are linked, never run, by design: there is no device.
+- Section 5.6's inherited locale property is accepted, not tested; RU values execute in no test.
+  The topology gate pins them statically, and the prepared catalog's separator records were
+  decoded once (Section 19.5).
+- The mockup shell gate (`--base "$(git merge-base origin/dev HEAD)" -v`, base `a98865210`,
+  Homebrew Python 3.14.8) passes checks 1–6, 9 and 10. No headless browser is on `PATH`, so its
+  precondition row fails and checks 7 and 8 are `UNMEASURED` (`the probe stopped at 'no-browser'`).
+  The permanent known negative `--target f52462c7` fails checks 6, 9 and 10, as required. Checks 7
+  and 8 are unverified locally; the remote `Mockup Appearance Gate` is their authority. This branch
+  changes neither `documentation/mockups/pass2d.html` nor `AppColors.kt`.
+- The Gradle-scored controls ran the Native oracle (control 23) under Homebrew Python 3.14.8 only.
+  Commit 3's own oracle gate ran it under both Pythons, with byte-identical output (Section 19.6).
+- The repository gates shared the host with another checkout's sessions. Their Gradle activity was
+  host-only (a `detekt` run among them), and no foreign client was device-capable during any device
+  run (Section 19.5).
+
+This documentation commit must exist before its SHA, the push, GitHub's signature verification of
+the four commits, the required contexts on the final head, the CI run and job IDs, and the review
+can exist. Those facts, and every review finding's classification, are recorded in the PR, not
+predeclared here.
+
+### 19.10 Documentation boundary
+
+This commit updates the canonical facts the implementation made stale, in the Section 9.2 places:
+
+- `architecture.md`: the shape-B sentence names image-viewer, plan-editor and past-session as the
+  factory-resolution exceptions; `AppGraph.pastSessionGraphFactory` joins the accessor list and the
+  feature/dialog Context readers fall from 8 to 7; the Pluralization paragraph explains why
+  past-session groups its tonnage in the mapper, and that `ChartReadoutMapper.formatGrouped` keeps
+  the pinned NBSP.
+- `ci-cd.md`: the `KMP iOS kit smoke` row, the KMP-shaped alias list, the Native job's module list,
+  the every-module-is-checked list, the past-session validator (40 portable tuples plus the scene,
+  41 exact), eleven uploaded result directories, and eleven linked device binaries (`N/11 linked`).
+- `design-system.md`: one sentence after the `formatGrouped` paragraph on past-session's per-language
+  grouping.
+- `testing.md`: the `AppGraph.stringResolver` bullet; a "Shared past-session feature" subsection;
+  both module lists of the visual-gate paragraph; the alias sentence; the Native command block; the
+  device-link block (`11/11`).
+- `tech-debt.md`: the three links into old past-session paths re-pointed to `src/commonMain`.
+
+Left untouched on purpose (Section 9.2), each re-located on this tree:
+
+- `documentation/feature-specs/v2.4-design-foundation.md` line 547,
+  `documentation/research/domain-boundary-audit-codex.md` lines 51, 52, 83, 111, 112 and 125, and
+  `documentation/research/v2.3-hotfix-findings.md` lines 1071 and 1114, which link old
+  past-session paths;
+- `documentation/kmp-migration-assessment.md` (lines 129, 175 and 229 describe the pre-migration
+  module);
+- `.claude/skills/*` (7.10's D4), including `add-feature.md` line 41;
+- `tech-debt.md` row 435's stale `deleteDialogVisible` text (only its link moved) and row 489, which
+  names its location as plain text;
+- `graphify-out/`.
