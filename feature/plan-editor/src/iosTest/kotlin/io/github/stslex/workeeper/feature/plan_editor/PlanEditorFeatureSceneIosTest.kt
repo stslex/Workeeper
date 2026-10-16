@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -142,12 +141,6 @@ class PlanEditorFeatureSceneIosTest {
             actions,
         )
 
-        onNodeWithTag("PlanEditorBodyRowType_0", useUnmergedTree = true)
-            .performTouchInput { longClick() }
-        settleScene()
-        onNodeWithText(tooltip, useUnmergedTree = true).assertIsDisplayed()
-        settleScene()
-
         state.value = loadedState.copy(
             pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
             dialogState = DialogState.TypeChangeConfirm,
@@ -194,6 +187,17 @@ class PlanEditorFeatureSceneIosTest {
             getString(PlanEditorRes.string.core_ui_plan_editor_screen_title_default)
         }
         onNodeWithText(defaultTitle, useUnmergedTree = true).assertIsDisplayed()
+
+        // GUARD: the tooltip dismisses itself through `withTimeout(1500)`, and the scene's effect
+        // dispatcher runs `delay` on mainClock but leaves `invokeOnTimeout` to kotlinx's wall-clock
+        // DefaultDelay. A released long press can vanish before the assert on a slow runner, so
+        // hold the press: TooltipBox keeps the tooltip up until release, whatever the timeout did.
+        // Keep this last: the release hands the dismissal back to the wall clock.
+        val typeChip = onNodeWithTag("PlanEditorBodyRowType_0", useUnmergedTree = true)
+        typeChip.performTouchInput { down(center) }
+        settleScene()
+        onNodeWithText(tooltip, useUnmergedTree = true).assertIsDisplayed()
+        typeChip.performTouchInput { up() }
     }
 
     private fun featureCatalog(): List<String> = runBlocking {
