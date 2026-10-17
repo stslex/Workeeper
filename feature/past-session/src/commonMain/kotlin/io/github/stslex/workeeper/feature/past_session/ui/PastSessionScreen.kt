@@ -1,0 +1,346 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.past_session.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
+import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_action_more
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_action_retry
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_error_load_failed
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_error_not_found
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_loading_title
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_save_failed_snackbar
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_section_editable
+import io.github.stslex.workeeper.feature.past_session.resources.feature_past_session_section_logged
+import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionMenuSheetContent
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+import org.jetbrains.compose.resources.stringResource
+import io.github.stslex.workeeper.feature.past_session.resources.Res as PastSessionRes
+
+@Composable
+internal fun PastSessionScreen(
+    state: State,
+    consume: (Action) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AppUi.colors.surfaceTier0)
+            .testTag("PastSessionScreen"),
+    ) {
+        TopBar(state = state, consume = consume)
+        when (val phase = state.phase) {
+            // Unreachable: `PastSessionGraph` withholds the screen while loading (§26).
+            State.Phase.Loading -> Unit
+
+            is State.Phase.Error -> ErrorContent(
+                modifier = Modifier.fillMaxSize(),
+                errorType = phase.errorType,
+                onRetry = { consume(Action.Click.OnRetryLoad) },
+            )
+
+            is State.Phase.Loaded -> LoadedContent(
+                modifier = Modifier.fillMaxSize(),
+                detail = phase.detail,
+                expandedUuids = state.expandedExerciseUuids,
+                consume = consume,
+            )
+        }
+    }
+
+    when (state.bottomSheetState) {
+        BottomSheetState.Hidden -> Unit
+        BottomSheetState.SessionMenu -> AppBottomSheet(
+            onDismiss = { consume(Action.Click.OnSheetDismiss) },
+        ) {
+            PastSessionMenuSheetContent(consume = consume)
+        }
+    }
+
+    when (state.dialogState) {
+        DialogState.Hidden -> Unit
+        DialogState.DeleteConfirm -> DeleteConfirmDialog(
+            onConfirm = { consume(Action.Click.OnDeleteConfirm) },
+            onDismiss = { consume(Action.Click.OnDeleteDismiss) },
+        )
+
+        DialogState.PrExplainer -> PrExplainerDialog(
+            onDismiss = { consume(Action.Click.OnPrExplainerDismiss) },
+        )
+    }
+}
+
+/**
+ * `.topbar` (extraction §2.2): back chevron, `h1.sm` title, ⋮ opening the session menu sheet.
+ * `internal` rather than private so the golden can render it in isolation.
+ */
+@Composable
+internal fun TopBar(
+    state: State,
+    consume: (Action) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // GUARD: the fallback title serves the ERROR phase; the route never composes while loading.
+    val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
+        ?: stringResource(PastSessionRes.string.feature_past_session_loading_title)
+    AppTopBar(
+        modifier = modifier.testTag("PastSessionTopBar"),
+        title = title,
+        smallTitle = true,
+        navigation = {
+            AppIconButton(
+                modifier = Modifier.testTag("PastSessionBackButton"),
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(Res.string.core_ui_kit_action_back),
+                onClick = { consume(Action.Click.OnBackClick) },
+            )
+        },
+        actions = {
+            if (state.canDelete) {
+                AppIconButton(
+                    icon = AppIcons.MoreVertical,
+                    contentDescription = stringResource(
+                        PastSessionRes.string.feature_past_session_action_more,
+                    ),
+                    onClick = { consume(Action.Click.OnSessionMenuClick) },
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun ErrorContent(
+    errorType: ErrorType,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
+    val headlineRes = when (errorType) {
+        ErrorType.SessionNotFound -> PastSessionRes.string.feature_past_session_error_not_found
+        ErrorType.LoadFailed -> PastSessionRes.string.feature_past_session_error_load_failed
+        ErrorType.SaveFailed -> PastSessionRes.string.feature_past_session_save_failed_snackbar
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        AppEmptyState(
+            headline = stringResource(headlineRes),
+            actionLabel = stringResource(PastSessionRes.string.feature_past_session_action_retry),
+            onAction = onRetry,
+        )
+    }
+}
+
+@Composable
+private fun LoadedContent(
+    detail: PastSessionUiModel,
+    expandedUuids: ImmutableSet<String>,
+    consume: (Action) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // GUARD: gutter is per-item, not `contentPadding` — `AppSectionHeader` self-pads and a
+    // list-level gutter would double it on that row. Vertical rhythm follows extraction §2.4.
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(bottom = AppDimension.Space.xl),
+    ) {
+        item(key = "header") {
+            PastSessionHeader(
+                detail = detail,
+                modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
+            )
+        }
+        item(key = "section-head") {
+            // Two peer labels (§2.4); the right one declares the mode.
+            AppSectionHeader(
+                modifier = Modifier.padding(
+                    top = AppDimension.Space.xxl,
+                    bottom = AppDimension.Space.md,
+                ),
+                label = stringResource(PastSessionRes.string.feature_past_session_section_logged),
+                trailingLabel = stringResource(PastSessionRes.string.feature_past_session_section_editable),
+            )
+        }
+        itemsIndexed(
+            items = detail.exercises,
+            key = { _, exercise -> exercise.performedExerciseUuid },
+        ) { index, exercise ->
+            PastExerciseCard(
+                modifier = Modifier.padding(
+                    start = AppDimension.screenEdge,
+                    end = AppDimension.screenEdge,
+                    top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
+                ),
+                exercise = exercise,
+                // Open is exactly membership in the expanded set (§7).
+                expanded = exercise.performedExerciseUuid in expandedUuids,
+                onHeaderClick = {
+                    consume(
+                        Action.Click.OnExerciseHeaderClick(
+                            performedExerciseUuid = exercise.performedExerciseUuid,
+                        ),
+                    )
+                },
+                onWeightChange = { setUuid, raw ->
+                    consume(Action.Input.OnSetWeightChange(setUuid = setUuid, raw = raw))
+                },
+                onRepsChange = { setUuid, raw ->
+                    consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
+                },
+                onPrTagClick = { consume(Action.Click.OnPrTagClick) },
+                onSetReorder = { performedExerciseUuid, from, to ->
+                    consume(
+                        Action.Click.OnSetReorder(
+                            performedExerciseUuid = performedExerciseUuid,
+                            from = from,
+                            to = to,
+                        ),
+                    )
+                },
+                onDragStarted = {
+                    consume(Action.Click.OnDragStarted)
+                },
+            )
+        }
+    }
+}
+
+@Preview(name = "Loaded — Light")
+@Composable
+private fun PastSessionScreenLoadedLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        PastSessionScreen(
+            state = State(
+                sessionUuid = "stub",
+                phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview(name = "Loaded — Dark")
+@Composable
+private fun PastSessionScreenLoadedDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        PastSessionScreen(
+            state = State(
+                sessionUuid = "stub",
+                phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview(name = "Loading")
+@Composable
+private fun PastSessionScreenLoadingPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        PastSessionScreen(
+            state = State(
+                sessionUuid = "stub",
+                phase = State.Phase.Loading,
+                hasResolved = true,
+                expandedExerciseUuids = persistentSetOf(),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview(name = "Error")
+@Composable
+private fun PastSessionScreenErrorPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        PastSessionScreen(
+            state = State(
+                sessionUuid = "stub",
+                phase = State.Phase.Error(ErrorType.SessionNotFound),
+                hasResolved = true,
+                expandedExerciseUuids = persistentSetOf(),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
+            ),
+            consume = {},
+        )
+    }
+}
+
+private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
+    trainingName = "низ — 2",
+    isAdhoc = false,
+    finishedAtAbsoluteLabel = "23 July 2026",
+    durationLabel = "56:08",
+    totalsLabel = "5 exercises · 14 sets · 4,820 kg",
+    exercises = persistentListOf(
+        PastExerciseUiModel(
+            performedExerciseUuid = "pe-1",
+            exerciseName = "разведение ног",
+            position = 0,
+            skipped = false,
+            isWeighted = true,
+            setSummary = "49×15",
+            sets = persistentListOf(
+                PastSetUiModel(
+                    setUuid = "s-1",
+                    performedExerciseUuid = "pe-1",
+                    position = 0,
+                    type = SetTypeUiModel.WORK,
+                    weightInput = "49",
+                    repsInput = "15",
+                    weightError = false,
+                    repsError = false,
+                    isPersonalRecord = false,
+                ),
+            ),
+        ),
+    ),
+)

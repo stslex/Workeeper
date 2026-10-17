@@ -469,6 +469,91 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:past-session": {
+        "root": Path("feature/past-session"),
+        "files": {
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/past_session/gate/PastSetRowOverflowGateTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/past_session/golden/PastSessionGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardCollapsed_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardCollapsed_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardDoubleDigitIndex_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardDoubleDigitIndex_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardSkippedEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardSkippedEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardSkippedWithSets_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardSkippedWithSets_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardWithSets_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_cardWithSets_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_headerWithoutTonnage_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_headerWithoutTonnage_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_header_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_header_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_screenError_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_screenError_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_screenLoaded_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_screenLoaded_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowInvalidReps_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowInvalidReps_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowPersonalRecord_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowPersonalRecord_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowPlain_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowPlain_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowWeightless_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_setRowWeightless_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_sheetSessionMenu_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_sheetSessionMenu_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_topbar_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.past_session.golden_PastSessionGoldenTest_topbar_light.png",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/PastSessionInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/PastSessionInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/mapper/PastSessionDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/model/DetailWithPrs.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/model/SessionDetailDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/model/SetDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/domain/model/SetTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/InputHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/mapper/PastSessionUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/model/PastSessionUiModels.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/store/DialogState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/store/PastSessionStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/store/PastSessionStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/PastSessionGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/PastSessionScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/DeleteConfirmDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/PastExerciseCard.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/PastSessionHeader.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/PastSessionSheets.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/ui/components/PastSetEditRow.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/domain/PastSessionInteractorImplTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/InputHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/mapper/PastSessionUiMapperTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/past_session/PastSessionFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -520,7 +605,6 @@ EXPECTED_APP_DEPS_READERS = {
     Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
     Path("feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt"): "HomeGraph.Factory",
     Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
-    Path("feature/past-session/src/main/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt"): "PastSessionGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
     Path("feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt"): "SingleTrainingGraph.Factory",
 }
@@ -1294,8 +1378,10 @@ class FeatureEntry:
 
     `root` and `identity_test` are repo-relative, as are extra_root_fragments' keys;
     build/test/suppression paths are relative to `root`; store_file, feature_file, graph_file,
-    resource_wrapper_readers and preview_subjects' keys are relative to
-    root/src/commonMain/kotlin/<package_dir>. Containers keep the type their failure text embeds:
+    resource_wrapper_readers, preview_subjects' keys, preview_inventory's keys and
+    resource_wrapper_dates' keys are relative to root/src/commonMain/kotlin/<package_dir>. An
+    empty device_test means the module has no device test: its file is not read, and
+    device_fragments must then be empty. Containers keep the type their failure text embeds:
     lists stay lists and tuples stay tuples, because a repr is part of the message. Never hash an
     entry; it holds lists and dicts.
     """
@@ -1334,6 +1420,11 @@ class FeatureEntry:
     identity_accessor: str
     extra_root_fragments: dict = field(default_factory=dict)
     extra_checks: tuple = ()
+    # Additive shape fields (kmp-phase-7-11-past-session-feature.md Section 12.0). The defaults
+    # keep every earlier entry's checks and failure text byte-identical.
+    create_args: str = ""
+    preview_inventory: dict = field(default_factory=dict)
+    resource_wrapper_dates: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1585,6 +1676,10 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
 
     # ResourceWrapper stays with its declared readers, and copy never resolves through it.
     readers = {common_main / relative for relative in entry.resource_wrapper_readers}
+    dates = {
+        common_main / relative: methods
+        for relative, methods in entry.resource_wrapper_dates.items()
+    }
     for path, source in common_sources.items():
         if path not in readers and "ResourceWrapper" in source:
             failures.append(
@@ -1595,10 +1690,29 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             r"formatMediumDate)\s*\(",
             source,
         ):
+            if match.group(1) in dates.get(path, {}):
+                continue
             failures.append(
                 f"{module}: {path.relative_to(root)} resolves {entry.short_name} copy through "
                 f"ResourceWrapper.{match.group(1)}; use the private Compose resources"
             )
+    for path, methods in dates.items():
+        relative = path.relative_to(root)
+        if path not in readers:
+            failures.append(
+                f"{module}: {relative} declares a ResourceWrapper date but is not a declared reader"
+            )
+        source = common_sources.get(path)
+        if source is None:
+            failures.append(f"{module}: {relative} declares a ResourceWrapper date but is missing")
+            continue
+        for method, expected in methods.items():
+            found = len(re.findall(rf"resourceWrapper\s*\.\s*{re.escape(method)}\s*\(", source))
+            if found != expected:
+                failures.append(
+                    f"{module}: {relative} must read the ResourceWrapper.{method} date exactly "
+                    f"{expected} time(s); found {found}"
+                )
 
     # State lambdas only copy State: resources resolve before updateState, never inside it.
     update_count = 0
@@ -1622,7 +1736,9 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         failures.append(f"{module}: no updateState lambdas were inspected")
 
     # Exactly the portable previews: every subject, each Light and Dark.
-    preview_count = 2 * len(entry.preview_subjects)
+    preview_count = 2 * len(entry.preview_subjects) + sum(
+        len(arguments) for arguments in entry.preview_inventory.values()
+    )
     total_previews = sum(source.count("@Preview(") for source in common_sources.values())
     if total_previews != preview_count:
         failures.append(
@@ -1645,6 +1761,14 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 failures.append(
                     f"{module}: {path.name} preview contract requires {fragment!r} exactly once"
                 )
+    for relative, expected_arguments in entry.preview_inventory.items():
+        path = common_main / relative
+        actual_arguments = re.findall(r"@Preview\(([^)]*)\)", common_sources.get(path, ""))
+        if actual_arguments != expected_arguments:
+            failures.append(
+                f"{module}: {path.name} preview inventory must be exactly {expected_arguments!r}; "
+                f"actual={actual_arguments!r}"
+            )
 
     # Exactly the declared production and Native test-name suppressions.
     actual_suppressions: dict[str, list[str]] = {}
@@ -1692,12 +1816,17 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             f"{module}: golden methods must be exactly {entry.golden_methods}; "
             f"actual={golden_methods}"
         )
-    device_source = (root / entry.device_test).read_text(encoding="utf-8")
-    for fragment in entry.device_fragments:
-        if device_source.count(fragment) != 1:
-            failures.append(
-                f"{module}: device placeholder must keep {fragment!r} exactly once"
-            )
+    if entry.device_test:
+        device_source = (root / entry.device_test).read_text(encoding="utf-8")
+        for fragment in entry.device_fragments:
+            if device_source.count(fragment) != 1:
+                failures.append(
+                    f"{module}: device placeholder must keep {fragment!r} exactly once"
+                )
+    elif entry.device_fragments:
+        failures.append(
+            f"{module}: device fragments {list(entry.device_fragments)!r} need a device test"
+        )
 
     # The explicit generation-owned factory flow, and nothing that bypasses it.
     graph_factory = f"{entry.graph_interface}.Factory"
@@ -1742,7 +1871,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         f"""
         rememberMetroStoreProcessor<{entry.store_impl}> {{
             factory
-                .{entry.create_method}()
+                .{entry.create_method}({entry.create_args})
                 .{entry.store_accessor}
         }}
         """
@@ -1756,7 +1885,8 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     # One declaration on the graph's Factory plus the one retained invocation.
     if graph_calls != 2 or feature_source.count(create_call) != 1:
         failures.append(
-            f"{module}: {entry.create_method}() must be invoked once, inside the Store lambda"
+            f"{module}: {entry.create_method}({entry.create_args}) must be invoked once, inside "
+            "the Store lambda"
         )
     optional_factory = (
         rf"(?:factory|{re.escape(entry.factory_accessor)})\s*:\s*"
@@ -3154,8 +3284,430 @@ ALL_EXERCISES_ENTRY = FeatureEntry(
     extra_checks=(all_exercises_copy_contract, all_exercises_back_contract),
 )
 
+def past_session_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D1 and S2 (kmp-phase-7-11-past-session-feature.md §5.3, §5.4, §12.1): copy outside composition
+    # resolves through the injected StringResolver, the mapper groups the tonnage itself with the
+    # catalog separator, and the events, the State and PastSessionUiModel keep their shape. Every
+    # count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    def require_parameters(relative: str, source: str, name: str, expected: list) -> None:
+        parameters = data_class_parameters(source, name)
+        if parameters != expected:
+            failures.append(
+                f"{module}: {shown(relative)} {name} parameters must be exactly {expected}; "
+                f"actual={parameters}"
+            )
+
+    store_relative = "mvi/store/PastSessionStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        require_parameters(store_relative, store_source, "HapticClick", ["type: HapticFeedbackType"])
+        require_parameters(store_relative, store_source, "ShowError", ["errorType: ErrorType"])
+        for fragment in (
+            "data object DeletedSnackbar : Event",
+            "data object SaveFailedSnackbar : Event",
+        ):
+            require(store_relative, store_source, fragment, 1)
+
+    models_relative = "mvi/model/PastSessionUiModels.kt"
+    models_source = source_of(models_relative)
+    if models_source is not None:
+        require_parameters(
+            models_relative,
+            models_source,
+            "PastSessionUiModel",
+            [
+                "trainingName: String",
+                "isAdhoc: Boolean",
+                "finishedAtAbsoluteLabel: String",
+                "durationLabel: String",
+                "totalsLabel: String",
+                "exercises: ImmutableList<PastExerciseUiModel>",
+            ],
+        )
+
+    mapper_relative = "mvi/mapper/PastSessionUiMapper.kt"
+    mapper_source = source_of(mapper_relative)
+    if mapper_source is not None:
+        for fragment, expected in (
+            ("suspend fun SessionDetailDomain.toUi(", 1),
+            ("private suspend fun buildTotalsLabel(", 1),
+            ("Res.string.feature_past_session_tonnage_group_separator", 1),
+            ("private fun Long.groupThousands(separator: String)", 1),
+            ("roundedTonnage.groupThousands(separator)", 1),
+            ("THOUSANDS_GROUP_SIZE = 3", 1),
+            ("stringResolver.getString(", 5),
+            ("stringResolver.getPluralString(", 2),
+        ):
+            require(mapper_relative, mapper_source, fragment, expected)
+
+    common_relative = "mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    if common_source is not None:
+        for fragment in (
+            "private val resourceWrapper: ResourceWrapper,",
+            "private val stringResolver: StringResolver,",
+            "toUi(",
+        ):
+            require(common_relative, common_source, fragment, 1)
+        for fragment in ("getString(", "getPluralString("):
+            require(common_relative, common_source, fragment, 0)
+
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        if posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def past_session_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # D3 (§3.5, §12.1): core:data:database is no edge of the module — no main edge, no test edge.
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    if ":core:data:database" in build_source:
+        return [
+            f"{entry.module}: build must not depend on :core:data:database in any source set (D3)"
+        ]
+    return []
+
+
+PAST_SESSION_ENTRY = FeatureEntry(
+    module="feature:past-session",
+    short_name="past-session",
+    root=Path("feature/past-session"),
+    package_dir="io/github/stslex/workeeper/feature/past_session",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count. D3: no core:data:database edge (see
+    # past_session_dependency_contract).
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.past_session.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'implementation(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'api(project(":core:ui:plan-editor"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.extended)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as §3.4 prints it
+    # at exit — P1's twelve positional plural items and D1's tonnage_format and separator.
+    catalog=(
+        ("string", "feature_past_session_loading_title", "Past session", "Прошедшая сессия"),
+        ("string", "feature_past_session_adhoc_label", "Ad-hoc workout", "Свободная тренировка"),
+        (
+            "string",
+            "feature_past_session_error_not_found",
+            "Session not found",
+            "Сессия не найдена",
+        ),
+        (
+            "string",
+            "feature_past_session_error_load_failed",
+            "Could not load session",
+            "Не удалось загрузить сессию",
+        ),
+        ("string", "feature_past_session_action_retry", "Retry", "Повторить"),
+        ("string", "feature_past_session_action_delete", "Delete", "Удалить"),
+        (
+            "string",
+            "feature_past_session_delete_dialog_title",
+            "Delete session?",
+            "Удалить сессию?",
+        ),
+        (
+            "string",
+            "feature_past_session_delete_dialog_body",
+            "This permanently removes the session and all its sets. The training template is unchanged.",
+            "Сессия и все её подходы будут безвозвратно удалены. Шаблон тренировки не изменится.",
+        ),
+        ("string", "feature_past_session_deleted_snackbar", "Session deleted", "Сессия удалена"),
+        (
+            "string",
+            "feature_past_session_save_failed_snackbar",
+            "Could not save change — try again",
+            "Не удалось сохранить — попробуйте ещё раз",
+        ),
+        ("string", "feature_past_session_skipped_line", "skipped", "пропущено"),
+        ("string", "feature_past_session_no_sets", "No sets logged", "Подходы не записаны"),
+        ("string", "feature_past_session_section_logged", "Logged", "Записано"),
+        ("string", "feature_past_session_section_editable", "editable", "можно править"),
+        ("string", "feature_past_session_finished_at_label", "Finished · %1$s", "Завершена · %1$s"),
+        ("string", "feature_past_session_action_more", "More", "Ещё"),
+        ("string", "feature_past_session_menu_delete_session", "Delete session", "Удалить сессию"),
+        ("string", "feature_past_session_totals_format", "%1$s · %2$s", "%1$s · %2$s"),
+        (
+            "string",
+            "feature_past_session_totals_format_with_tonnage",
+            "%1$s · %2$s · %3$s",
+            "%1$s · %2$s · %3$s",
+        ),
+        ("string", "feature_past_session_tonnage_format", "%1$s kg", "%1$s кг"),
+        ("string", "feature_past_session_tonnage_group_separator", ",", "\u00a0"),
+        (
+            "plurals",
+            "feature_past_session_exercises_count",
+            (("one", "%1$d exercise"), ("other", "%1$d exercises")),
+            (
+                ("one", "%1$d упражнение"),
+                ("few", "%1$d упражнения"),
+                ("many", "%1$d упражнений"),
+                ("other", "%1$d упражнений"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_past_session_sets_count",
+            (("one", "%1$d set"), ("other", "%1$d sets")),
+            (
+                ("one", "%1$d подход"),
+                ("few", "%1$d подхода"),
+                ("many", "%1$d подходов"),
+                ("other", "%1$d подходов"),
+            ),
+        ),
+    ),
+    resource_prefix="feature_past_session_",
+    # PastSessionUiMapper.kt and CommonHandler.kt are deliberately absent: they resolve copy (§12.1).
+    payload_files=frozenset({"DialogState.kt", "PastSessionStore.kt", "PastSessionUiModels.kt"}),
+    store_file="mvi/store/PastSessionStore.kt",
+    state_fields=(
+        ("sessionUuid", "String"),
+        ("phase", "Phase"),
+        ("hasResolved", "Boolean"),
+        ("expandedExerciseUuids", "ImmutableSet<String>"),
+        ("dialogState", "DialogState"),
+        ("bottomSheetState", "BottomSheetState"),
+    ),
+    # S2: the mapper keeps the one session-date read; CommonHandler only passes ResourceWrapper on.
+    resource_wrapper_readers=frozenset({"mvi/handler/CommonHandler.kt", "mvi/mapper/PastSessionUiMapper.kt"}),
+    preview_subjects={},
+    # The only suppression the target may carry: the inherited processor cast of §3.1.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+    },
+    # The 40 portable identities of §3.2, the host overflow gate, and the Native scene of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/domain/PastSessionInteractorImplTest.kt": [
+            "observeDetailWithPrs emits null when session is missing",
+            "observeDetailWithPrs combines fresh detail with PR set uuids",
+            "updateSet maps domain SetDomain to data SetsDataModel and forwards",
+            "deleteSession forwards to SessionRepository deleteSession",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/ClickHandlerTest.kt": [
+            "OnDeleteClick opens the confirmation and closes the sheet it came from",
+            "OnSessionMenuClick opens the overflow sheet with a haptic",
+            "OnSheetDismiss hides the sheet",
+            "OnPrTagClick opens the explainer and OnPrExplainerDismiss hides it",
+            "OnDeleteClick while the explainer is shown replaces the dialog",
+            "OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar",
+            "OnRetryLoad consumes Init",
+            "OnSetTypeChange updates the row and persists the changed type",
+            "OnExerciseHeaderClick expands exactly the tapped card and touches nothing else",
+            "OnExerciseHeaderClick collapses the tapped card and only that card",
+            "OnExerciseHeaderClick with an unknown uuid changes nothing",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/CommonHandlerTest.kt": [
+            "Init success loads mapped detail",
+            "Init with missing session switches to SessionNotFound phase",
+            "Init failure switches to LoadFailed phase",
+            "Init flags PR set with isPersonalRecord",
+            "Init seeds the first card open on the first Loaded emission",
+            "a re-emission carries the user's open set instead of reseeding",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/InputHandlerTest.kt": [
+            "OnSetWeightChange marks invalid weight and skips persist",
+            "OnSetRepsChange clears reps error when value becomes valid",
+            "rapid valid inputs debounce to a single persist with the latest value",
+            "invalid follow-up input cancels in-flight persist",
+            "persist failure reverts to the last saved set and emits SaveFailedSnackbar",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/handler/NavigationHandlerTest.kt": [
+            "Back triggers popBack",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/past_session/mvi/mapper/PastSessionUiMapperTest.kt": [
+            "mapper covers adhoc header skipped rows weighted volume and no-set exercise",
+            "mapper marks the PR-bearing set with isPersonalRecord",
+            "mapper leaves all sets unflagged when prSetUuids is empty",
+            "mapper sums tonnage over weighted sets",
+            "mapper excludes a weightless exercise carrying a residual weight from tonnage",
+            "mapper omits the tonnage term when a weighted session logged no weights",
+            "mapper builds the collapsed summary per exercise type",
+            "mapper excludes unfilled sets from the collapsed summary",
+            "mapper marks a weighted set with no logged weight instead of printing bare reps",
+            "first Loaded state seeds exactly the first card open",
+            "first Loaded state with no exercises seeds nothing",
+            "Loaded to Loaded carries the previous open set pruned to live exercises",
+            "a non-Loaded next phase is returned untouched",
+        ],
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/past_session/gate/PastSetRowOverflowGateTest.kt": [
+            "weightedRowValuesFitTheirSlots",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/past_session/PastSessionFeatureSceneIosTest.kt": [
+            "resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/past_session/golden/PastSessionGoldenTest.kt"
+    ),
+    # The 15 methods of §3.3, in source order; each renders light and dark (30 PNGs).
+    golden_methods=[
+        "screenLoaded",
+        "screenError",
+        "topbar",
+        "sheetSessionMenu",
+        "header",
+        "headerWithoutTonnage",
+        "cardWithSets",
+        "cardCollapsed",
+        "cardDoubleDigitIndex",
+        "cardSkippedEmpty",
+        "cardSkippedWithSets",
+        "setRowPlain",
+        "setRowPersonalRecord",
+        "setRowWeightless",
+        "setRowInvalidReps",
+    ],
+    # No device test (§11.3): an empty device_test reads no file (§12.0).
+    device_test="",
+    device_fragments=(),
+    feature_class="PastSessionFeature",
+    graph_interface="PastSessionGraph",
+    graph_function="pastSessionGraph",
+    factory_accessor="pastSessionGraphFactory",
+    create_method="createPastSessionGraph",
+    store_impl="PastSessionStoreImpl",
+    store_accessor="pastSessionStore",
+    feature_file="di/PastSessionFeature.kt",
+    graph_file="ui/PastSessionGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/PastSessionExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.pastSession(sessionUuid: String): PastSessionGraph = pastSessionGraphFactory.createPastSessionGraph(Screen.PastSession(sessionUuid = sessionUuid))",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the extension inherits the IO dispatcher key and not the Default one",
+        "each extension carries its own route arg into the store state",
+    ],
+    # Each identity reaches the graph once through the accessor; the fourth's session-2 call is not
+    # counted.
+    identity_accessor=r'(?<!AppGraph)\.pastSession\("session-1"\)',
+    extra_checks=(past_session_copy_contract, past_session_dependency_contract),
+    # Shape B: the retained factory takes the route argument.
+    create_args="screen",
+    # S1: the 15 previews stay verbatim, pinned by file and exact arguments (§5.4).
+    preview_inventory={
+        "ui/components/PastSetEditRow.kt": [
+            'name = "Weighted Light"',
+            'name = "Record Dark"',
+            'name = "Weightless Dark"',
+            'name = "Error"',
+        ],
+        "ui/components/DeleteConfirmDialog.kt": [
+            'name = "Light"',
+            'name = "Dark"',
+        ],
+        "ui/components/PastSessionHeader.kt": [
+            'name = "Light"',
+            'name = "Dark"',
+        ],
+        "ui/components/PastExerciseCard.kt": [
+            'name = "Expanded — Light"',
+            'name = "Collapsed — Dark"',
+            'name = "Skipped — Collapsed"',
+        ],
+        "ui/PastSessionScreen.kt": [
+            'name = "Loaded — Light"',
+            'name = "Loaded — Dark"',
+            'name = "Loading"',
+            'name = "Error"',
+        ],
+    },
+    # S2: the one ResourceWrapper read, the session date in the mapper.
+    resource_wrapper_dates={"mvi/mapper/PastSessionUiMapper.kt": {"formatMediumDate": 1}},
+)
+
 # Every shared feature entry the gate holds to its exact contract.
-FEATURE_ENTRIES = (ARCHIVE_ENTRY, ALL_TRAININGS_ENTRY, ALL_EXERCISES_ENTRY)
+FEATURE_ENTRIES = (ARCHIVE_ENTRY, ALL_TRAININGS_ENTRY, ALL_EXERCISES_ENTRY, PAST_SESSION_ENTRY)
 
 
 # Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and

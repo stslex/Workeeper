@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 
@@ -38,6 +39,9 @@ interface AppRootDeps {
 
     /** Generation-owned factory for the all-exercises graph extension. */
     val allExercisesGraphFactory: AllExercisesGraph.Factory
+
+    /** Generation-owned factory for the past-session graph extension. */
+    val pastSessionGraphFactory: PastSessionGraph.Factory
 }
 
 /**

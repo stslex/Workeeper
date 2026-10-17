@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -45,9 +44,8 @@ internal class PastSessionExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
-    private fun AppGraph.pastSession(sessionUuid: String): PastSessionGraph =
-        asContribution<PastSessionGraph.Factory>()
-            .createPastSessionGraph(Screen.PastSession(sessionUuid = sessionUuid))
+    private fun AppGraph.pastSession(sessionUuid: String): PastSessionGraph = pastSessionGraphFactory
+        .createPastSessionGraph(Screen.PastSession(sessionUuid = sessionUuid))
 
     @Test
     fun `extension resolves the store through the parent graph`() {

@@ -314,9 +314,9 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
 - `AppGraph.stringResolver` still has **no production reader**: no production code reads
-  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler` receive the
-  binding by constructor injection through their graph extension, which inherits it from
-  `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
+  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler` and
+  past-session's `CommonHandler` receive the binding by constructor injection through their graph
+  extensions, which inherit it from `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
   `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
@@ -510,6 +510,61 @@ fixed strings, so neither the mapper nor the resolver reaches a golden. Android 
 `androidDeviceTest`: `pendingFeatureRewrite`, the one documented `@Smoke` skip, and the
 `@Regression` `blockedArchiveDialogListsBlockingTrainings`, which reads its confirm label through
 `ComposeStringResolver` from the module's own Compose resources.
+
+#### Shared past-session feature
+
+`feature:past-session` keeps its six portable suites in `commonTest`, so the same 40 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 4, click handler
+11, common handler 6, input handler 5, navigation handler 1, and UI mapper 13. The one
+overflow-gate identity, `PastSetRowOverflowGateTest.weightedRowValuesFitTheirSlots`, drives the
+golden harness's layoutlib measurement, so it lives in `androidHostTest` beside the goldens and runs
+on Android host only. The suites use `kotlin.test`, `kotlinx-coroutines-test` and private in-file
+fakes. The three handler suites keep their deterministic `TestStore`, which applies state updates,
+records events and consumed actions, and runs every launch on the test dispatcher; its `logger`
+fails fast. The interactor, navigator and repository fakes answer only the members an identity
+reaches and fail fast on every other one.
+
+Copy outside composition resolves through the injected `StringResolver`, so 13 identities run
+through it: the nine mapper identities that call `toUi` and four `CommonHandlerTest` identities.
+The mapper and CommonHandler suites each fake it strictly and in-file. The fake switches on the
+generated resource objects, returns the strings the old `ResourceWrapper` stubs returned plus the
+EN separator `,`, and throws on any other resource and on any read that does not pass exactly the
+arguments production passes. Both suites keep an in-file `ResourceWrapper` reduced to the session
+date (`formatMediumDate`, the module's one `ResourceWrapper` read); every other member throws.
+Every fixture tonnage there is under 1,000, so no host identity depends on the grouping. The module
+has no `core:data:database` edge, not even in tests (decision D3 of
+[kmp-phase-7-11-past-session-feature.md](feature-specs/kmp-phase-7-11-past-session-feature.md)):
+the repository fakes override the one member whose return type names `PlanSetDataModel` as
+`Nothing`.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.past_session.PastSessionFeatureSceneIosTest.resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme` from a test-held State. Every read outside
+composition goes through one real `ComposeStringResolver`; the scene declares no fake resolver.
+`ResourceWrapper` has no iOS implementation, so a private stub answers the session date for the
+five fixture timestamps and throws on everything else. The scene resolves the whole private EN
+catalog as stored and filled; turns five fixtures into their totals through the production mapper,
+grouped tonnage included (`4,820 kg`, `1,000 kg` across a rounding boundary, `1,234,567 kg`);
+renders the loading, error and loaded phases, the session sheet and both dialogs; types into the
+set fields through the `SetText` semantics action; and asserts the eleven dispatched actions as one
+exact ordered list. The set fields are controlled, so the test-held State takes each typed value,
+as the Store would. Together with the 40 portable cases, the past-session Native XML contains
+exactly 41 passing cases with no skip, failure, or error.
+
+What this does not cover: RU values execute in no test (the topology gate pins them statically,
+and the prepared catalog's separator records were checked once); on Android host the grouping runs
+only through the strict fake, so the scene is the only executed guard of `groupThousands`, and no
+executed test notices a hardcoded EN separator, which the topology gate's copy contract catches by
+counting the resolver reads; the overflow gate runs on Android host only; and `OnSetReorder`,
+`OnDragStarted`, `OnSheetDismiss` and `OnSetTypeChange` have no scene path (`OnSetTypeChange` has
+no UI path at all).
+
+The 30 past-session goldens moved byte-identical to `androidHostTest`; their fixtures carry fixed
+strings, so neither the mapper nor the resolver reaches a golden. Android keeps the four
+`PastSessionExtensionIdentityTest` cases, which reach the graph through
+`appGraph.pastSessionGraphFactory`. The module has no device test: its factory flow is proven on a
+device by `RouteReachabilityTest.pastSessionOpensFromASeededFinishedSessionAndHomeReturns`, in the
+`@Regression` suite.
 
 #### Shared string resolver
 
@@ -1019,11 +1074,12 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
 `:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
-`:feature:all-exercises` (KMP), and `feature/`{`exercise`, `exercise-chart`, `home`,
-`live-workout`, `past-session`, `settings`, `single-training`}. Goldens live in
+`:feature:all-exercises` (KMP), `:feature:past-session` (KMP), and `feature/`{`exercise`,
+`exercise-chart`, `home`, `live-workout`, `settings`, `single-training`}. Goldens live in
 `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
-`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`), and
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
+`:feature:past-session`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1038,7 +1094,8 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ```
 
 Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
-`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, and `:feature:all-exercises`
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`, and
+`:feature:past-session`
 too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
@@ -1201,11 +1258,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:archive:iosSimulatorArm64Test \
   :feature:all-trainings:iosSimulatorArm64Test \
   :feature:all-exercises:iosSimulatorArm64Test \
+  :feature:past-session:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 10/10.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 11/11.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1216,6 +1274,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:archive:linkDebugTestIosArm64 \
   :feature:all-trainings:linkDebugTestIosArm64 \
   :feature:all-exercises:linkDebugTestIosArm64 \
+  :feature:past-session:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities

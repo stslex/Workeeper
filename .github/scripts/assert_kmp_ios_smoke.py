@@ -520,6 +520,89 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.11: the six portable suites (4/11/6/5/1/13) plus the one production
+        # scene, 41 exact.
+        "module": "feature:past-session",
+        "results_dir": "feature/past-session/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractorImplTest",
+                [
+                    "observeDetailWithPrs emits null when session is missing",
+                    "observeDetailWithPrs combines fresh detail with PR set uuids",
+                    "updateSet maps domain SetDomain to data SetsDataModel and forwards",
+                    "deleteSession forwards to SessionRepository deleteSession",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.mvi.handler.ClickHandlerTest",
+                [
+                    "OnDeleteClick opens the confirmation and closes the sheet it came from",
+                    "OnSessionMenuClick opens the overflow sheet with a haptic",
+                    "OnSheetDismiss hides the sheet",
+                    "OnPrTagClick opens the explainer and OnPrExplainerDismiss hides it",
+                    "OnDeleteClick while the explainer is shown replaces the dialog",
+                    "OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar",
+                    "OnRetryLoad consumes Init",
+                    "OnSetTypeChange updates the row and persists the changed type",
+                    "OnExerciseHeaderClick expands exactly the tapped card and touches nothing else",
+                    "OnExerciseHeaderClick collapses the tapped card and only that card",
+                    "OnExerciseHeaderClick with an unknown uuid changes nothing",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.mvi.handler.CommonHandlerTest",
+                [
+                    "Init success loads mapped detail",
+                    "Init with missing session switches to SessionNotFound phase",
+                    "Init failure switches to LoadFailed phase",
+                    "Init flags PR set with isPersonalRecord",
+                    "Init seeds the first card open on the first Loaded emission",
+                    "a re-emission carries the user's open set instead of reseeding",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.mvi.handler.InputHandlerTest",
+                [
+                    "OnSetWeightChange marks invalid weight and skips persist",
+                    "OnSetRepsChange clears reps error when value becomes valid",
+                    "rapid valid inputs debounce to a single persist with the latest value",
+                    "invalid follow-up input cancels in-flight persist",
+                    "persist failure reverts to the last saved set and emits SaveFailedSnackbar",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.mvi.handler.NavigationHandlerTest",
+                [
+                    "Back triggers popBack",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapperTest",
+                [
+                    "mapper covers adhoc header skipped rows weighted volume and no-set exercise",
+                    "mapper marks the PR-bearing set with isPersonalRecord",
+                    "mapper leaves all sets unflagged when prSetUuids is empty",
+                    "mapper sums tonnage over weighted sets",
+                    "mapper excludes a weightless exercise carrying a residual weight from tonnage",
+                    "mapper omits the tonnage term when a weighted session logged no weights",
+                    "mapper builds the collapsed summary per exercise type",
+                    "mapper excludes unfilled sets from the collapsed summary",
+                    "mapper marks a weighted set with no logged weight instead of printing bare reps",
+                    "first Loaded state seeds exactly the first card open",
+                    "first Loaded state with no exercises seeds nothing",
+                    "Loaded to Loaded carries the previous open set pruned to live exercises",
+                    "a non-Loaded next phase is returned untouched",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.past_session.PastSessionFeatureSceneIosTest",
+                "resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

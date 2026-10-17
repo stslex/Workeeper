@@ -318,7 +318,11 @@ Thousands grouping in numerals is a pinned NBSP (U+00A0), not a locale API —
 `ChartReadoutMapper.formatGrouped`'s `GROUP_SEPARATOR` — so the output cannot drift to NNBSP
 (U+202F) on an ICU update: the bundled Archivo cut has real glyphs for SPACE and NBSP but
 none for NNBSP, and only the missing one would seam. `formatGrouped` feeds the chart readout
-and all three footer statrows.
+and all three footer statrows. Past-session's tonnage is grouped per language instead (`4,820`
+in en, `4 820` in ru), with a separator its mapper reads from the feature's own catalog
+(`feature_past_session_tonnage_group_separator`): that is no locale API either, the ru separator
+is the same NBSP, and the totals line is set in IBM Plex Mono, which has glyphs for both NBSP
+and NNBSP.
 
 ### Spacing (`AppDimension`)
 
