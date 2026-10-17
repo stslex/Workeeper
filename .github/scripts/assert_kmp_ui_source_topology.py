@@ -1502,6 +1502,12 @@ FEATURE_STATE_LAMBDA_SIDE_EFFECTS = (
     "Res.",
 )
 
+# D3 (kmp-phase-7-12-home-feature.md Section 12.0): a resolver or wrapper handed to a call inside a
+# State lambda resolves copy there just the same, where no token above sees it. A direct member call
+# (`name.`) stays the token list's to report, so every failure that list reports stays
+# byte-identical; any other reference is this pattern's.
+FEATURE_STATE_LAMBDA_RESOLVERS = re.compile(r"\b(stringResolver|resourceWrapper)\b(?!\.)")
+
 FEATURE_FORBIDDEN_TEST_APIS = ("org.junit", "io.mockk", "@Disabled", "@Ignore")
 
 NATIVE_TEST_NAME_SUPPRESSION = '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")'
@@ -1732,6 +1738,12 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                             f"{module}: {call} in {path.relative_to(root)} resolves a "
                             f"resource inside the State lambda: {side_effect!r}"
                         )
+                referenced = FEATURE_STATE_LAMBDA_RESOLVERS.findall(strip_kotlin_comments(body))
+                for name in sorted(set(referenced)):
+                    failures.append(
+                        f"{module}: {call} in {path.relative_to(root)} references {name!r} "
+                        "inside the State lambda; resolve copy before it"
+                    )
     if update_count == 0:
         failures.append(f"{module}: no updateState lambdas were inspected")
 
