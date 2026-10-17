@@ -3833,8 +3833,574 @@ PAST_SESSION_ENTRY = FeatureEntry(
     resource_wrapper_dates={"mvi/mapper/PastSessionUiMapper.kt": {"formatMediumDate": 1}},
 )
 
+def home_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # §5.3 and §12.1 (kmp-phase-7-12-home-feature.md): copy outside composition resolves through the
+    # injected StringResolver, ResourceWrapper keeps only the two relative times (S1), and the
+    # event, the State and the row/picker payloads keep their shape. Every count is over
+    # comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    def require_parameters(relative: str, source: str, name: str, expected: list) -> None:
+        parameters = data_class_parameters(source, name)
+        if parameters != expected:
+            failures.append(
+                f"{module}: {shown(relative)} {name} parameters must be exactly {expected}; "
+                f"actual={parameters}"
+            )
+
+    # 1. The event, the conflict and the row/picker payloads keep their shape.
+    store_relative = "mvi/store/HomeStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        require_parameters(store_relative, store_source, "HapticClick", ["type: HapticFeedbackType"])
+        require_parameters(
+            store_relative,
+            store_source,
+            "ConflictInfo",
+            [
+                "activeSessionUuid: String",
+                "requestedTrainingUuid: String",
+                "activeSessionName: String",
+                "progressLabel: String",
+            ],
+        )
+    recent_relative = "mvi/model/RecentSessionItem.kt"
+    recent_source = source_of(recent_relative)
+    if recent_source is not None:
+        require_parameters(
+            recent_relative,
+            recent_source,
+            "RecentSessionItem",
+            [
+                "sessionUuid: String",
+                "trainingName: String",
+                "isAdhoc: Boolean",
+                "finishedAtRelativeLabel: String",
+                "durationLabel: String",
+                "statsLabel: String",
+            ],
+        )
+    picker_relative = "mvi/model/PickerTrainingItem.kt"
+    picker_source = source_of(picker_relative)
+    if picker_source is not None:
+        require_parameters(
+            picker_relative,
+            picker_source,
+            "PickerTrainingItem",
+            [
+                "trainingUuid: String",
+                "name: String",
+                "exerciseCountLabel: String",
+                "lastSessionRelativeLabel: String?",
+            ],
+        )
+
+    # 2. The mapper: five suspend functions over the resolver, twelve string and seven plural reads.
+    mapper_relative = "mvi/mapper/HomeUiMapper.kt"
+    mapper_source = source_of(mapper_relative)
+    if mapper_source is not None:
+        for fragment, expected in (
+            ("suspend fun StartCardReadoutDomain.toUi(stringResolver: StringResolver)", 1),
+            ("suspend fun WeekReadoutDomain.toUi(stringResolver: StringResolver)", 1),
+            ("suspend fun ActiveSessionWithStatsDomain.toUi(", 1),
+            ("suspend fun RecentSessionDomain.toRecentItem(", 1),
+            ("suspend fun List<TrainingListItemDomain>.toPickerItems(", 1),
+            ("stringResolver.getString(", 12),
+            ("stringResolver.getPluralString(", 7),
+        ):
+            require(mapper_relative, mapper_source, fragment, expected)
+
+    # 3–5. The three handlers that inject the resolver.
+    for relative, fragments, string_reads, absent in (
+        (
+            "mvi/handler/ClickHandler.kt",
+            (
+                "private val resourceWrapper: ResourceWrapper,",
+                "private val stringResolver: StringResolver,",
+                "toPickerItems(now, resourceWrapper, stringResolver)",
+            ),
+            2,
+            ("getPluralString(",),
+        ),
+        (
+            "mvi/handler/CommonHandler.kt",
+            (
+                "private val stringResolver: StringResolver,",
+                "toUi(now, stringResolver)",
+                "readout.toUi(stringResolver)",
+            ),
+            None,
+            ("getString(", "getPluralString("),
+        ),
+        (
+            "mvi/handler/PagingHandler.kt",
+            (
+                "private val resourceWrapper: ResourceWrapper,",
+                "private val stringResolver: StringResolver,",
+                "toRecentItem(now, resourceWrapper, stringResolver)",
+            ),
+            None,
+            ("getString(", "getPluralString("),
+        ),
+    ):
+        source = source_of(relative)
+        if source is None:
+            continue
+        for fragment in fragments:
+            require(relative, source, fragment, 1)
+        if string_reads is not None:
+            require(relative, source, "stringResolver.getString(", string_reads)
+        for fragment in absent:
+            require(relative, source, fragment, 0)
+
+    # 6. 7.11's rules 4–7: no top-level CMP reads, mvi/ reads only through the resolver, no
+    # composable copy under mvi/, no non-composable copy under ui/, and both walks non-empty.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        if posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def home_preview_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # S3 (§5.4, §12.1): the shared preview check counts only `@Preview(`, so the six bare
+    # `@Preview` annotations are pinned here per file, and every other commonMain file holds none.
+    failures: list[str] = []
+    bare_previews = {"ui/HomeScreen.kt": 4, "ui/components/ActiveSessionBanner.kt": 2}
+    bare_preview = re.compile(r"@Preview\b(?!\s*\()")
+    expected_files = {entry.common_main / relative for relative in bare_previews}
+    for path in expected_files - set(common_sources):
+        failures.append(
+            f"{entry.module}: {path.relative_to(entry.root)} must hold bare @Preview annotations "
+            "but is missing"
+        )
+    for path, raw in common_sources.items():
+        expected = bare_previews.get(path.relative_to(entry.common_main).as_posix(), 0)
+        found = len(bare_preview.findall(strip_kotlin_comments(raw)))
+        if found != expected:
+            failures.append(
+                f"{entry.module}: {path.relative_to(entry.root)} must hold exactly {expected} bare "
+                f"@Preview annotation(s); found {found}"
+            )
+    return failures
+
+
+def home_dependency_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # §3.5 and §12.1: core:data:database is no edge of the module — no main edge, no test edge.
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    if ":core:data:database" in build_source:
+        return [f"{entry.module}: build must not depend on :core:data:database in any source set"]
+    return []
+
+
+HOME_ENTRY = FeatureEntry(
+    module="feature:home",
+    short_name="home",
+    root=Path("feature/home"),
+    package_dir="io/github/stslex/workeeper/feature/home",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count. No core:data:database edge (see
+    # home_dependency_contract).
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.home.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'api(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'api(project(":core:ui:start-mode"))',
+        'implementation(project(":core:data:exercise"))',
+        'implementation(project(":core:data:dataStore"))',
+        "api(libs.cmp.ui)",
+        "api(libs.androidx.paging.common)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "api(libs.kotlinx.datetime)",
+        "implementation(libs.androidx.compose.paging)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.extended)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as §3.4 prints it
+    # at exit — P1's eighteen positional plural items.
+    catalog=(
+        ("string", "feature_home_title", "Home", "Главная"),
+        ("string", "feature_home_active_session_label", "Session in progress", "Сессия в процессе"),
+        ("string", "feature_home_active_session_progress_format", "%1$d of %2$d done", "%1$d из %2$d"),
+        ("string", "feature_home_empty_headline", "Ready when you are", "Готовы тренироваться"),
+        ("string", "feature_home_empty_supporting", "Start a training to log your first session", "Начните тренировку, чтобы записать первую сессию"),
+        ("string", "feature_home_settings", "Settings", "Настройки"),
+        ("string", "feature_home_charts", "Charts", "Прогресс"),
+        ("string", "feature_home_start_action", "Start", "Начать"),
+        ("string", "feature_home_start_mode_switch", "Choose what to show", "Выбрать, что показывать"),
+        ("string", "feature_home_start_mode_forgotten_label", "Longest not done", "Дольше всего не делали"),
+        ("string", "feature_home_start_empty_sessions", "No workouts yet", "Ещё ни одной тренировки"),
+        ("string", "feature_home_start_empty_tags", "Exercises have no tags yet — tag muscle groups and they will show up here", "Упражнения без тегов — отмечайте группы, и они появятся здесь"),
+        ("string", "feature_home_start_never_run", "never yet", "ещё ни разу"),
+        ("string", "feature_home_start_groups_footnote", "days since the group’s last workout", "дней с последней тренировки группы"),
+        ("string", "feature_home_start_other_training", "Another training", "Другая тренировка"),
+        ("string", "feature_home_start_week_day_mon", "Mo", "Пн"),
+        ("string", "feature_home_start_week_day_tue", "Tu", "Вт"),
+        ("string", "feature_home_start_week_day_wed", "We", "Ср"),
+        ("string", "feature_home_start_week_day_thu", "Th", "Чт"),
+        ("string", "feature_home_start_week_day_fri", "Fr", "Пт"),
+        ("string", "feature_home_start_week_day_sat", "Sa", "Сб"),
+        ("string", "feature_home_start_week_day_sun", "Su", "Вс"),
+        ("string", "feature_home_recent_adhoc_label", "Ad-hoc workout", "Свободная тренировка"),
+        ("string", "feature_home_recent_stats_format", "%1$s · %2$s", "%1$s · %2$s"),
+        ("string", "feature_home_picker_title", "Choose a training", "Выберите тренировку"),
+        ("string", "feature_home_picker_see_all", "See all templates", "Все шаблоны"),
+        ("string", "feature_home_picker_empty", "No templates yet", "Пока нет шаблонов"),
+        ("string", "feature_home_picker_start_blank_title", "Start blank workout", "Пустая тренировка"),
+        ("string", "feature_home_picker_start_blank_subtitle", "Add exercises as you go", "Добавляйте упражнения по ходу"),
+        ("string", "feature_home_conflict_unnamed", "Workout", "Тренировка"),
+        ("string", "feature_home_conflict_progress_format", "%1$d of %2$d exercises done", "%1$d из %2$d упражнений выполнено"),
+        ("string", "feature_home_paging_loading", "Loading", "Загружаю"),
+        ("string", "feature_home_paging_error", "Couldn’t load more", "Не удалось загрузить дальше"),
+        ("string", "feature_home_paging_retry", "Retry", "Повторить"),
+        ("string", "feature_home_refresh_error", "Couldn’t load the list", "Не удалось загрузить список"),
+        (
+            "plurals",
+            "feature_home_recent_exercises_count",
+            (("one", "%1$d exercise"), ("other", "%1$d exercises")),
+            (
+                ("one", "%1$d упражнение"),
+                ("few", "%1$d упражнения"),
+                ("many", "%1$d упражнений"),
+                ("other", "%1$d упражнений"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_home_recent_sets_count",
+            (("one", "%1$d set"), ("other", "%1$d sets")),
+            (
+                ("one", "%1$d подход"),
+                ("few", "%1$d подхода"),
+                ("many", "%1$d подходов"),
+                ("other", "%1$d подходов"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_home_start_week_sessions_count",
+            (("one", "workout"), ("other", "workouts")),
+            (
+                ("one", "тренировка"),
+                ("few", "тренировки"),
+                ("many", "тренировок"),
+                ("other", "тренировки"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_home_start_days_count",
+            (("one", "day"), ("other", "days")),
+            (
+                ("one", "день"),
+                ("few", "дня"),
+                ("many", "дней"),
+                ("other", "дня"),
+            ),
+        ),
+        (
+            "plurals",
+            "feature_home_start_days_idle_count",
+            (("one", "%1$d day"), ("other", "%1$d days")),
+            (
+                ("one", "%1$d день"),
+                ("few", "%1$d дня"),
+                ("many", "%1$d дней"),
+                ("other", "%1$d дня"),
+            ),
+        ),
+    ),
+    resource_prefix="feature_home_",
+    # The mapper and the three copy-reading handlers are deliberately absent: they resolve copy (§12.1).
+    payload_files=frozenset({"HomeStore.kt", "BottomSheetState.kt", "PickerTrainingItem.kt", "RecentSessionItem.kt", "StartCardBodyUi.kt"}),
+    store_file="mvi/store/HomeStore.kt",
+    state_fields=(
+        ("activeSession", "ActiveSessionInfo?"),
+        ("startCardMode", "StartCardModeUi?"),
+        ("startCardBody", "StartCardBodyUi?"),
+        ("pagingUiState", "PagingUiState<PagingData<RecentSessionItem>>"),
+        ("nowMillis", "Long"),
+        ("isActiveLoaded", "Boolean"),
+        ("bottomSheet", "BottomSheetState"),
+        ("pendingConflict", "ConflictInfo?"),
+    ),
+    # S1: the mapper keeps the two relative-time reads; ClickHandler and PagingHandler pass it on.
+    resource_wrapper_readers=frozenset({
+        "mvi/mapper/HomeUiMapper.kt",
+        "mvi/handler/ClickHandler.kt",
+        "mvi/handler/PagingHandler.kt",
+    }),
+    preview_subjects={"ui/components/RecentSessionRow.kt": "RecentSessionRow"},
+    # The three inherited production suppressions of §0.2; nothing under commonTest.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/domain/HomeInteractorImpl.kt": [
+            '"LongParameterList"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/ClickHandler.kt": [
+            '"TooManyFunctions"',
+        ],
+    },
+    # The 70 portable identities of §3.2, the iOS mode-label identity (S2), and the scene of §11.5.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/domain/HomeInteractorImplTest.kt": [
+            "observeActiveSession maps repository ActiveSessionWithStats to domain",
+            "observeStartCardReadout delegates to the use case with mode and now",
+            "observeStartCardMode maps the stored string to the domain mode",
+            "observeStartCardMode falls back to WEEK for an unknown stored value",
+            "setStartCardMode forwards the persistence encoding to the data store",
+            "the storage encoding and the WEEK default are pinned",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/domain/usecase/ObserveStartCardReadoutUseCaseTest.kt": [
+            "WEEK with history wraps the week readout",
+            "WEEK with no session ever is the mode's own empty state even at count zero",
+            "DAYS_SINCE_LAST measures calendar days and anchors on the last session",
+            "DAYS_SINCE_LAST with no session ever is NoSessions",
+            "LAGGING_GROUPS maps idle stats to calendar days in repository order",
+            "LAGGING_GROUPS with no tagged history is NoTaggedHistory",
+            "FORGOTTEN_TRAINING carries days idle and composition",
+            "FORGOTTEN_TRAINING never run keeps daysIdle null — HD1's most forgotten thing",
+            "FORGOTTEN_TRAINING with no templates is NoTemplates",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/domain/usecase/ObserveWeekReadoutUseCaseTest.kt": [
+            "queries the repository with the Monday-first week window around now",
+            "counts every session and collapses same-day sessions into one trained day",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/ClickHandlerTest.kt": [
+            "OnSettingsClick consumes OpenSettings navigation and emits HapticClick",
+            "OnActiveSessionClick is a no-op when no active session",
+            "OnActiveSessionClick consumes OpenLiveWorkoutResume with the session uuid",
+            "OnRecentSessionClick consumes OpenPastSession with the session uuid",
+            "OnPickerSeeAllClick hides picker and consumes OpenAllTrainings",
+            "OnModeLabelClick opens the mode sheet with a haptic",
+            "OnModeLabelClick while the training picker is up replaces the sheet",
+            "OnModeSelected hides the sheet and persists the MAPPED mode through the interactor",
+            "OnModeSheetDismiss hides the sheet without a haptic",
+            "OnPickerTrainingSelected hides the picker before resolving conflict",
+            "OnPickerTrainingSelected reports the persisted active session progress",
+            "OnStartActionClick under a Forgotten body starts THAT training no picker",
+            "OnStartActionClick under an Empty body opens the picker instead",
+            "OnStartActionClick before the body arrives opens the picker",
+            "OnConflictDismiss clears pendingConflict",
+            "OnConflictResume consumes OpenLiveWorkoutResume with the active session uuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/CommonHandlerTest.kt": [
+            "Init subscribes to the active session and NOT to the paged recent list",
+            "Init builds the start card pipeline from the persisted mode",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/NavigationHandlerTest.kt": [
+            "OpenLiveWorkoutResume navigates to LiveWorkout with the active session uuid",
+            "OpenLiveWorkoutFresh navigates to LiveWorkout with the training uuid",
+            "OpenPastSession navigates to PastSession with the session uuid",
+            "OpenSettings navigates to Settings",
+            "OpenAllTrainings navigates to AllTrainings bottom-bar destination",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/mapper/HomeUiMapperTest.kt": [
+            "recent mapper uses adhoc label and pluralized stats",
+            "recent mapper preserves template name and mixed count labels",
+            "picker mapper handles recently used and never used templates",
+            "week mapper renders count as digits resolves the unit plural fills trained days",
+            "week mapper with no sessions renders zero over seven unfilled pills",
+            "week mapper uses the singular unit for one session",
+            "days-since readout renders digits unit and the name-date anchor",
+            "days-since readout for an adhoc session anchors on the adhoc label",
+            "tag-idle readout scales bars against the longest idle and keeps bare counts",
+            "tag-idle readout with all groups trained today draws empty bars not NaN",
+            "forgotten readout joins days idle and composition",
+            "forgotten readout for a never-run template says so instead of a day count",
+            "each empty readout carries its own mode's copy",
+            "week readout wrapped in the sealed type maps through the week mapper",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/mapper/StartCardModeMapperTest.kt": [
+            "every UI mode maps to its own domain twin",
+            "every domain mode maps to its own UI twin",
+            "the mapping round-trips over the whole catalog",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/mvi/store/HomeStartCardSeedTest.kt": [
+            "init seeds no mode and no body",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/ui/components/HomeListSurfaceTest.kt": [
+            "rowsWin",
+            "coldOpenIsLoading",
+            "coldOpenErrorIsItsOwnVerdict",
+            "settledAndEmpty",
+            "theEnumIsNarrowedNotCopied",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/ui/components/HomePagingTailKindTest.kt": [
+            "appending",
+            "failedAppend",
+            "exhausted",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/home/ui/components/RecentMetaLineTest.kt": [
+            "order",
+            "relativeLabelIsFirst",
+            "statsAreLast",
+            "emptyTokensAreDropped",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/home/ui/components/HomeStartCardModeLabelTest.kt": [
+            "theHeadNamesNoModeUntilOneIsKnown",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/home/HomeFeatureSceneIosTest.kt": [
+            "resourcesReadoutsListPickerAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/home/golden/HomeGoldenTest.kt"
+    ),
+    # The 21 methods of §3.3, in source order; each renders light and dark (42 PNGs).
+    golden_methods=[
+        "recentRow",
+        "recentRowRussian",
+        "pagingLoadingTail",
+        "pagingErrorTail",
+        "coldOpenError",
+        "activeSessionBanner",
+        "startCard",
+        "startCardDaysSince",
+        "startCardTagIdle",
+        "startCardForgotten",
+        "startCardForgottenNeverRun",
+        "startCardEmptyWeek",
+        "startCardEmptyDaysSince",
+        "startCardEmptyTags",
+        "startCardEmptyTemplates",
+        "screenList",
+        "screenWithActiveSession",
+        "screenEmptyRegion",
+        "screenColdOpenLoading",
+        "screenColdOpenError",
+        "screenActiveSessionLoading",
+    ],
+    # No device test (§11.4): an empty device_test reads no file.
+    device_test="",
+    device_fragments=(),
+    feature_class="HomeFeature",
+    graph_interface="HomeGraph",
+    graph_function="homeGraph",
+    factory_accessor="homeGraphFactory",
+    create_method="createHomeGraph",
+    store_impl="HomeStoreImpl",
+    store_accessor="homeStore",
+    feature_file="di/HomeFeature.kt",
+    graph_file="ui/HomeGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/HomeExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.home(): HomeGraph = homeGraphFactory.createHomeGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+    ],
+    # Each identity reaches the graph once through the accessor; the helper itself is not counted.
+    identity_accessor=r"(?<!AppGraph)\.home\(\)",
+    extra_checks=(home_copy_contract, home_preview_contract, home_dependency_contract),
+    # S3: the 11 argument lists stay verbatim, pinned by file and exact arguments (§5.4).
+    preview_inventory={
+        "ui/components/ActiveSessionBanner.kt": [
+            'device = "id:pixel_9"',
+        ],
+        "ui/components/HomeStartCard.kt": [
+            'name = "Week — Light"',
+            'name = "Week — Dark"',
+            'name = "Days since — Dark"',
+            'name = "Lagging groups — Dark"',
+            'name = "Forgotten — Dark"',
+            'name = "Mode unknown — Dark"',
+            'name = "Empty — Dark"',
+        ],
+        "ui/components/TrainingPickerSheet.kt": [
+            'name = "Loaded — Light"',
+            'name = "Loading — Dark"',
+            'name = "Empty — Dark"',
+        ],
+    },
+    # S1: the two relative-time reads, in the mapper.
+    resource_wrapper_dates={"mvi/mapper/HomeUiMapper.kt": {"getAbbreviatedRelativeTime": 2}},
+)
+
 # Every shared feature entry the gate holds to its exact contract.
-FEATURE_ENTRIES = (ARCHIVE_ENTRY, ALL_TRAININGS_ENTRY, ALL_EXERCISES_ENTRY, PAST_SESSION_ENTRY)
+FEATURE_ENTRIES = (
+    ARCHIVE_ENTRY,
+    ALL_TRAININGS_ENTRY,
+    ALL_EXERCISES_ENTRY,
+    PAST_SESSION_ENTRY,
+    HOME_ENTRY,
+)
 
 
 # Compose resources fill only positional `%N$d` / `%N$s` (Regex("%(\d+)\$[ds]") in 1.11.1) and
