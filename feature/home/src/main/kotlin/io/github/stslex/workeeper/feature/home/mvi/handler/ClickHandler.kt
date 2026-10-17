@@ -104,11 +104,13 @@ internal class ClickHandler @Inject constructor(
         }
         interactor.observeRecentTrainings(PICKER_LIMIT).launch { trainings ->
             val now = state.value.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+            // F1: mapped before the State lambda, and copied only if the picker is still up.
+            val templates = trainings.toPickerItems(now, resourceWrapper)
             updateStateImmediate { current ->
                 if (current.bottomSheet is BottomSheetState.TrainingPicker) {
                     current.copy(
                         bottomSheet = BottomSheetState.TrainingPicker(
-                            templates = trainings.toPickerItems(now, resourceWrapper),
+                            templates = templates,
                             isLoading = false,
                         ),
                     )

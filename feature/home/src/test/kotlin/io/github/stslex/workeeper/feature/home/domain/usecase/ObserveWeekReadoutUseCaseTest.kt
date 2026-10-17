@@ -21,7 +21,7 @@ internal class ObserveWeekReadoutUseCaseTest {
 
     private val zone = TimeZone.of("Europe/Moscow")
     private val sessionRepository = mockk<SessionRepository>()
-    private val useCase = ObserveWeekReadoutUseCase(
+    private val useCase = ObserveWeekReadoutUseCaseImpl(
         sessionRepository = sessionRepository,
         defaultDispatcher = Dispatchers.Unconfined,
     )

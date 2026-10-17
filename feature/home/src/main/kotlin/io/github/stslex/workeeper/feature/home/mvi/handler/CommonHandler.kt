@@ -45,16 +45,15 @@ internal class CommonHandler @Inject constructor(
                     "Updating state with new active session data.",
                 telemetryDedupeKey(row),
             )
+            // F1: the copy resolves before the State lambda, which only copies State.
+            val now = state.value.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+            val activeSession = row?.toUi(now, resourceWrapper)
             updateStateImmediate { current ->
-                val now = if (current.nowMillis == 0L) {
-                    System.currentTimeMillis()
-                } else {
-                    current.nowMillis
-                }
                 current.copy(
-                    activeSession = row?.toUi(now, resourceWrapper),
+                    activeSession = activeSession,
                     isActiveLoaded = true,
-                    nowMillis = now,
+                    // As today: only the first row seeds nowMillis, later rows keep the tick's.
+                    nowMillis = current.nowMillis.takeIf { it > 0L } ?: now,
                 )
             }
         }

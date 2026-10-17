@@ -7,6 +7,10 @@ import dev.zacsweers.metro.GraphExtension
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractorImpl
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCase
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCaseImpl
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCase
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCaseImpl
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
 
 /**
@@ -21,6 +25,12 @@ interface HomeGraph {
 
     @Binds
     val HomeInteractorImpl.bindInteractor: HomeInteractor
+
+    @Binds
+    val ObserveStartCardReadoutUseCaseImpl.bindStartCardReadout: ObserveStartCardReadoutUseCase
+
+    @Binds
+    val ObserveWeekReadoutUseCaseImpl.bindWeekReadout: ObserveWeekReadoutUseCase
 
     @Binds
     val HomeHandlerStoreImpl.bindHandlerStore: HomeHandlerStore

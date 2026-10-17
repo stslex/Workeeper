@@ -30,7 +30,7 @@ internal class ObserveStartCardReadoutUseCaseTest {
     private val tagRepository = mockk<TagRepository>()
     private val trainingRepository = mockk<TrainingRepository>()
     private val observeWeekReadoutUseCase = mockk<ObserveWeekReadoutUseCase>()
-    private val useCase = ObserveStartCardReadoutUseCase(
+    private val useCase = ObserveStartCardReadoutUseCaseImpl(
         sessionRepository = sessionRepository,
         tagRepository = tagRepository,
         trainingRepository = trainingRepository,
