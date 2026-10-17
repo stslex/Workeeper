@@ -559,10 +559,10 @@ jobs:
 
   # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
   # Gradle invocation executes the kit, navigation, MVI, start-mode and plan-editor UI modules' and
-  # the image-viewer, plan-editor, archive, all-trainings, all-exercises and past-session features'
-  # Phase-7 Native tests on the iOS simulator, then a checked-in script requires every exact
-  # per-module XML identity.
-  # A second forced invocation links the same eleven modules' iosArm64 device test binaries and a
+  # the image-viewer, plan-editor, archive, all-trainings, all-exercises, past-session and home
+  # features' Phase-7 Native tests on the iOS simulator, then a checked-in script requires every
+  # exact per-module XML identity.
+  # A second forced invocation links the same twelve modules' iosArm64 device test binaries and a
   # check requires each executable; device tests are compiled and linked, never run.
   # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
   # secrets. See
@@ -706,6 +706,7 @@ jobs:
           :feature:all-trainings:iosSimulatorArm64Test
           :feature:all-exercises:iosSimulatorArm64Test
           :feature:past-session:iosSimulatorArm64Test
+          :feature:home:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -728,7 +729,7 @@ jobs:
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
-      # The device half of the target pair: the same eleven modules' iosArm64 test binaries,
+      # The device half of the target pair: the same twelve modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).
       - name: Link the iOS device test binaries
         id: device_link
@@ -746,6 +747,7 @@ jobs:
           :feature:all-trainings:linkDebugTestIosArm64
           :feature:all-exercises:linkDebugTestIosArm64
           :feature:past-session:linkDebugTestIosArm64
+          :feature:home:linkDebugTestIosArm64
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -759,14 +761,14 @@ jobs:
           linked=0
           for module in core/ui/kit core/ui/navigation core/ui/mvi core/ui/start-mode \
               core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive \
-              feature/all-trainings feature/all-exercises feature/past-session; do
+              feature/all-trainings feature/all-exercises feature/past-session feature/home; do
             if [ -f "$module/build/bin/iosArm64/debugTest/test.kexe" ]; then
               linked=$((linked + 1))
             else
               missing+=("$module")
             fi
           done
-          echo "$linked/11 linked"
+          echo "$linked/12 linked"
           if [ "${#missing[@]}" -ne 0 ]; then
             echo "::error::no iosArm64 test binary for: ${missing[*]}"
             exit 1
@@ -789,6 +791,7 @@ jobs:
             feature/all-trainings/build/test-results/iosSimulatorArm64Test/
             feature/all-exercises/build/test-results/iosSimulatorArm64Test/
             feature/past-session/build/test-results/iosSimulatorArm64Test/
+            feature/home/build/test-results/iosSimulatorArm64Test/
           retention-days: 30
 
       # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.

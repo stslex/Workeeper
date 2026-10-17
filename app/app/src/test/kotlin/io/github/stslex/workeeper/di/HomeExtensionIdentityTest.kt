@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.home.di.HomeGraph
@@ -42,12 +41,11 @@ internal class HomeExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
+    private fun AppGraph.home(): HomeGraph = homeGraphFactory.createHomeGraph()
+
     @Test
     fun `extension resolves the store through the parent graph`() {
-        val store = buildAppGraph()
-            .asContribution<HomeGraph.Factory>()
-            .createHomeGraph()
-            .homeStore
+        val store = buildAppGraph().home().homeStore
 
         assertNotNull(store, "The contributed extension must resolve HomeStoreImpl from the parent graph")
     }
@@ -56,10 +54,7 @@ internal class HomeExtensionIdentityTest {
     fun `store's app-scoped deps are the SAME instances the parent holds`() {
         val appGraph = buildAppGraph()
 
-        val store = appGraph
-            .asContribution<HomeGraph.Factory>()
-            .createHomeGraph()
-            .homeStore
+        val store = appGraph.home().homeStore
 
         assertSame(
             appGraph.analyticsHolder,

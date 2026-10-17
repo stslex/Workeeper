@@ -314,9 +314,10 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
 - `AppGraph.stringResolver` still has **no production reader**: no production code reads
-  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler` and
-  past-session's `CommonHandler` receive the binding by constructor injection through their graph
-  extensions, which inherit it from `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
+  `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler`,
+  past-session's `CommonHandler`, and home's `ClickHandler`, `CommonHandler` and `PagingHandler`
+  receive the binding by constructor injection through their graph extensions, which inherit it
+  from `AppGraph`. The accessor exists so `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
   `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
@@ -565,6 +566,73 @@ strings, so neither the mapper nor the resolver reaches a golden. Android keeps 
 `appGraph.pastSessionGraphFactory`. The module has no device test: its factory flow is proven on a
 device by `RouteReachabilityTest.pastSessionOpensFromASeededFinishedSessionAndHomeReturns`, in the
 `@Regression` suite.
+
+#### Shared home feature
+
+`feature:home` keeps its twelve portable suites in `commonTest`, so the same 70 exact identities
+execute through Android host and `iosSimulatorArm64Test`: interactor 6, start-card readout use case
+9, week readout use case 2, click handler 16, common handler 2, navigation handler 5, UI mapper 14,
+mode mapper 3, start-card seed 1, list surface 5, paging tail 3, and recent meta line 4. The one
+mode-label identity, `HomeStartCardModeLabelTest.theHeadNamesNoModeUntilOneIsKnown`, drives
+`runComposeUiTest`; a shared feature may not take Robolectric, so it lives in `iosTest` and runs
+on Native only (decision S2 of
+[kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md)). The suites use
+`kotlin.test`, `kotlinx-coroutines-test` and private in-file fakes. The click and common handler
+suites declare a store fake that reproduces the relaxed MockK store: `updateState` and the
+update-lambda `updateStateImmediate` apply, events and consumed actions record, and each Store-scope
+`launch` is recorded and runs, on the identity's `runTest` scheduler, only in the three identities
+that ran it under MockK; `Flow.launch` records without collecting. `CommonHandler`'s `Init` logs
+before it subscribes, so its suite's fake returns a strict silent `Logger` (the lambda `i` is
+silent, every other abstract member fails fast); the click suite's `logger` fails fast. The
+interactor, use-case, repository, data-store and navigator fakes answer only what an identity
+reaches and fail fast on everything else; the two readout use cases sit behind interfaces
+(decision D2), so their suites construct the `…Impl` classes over strict repository fakes.
+
+Copy outside composition resolves through the injected `StringResolver`, so 15 identities run
+through it: the 14 mapper identities and `OnPickerTrainingSelected reports the persisted active
+session progress`. The mapper and click suites each fake it strictly and in-file (the common suite's
+fake fails fast on both members). The fake switches on the generated resource objects, returns the
+strings the old `ResourceWrapper` stubs returned, and throws on any other resource and on any read
+that does not pass exactly the arguments production passes: none for plain copy, two for the two
+format strings, the count for the three `%1$d` plurals, and **no** format argument for the two
+unit-word plurals (`start_week_sessions_count`, `start_days_count`). The mapper suite keeps an
+in-file `ResourceWrapper` reduced to the relative time (`getAbbreviatedRelativeTime`, the module's
+only `ResourceWrapper` read), answering the sentinel `rel:<timestamp>@<now>`; the click suite's
+wrapper throws on every member. The three `@DisplayName` suites keep the function name as the
+identity on both targets: each display sentence moved verbatim into a one-line KDoc directly above
+`@Test` (decision S6). The module has no `core:data:database` edge, not even in tests: the
+repository fakes override the members whose types name `PlanSetDataModel` without constructing it.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.home.HomeFeatureSceneIosTest.resourcesReadoutsListPickerAndActionsRenderAndDispatch`
+composes the production `HomeScreen` and `TrainingPickerSheet` under `AppTheme` from test-held
+state. Every read outside composition goes through one real `ComposeStringResolver`; the scene
+declares no fake resolver. `ResourceWrapper` has no iOS implementation, so a private stub answers
+the relative time for exactly the three timestamps the scene renders and throws on everything else.
+The scene resolves the whole private EN catalog as stored and filled; maps the readouts, recent
+rows, picker items and active sessions through the production mapper; renders the loading, banner,
+start-card (all four modes and an empty one) and list states, the settled and failed empty region,
+and the training picker with and without templates; and asserts the seven screen actions and the
+three picker callbacks as exact ordered lists. Together with the 70 portable cases and the
+mode-label case, the home Native XML contains exactly 72 passing cases with no skip, failure, or
+error.
+
+What this does not cover: RU values execute in no test (the topology gate pins them statically);
+the hoisted active-session and picker mappings (finding F1) execute in no unit identity, because no
+handler identity collects those flows — the topology gate's State-lambda check pins their shape, and
+the device journeys that return to Home with a session in progress execute them; the mode sheet,
+the conflict dialog, the graph's sheet and dialog wiring and the append tails have no scene path
+(`HomePagingTailKindTest` covers the tails as a selector); and the relative time runs only through
+stubs off-device.
+
+The 42 home goldens moved byte-identical to `androidHostTest`; their fixtures carry fixed strings,
+so neither the mapper nor the resolver reaches a golden, and the RU row golden repeats the EN one's
+blobs because the rows read no catalog string. The golden test reads one catalog string itself,
+`Res.string.feature_home_refresh_error` for `coldOpenError`, the first golden read of its module's
+private `Res`. Android keeps the two `HomeExtensionIdentityTest` cases, which reach the graph
+through `appGraph.homeGraphFactory`. The module has no device test: its factory flow is proven on a
+device by `RouteReachabilityTest` (`homeIsTheColdStartDestination` and every journey that returns
+to Home), in the `@Regression` suite.
 
 #### Shared string resolver
 
@@ -1074,12 +1142,13 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
 `:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
-`:feature:all-exercises` (KMP), `:feature:past-session` (KMP), and `feature/`{`exercise`,
-`exercise-chart`, `home`, `live-workout`, `settings`, `single-training`}. Goldens live in
+`:feature:all-exercises` (KMP), `:feature:past-session` (KMP), `:feature:home` (KMP), and
+`feature/`{`exercise`, `exercise-chart`, `live-workout`, `settings`, `single-training`}. Goldens
+live in
 `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
-`:feature:past-session`), and
+`:feature:past-session`, `:feature:home`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1094,8 +1163,8 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ```
 
 Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
-`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`, and
-`:feature:past-session`
+`:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
+`:feature:past-session`, and `:feature:home`
 too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
@@ -1259,11 +1328,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:all-trainings:iosSimulatorArm64Test \
   :feature:all-exercises:iosSimulatorArm64Test \
   :feature:past-session:iosSimulatorArm64Test \
+  :feature:home:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 11/11.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 12/12.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1275,6 +1345,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:all-trainings:linkDebugTestIosArm64 \
   :feature:all-exercises:linkDebugTestIosArm64 \
   :feature:past-session:linkDebugTestIosArm64 \
+  :feature:home:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities
