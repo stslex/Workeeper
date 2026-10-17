@@ -1,0 +1,226 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.home.mvi.handler
+
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
+import io.github.stslex.workeeper.feature.home.di.HomeScope
+import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
+import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapper.toDomain
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
+import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.resources.Res
+import io.github.stslex.workeeper.feature.home.resources.feature_home_conflict_progress_format
+import io.github.stslex.workeeper.feature.home.resources.feature_home_conflict_unnamed
+import kotlinx.collections.immutable.persistentListOf
+import kotlin.time.Clock
+
+private const val PICKER_LIMIT = 5
+
+@Suppress("TooManyFunctions")
+@SingleIn(HomeScope::class)
+internal class ClickHandler @Inject constructor(
+    private val interactor: HomeInteractor,
+    private val resourceWrapper: ResourceWrapper,
+    private val stringResolver: StringResolver,
+    store: HomeHandlerStore,
+) : Handler<Action.Click>, HomeHandlerStore by store {
+
+    override fun invoke(action: Action.Click) {
+        when (action) {
+            Action.Click.OnModeLabelClick -> processModeLabelClick()
+            is Action.Click.OnModeSelected -> processModeSelected(action.mode)
+            Action.Click.OnModeSheetDismiss -> processModeSheetDismiss()
+            Action.Click.OnActiveSessionClick -> processSessionClick()
+            Action.Click.OnChartsClick -> processChartsClick()
+            Action.Click.OnSettingsClick -> processSettingsClick()
+            is Action.Click.OnRecentSessionClick -> processRecentSessionClick(action.sessionUuid)
+            Action.Click.OnStartTrainingClick -> processStartTrainingClick()
+            Action.Click.OnStartActionClick -> processStartActionClick()
+            is Action.Click.OnPickerTrainingSelected -> processPickerSelected(action.trainingUuid)
+            Action.Click.OnStartBlankClick -> processStartBlankClick()
+            Action.Click.OnPickerSeeAllClick -> processPickerSeeAll()
+            Action.Click.OnPickerDismiss -> processPickerDismiss()
+            Action.Click.OnConflictResume -> processConflictResume()
+            Action.Click.OnConflictDeleteAndStart -> processConflictDeleteAndStart()
+            Action.Click.OnConflictDismiss -> processConflictDismiss()
+        }
+    }
+
+    private fun processModeLabelClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.StartModePicker) }
+    }
+
+    /**
+     * Persist-only: the mode and the body both follow through `CommonHandler`'s DataStore
+     * pipeline, so head and readout swap together.
+     */
+    private fun processModeSelected(mode: StartCardModeUi) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+        launch { interactor.setStartCardMode(mode.toDomain()) }
+    }
+
+    private fun processModeSheetDismiss() {
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+    }
+
+    private fun processSessionClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val session = state.value.activeSession ?: return
+        consume(Action.Navigation.OpenLiveWorkoutResume(session.sessionUuid))
+    }
+
+    private fun processSettingsClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenSettings)
+    }
+
+    private fun processChartsClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenCharts)
+    }
+
+    private fun processRecentSessionClick(sessionUuid: String) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenPastSession(sessionUuid))
+    }
+
+    private fun processStartTrainingClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            current.copy(
+                bottomSheet = BottomSheetState.TrainingPicker(
+                    templates = persistentListOf(),
+                    isLoading = true,
+                ),
+            )
+        }
+        interactor.observeRecentTrainings(PICKER_LIMIT).launch { trainings ->
+            val now = state.value.nowMillis.takeIf { it > 0L }
+                ?: Clock.System.now().toEpochMilliseconds()
+            // F1: mapped before the State lambda, and copied only if the picker is still up.
+            val templates = trainings.toPickerItems(now, resourceWrapper, stringResolver)
+            updateStateImmediate { current ->
+                if (current.bottomSheet is BottomSheetState.TrainingPicker) {
+                    current.copy(
+                        bottomSheet = BottomSheetState.TrainingPicker(
+                            templates = templates,
+                            isLoading = false,
+                        ),
+                    )
+                } else {
+                    current
+                }
+            }
+        }
+    }
+
+    private fun processPickerSelected(trainingUuid: String) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+        resolveConflictAndStart(trainingUuid)
+    }
+
+    /**
+     * The card's primary button, for every mode (§3.4). GUARD: the discriminator is the BODY,
+     * never the mode — FORGOTTEN_TRAINING degrades to `Empty`, which must open the picker.
+     */
+    private fun processStartActionClick() {
+        when (val body = state.value.startCardBody) {
+            is StartCardBodyUi.Forgotten -> processStartForgotten(body.trainingUuid)
+
+            is StartCardBodyUi.Week,
+            is StartCardBodyUi.DaysSince,
+            is StartCardBodyUi.TagIdle,
+            is StartCardBodyUi.Empty,
+            null,
+            -> processStartTrainingClick()
+        }
+    }
+
+    /** «Забытая тренировка»'s primary action — no picker, same conflict resolution. */
+    private fun processStartForgotten(trainingUuid: String) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        resolveConflictAndStart(trainingUuid)
+    }
+
+    private fun resolveConflictAndStart(trainingUuid: String) {
+        launch {
+            when (val resolution = interactor.resolveStartConflict(trainingUuid)) {
+                StartSessionConflict.ProceedFresh -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkoutFresh(trainingUuid),
+                )
+
+                is StartSessionConflict.SilentResume -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkoutResume(resolution.sessionUuid),
+                )
+
+                is StartSessionConflict.NeedsUserChoice -> {
+                    val activeName = interactor.getTrainingName(resolution.active.trainingUuid)
+                        ?.takeIf { it.isNotBlank() }
+                        ?: stringResolver.getString(Res.string.feature_home_conflict_unnamed)
+                    val info = State.ConflictInfo(
+                        activeSessionUuid = resolution.active.sessionUuid,
+                        requestedTrainingUuid = trainingUuid,
+                        activeSessionName = activeName,
+                        progressLabel = stringResolver.getString(
+                            Res.string.feature_home_conflict_progress_format,
+                            resolution.doneCount,
+                            resolution.totalCount,
+                        ),
+                    )
+                    updateStateImmediate { it.copy(pendingConflict = info) }
+                }
+            }
+        }
+    }
+
+    private fun processConflictResume() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val info = state.value.pendingConflict ?: return
+        updateState { it.copy(pendingConflict = null) }
+        consume(Action.Navigation.OpenLiveWorkoutResume(info.activeSessionUuid))
+    }
+
+    private fun processConflictDeleteAndStart() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        val info = state.value.pendingConflict ?: return
+        updateState { it.copy(pendingConflict = null) }
+        launch {
+            interactor.deleteSession(info.activeSessionUuid)
+            consumeOnMain(Action.Navigation.OpenLiveWorkoutFresh(info.requestedTrainingUuid))
+        }
+    }
+
+    private fun processConflictDismiss() {
+        updateState { it.copy(pendingConflict = null) }
+    }
+
+    private fun processPickerSeeAll() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+        consume(Action.Navigation.OpenAllTrainings)
+    }
+
+    private fun processStartBlankClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+        consume(Action.Navigation.OpenLiveWorkoutBlank)
+    }
+
+    private fun processPickerDismiss() {
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+    }
+}

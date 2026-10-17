@@ -35,6 +35,7 @@ import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.archive.ui.archiveGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.ui.exerciseChartGraph
+import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
@@ -57,6 +58,7 @@ internal fun AppNavigationHost(
     allTrainingsGraphFactory: AllTrainingsGraph.Factory,
     allExercisesGraphFactory: AllExercisesGraph.Factory,
     pastSessionGraphFactory: PastSessionGraph.Factory,
+    homeGraphFactory: HomeGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -127,6 +129,7 @@ internal fun AppNavigationHost(
                 // registers against NavGraphScope, so re-pointing this line changes their backing.
                 with(NavGraphScope(this, results)) {
                     homeGraph(
+                        factory = homeGraphFactory,
                         modifier = bottomBarModifier
                             .reportScreenPlace<Screen.BottomBar.Home>()
                             .testTag("HomeGraph"),
