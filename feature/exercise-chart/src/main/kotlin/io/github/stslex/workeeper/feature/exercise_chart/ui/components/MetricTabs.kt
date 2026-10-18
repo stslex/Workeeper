@@ -41,6 +41,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.feature.exercise_chart.R
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 
 /**
@@ -135,7 +136,7 @@ internal fun MetricTabs(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(metric.labelRes),
+                        text = stringResource(metric.labelRes()),
                         style = AppUi.typography.text.body.copy(fontWeight = FontWeight.Medium),
                         color = labelColor,
                         maxLines = 1,
@@ -145,6 +146,13 @@ internal fun MetricTabs(
             }
         }
     }
+}
+
+/** S3: the tab word for each metric; the enum itself carries no resource. */
+private fun ChartMetricUiModel.labelRes(): Int = when (this) {
+    ChartMetricUiModel.HEAVIEST_WEIGHT -> R.string.feature_exercise_chart_metric_heaviest
+    ChartMetricUiModel.VOLUME_PER_SESSION -> R.string.feature_exercise_chart_metric_session
+    ChartMetricUiModel.VOLUME_PER_SET -> R.string.feature_exercise_chart_metric_volume
 }
 
 /**

@@ -22,10 +22,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 
 /**
  * The empty-state flash, pinned in the state model: drive the real handlers over unplottable
@@ -105,7 +105,7 @@ internal class ChartContentResolutionTest {
             store = store,
         )
         val clickHandler = ClickHandler(
-            commonHandler = commonHandler,
+            chartLoader = commonHandler,
             resourceWrapper = resources,
             store = store,
         )
@@ -125,7 +125,7 @@ internal class ChartContentResolutionTest {
     private fun fold(pointCount: Int): ChartFoldDomain {
         val points = (0 until pointCount).map { index ->
             ChartPointDomain(
-                day = LocalDate.of(2026, 4, index + 1),
+                day = LocalDate(2026, 4, index + 1),
                 dayMillis = index * DAY_MILLIS,
                 value = 100.0 + index,
                 sessionUuid = "s$index",

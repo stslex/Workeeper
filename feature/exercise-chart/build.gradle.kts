@@ -23,6 +23,8 @@ dependencies {
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:ui:plan-editor"))
     implementation(project(":core:data:exercise"))
+    // S1: the chart's dates run on kotlinx-datetime, which core:core keeps implementation-scoped.
+    implementation(libs.kotlinx.datetime)
 
     testImplementation(kotlin("test"))
     // For PrRuleFixture only — the shared, DB-free description of which set holds a record.

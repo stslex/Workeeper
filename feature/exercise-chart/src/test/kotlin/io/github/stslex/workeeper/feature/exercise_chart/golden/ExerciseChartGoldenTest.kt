@@ -22,11 +22,12 @@ import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseP
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
-import java.time.LocalDate
-import java.time.ZoneOffset
 
 /** The chart golden suite; fixture data mirrors `pass2d.html` §`s-chart` (§10.4 out of model). */
 internal class ExerciseChartGoldenTest {
@@ -74,7 +75,7 @@ internal class ExerciseChartGoldenTest {
             val points = DAYS.take(reps.size).mapIndexed { index, day ->
                 ChartPointUiModel(
                     day = day,
-                    dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    dayMillis = day.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
                     sessionUuid = "weightless-$index",
                     value = reps[index].toDouble(),
                     setCount = 3,
@@ -271,13 +272,13 @@ internal class ExerciseChartGoldenTest {
 }
 
 private val DAYS = listOf(
-    LocalDate.of(2026, 5, 2),
-    LocalDate.of(2026, 5, 16),
-    LocalDate.of(2026, 6, 1),
-    LocalDate.of(2026, 6, 23),
-    LocalDate.of(2026, 7, 11),
-    LocalDate.of(2026, 7, 15),
-    LocalDate.of(2026, 7, 23),
+    LocalDate(2026, 5, 2),
+    LocalDate(2026, 5, 16),
+    LocalDate(2026, 6, 1),
+    LocalDate(2026, 6, 23),
+    LocalDate(2026, 7, 11),
+    LocalDate(2026, 7, 15),
+    LocalDate(2026, 7, 23),
 )
 
 private val WEIGHTS = listOf(49.0, 49.0, 56.0, 63.0, 63.0, 63.0, 77.0)
@@ -285,7 +286,7 @@ private val WEIGHTS = listOf(49.0, 49.0, 56.0, 63.0, 63.0, 63.0, 77.0)
 private fun points(): List<ChartPointUiModel> = DAYS.mapIndexed { index, day ->
     ChartPointUiModel(
         day = day,
-        dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        dayMillis = day.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
         sessionUuid = "weighted-$index",
         value = WEIGHTS[index],
         setCount = 4,

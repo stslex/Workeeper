@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.domain.model
 
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * One plotted completed session. Under the per-set metrics the point is a concrete set and

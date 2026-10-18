@@ -9,11 +9,11 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTy
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
+import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 import kotlin.test.assertNotNull
 
 internal class ExerciseChartUiMapperTest {
@@ -36,7 +36,7 @@ internal class ExerciseChartUiMapperTest {
     @Test
     fun `domain point keeps session identity in the UI model`() {
         val point = ChartPointDomain(
-            day = LocalDate.of(2026, 4, 28),
+            day = LocalDate(2026, 4, 28),
             dayMillis = 0L,
             value = 100.0,
             sessionUuid = "evening",
@@ -53,13 +53,14 @@ internal class ExerciseChartUiMapperTest {
     fun `readout for the record point carries the flag and the grouped whole-number value`() {
         val points = listOf(
             chartPoint(value = 2940.0, setCount = 4),
-            chartPoint(value = 4620.4, setCount = 4).copy(day = LocalDate.of(2026, 7, 23)),
+            chartPoint(value = 4620.4, setCount = 4).copy(day = LocalDate(2026, 7, 23)),
         )
         val readout = ChartReadoutMapper.toReadout(
             points = points,
             activeIndex = 1,
             metric = ChartMetricUiModel.VOLUME_PER_SESSION,
             type = ExerciseTypeUiModel.WEIGHTED,
+            copy = ChartReadoutMapper.toReadoutCopy(points, resources),
             resourceWrapper = resources,
         )
 
@@ -82,13 +83,14 @@ internal class ExerciseChartUiMapperTest {
     fun `readout off the record point has two caption parts and no flag`() {
         val points = listOf(
             chartPoint(value = 49.0, setCount = 4),
-            chartPoint(value = 77.0, setCount = 4).copy(day = LocalDate.of(2026, 7, 23)),
+            chartPoint(value = 77.0, setCount = 4).copy(day = LocalDate(2026, 7, 23)),
         )
         val readout = ChartReadoutMapper.toReadout(
             points = points,
             activeIndex = 0,
             metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
             type = ExerciseTypeUiModel.WEIGHTED,
+            copy = ChartReadoutMapper.toReadoutCopy(points, resources),
             resourceWrapper = resources,
         )
 
@@ -102,7 +104,7 @@ internal class ExerciseChartUiMapperTest {
     fun `volume record indices keep the earliest point on a value tie`() {
         val points = listOf(
             chartPoint(value = 77.0, reps = 5),
-            chartPoint(value = 77.0, reps = 6).copy(day = LocalDate.of(2026, 7, 23)),
+            chartPoint(value = 77.0, reps = 6).copy(day = LocalDate(2026, 7, 23)),
         )
 
         listOf(
@@ -117,7 +119,7 @@ internal class ExerciseChartUiMapperTest {
     fun `weight record index follows the PR reps tiebreak across sessions`() {
         val points = listOf(
             ChartPointDomain(
-                day = LocalDate.of(2026, 4, 28),
+                day = LocalDate(2026, 4, 28),
                 dayMillis = 0L,
                 value = 100.0,
                 sessionUuid = "morning",
@@ -126,7 +128,7 @@ internal class ExerciseChartUiMapperTest {
                 setCount = 1,
             ).toUi(),
             ChartPointDomain(
-                day = LocalDate.of(2026, 4, 28),
+                day = LocalDate(2026, 4, 28),
                 dayMillis = 0L,
                 value = 100.0,
                 sessionUuid = "evening",
@@ -146,7 +148,7 @@ internal class ExerciseChartUiMapperTest {
     fun `weight record index keeps the earliest session when weight and reps tie`() {
         val points = listOf(
             chartPoint(value = 100.0, reps = 6),
-            chartPoint(value = 100.0, reps = 6).copy(day = LocalDate.of(2026, 7, 23)),
+            chartPoint(value = 100.0, reps = 6).copy(day = LocalDate(2026, 7, 23)),
         )
 
         assertEquals(
@@ -157,12 +159,14 @@ internal class ExerciseChartUiMapperTest {
 
     @Test
     fun `readout is null without an active index`() {
+        val points = listOf(chartPoint())
         assertNull(
             ChartReadoutMapper.toReadout(
-                points = listOf(chartPoint()),
+                points = points,
                 activeIndex = null,
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 type = ExerciseTypeUiModel.WEIGHTED,
+                copy = ChartReadoutMapper.toReadoutCopy(points, resources),
                 resourceWrapper = resources,
             ),
         )
@@ -199,7 +203,7 @@ internal class ExerciseChartUiMapperTest {
 
     private fun footerDomain(value: Double): ChartFooterStatsDomain {
         val point = ChartPointDomain(
-            day = LocalDate.of(2026, 4, 28),
+            day = LocalDate(2026, 4, 28),
             dayMillis = 0L,
             value = value,
             sessionUuid = "s1",
@@ -215,7 +219,7 @@ internal class ExerciseChartUiMapperTest {
         setCount: Int = 1,
         reps: Int = 0,
     ): ChartPointUiModel = ChartPointUiModel(
-        day = LocalDate.of(2026, 4, 28),
+        day = LocalDate(2026, 4, 28),
         dayMillis = 0L,
         sessionUuid = "session-${value.toInt()}",
         value = value,

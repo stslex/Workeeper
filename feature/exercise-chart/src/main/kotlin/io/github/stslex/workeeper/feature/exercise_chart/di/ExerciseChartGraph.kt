@@ -10,6 +10,8 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractorImpl
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.ChartLoader
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -32,6 +34,10 @@ interface ExerciseChartGraph {
 
     @Binds
     val ExerciseChartHandlerStoreImpl.bindHandlerStore: ExerciseChartHandlerStore
+
+    /** D2: ClickHandler reloads through the seam; CommonHandler is the scope's one instance. */
+    @Binds
+    val CommonHandler.bindChartLoader: ChartLoader
 
     /**
      * The creator method name must be UNIQUE across contributed extension factories — they all

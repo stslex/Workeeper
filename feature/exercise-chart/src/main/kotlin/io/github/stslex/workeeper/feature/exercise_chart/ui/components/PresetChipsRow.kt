@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.feature.exercise_chart.R
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 
 /**
@@ -41,12 +42,20 @@ internal fun PresetChipsRow(
         ChartPresetUiModel.entries.forEach { preset ->
             AppTag(
                 modifier = Modifier.testTag("ChartPresetChip_${preset.name}"),
-                label = stringResource(preset.labelRes),
+                label = stringResource(preset.labelRes()),
                 selected = preset == selected,
                 onClick = { onSelect(preset) },
             )
         }
     }
+}
+
+/** S3: the chip label for each preset; the enum itself carries no resource. */
+private fun ChartPresetUiModel.labelRes(): Int = when (this) {
+    ChartPresetUiModel.MONTH_1 -> R.string.feature_exercise_chart_preset_1m
+    ChartPresetUiModel.MONTHS_3 -> R.string.feature_exercise_chart_preset_3m
+    ChartPresetUiModel.YEAR_1 -> R.string.feature_exercise_chart_preset_1y
+    ChartPresetUiModel.ALL -> R.string.feature_exercise_chart_preset_all
 }
 
 @Preview

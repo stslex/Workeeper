@@ -15,7 +15,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 
 @SingleIn(ExerciseChartScope::class)
 internal class ClickHandler @Inject constructor(
-    private val commonHandler: CommonHandler,
+    private val chartLoader: ChartLoader,
     private val resourceWrapper: ResourceWrapper,
     store: ExerciseChartHandlerStore,
 ) : Handler<Action.Click>, ExerciseChartHandlerStore by store {
@@ -58,7 +58,7 @@ internal class ClickHandler @Inject constructor(
                 isLoading = true,
             )
         }
-        commonHandler.loadChart(selected)
+        chartLoader.loadChart(selected)
     }
 
     private fun processMetricSelect(action: Action.Click.OnMetricSelect) {
@@ -74,7 +74,7 @@ internal class ClickHandler @Inject constructor(
                 isLoading = true,
             )
         }
-        commonHandler.loadChart(selected)
+        chartLoader.loadChart(selected)
     }
 
     private fun processPickerItemSelect(action: Action.Click.OnPickerItemSelect) {
@@ -95,7 +95,7 @@ internal class ClickHandler @Inject constructor(
                 isLoading = true,
             )
         }
-        commonHandler.loadChart(item)
+        chartLoader.loadChart(item)
     }
 
     /**
@@ -106,6 +106,8 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (action.index == current.activeIndex) return
         if (action.index !in current.points.indices) return
+        // D3: the load resolved the copy, so the scrub assembles the readout without suspending.
+        val copy = current.readoutCopy ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
         // Rule 1 (compose-state-discipline): the readout is mapped BEFORE the lambda.
         val readout = ChartReadoutMapper.toReadout(
@@ -113,6 +115,7 @@ internal class ClickHandler @Inject constructor(
             activeIndex = action.index,
             metric = current.metric,
             type = current.selectedExercise?.type ?: ExerciseTypeUiModel.WEIGHTED,
+            copy = copy,
             resourceWrapper = resourceWrapper,
         )
         updateState {

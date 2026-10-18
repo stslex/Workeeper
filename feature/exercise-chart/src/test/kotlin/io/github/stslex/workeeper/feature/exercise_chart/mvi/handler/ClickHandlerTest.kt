@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutCopyUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -18,18 +19,19 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 import kotlin.test.assertNotNull
 
 internal class ClickHandlerTest {
 
-    private val commonHandler = mockk<CommonHandler>(relaxed = true)
+    private val chartLoader = mockk<ChartLoader>(relaxed = true)
     private val resources = mockk<ResourceWrapper>(relaxed = true).apply {
         every { getString(any(), *anyVararg()) } returns "label"
         every { formatMediumDate(any()) } returns "date"
@@ -53,23 +55,35 @@ internal class ClickHandlerTest {
 
     private fun stateWithPoints(activeIndex: Int): State = stateWithSelected().copy(
         points = persistentListOf(
-            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, "session-1", 90.0, 1),
-            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, "session-2", 100.0, 1),
+            ChartPointUiModel(LocalDate(2026, 4, 21), 0L, "session-1", 90.0, 1),
+            ChartPointUiModel(LocalDate(2026, 4, 28), 0L, "session-2", 100.0, 1),
         ),
         activeIndex = activeIndex,
+        readoutCopy = readoutCopy(1),
+    )
+
+    /** D3: the copy a load writes beside its points, in today's stubs: `label` and `plural`. */
+    private fun readoutCopy(vararg setCounts: Int): ChartReadoutCopyUiModel = ChartReadoutCopyUiModel(
+        heaviestWeightName = "label",
+        volumePerSessionName = "label",
+        volumePerSetName = "label",
+        kgUnit = "label",
+        repsUnit = "label",
+        recordLabel = "label",
+        setCountLabels = setCounts.toList().associateWith { "plural" }.toImmutableMap(),
     )
 
     @Test
     fun `OnPresetSelect to current preset is no-op`() {
         val flow = MutableStateFlow(stateWithSelected())
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPresetSelect(stateWithSelected().preset))
 
         verify(exactly = 0) { store.sendEvent(any()) }
         verify(exactly = 0) { store.consume(any()) }
-        verify(exactly = 0) { commonHandler.loadChart(any()) }
+        verify(exactly = 0) { chartLoader.loadChart(any()) }
     }
 
     @Test
@@ -78,7 +92,7 @@ internal class ClickHandlerTest {
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPresetSelect(ChartPresetUiModel.YEAR_1))
 
@@ -86,7 +100,7 @@ internal class ClickHandlerTest {
         assertTrue(flow.value.isLoading)
         // The exercise has not changed, so the reason stands until loadChart resolves the window.
         assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
-        verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
+        verify(exactly = 1) { chartLoader.loadChart(benchExercise) }
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
         assertEquals(HapticFeedbackType.SegmentTick, (captured.captured as Event.HapticClick).type)
@@ -98,21 +112,21 @@ internal class ClickHandlerTest {
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnMetricSelect(ChartMetricUiModel.VOLUME_PER_SET))
 
         assertEquals(ChartMetricUiModel.VOLUME_PER_SET, flow.value.metric)
         // Same exercise — see the preset test above.
         assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
-        verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
+        verify(exactly = 1) { chartLoader.loadChart(benchExercise) }
     }
 
     @Test
     fun `OnPickerOpen sets isPickerOpen true`() {
         val flow = MutableStateFlow(stateWithSelected())
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPickerOpen)
 
@@ -123,7 +137,7 @@ internal class ClickHandlerTest {
     fun `OnPickerQueryChange stores the query and the window resets it both ways`() {
         val flow = MutableStateFlow(stateWithSelected())
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPickerOpen)
         handler.invoke(Action.Click.OnPickerQueryChange("тяг"))
@@ -143,7 +157,7 @@ internal class ClickHandlerTest {
     fun `OnPickerDismiss sets isPickerOpen false`() {
         val flow = MutableStateFlow(stateWithSelected().copy(isPickerOpen = true))
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPickerDismiss)
 
@@ -154,13 +168,13 @@ internal class ClickHandlerTest {
     fun `OnPickerItemSelect to same exercise just dismisses picker`() {
         val flow = MutableStateFlow(stateWithSelected().copy(isPickerOpen = true))
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPickerItemSelect("uuid-1"))
 
         assertFalse(flow.value.isPickerOpen)
         assertEquals("uuid-1", flow.value.selectedExercise?.uuid)
-        verify(exactly = 0) { commonHandler.loadChart(any()) }
+        verify(exactly = 0) { chartLoader.loadChart(any()) }
     }
 
     @Test
@@ -172,7 +186,7 @@ internal class ClickHandlerTest {
             ),
         )
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnPickerItemSelect("uuid-2"))
 
@@ -182,7 +196,7 @@ internal class ClickHandlerTest {
         // Clears before loadChart finishes: dismissal must not flash not-found for the new pick.
         assertNull(flow.value.emptyReason)
         verify(exactly = 1) {
-            commonHandler.loadChart(
+            chartLoader.loadChart(
                 ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
             )
         }
@@ -192,7 +206,7 @@ internal class ClickHandlerTest {
     fun `OnScrub to a new index moves the readout and ticks the haptic`() {
         val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnScrub(0))
 
@@ -205,7 +219,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnScrub can read both sessions completed on the same day`() {
-        val day = LocalDate.of(2026, 4, 28)
+        val day = LocalDate(2026, 4, 28)
         val flow = MutableStateFlow(
             stateWithSelected().copy(
                 points = persistentListOf(
@@ -213,9 +227,10 @@ internal class ClickHandlerTest {
                     ChartPointUiModel(day, 0L, "evening", 100.0, 1),
                 ),
                 activeIndex = 1,
+                readoutCopy = readoutCopy(2, 1),
             ),
         )
-        val handler = ClickHandler(commonHandler, resources, newStore(flow))
+        val handler = ClickHandler(chartLoader, resources, newStore(flow))
 
         handler.invoke(Action.Click.OnScrub(0))
         assertEquals("80", flow.value.readout?.value)
@@ -228,7 +243,7 @@ internal class ClickHandlerTest {
     fun `OnScrub to the current index is a no-op — the haptic is a tick per CROSSED point`() {
         val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnScrub(1))
 
@@ -239,7 +254,7 @@ internal class ClickHandlerTest {
     fun `OnScrub outside the point range is ignored`() {
         val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnScrub(5))
 
@@ -251,7 +266,7 @@ internal class ClickHandlerTest {
     fun `OnEmptyCtaClick consumes OpenHome navigation`() {
         val flow = MutableStateFlow(stateWithSelected())
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnEmptyCtaClick)
 
@@ -262,7 +277,7 @@ internal class ClickHandlerTest {
     fun `OnBack consumes PopBack navigation`() {
         val flow = MutableStateFlow(stateWithSelected())
         val store = newStore(flow)
-        val handler = ClickHandler(commonHandler, resources, store)
+        val handler = ClickHandler(chartLoader, resources, store)
 
         handler.invoke(Action.Click.OnBack)
 

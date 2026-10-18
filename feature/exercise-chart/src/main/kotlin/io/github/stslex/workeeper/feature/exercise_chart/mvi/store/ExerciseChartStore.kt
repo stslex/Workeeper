@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutCopyUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
@@ -62,6 +63,8 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         // The scrubbed point (§4.5/§4.6); a metric switch preserves it, a preset switch resets.
         val activeIndex: Int?,
         val readout: ChartReadoutUiModel?,
+        /** D3: the readout's copy, resolved with the load so the scrub never suspends. */
+        val readoutCopy: ChartReadoutCopyUiModel?,
         val isPickerOpen: Boolean,
         /** The picker's filter-as-you-type text; reset whenever the sheet opens or closes. */
         val pickerQuery: String,
@@ -96,6 +99,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 footerStats = null,
                 activeIndex = null,
                 readout = null,
+                readoutCopy = null,
                 isPickerOpen = false,
                 pickerQuery = "",
                 emptyReason = null,

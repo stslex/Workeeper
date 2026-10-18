@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.domain.model
 
-import java.time.Instant
-import java.time.ZoneId
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlin.time.Instant
 
 /**
  * Date filter presets for the chart screen. [windowStartMillis] returns the inclusive
@@ -19,9 +21,9 @@ enum class ChartPresetDomain(
 
     /**
      * Inclusive window start as epoch millis, or `null` for [ALL]. Subtracts calendar days in
-     * [zone] rather than fixed 24h spans, so a DST transition cannot shift the boundary.
+     * [timeZone] rather than fixed 24h spans, so a DST transition cannot shift the boundary.
      */
-    fun windowStartMillis(now: Long, zone: ZoneId): Long? = windowDays?.let { days ->
-        Instant.ofEpochMilli(now).atZone(zone).minusDays(days).toInstant().toEpochMilli()
+    fun windowStartMillis(now: Long, timeZone: TimeZone): Long? = windowDays?.let { days ->
+        Instant.fromEpochMilliseconds(now).minus(days, DateTimeUnit.DAY, timeZone).toEpochMilliseconds()
     }
 }

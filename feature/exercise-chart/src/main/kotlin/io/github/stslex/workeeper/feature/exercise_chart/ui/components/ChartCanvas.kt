@@ -39,7 +39,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 import kotlin.math.roundToInt
 
 /**
@@ -281,8 +281,8 @@ private fun ChartCanvasLightPreview() {
 
 @Suppress("MagicNumber")
 private fun previewPoints(): ImmutableList<ChartPointUiModel> = listOf(
-    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "preview-1", 80.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "preview-2", 90.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "preview-3", 95.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "preview-4", 105.0, 2),
+    ChartPointUiModel(LocalDate(2026, 4, 5), 0L, "preview-1", 80.0, 1),
+    ChartPointUiModel(LocalDate(2026, 4, 12), 0L, "preview-2", 90.0, 1),
+    ChartPointUiModel(LocalDate(2026, 4, 19), 0L, "preview-3", 95.0, 1),
+    ChartPointUiModel(LocalDate(2026, 4, 26), 0L, "preview-4", 105.0, 2),
 ).toImmutableList()

@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -167,7 +168,7 @@ internal class CommonHandlerTest {
     }
 
     private fun pointDomain(sessionUuid: String): ChartPointDomain = ChartPointDomain(
-        day = java.time.LocalDate.of(2026, 4, 1),
+        day = LocalDate(2026, 4, 1),
         dayMillis = 0L,
         value = 100.0,
         sessionUuid = sessionUuid,
@@ -216,7 +217,7 @@ internal class CommonHandlerTest {
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
             ChartFoldDomain(
-                points = listOf(chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28))),
+                points = listOf(chartPointDomain(day = LocalDate(2026, 4, 28))),
                 footer = null,
             )
 
@@ -244,11 +245,11 @@ internal class CommonHandlerTest {
             ChartFoldDomain(
                 points = listOf(
                     chartPointDomain(
-                        day = java.time.LocalDate.of(2026, 4, 28),
+                        day = LocalDate(2026, 4, 28),
                         sessionUuid = "morning",
                     ),
                     chartPointDomain(
-                        day = java.time.LocalDate.of(2026, 4, 28),
+                        day = LocalDate(2026, 4, 28),
                         sessionUuid = "evening",
                     ),
                 ),
@@ -265,7 +266,7 @@ internal class CommonHandlerTest {
     }
 
     private fun chartPointDomain(
-        day: java.time.LocalDate,
+        day: LocalDate,
         sessionUuid: String = "session",
     ): ChartPointDomain = ChartPointDomain(
         day = day,

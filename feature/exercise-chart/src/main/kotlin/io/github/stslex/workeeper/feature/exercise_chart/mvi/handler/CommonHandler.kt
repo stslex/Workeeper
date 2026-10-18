@@ -24,12 +24,13 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 
+/** Public only because `ExerciseChartGraph` binds it as [ChartLoader] (D2). */
 @SingleIn(ExerciseChartScope::class)
-internal class CommonHandler @Inject constructor(
+class CommonHandler @Inject internal constructor(
     private val interactor: ExerciseChartInteractor,
     private val resourceWrapper: ResourceWrapper,
     store: ExerciseChartHandlerStore,
-) : Handler<Action.Common>, ExerciseChartHandlerStore by store {
+) : Handler<Action.Common>, ChartLoader, ExerciseChartHandlerStore by store {
 
     /** The in-flight chart load, if any. Held only so the next one can cancel it. */
     private var loadJob: Job? = null
@@ -88,7 +89,7 @@ internal class CommonHandler @Inject constructor(
     }
 
     /** Re-fetch and bucket the chart for [exercise]; [ClickHandler] calls it on every change. */
-    fun loadChart(exercise: ExercisePickerItemUiModel) {
+    override fun loadChart(exercise: ExercisePickerItemUiModel) {
         val current = state.value
         val metric = current.metric.toDomain()
         val type = exercise.type.toDomain()
@@ -101,10 +102,14 @@ internal class CommonHandler @Inject constructor(
         loadJob?.cancel()
         loadJob = launchDefault(
             onSuccess = { result ->
-                if (state.value.requestOf() != request) return@launchDefault
                 // Rule 1: mapping happens here; the lambda only copies State.
-                val prior = state.value
+                // F1: the copy resolves first; the guard, `prior`, the mapping and the write
+                // below then run with no suspension point between them.
                 val newPoints = result.toUiPoints()
+                val readoutCopy = ChartReadoutMapper.toReadoutCopy(newPoints, resourceWrapper)
+                val footerStats = result.footer?.toUi(type, resourceWrapper)
+                if (state.value.requestOf() != request) return@launchDefault
+                val prior = state.value
                 // §4.8: below two points there is no line, so sub-threshold is an empty state.
                 val subThreshold = newPoints.size < State.MIN_CHART_POINTS
                 // Session identity, not day: duplicate-day points must not transfer the scrub.
@@ -117,12 +122,12 @@ internal class CommonHandler @Inject constructor(
                         ?.takeIf { index -> sameSessions && index in newPoints.indices }
                         ?: (newPoints.size - 1)
                 }
-                val footerStats = result.footer?.toUi(type, resourceWrapper)
                 val readout = ChartReadoutMapper.toReadout(
                     points = newPoints,
                     activeIndex = activeIndex,
                     metric = current.metric,
                     type = exercise.type,
+                    copy = readoutCopy,
                     resourceWrapper = resourceWrapper,
                 )
                 updateStateImmediate {
@@ -131,6 +136,7 @@ internal class CommonHandler @Inject constructor(
                         footerStats = footerStats,
                         activeIndex = activeIndex,
                         readout = readout,
+                        readoutCopy = readoutCopy,
                         emptyReason = if (subThreshold) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {
@@ -166,9 +172,6 @@ internal class CommonHandler @Inject constructor(
             )
         }
     }
-
-    @Suppress("unused")
-    private fun State.placeholder(): State = this
 
     /** The live selection, in the shape a pending [ChartRequest] can be compared against. */
     private fun State.requestOf(): ChartRequest? = selectedExercise?.let { selected ->

@@ -7,11 +7,11 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPrese
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistorySetDomain
+import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.time.ZoneId
 
 /**
  * `ChartFolder` applies the PR eligibility and ordering when it picks each session's set.
@@ -19,7 +19,7 @@ import java.time.ZoneId
  */
 internal class ChartFolderPrRuleParityTest {
 
-    private val zone: ZoneId = ZoneId.of("UTC")
+    private val zone: TimeZone = TimeZone.UTC
 
     @Test
     fun `the record-holding set remains represented by its session point`() {
@@ -35,7 +35,7 @@ internal class ChartFolderPrRuleParityTest {
                     ExerciseTypeDomain.WEIGHTED
                 },
                 now = NOW,
-                zoneId = zone,
+                timeZone = zone,
             )
 
             val expected = scenario.expectedHolder
@@ -68,7 +68,7 @@ internal class ChartFolderPrRuleParityTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = NOW,
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertTrue(fold.points.isEmpty())
@@ -86,7 +86,7 @@ internal class ChartFolderPrRuleParityTest {
             metric = ChartMetricDomain.VOLUME_PER_SET,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = NOW,
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = fold.points.single()
@@ -106,7 +106,7 @@ internal class ChartFolderPrRuleParityTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = NOW,
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(500.0, fold.points.single().value)

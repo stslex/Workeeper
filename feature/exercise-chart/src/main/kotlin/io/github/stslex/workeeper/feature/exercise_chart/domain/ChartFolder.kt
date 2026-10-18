@@ -8,9 +8,11 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPoint
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPresetDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistoryEntryDomain
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 /**
  * Pure folding logic for the chart screen: raw history into the points + footer the canvas
@@ -22,16 +24,16 @@ internal fun bucketAndFold(
     metric: ChartMetricDomain,
     exerciseType: ExerciseTypeDomain,
     now: Long,
-    zoneId: ZoneId = ZoneId.systemDefault(),
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): ChartFoldDomain {
-    val windowStart = preset.windowStartMillis(now, zoneId)
+    val windowStart = preset.windowStartMillis(now, timeZone)
 
     val flat = history
         .asSequence()
         .filter { entry -> windowStart == null || entry.finishedAt >= windowStart }
         .flatMap { entry ->
-            val day = Instant.ofEpochMilli(entry.finishedAt).atZone(zoneId).toLocalDate()
-            val dayMillis = day.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val day = Instant.fromEpochMilliseconds(entry.finishedAt).toLocalDateTime(timeZone).date
+            val dayMillis = day.atStartOfDayIn(timeZone).toEpochMilliseconds()
             entry.sets.asSequence().map { set ->
                 FlatSet(
                     day = day,

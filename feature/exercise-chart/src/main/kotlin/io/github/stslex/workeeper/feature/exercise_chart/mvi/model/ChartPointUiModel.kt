@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.model
 
 import androidx.compose.runtime.Stable
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * One completed-session point on the chart. [value] is the Y value after the active metric

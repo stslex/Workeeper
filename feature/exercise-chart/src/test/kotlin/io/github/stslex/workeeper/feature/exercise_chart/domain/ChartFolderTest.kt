@@ -6,20 +6,21 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPrese
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistorySetDomain
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
 import kotlin.test.assertNotNull
 
 internal class ChartFolderTest {
 
-    private val zone: ZoneId = ZoneOffset.UTC
+    private val zone: TimeZone = TimeZone.UTC
 
     @Test
     fun `empty history returns empty points and null footer`() {
@@ -29,7 +30,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertTrue(result.points.isEmpty())
@@ -50,13 +51,13 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(1, result.points.size)
         val point = result.points.first()
         assertEquals(100.0, point.value)
-        assertEquals(LocalDate.of(2026, 4, 28), point.day)
+        assertEquals(LocalDate(2026, 4, 28), point.day)
         assertEquals(1, point.setCount)
         assertNotNull(result.footer)
         val sole = result.points.single()
@@ -92,20 +93,20 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val days = result.points.map { it.day }
         assertEquals(
             listOf(
-                LocalDate.of(2026, 4, 27),
-                LocalDate.of(2026, 4, 28),
-                LocalDate.of(2026, 4, 29),
+                LocalDate(2026, 4, 27),
+                LocalDate(2026, 4, 28),
+                LocalDate(2026, 4, 29),
             ),
             days,
         )
         // The Apr 29 session contributes its own best set.
-        val day29 = result.points.first { it.day == LocalDate.of(2026, 4, 29) }
+        val day29 = result.points.first { it.day == LocalDate(2026, 4, 29) }
         assertEquals(110.0, day29.value)
         assertEquals(2, day29.setCount)
     }
@@ -133,7 +134,7 @@ internal class ChartFolderTest {
             metric = metric,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
@@ -171,12 +172,12 @@ internal class ChartFolderTest {
             metric = metric,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("earlier", "later"), result.points.map { it.sessionUuid })
         assertEquals(
-            listOf(LocalDate.of(2026, 4, 28), LocalDate.of(2026, 4, 29)),
+            listOf(LocalDate(2026, 4, 28), LocalDate(2026, 4, 29)),
             result.points.map { it.day },
         )
     }
@@ -200,7 +201,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = result.points.single()
@@ -226,7 +227,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = result.points.single()
@@ -253,7 +254,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
@@ -276,7 +277,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SET,
             exerciseType = ExerciseTypeDomain.WEIGHTLESS,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(12.0, result.points.single().value)
@@ -301,7 +302,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 4, 25),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(1, result.points.size)
@@ -315,7 +316,7 @@ internal class ChartFolderTest {
     fun `MONTH_1 filter tracks calendar days across a DST spring-forward`() {
         // 2026-03-08 springs forward. A naive `now - 30 * 24h` boundary drifts back onto the
         // previous calendar day and would admit an entry the calendar window excludes.
-        val nyZone = ZoneId.of("America/New_York")
+        val nyZone = TimeZone.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 3, 20, hour = 0, minute = 30)
 
         val result = bucketAndFold(
@@ -336,7 +337,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = now,
-            zoneId = nyZone,
+            timeZone = nyZone,
         )
 
         assertEquals(listOf("in-window"), result.points.map { it.sessionUuid })
@@ -346,7 +347,7 @@ internal class ChartFolderTest {
     fun `MONTH_1 filter tracks calendar days across a DST fall-back`() {
         // 2026-11-01 falls back. A naive boundary drifts forward onto the next calendar day
         // and would drop an entry the calendar window includes; 10-17 00:00 discriminates.
-        val nyZone = ZoneId.of("America/New_York")
+        val nyZone = TimeZone.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 11, 15, hour = 23, minute = 30)
 
         val result = bucketAndFold(
@@ -361,7 +362,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = now,
-            zoneId = nyZone,
+            timeZone = nyZone,
         )
 
         assertEquals(listOf("calendar-includes"), result.points.map { it.sessionUuid })
@@ -386,7 +387,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(2, result.points.size)
@@ -409,7 +410,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SET,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(800.0, result.points.single().value)
@@ -434,7 +435,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SET,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
@@ -461,7 +462,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SET,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = result.points.single()
@@ -487,7 +488,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = result.points.single()
@@ -519,7 +520,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         val point = result.points.single()
@@ -549,7 +550,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
@@ -576,7 +577,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
@@ -600,7 +601,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTLESS,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(20.0, result.points.single().value)
@@ -628,7 +629,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.VOLUME_PER_SESSION,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertEquals(500.0, result.footer?.min?.value)
@@ -650,7 +651,7 @@ internal class ChartFolderTest {
             metric = ChartMetricDomain.HEAVIEST_WEIGHT,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
-            zoneId = zone,
+            timeZone = zone,
         )
 
         assertNotNull(result.footer)
@@ -680,21 +681,18 @@ internal class ChartFolderTest {
         month: Int,
         day: Int,
         hour: Int = 12,
-    ): Long = LocalDate.of(year, month, day)
-        .atTime(hour, 0)
-        .toInstant(ZoneOffset.UTC)
-        .toEpochMilli()
+    ): Long = LocalDateTime(year, month, day, hour, 0)
+        .toInstant(TimeZone.UTC)
+        .toEpochMilliseconds()
 
     private fun zonedMillis(
-        zone: ZoneId,
+        zone: TimeZone,
         year: Int,
         month: Int,
         day: Int,
         hour: Int = 12,
         minute: Int = 0,
-    ): Long = LocalDate.of(year, month, day)
-        .atTime(hour, minute)
-        .atZone(zone)
-        .toInstant()
-        .toEpochMilli()
+    ): Long = LocalDateTime(year, month, day, hour, minute)
+        .toInstant(zone)
+        .toEpochMilliseconds()
 }

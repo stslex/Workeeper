@@ -21,13 +21,12 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.LocalDate
 
-@Suppress("MagicNumber")
 @Smoke
 @RunWith(AndroidJUnit4::class)
 class ExerciseChartScreenTest : BaseComposeTest() {
@@ -36,10 +35,10 @@ class ExerciseChartScreenTest : BaseComposeTest() {
     val composeTestRule = createComposeRule()
 
     private val basePoints = persistentListOf(
-        ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "session-1", 80.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "session-2", 90.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "session-3", 95.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "session-4", 105.0, 2),
+        ChartPointUiModel(LocalDate(2026, 4, 5), 0L, "session-1", 80.0, 1),
+        ChartPointUiModel(LocalDate(2026, 4, 12), 0L, "session-2", 90.0, 1),
+        ChartPointUiModel(LocalDate(2026, 4, 19), 0L, "session-3", 95.0, 1),
+        ChartPointUiModel(LocalDate(2026, 4, 26), 0L, "session-4", 105.0, 2),
     )
 
     private val baseFooter = ChartFooterStatsUiModel(
@@ -145,7 +144,7 @@ class ExerciseChartScreenTest : BaseComposeTest() {
 
     @Test
     fun chart_sameDaySessions_dispatchesBothScrubIndices() {
-        val day = LocalDate.of(2026, 4, 28)
+        val day = LocalDate(2026, 4, 28)
         val capture = createActionCapture<Action>()
         val state = baseState().copy(
             points = persistentListOf(
@@ -193,7 +192,7 @@ class ExerciseChartScreenTest : BaseComposeTest() {
         // to Content.Loading, so it never composes the canvas. Production never builds this.
         val singlePointState = baseState().copy(
             points = persistentListOf(
-                ChartPointUiModel(LocalDate.of(2026, 4, 20), 0L, "session-1", 100.0, 1),
+                ChartPointUiModel(LocalDate(2026, 4, 20), 0L, "session-1", 100.0, 1),
             ),
             activeIndex = 0,
         )
