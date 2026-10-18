@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -47,7 +46,7 @@ internal class ExerciseChartExtensionIdentityTest {
         )
 
     private fun AppGraph.exerciseChart(exerciseUuid: String?): ExerciseChartGraph =
-        asContribution<ExerciseChartGraph.Factory>()
+        exerciseChartGraphFactory
             .createExerciseChartGraph(Screen.ExerciseChart(exerciseUuid = exerciseUuid))
 
     @Test
