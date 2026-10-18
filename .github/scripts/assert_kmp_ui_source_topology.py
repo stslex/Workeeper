@@ -1540,6 +1540,10 @@ class FeatureEntry:
     create_args: str = ""
     preview_inventory: dict = field(default_factory=dict)
     resource_wrapper_dates: dict = field(default_factory=dict)
+    # D5 (kmp-phase-7-13-exercise-chart-feature.md Section 12.0): the exact bare `@Preview`
+    # count per commonMain file, keyed like preview_inventory. Empty skips the check, so every
+    # earlier entry stays byte-identical; home keeps home_preview_contract.
+    bare_previews: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1808,7 +1812,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             )
         for match in re.finditer(
             r"resourceWrapper\s*\.\s*(getString|getQuantityString|getAbbreviatedRelativeTime|"
-            r"formatMediumDate)\s*\(",
+            r"formatMediumDate|formatDayMonth)\s*\(",
             source,
         ):
             if match.group(1) in dates.get(path, {}):
@@ -1896,6 +1900,26 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 f"{module}: {path.name} preview inventory must be exactly {expected_arguments!r}; "
                 f"actual={actual_arguments!r}"
             )
+    # D5: the count above sees only `@Preview(`. An entry that declares bare_previews pins every
+    # bare `@Preview` per file, and every other commonMain file holds none.
+    if entry.bare_previews:
+        bare_preview = re.compile(r"@Preview\b(?!\s*\()")
+        expected_bare = {
+            common_main / relative: count for relative, count in entry.bare_previews.items()
+        }
+        for path in sorted(set(expected_bare) - set(common_sources)):
+            failures.append(
+                f"{module}: {path.relative_to(root)} must hold bare @Preview annotations "
+                "but is missing"
+            )
+        for path, raw in common_sources.items():
+            expected = expected_bare.get(path, 0)
+            found = len(bare_preview.findall(strip_kotlin_comments(raw)))
+            if found != expected:
+                failures.append(
+                    f"{module}: {path.relative_to(root)} must hold exactly {expected} bare "
+                    f"@Preview annotation(s); found {found}"
+                )
 
     # Exactly the declared production and Native test-name suppressions.
     actual_suppressions: dict[str, list[str]] = {}
@@ -2341,6 +2365,8 @@ ARCHIVE_ENTRY = FeatureEntry(
     ],
     identity_accessor=r"(?<!AppGraph)\.archive\(\)",
     extra_checks=(archive_item_ui_contract, archive_day_month_contract),
+    # D5: the generic regex now sees formatDayMonth, so archive declares its one date read.
+    resource_wrapper_dates={"mvi/handler/ArchivePagingHandler.kt": {"formatDayMonth": 1}},
 )
 
 
