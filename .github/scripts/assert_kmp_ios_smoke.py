@@ -603,6 +603,153 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.12: the twelve portable suites (6/9/2/16/2/5/14/3/1/5/3/4), the iOS mode-label
+        # identity and the one production scene, 72 exact.
+        "module": "feature:home",
+        "results_dir": "feature/home/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.home.domain.HomeInteractorImplTest",
+                [
+                    "observeActiveSession maps repository ActiveSessionWithStats to domain",
+                    "observeStartCardReadout delegates to the use case with mode and now",
+                    "observeStartCardMode maps the stored string to the domain mode",
+                    "observeStartCardMode falls back to WEEK for an unknown stored value",
+                    "setStartCardMode forwards the persistence encoding to the data store",
+                    "the storage encoding and the WEEK default are pinned",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCaseTest",
+                [
+                    "WEEK with history wraps the week readout",
+                    "WEEK with no session ever is the mode's own empty state even at count zero",
+                    "DAYS_SINCE_LAST measures calendar days and anchors on the last session",
+                    "DAYS_SINCE_LAST with no session ever is NoSessions",
+                    "LAGGING_GROUPS maps idle stats to calendar days in repository order",
+                    "LAGGING_GROUPS with no tagged history is NoTaggedHistory",
+                    "FORGOTTEN_TRAINING carries days idle and composition",
+                    "FORGOTTEN_TRAINING never run keeps daysIdle null — HD1's most forgotten thing",
+                    "FORGOTTEN_TRAINING with no templates is NoTemplates",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCaseTest",
+                [
+                    "queries the repository with the Monday-first week window around now",
+                    "counts every session and collapses same-day sessions into one trained day",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.handler.ClickHandlerTest",
+                [
+                    "OnSettingsClick consumes OpenSettings navigation and emits HapticClick",
+                    "OnActiveSessionClick is a no-op when no active session",
+                    "OnActiveSessionClick consumes OpenLiveWorkoutResume with the session uuid",
+                    "OnRecentSessionClick consumes OpenPastSession with the session uuid",
+                    "OnPickerSeeAllClick hides picker and consumes OpenAllTrainings",
+                    "OnModeLabelClick opens the mode sheet with a haptic",
+                    "OnModeLabelClick while the training picker is up replaces the sheet",
+                    "OnModeSelected hides the sheet and persists the MAPPED mode through the interactor",
+                    "OnModeSheetDismiss hides the sheet without a haptic",
+                    "OnPickerTrainingSelected hides the picker before resolving conflict",
+                    "OnPickerTrainingSelected reports the persisted active session progress",
+                    "OnStartActionClick under a Forgotten body starts THAT training no picker",
+                    "OnStartActionClick under an Empty body opens the picker instead",
+                    "OnStartActionClick before the body arrives opens the picker",
+                    "OnConflictDismiss clears pendingConflict",
+                    "OnConflictResume consumes OpenLiveWorkoutResume with the active session uuid",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.handler.CommonHandlerTest",
+                [
+                    "Init subscribes to the active session and NOT to the paged recent list",
+                    "Init builds the start card pipeline from the persisted mode",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.handler.NavigationHandlerTest",
+                [
+                    "OpenLiveWorkoutResume navigates to LiveWorkout with the active session uuid",
+                    "OpenLiveWorkoutFresh navigates to LiveWorkout with the training uuid",
+                    "OpenPastSession navigates to PastSession with the session uuid",
+                    "OpenSettings navigates to Settings",
+                    "OpenAllTrainings navigates to AllTrainings bottom-bar destination",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapperTest",
+                [
+                    "recent mapper uses adhoc label and pluralized stats",
+                    "recent mapper preserves template name and mixed count labels",
+                    "picker mapper handles recently used and never used templates",
+                    "week mapper renders count as digits resolves the unit plural fills trained days",
+                    "week mapper with no sessions renders zero over seven unfilled pills",
+                    "week mapper uses the singular unit for one session",
+                    "days-since readout renders digits unit and the name-date anchor",
+                    "days-since readout for an adhoc session anchors on the adhoc label",
+                    "tag-idle readout scales bars against the longest idle and keeps bare counts",
+                    "tag-idle readout with all groups trained today draws empty bars not NaN",
+                    "forgotten readout joins days idle and composition",
+                    "forgotten readout for a never-run template says so instead of a day count",
+                    "each empty readout carries its own mode's copy",
+                    "week readout wrapped in the sealed type maps through the week mapper",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapperTest",
+                [
+                    "every UI mode maps to its own domain twin",
+                    "every domain mode maps to its own UI twin",
+                    "the mapping round-trips over the whole catalog",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.mvi.store.HomeStartCardSeedTest",
+                [
+                    "init seeds no mode and no body",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.ui.components.HomeListSurfaceTest",
+                [
+                    "rowsWin",
+                    "coldOpenIsLoading",
+                    "coldOpenErrorIsItsOwnVerdict",
+                    "settledAndEmpty",
+                    "theEnumIsNarrowedNotCopied",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.ui.components.HomePagingTailKindTest",
+                [
+                    "appending",
+                    "failedAppend",
+                    "exhausted",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.home.ui.components.RecentMetaLineTest",
+                [
+                    "order",
+                    "relativeLabelIsFirst",
+                    "statsAreLast",
+                    "emptyTokensAreDropped",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.home.ui.components.HomeStartCardModeLabelTest",
+                "theHeadNamesNoModeUntilOneIsKnown",
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.home.HomeFeatureSceneIosTest",
+                "resourcesReadoutsListPickerAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

@@ -40,6 +40,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
+import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
@@ -101,6 +102,8 @@ internal interface AppGraph :
     override val allExercisesGraphFactory: AllExercisesGraph.Factory
 
     override val pastSessionGraphFactory: PastSessionGraph.Factory
+
+    override val homeGraphFactory: HomeGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 

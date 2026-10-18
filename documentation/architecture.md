@@ -212,11 +212,12 @@ the Activity's store, silently process-scoping every Store
 
 1. Plain `Feature` — the feature resolves `context.appDeps<XxxGraph.Factory>()`, creates its graph
    extension, and reads the Store accessor. Plain features have no route arguments (e.g.
-   `Screen.BottomBar.Home`). The shared archive, all-trainings, and all-exercises entries are the
-   plain-shape factory-resolution exceptions: the generation-owned root passes the required
-   `ArchiveGraph.Factory` / `AllTrainingsGraph.Factory` / `AllExercisesGraph.Factory` through
-   `AppNavigationHost` and `archiveGraph` / `allTrainingsGraph` / `allExercisesGraph` into
-   `ArchiveFeature` / `AllTrainingsFeature` / `AllExercisesFeature`, which invoke it only inside the
+   `Screen.BottomBar.Home`). The shared archive, all-trainings, all-exercises, and home entries are
+   the plain-shape factory-resolution exceptions: the generation-owned root passes the required
+   `ArchiveGraph.Factory` / `AllTrainingsGraph.Factory` / `AllExercisesGraph.Factory` /
+   `HomeGraph.Factory` through `AppNavigationHost` and `archiveGraph` / `allTrainingsGraph` /
+   `allExercisesGraph` / `homeGraph` into `ArchiveFeature` / `AllTrainingsFeature` /
+   `AllExercisesFeature` / `HomeFeature`, which invoke it only inside the
    `rememberMetroStoreProcessor` creation lambda.
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
@@ -377,6 +378,13 @@ e.g. `current.tags.filterNot { ... }` — are exempt; they're cheap and lifting 
 introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`,
 `StringResolver`, or building a UI model from non-state inputs, hoist it.
 
+`updateStateImmediate`'s lambda is `suspend` and is not atomic, so a resolver suspending inside it
+could lose a concurrent update; that is one more reason the copy resolves before it. For the shared
+feature entries, `assert_kmp_ui_source_topology.py` fails a `stringResolver` or `resourceWrapper`
+reference inside a handler's `updateState { … }` or `updateStateImmediate { … }` lambda (decision
+D3 of [kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md)), beside its
+older check for resource reads there.
+
 ## Per-feature MVI layout
 
 Each feature module follows the same conventional shape. Using
@@ -490,13 +498,13 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-and past-session no longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
-`AppGraph.planEditorGraphFactory`, `AppGraph.archiveGraphFactory`,
-`AppGraph.allTrainingsGraphFactory`, `AppGraph.allExercisesGraphFactory`, and
-`AppGraph.pastSessionGraphFactory` implement the accessors declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. Exactly 7 feature/dialog Context readers
-remain.
+past-session, and home no longer use the feature-side Context seam:
+`AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+`AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
+`AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`, and
+`AppGraph.homeGraphFactory` implement the accessors declared by `AppRootDeps`, and the admitted
+composition reads that root contract exactly once. Retired generations and generations that lose
+the publication race resolve it zero times. Exactly 6 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 

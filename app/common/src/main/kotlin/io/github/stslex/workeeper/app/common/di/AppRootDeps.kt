@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
+import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
@@ -42,6 +43,9 @@ interface AppRootDeps {
 
     /** Generation-owned factory for the past-session graph extension. */
     val pastSessionGraphFactory: PastSessionGraph.Factory
+
+    /** Generation-owned factory for the home graph extension. */
+    val homeGraphFactory: HomeGraph.Factory
 }
 
 /**
