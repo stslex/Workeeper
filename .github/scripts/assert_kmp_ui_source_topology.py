@@ -670,6 +670,109 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:exercise-chart": {
+        "root": Path("feature/exercise-chart"),
+        "files": {
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ExerciseChartScreenTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolderPrRuleParityTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/golden/ExerciseChartGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_canvasMidScrub_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_canvasMidScrub_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_canvasRecordActive_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_canvasRecordActive_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_footerStats_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_footerStats_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_pickerSheetContent_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_pickerSheetContent_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_readoutPlain_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_readoutPlain_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_readoutRecord_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_readoutRecord_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNoData_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNoData_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNoSessions_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNoSessions_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNotFound_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenEmptyNotFound_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenLoadFailed_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenLoadFailed_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenPopulated_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenPopulated_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenRecordActive_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenRecordActive_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenWeightless_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_screenWeightless_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_tabsIndicatorFirst_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_tabsIndicatorFirst_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_tabsIndicatorSecond_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.exercise_chart.golden_ExerciseChartGoldenTest_tabsIndicatorSecond_light.png",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolder.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ExerciseChartInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ExerciseChartInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/mapper/ExerciseChartDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ChartFoldDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ChartFooterStatsDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ChartMetricDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ChartPointDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ChartPresetDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/HistoryEntryDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/model/RecentExerciseDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ChartLoader.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/mapper/ChartReadoutMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/mapper/ExerciseChartUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartFooterStatsUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartMetricUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartPointUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartPresetUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartReadoutCopyUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ChartReadoutUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/model/ExercisePickerItemUiModel.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/store/ExerciseChartStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/store/ExerciseChartStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/ExerciseChartGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/ExerciseChartScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartCanvas.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartEmptyState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartFooterStats.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartPointsAnimation.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartReadout.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ExerciseHeader.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ExercisePickerSheet.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/MetricTabs.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/PresetChipsRow.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolderTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/mapper/ExerciseChartUiMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/store/ChartContentResolutionTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartPointsAnimationTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/MetricTabsMotionTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ExerciseChartFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -717,7 +820,6 @@ IMAGE_VIEWER_CATALOGS = {
 
 EXPECTED_APP_DEPS_READERS = {
     Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
-    Path("feature/exercise-chart/src/main/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt"): "ExerciseChartGraph.Factory",
     Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
     Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
@@ -1540,6 +1642,10 @@ class FeatureEntry:
     create_args: str = ""
     preview_inventory: dict = field(default_factory=dict)
     resource_wrapper_dates: dict = field(default_factory=dict)
+    # D5 (kmp-phase-7-13-exercise-chart-feature.md Section 12.0): the exact bare `@Preview`
+    # count per commonMain file, keyed like preview_inventory. Empty skips the check, so every
+    # earlier entry stays byte-identical; home keeps home_preview_contract.
+    bare_previews: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1808,7 +1914,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             )
         for match in re.finditer(
             r"resourceWrapper\s*\.\s*(getString|getQuantityString|getAbbreviatedRelativeTime|"
-            r"formatMediumDate)\s*\(",
+            r"formatMediumDate|formatDayMonth)\s*\(",
             source,
         ):
             if match.group(1) in dates.get(path, {}):
@@ -1896,6 +2002,26 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 f"{module}: {path.name} preview inventory must be exactly {expected_arguments!r}; "
                 f"actual={actual_arguments!r}"
             )
+    # D5: the count above sees only `@Preview(`. An entry that declares bare_previews pins every
+    # bare `@Preview` per file, and every other commonMain file holds none.
+    if entry.bare_previews:
+        bare_preview = re.compile(r"@Preview\b(?!\s*\()")
+        expected_bare = {
+            common_main / relative: count for relative, count in entry.bare_previews.items()
+        }
+        for path in sorted(set(expected_bare) - set(common_sources)):
+            failures.append(
+                f"{module}: {path.relative_to(root)} must hold bare @Preview annotations "
+                "but is missing"
+            )
+        for path, raw in common_sources.items():
+            expected = expected_bare.get(path, 0)
+            found = len(bare_preview.findall(strip_kotlin_comments(raw)))
+            if found != expected:
+                failures.append(
+                    f"{module}: {path.relative_to(root)} must hold exactly {expected} bare "
+                    f"@Preview annotation(s); found {found}"
+                )
 
     # Exactly the declared production and Native test-name suppressions.
     actual_suppressions: dict[str, list[str]] = {}
@@ -2341,6 +2467,8 @@ ARCHIVE_ENTRY = FeatureEntry(
     ],
     identity_accessor=r"(?<!AppGraph)\.archive\(\)",
     extra_checks=(archive_item_ui_contract, archive_day_month_contract),
+    # D5: the generic regex now sees formatDayMonth, so archive declares its one date read.
+    resource_wrapper_dates={"mvi/handler/ArchivePagingHandler.kt": {"formatDayMonth": 1}},
 )
 
 
@@ -4393,6 +4521,581 @@ HOME_ENTRY = FeatureEntry(
     resource_wrapper_dates={"mvi/mapper/HomeUiMapper.kt": {"getAbbreviatedRelativeTime": 2}},
 )
 
+
+def exercise_chart_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D2, D3, F1 and S3 (kmp-phase-7-13-exercise-chart-feature.md §5.2–5.5, §12.1): copy outside
+    # composition resolves through the injected StringResolver, the readout's copy is resolved per
+    # load before the staleness guard, the scrub assembles it without suspending, ClickHandler
+    # reloads through the ChartLoader seam, and the events and UI models keep their shape. Every
+    # count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    def require_parameters(relative: str, source: str, name: str, expected: list) -> None:
+        parameters = data_class_parameters(source, name)
+        if parameters != expected:
+            failures.append(
+                f"{module}: {shown(relative)} {name} parameters must be exactly {expected}; "
+                f"actual={parameters}"
+            )
+
+    # 1. The event and the UI models keep their shape.
+    for relative, name, expected in (
+        ("mvi/store/ExerciseChartStore.kt", "HapticClick", ["type: HapticFeedbackType"]),
+        (
+            "mvi/model/ChartReadoutUiModel.kt",
+            "ChartReadoutUiModel",
+            [
+                "metricName: String",
+                "isRecord: Boolean",
+                "caption: String",
+                "value: String",
+                "unit: String",
+            ],
+        ),
+        (
+            "mvi/model/ChartReadoutCopyUiModel.kt",
+            "ChartReadoutCopyUiModel",
+            [
+                "heaviestWeightName: String",
+                "volumePerSessionName: String",
+                "volumePerSetName: String",
+                "kgUnit: String",
+                "repsUnit: String",
+                "recordLabel: String",
+                "setCountLabels: ImmutableMap<Int, String>",
+            ],
+        ),
+        (
+            "mvi/model/ChartFooterStatsUiModel.kt",
+            "ChartFooterStatsUiModel",
+            [
+                "minTitle: String",
+                "minValue: String",
+                "maxTitle: String",
+                "maxValue: String",
+                "lastTitle: String",
+                "lastValue: String",
+                "unit: String?",
+            ],
+        ),
+    ):
+        source = source_of(relative)
+        if source is not None:
+            require_parameters(relative, source, name, expected)
+
+    # 2. S3: the two enums carry no resource id.
+    for relative, fragment in (
+        ("mvi/model/ChartMetricUiModel.kt", "enum class ChartMetricUiModel {"),
+        ("mvi/model/ChartPresetUiModel.kt", "enum class ChartPresetUiModel {"),
+    ):
+        source = source_of(relative)
+        if source is not None:
+            require(relative, source, fragment, 1)
+
+    # 3. D3: the readout's copy resolves once per load; the assembly itself never suspends.
+    readout_relative = "mvi/mapper/ChartReadoutMapper.kt"
+    readout_source = source_of(readout_relative)
+    if readout_source is not None:
+        for fragment, expected in (
+            ("suspend fun toReadoutCopy(", 1),
+            ("fun toReadout(", 1),
+            ("copy: ChartReadoutCopyUiModel,", 1),
+            ("suspend fun toReadout(", 0),
+            ("stringResolver.getString(", 6),
+            ("stringResolver.getPluralString(", 1),
+        ):
+            require(readout_relative, readout_source, fragment, expected)
+
+    footer_relative = "mvi/mapper/ExerciseChartUiMapper.kt"
+    footer_source = source_of(footer_relative)
+    if footer_source is not None:
+        for fragment, expected in (
+            ("suspend fun ChartFooterStatsDomain.toUi(", 1),
+            ("stringResolver.getString(", 4),
+            ("stringResolver.getPluralString(", 1),
+        ):
+            require(footer_relative, footer_source, fragment, expected)
+
+    # 5. D2 and D3: the scrub reads State's copy and reloads through the seam; nothing launches.
+    click_relative = "mvi/handler/ClickHandler.kt"
+    click_source = source_of(click_relative)
+    if click_source is not None:
+        for fragment, expected in (
+            ("private val chartLoader: ChartLoader,", 1),
+            ("private val resourceWrapper: ResourceWrapper,", 1),
+            ("val copy = current.readoutCopy ?: return", 1),
+            ("ChartReadoutMapper.toReadout(", 1),
+            ("chartLoader.loadChart(", 3),
+            ("CommonHandler", 0),
+            ("StringResolver", 0),
+            ("stringResolver", 0),
+            ("launch", 0),
+        ):
+            require(click_relative, click_source, fragment, expected)
+
+    # 6. CommonHandler resolves the copy through the resolver and passes the wrapper on.
+    common_relative = "mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    copy_call = "ChartReadoutMapper.toReadoutCopy(newPoints, stringResolver)"
+    if common_source is not None:
+        for fragment, expected in (
+            ("class CommonHandler @Inject internal constructor(", 1),
+            ("override fun loadChart(exercise: ExercisePickerItemUiModel)", 1),
+            ("private val resourceWrapper: ResourceWrapper,", 1),
+            ("private val stringResolver: StringResolver,", 1),
+            (copy_call, 1),
+            ("toUi(type, stringResolver)", 1),
+            ("ChartReadoutMapper.toReadout(", 1),
+            ("getString(", 0),
+            ("getPluralString(", 0),
+        ):
+            require(common_relative, common_source, fragment, expected)
+
+        # 7. F1: the copy resolves before the staleness guard, which precedes the read of `prior`.
+        copy_at = common_source.find(copy_call)
+        guard_at = common_source.find(
+            "if (state.value.requestOf() != request) return@launchDefault"
+        )
+        prior_at = common_source.find("val prior = state.value")
+        if not (0 <= copy_at < guard_at < prior_at):
+            failures.append(
+                f"{module}: {shown(common_relative)} must resolve the readout copy before the "
+                "staleness guard and the read of `prior` (F1)"
+            )
+
+    # 8. D2: the seam and its one binding.
+    for relative, fragments in (
+        (
+            "mvi/handler/ChartLoader.kt",
+            ("interface ChartLoader {", "fun loadChart(exercise: ExercisePickerItemUiModel)"),
+        ),
+        ("di/ExerciseChartGraph.kt", ("val CommonHandler.bindChartLoader: ChartLoader",)),
+    ):
+        source = source_of(relative)
+        if source is not None:
+            for fragment in fragments:
+                require(relative, source, fragment, 1)
+
+    # 9. 7.11's rules 4–7: no CMP top-level reads; mvi/ reads only through the resolver and
+    # composes nothing; ui/ reads nothing outside composition; both walks find a file.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        if posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def exercise_chart_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # D4 and S1 (§3.5, §10, §12.1): core:data:database is no edge of the module, only the host
+    # parity suite reads core:data:database-test's PrRuleFixture, and shared code names no java.*.
+    failures: list[str] = []
+    module = entry.module
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    if 'project(":core:data:database")' in build_source:
+        failures.append(f"{module}: build must not depend on :core:data:database in any source set")
+    parity = (
+        entry.root / "src/androidHostTest/kotlin" / entry.package_dir
+        / "domain/ChartFolderPrRuleParityTest.kt"
+    )
+    if not parity.is_file():
+        failures.append(
+            f"{module}: the host parity suite {parity.relative_to(entry.root)} is missing"
+        )
+    java_reference = re.compile(r"(?<![\w.])java\.")
+    shared_sets = ("src/commonMain/", "src/commonTest/", "src/iosTest/")
+    for path in sorted((entry.root / "src").rglob("*.kt")):
+        source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(entry.root)
+        if path != parity and "core.data.database" in source:
+            failures.append(
+                f"{module}: {relative} must not read core:data:database or its fixtures; only the "
+                "host parity suite reads PrRuleFixture (D4)"
+            )
+        if relative.as_posix().startswith(shared_sets) and java_reference.search(source):
+            failures.append(
+                f"{module}: {relative} names java.* in shared code; use kotlinx-datetime (S1)"
+            )
+    return failures
+
+
+EXERCISE_CHART_ENTRY = FeatureEntry(
+    module="feature:exercise-chart",
+    short_name="exercise-chart",
+    root=Path("feature/exercise-chart"),
+    package_dir="io/github/stslex/workeeper/feature/exercise_chart",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count. No core:data:database edge (see
+    # exercise_chart_dependency_contract).
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.exercise_chart.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'implementation(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'api(project(":core:ui:plan-editor"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "api(libs.kotlinx.datetime)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        '"androidHostTestImplementation"(project(":core:ui:golden-harness"))',
+        '"androidHostTestImplementation"(project(":core:data:database-test"))',
+        '"androidDeviceTestImplementation"(libs.bundles.android.test)',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)',
+        '"androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))',
+        '"androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)',
+        '"androidDeviceTestImplementation"(project(":core:ui:test-utils"))',
+        'apply(from = "$rootDir/gradle/golden-gate.gradle.kts")',
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as §3.4 prints it
+    # at exit — P1's twelve positional plural items.
+    catalog=(
+        ("string", "feature_exercise_chart_picker_title", "Select exercise", "Выбрать упражнение"),
+        ("string", "feature_exercise_chart_picker_open", "Switch exercise", "Сменить упражнение"),
+        ("string", "feature_exercise_chart_picker_search", "Search", "Поиск"),
+        ("string", "feature_exercise_chart_picker_no_matches", "Nothing found", "Ничего не найдено"),
+        ("string", "feature_exercise_chart_metric_heaviest", "Weight", "Вес"),
+        ("string", "feature_exercise_chart_metric_session", "Session", "Сессия"),
+        ("string", "feature_exercise_chart_metric_volume", "Set", "Подход"),
+        ("string", "feature_exercise_chart_metric_name_heaviest", "Heaviest weight", "Максимальный вес"),
+        ("string", "feature_exercise_chart_metric_name_session", "Volume per session", "Объём за сессию"),
+        ("string", "feature_exercise_chart_metric_name_volume", "Volume per set", "Объём за подход"),
+        ("string", "feature_exercise_chart_unit_kg", "kg", "кг"),
+        ("string", "feature_exercise_chart_unit_reps", "reps", "повт."),
+        ("string", "feature_exercise_chart_readout_record", "record", "рекорд"),
+        (
+            "plurals",
+            "feature_exercise_chart_readout_sets",
+            (("one", "%1$d set"), ("other", "%1$d sets")),
+            (
+                ("one", "%1$d подход"),
+                ("few", "%1$d подхода"),
+                ("many", "%1$d подходов"),
+                ("other", "%1$d подходов"),
+            ),
+        ),
+        ("string", "feature_exercise_chart_preset_1m", "1M", "1М"),
+        ("string", "feature_exercise_chart_preset_3m", "3M", "3М"),
+        ("string", "feature_exercise_chart_preset_1y", "1Y", "1Г"),
+        ("string", "feature_exercise_chart_preset_all", "All", "Всё"),
+        ("string", "feature_exercise_chart_footer_min", "Minimum", "Минимум"),
+        ("string", "feature_exercise_chart_footer_max", "Maximum", "Максимум"),
+        ("string", "feature_exercise_chart_footer_last", "Last", "Последний"),
+        (
+            "plurals",
+            "feature_exercise_chart_value_reps",
+            (("one", "%1$d rep"), ("other", "%1$d reps")),
+            (
+                ("one", "%1$d повторение"),
+                ("few", "%1$d повторения"),
+                ("many", "%1$d повторений"),
+                ("other", "%1$d повторений"),
+            ),
+        ),
+        ("string", "feature_exercise_chart_empty_no_sessions_title", "No finished workouts yet", "Нет завершённых тренировок"),
+        ("string", "feature_exercise_chart_empty_no_sessions_subtitle", "Finish a session — your progress will appear here.", "Завершите тренировку — здесь появится прогресс."),
+        ("string", "feature_exercise_chart_empty_no_sessions_cta", "Start a workout", "Начать тренировку"),
+        ("string", "feature_exercise_chart_empty_not_found_title", "Exercise unavailable", "Упражнение недоступно"),
+        ("string", "feature_exercise_chart_empty_not_found_subtitle", "It may be archived or have no logged sets. Pick another from the list.", "Возможно, оно архивировано или подходов не было. Выберите другое из списка."),
+        ("string", "feature_exercise_chart_empty_not_found_cta", "Choose exercise", "Выберите упражнение"),
+        ("string", "feature_exercise_chart_error_load_title", "Couldn’t load the chart", "Не удалось загрузить график"),
+        ("string", "feature_exercise_chart_error_load_subtitle", "Something went wrong while reading your history. Try again.", "Что-то пошло не так при чтении истории. Попробуйте ещё раз."),
+        ("string", "feature_exercise_chart_error_load_cta", "Try again", "Повторить"),
+        ("string", "feature_exercise_chart_empty_no_data_title", "Nothing to show yet", "Пока нечего показать"),
+        ("string", "feature_exercise_chart_empty_no_data_subtitle", "The chart appears after two recorded sessions with this exercise.", "График появится после двух записанных сессий с этим упражнением."),
+    ),
+    resource_prefix="feature_exercise_chart_",
+    # The two mappers and the two copy-reading handlers are deliberately absent (§12.1).
+    payload_files=frozenset({
+        "ChartFooterStatsUiModel.kt",
+        "ChartMetricUiModel.kt",
+        "ChartPointUiModel.kt",
+        "ChartPresetUiModel.kt",
+        "ChartReadoutCopyUiModel.kt",
+        "ChartReadoutUiModel.kt",
+        "ExerciseChartStore.kt",
+        "ExercisePickerItemUiModel.kt",
+    }),
+    store_file="mvi/store/ExerciseChartStore.kt",
+    state_fields=(
+        ("isLoading", "Boolean"),
+        ("initialUuid", "String?"),
+        ("selectedExercise", "ExercisePickerItemUiModel?"),
+        ("recentExercises", "ImmutableList<ExercisePickerItemUiModel>"),
+        ("preset", "ChartPresetUiModel"),
+        ("metric", "ChartMetricUiModel"),
+        ("points", "ImmutableList<ChartPointUiModel>"),
+        ("footerStats", "ChartFooterStatsUiModel?"),
+        ("activeIndex", "Int?"),
+        ("readout", "ChartReadoutUiModel?"),
+        ("readoutCopy", "ChartReadoutCopyUiModel?"),
+        ("isPickerOpen", "Boolean"),
+        ("pickerQuery", "String"),
+        ("emptyReason", "EmptyReason?"),
+    ),
+    # S4: the mapper keeps the one day-month read; the two handlers pass the wrapper on.
+    resource_wrapper_readers=frozenset({
+        "mvi/handler/ClickHandler.kt",
+        "mvi/handler/CommonHandler.kt",
+        "mvi/mapper/ChartReadoutMapper.kt",
+    }),
+    preview_subjects={},
+    # The three inherited production suppressions of §0.2; nothing under any test source set.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/ExerciseChartScreen.kt": [
+            '"MagicNumber"',
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartCanvas.kt": [
+            '"MagicNumber"',
+        ],
+    },
+    # The 68 portable identities of §3.2, the 4 host-only parity identities (D4), and the scene
+    # of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolderTest.kt": [
+            "empty history returns empty points and null footer",
+            "single set produces single point with min equal max equal last",
+            "multiple sessions are sorted by completion time and use each session maximum",
+            "two same-day sessions remain separate for every metric",
+            "two different-day sessions remain chronological for every metric",
+            "setCount counts sets the chart cannot plot",
+            "setCount keeps the readout accurate when only one set is plottable",
+            "equal same-day values keep both sessions in completion order",
+            "weightless exercise plots reps regardless of metric",
+            "preset window filters out sets older than start",
+            "MONTH_1 filter tracks calendar days across a DST spring-forward",
+            "MONTH_1 filter tracks calendar days across a DST fall-back",
+            "ALL preset includes very old sets",
+            "volume metric multiplies weight by reps",
+            "volume tie across sessions preserves both in completion order",
+            "volume tie inside one session keeps the earlier position",
+            "session volume sums every eligible set of the session",
+            "session volume excludes ineligible sets from the sum but not from setCount",
+            "same-day session volume retains each session total",
+            "session total tie preserves both sessions in completion order",
+            "weightless session volume sums reps",
+            "session volume footer tracks session totals across days",
+            "single point case still produces footer with min equal max",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ClickHandlerTest.kt": [
+            "OnPresetSelect to current preset is no-op",
+            "OnPresetSelect changes state KEEPS emptyReason and delegates load",
+            "OnMetricSelect changes metric KEEPS emptyReason and delegates load",
+            "OnPickerOpen sets isPickerOpen true",
+            "OnPickerQueryChange stores the query and the window resets it both ways",
+            "OnPickerDismiss sets isPickerOpen false",
+            "OnPickerItemSelect to same exercise just dismisses picker",
+            "OnPickerItemSelect to different exercise clears emptyReason and triggers load",
+            "OnScrub to a new index moves the readout and ticks the haptic",
+            "OnScrub can read both sessions completed on the same day",
+            "OnScrub to the current index is a no-op — the haptic is a tick per CROSSED point",
+            "OnScrub outside the point range is ignored",
+            "OnEmptyCtaClick consumes OpenHome navigation",
+            "OnBack consumes PopBack navigation",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/CommonHandlerTest.kt": [
+            "Init with null and no recents emits NO_FINISHED_SESSIONS and skips loadChart",
+            "Init with null and last-trained available loads its chart",
+            "Init with explicit uuid not in recents emits EXERCISE_NOT_FOUND and skips loadChart",
+            "Init with explicit uuid and empty recents prefers NO_FINISHED_SESSIONS",
+            "Init with explicit valid uuid wins over getLastTrainedExerciseUuid",
+            "a response whose metric no longer matches the live state is dropped",
+            "a response that still matches the live state is applied",
+            "loadChart with empty result sets NO_DATA_FOR_EXERCISE",
+            "loadChart with a single point is sub-threshold — empty state no readout",
+            "loadChart with two same-day sessions plots and scrubs the later session",
+            "default state preset is ALL",
+            "a throwing recents read resolves to LOAD_FAILED instead of loading forever",
+            "a throwing chart read resolves to LOAD_FAILED",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/NavigationHandlerTest.kt": [
+            "PopBack triggers popBack",
+            "OpenHome navigates to BottomBar Home",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/mapper/ExerciseChartUiMapperTest.kt": [
+            "domain point keeps session identity in the UI model",
+            "readout for the record point carries the flag and the grouped whole-number value",
+            "readout off the record point has two caption parts and no flag",
+            "volume record indices keep the earliest point on a value tie",
+            "weight record index follows the PR reps tiebreak across sessions",
+            "weight record index keeps the earliest session when weight and reps tie",
+            "readout is null without an active index",
+            "weighted footer values are the readout's grouped form with one shared unit",
+            "weightless footer is a reps plural over the value with no separable unit",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/store/ChartContentResolutionTest.kt": [
+            "one-point exercise never resolves to Plot across metric and preset switches",
+            "zero-point exercise never resolves to Plot across metric and preset switches",
+            "two-point exercise does resolve to Plot",
+            "switching a resolved empty state never passes through Loading",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/ChartPointsAnimationTest.kt": [
+            "same-day sessions keep distinct animation targets and scrub positions",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ui/components/MetricTabsMotionTest.kt": [
+            "indicatorUsesTravel",
+            "durationIsUnchanged",
+        ],
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolderPrRuleParityTest.kt": [
+            "the record-holding set remains represented by its session point",
+            "an ineligible set never becomes the session point",
+            "volume metric keeps the shared eligibility even though it ranks differently",
+            "session metric keeps the shared eligibility in its sum",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ExerciseChartFeatureSceneIosTest.kt": [
+            "resourcesReadoutFooterStatesPickerAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/golden/ExerciseChartGoldenTest.kt"
+    ),
+    # The 15 methods of §3.3, in source order; each renders light and dark (30 PNGs).
+    golden_methods=[
+        "screenPopulated",
+        "screenRecordActive",
+        "screenWeightless",
+        "screenEmptyNoData",
+        "screenEmptyNotFound",
+        "screenEmptyNoSessions",
+        "screenLoadFailed",
+        "canvasMidScrub",
+        "canvasRecordActive",
+        "pickerSheetContent",
+        "readoutPlain",
+        "readoutRecord",
+        "tabsIndicatorFirst",
+        "tabsIndicatorSecond",
+        "footerStats",
+    ],
+    device_test="src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/ExerciseChartScreenTest.kt",
+    device_fragments=(
+        "@Smoke",
+        "fun chart_rendersReadout_whenReadoutIsPresent()",
+        "fun chart_rendersRecordDot_whenReadoutIsRecord()",
+        "fun chart_pressNearLeftEdge_dispatchesOnScrubToFirstIndex()",
+        "fun chart_pressNearRightEdge_dispatchesOnScrubToLastIndex()",
+        "fun chart_sameDaySessions_dispatchesBothScrubIndices()",
+        "fun chart_tappingExerciseHeader_dispatchesOnPickerOpen()",
+        "fun chart_singlePoint_neverReachesTheCanvas()",
+    ),
+    feature_class="ExerciseChartFeature",
+    graph_interface="ExerciseChartGraph",
+    graph_function="exerciseChartGraph",
+    factory_accessor="exerciseChartGraphFactory",
+    create_method="createExerciseChartGraph",
+    store_impl="ExerciseChartStoreImpl",
+    store_accessor="exerciseChartStore",
+    feature_file="di/ExerciseChartFeature.kt",
+    graph_file="ui/ExerciseChartGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/ExerciseChartExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.exerciseChart(exerciseUuid: String?): ExerciseChartGraph = exerciseChartGraphFactory.createExerciseChartGraph(Screen.ExerciseChart(exerciseUuid = exerciseUuid))",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the extension inherits the Default dispatcher key and not the IO one",
+        "each extension carries its own route arg into the store state",
+        "a null route arg survives the binding and reaches the store as null",
+    ],
+    # Each identity reaches the graph once through the accessor; the fourth identity's "ex-2"
+    # call and the helper itself are deliberately not counted.
+    identity_accessor=r'(?<!AppGraph)\.exerciseChart\((?:"ex-1"|null)\)',
+    extra_checks=(exercise_chart_copy_contract, exercise_chart_dependency_contract),
+    create_args="screen",
+    preview_inventory={},
+    resource_wrapper_dates={
+        "mvi/mapper/ChartReadoutMapper.kt": {"formatDayMonth": 1},
+    },
+    # D5: all 23 bare previews, pinned per file; every other commonMain file holds none.
+    bare_previews={
+        "ui/ExerciseChartScreen.kt": 6,
+        "ui/components/ChartEmptyState.kt": 3,
+        "ui/components/ChartCanvas.kt": 2,
+        "ui/components/ChartFooterStats.kt": 2,
+        "ui/components/ChartReadout.kt": 2,
+        "ui/components/ExerciseHeader.kt": 2,
+        "ui/components/ExercisePickerSheet.kt": 2,
+        "ui/components/MetricTabs.kt": 2,
+        "ui/components/PresetChipsRow.kt": 2,
+    },
+)
+
 # Every shared feature entry the gate holds to its exact contract.
 FEATURE_ENTRIES = (
     ARCHIVE_ENTRY,
@@ -4400,6 +5103,7 @@ FEATURE_ENTRIES = (
     ALL_EXERCISES_ENTRY,
     PAST_SESSION_ENTRY,
     HOME_ENTRY,
+    EXERCISE_CHART_ENTRY,
 )
 
 

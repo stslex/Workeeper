@@ -223,11 +223,12 @@ the Activity's store, silently process-scoping every Store
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
-   navigation library type. The shared image-viewer, plan-editor, and past-session entries are the
-   shape-B factory-resolution exceptions: their generation-owned root passes the required
-   `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` through
-   `AppNavigationHost` and `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` into
-   `ImageViewerFeature` / `PlanEditorFeature` / `PastSessionFeature`. Each invokes it only inside
+   navigation library type. The shared image-viewer, plan-editor, past-session, and exercise-chart
+   entries are the shape-B factory-resolution exceptions: their generation-owned root passes the
+   required `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` /
+   `ExerciseChartGraph.Factory` through `AppNavigationHost` and `imageViewerGraph` /
+   `planEditorGraph` / `pastSessionGraph` / `exerciseChartGraph` into `ImageViewerFeature` /
+   `PlanEditorFeature` / `PastSessionFeature` / `ExerciseChartFeature`. Each invokes it only inside
    the `rememberMetroStoreProcessor` creation lambda.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
@@ -385,6 +386,10 @@ reference inside a handler's `updateState { … }` or `updateStateImmediate { �
 D3 of [kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md)), beside its
 older check for resource reads there.
 
+A synchronous gesture path cannot suspend, so the copy it needs is resolved earlier, with the load,
+and kept in State: exercise-chart's scrub assembles its readout from `readoutCopy` (decision D3 of
+[kmp-phase-7-13-exercise-chart-feature.md](feature-specs/kmp-phase-7-13-exercise-chart-feature.md)).
+
 ## Per-feature MVI layout
 
 Each feature module follows the same conventional shape. Using
@@ -498,13 +503,14 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, and home no longer use the feature-side Context seam:
+past-session, home, and exercise-chart no longer use the feature-side Context seam:
 `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
-`AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`, and
-`AppGraph.homeGraphFactory` implement the accessors declared by `AppRootDeps`, and the admitted
-composition reads that root contract exactly once. Retired generations and generations that lose
-the publication race resolve it zero times. Exactly 6 feature/dialog Context readers remain.
+`AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
+`AppGraph.homeGraphFactory`, and `AppGraph.exerciseChartGraphFactory` implement the accessors
+declared by `AppRootDeps`, and the admitted composition reads that root contract exactly once.
+Retired generations and generations that lose the publication race resolve it zero times. Exactly
+5 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 

@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, archive feature, all-trainings feature, all-exercises feature, past-session feature, and home feature Native tests plus exact identities on `macos-26`, then links the same twelve modules' iosArm64 test binaries, never run). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, archive feature, all-trainings feature, all-exercises feature, past-session feature, home feature, and exercise-chart feature Native tests plus exact identities on `macos-26`, then links the same thirteen modules' iosArm64 test binaries, never run). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -158,7 +158,8 @@ against the tree as checked out, before any step could rewrite it. `:lint-rules:
 Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`, `:core:ui:navigation`,
 `:core:ui:mvi`, `:core:ui:start-mode`, `:core:ui:plan-editor`, `:feature:image-viewer`,
 `:feature:plan-editor`, `:feature:archive`, `:feature:all-trainings`,
-`:feature:all-exercises`, `:feature:past-session`, and `:feature:home`: the KMP
+`:feature:all-exercises`, `:feature:past-session`, `:feature:home`, and
+`:feature:exercise-chart`: the KMP
 conventions register `assembleDebug`, `testDebugUnitTest`, `lintDebug`,
 `assembleDebugAndroidTest` and `verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks
 (`assemble`, `testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`,
@@ -367,10 +368,13 @@ scene), `:feature:all-exercises` (all 66 portable cases plus the production scen
 catalog and mapper copy through the real `StringResolver`, paging branches, selection, the three
 dialogs, and dispatch), `:feature:past-session` (all 40 portable cases plus the production
 scene: the catalog and the totals copy through the real `StringResolver`, grouped tonnage
-included, the three phases, the session sheet, both dialogs, and dispatch), and `:feature:home`
+included, the three phases, the session sheet, both dialogs, and dispatch), `:feature:home`
 (all 70 portable cases, the iOS mode-label case, and the production scene: the catalog and the
 readout, row, picker and banner copy through the real `StringResolver`, the loading, banner,
-start-card and list states, the empty region, the training picker, and dispatch).
+start-card and list states, the empty region, the training picker, and dispatch), and
+`:feature:exercise-chart` (all 68 portable cases plus the production scene: the catalog and the
+readout, footer and grouping copy through the real `StringResolver`, the loading, plot, weightless
+and four empty states, the picker, and dispatch, canvas presses included).
 It uses `--continue` so one module's failure cannot mask whether the others ran. The job selects
 `/Applications/Xcode_26.6.app` explicitly, asserts
 `xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
@@ -399,8 +403,8 @@ never ran because an earlier setup step (checkout, Xcode selection, JDK, signing
 asserting there would bury the real setup failure under a misleading `result directory … does not
 exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
 the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature,
-archive feature, all-trainings feature, all-exercises feature, past-session feature, or home
-feature verdict.
+archive feature, all-trainings feature, all-exercises feature, past-session feature, home
+feature, or exercise-chart feature verdict.
 The kit validator
 requires two tuples,
 `io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest.sheetLayoutRendersMigratedStringFontAndIcon`
@@ -427,13 +431,16 @@ tuples,
 `io.github.stslex.workeeper.feature.home.ui.components.HomeStartCardModeLabelTest.theHeadNamesNoModeUntilOneIsKnown`
 and
 `io.github.stslex.workeeper.feature.home.HomeFeatureSceneIosTest.resourcesReadoutsListPickerAndActionsRenderAndDispatch`
-exactly once each, for exactly 72 target tuples. All twelve result directories upload under
+exactly once each, for exactly 72 target tuples. The exercise-chart feature validator requires all
+68 portable tuples and
+`io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartFeatureSceneIosTest.resourcesReadoutFooterStatesPickerAndActionsRenderAndDispatch`
+exactly once, for exactly 69 target tuples. All thirteen result directories upload under
 `if: always()` regardless.
 
-The same twelve modules' iosArm64 (device) test binaries are then linked in one forced invocation
+The same thirteen modules' iosArm64 (device) test binaries are then linked in one forced invocation
 (`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
 started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
-each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/12 linked`, and fails naming every
+each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/13 linked`, and fails naming every
 module without a binary. Device tests are compiled and linked, never run: CI has no device. The
 Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
 `assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
