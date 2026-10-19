@@ -2649,14 +2649,15 @@ In the table, `…/` stands for `io/github/stslex/workeeper/feature/exercise_cha
 ### 19.10 Documentation boundary
 
 At exit the module tracks exactly Section 9.1's 88 paths (the build file and 87 files under `src`),
-against 85 at the base, and the five commits change every one of them: against the base, `git diff
+against 85 at the base, and the commits change every one of them: against the base, `git diff
 -M20%` reads the build file as modified, 84 paths as renames and three as added (`ChartLoader.kt`,
 `ChartReadoutCopyUiModel.kt` and the scene); at `-M30%`, S3's rewrite of `ChartMetricUiModel.kt`
 reads as a deletion and an addition. Outside the module they change exactly 14 paths, the 14
 of Section 9.2: six app paths, three CI paths and five documentation paths. Nothing remains under
 `src/main`, `src/test` or `src/androidTest`.
 
-The documentation edits are exactly Section 9.2's: architecture.md's shape-list sentence (the
+The documentation edits are Section 9.2's, plus the one tech-debt.md row of Section 19.11:
+architecture.md's shape-list sentence (the
 exercise-chart factory flow beside image-viewer's, plan-editor's and past-session's), Context-seam
 paragraph (`Exactly 5 feature/dialog Context readers remain.`) and the State-mutation sentence on
 synchronous gesture paths; ci-cd.md's workflows-table row, alias list, Native module description,
@@ -2673,3 +2674,22 @@ the handler-seam template. Deliberately untouched, as Section 9.2 lists them:
 `documentation/research/domain-boundary-audit-codex.md` lines 32, 66–68, 79, 105 and 121,
 `documentation/kmp-migration-assessment.md`, `.claude/skills/*` (add-feature.md line 42 included),
 tech-debt.md rows 420 and 494, and `graphify-out/`.
+
+### 19.11 Review
+
+Codex reviewed `dabbe7d1d` when the PR opened and reported no finding. The `@claude review`
+requested once CI was green found no blocking issue and made three non-blocking observations. Each
+was reproduced against the code and the base before it was classified (AGENTS.md "Merge flow"):
+
+| # | Observation | Verdict | Evidence |
+| ---: | --- | --- | --- |
+| 1 | a picker switch leaves the previous exercise's points scrubbable, and a scrub then maps the new exercise's unit over them | correct-and-new | `State.content` ignores `isLoading`, so the plot stays drawn while it reloads; `ChartCanvas`'s `onScrub` is not gated; `processScrub` maps `selectedExercise.type` over `current.points` until the load's write replaces the readout. The base `231739859` has the same picker, scrub and `content` code, so the behaviour is inherited. D3 adds no failure mode: `readoutCopy` is written together with `points`, so `setCountLabels` always covers the scrubbed point |
+| 2 | `Clock.System.now()` is read inside the launch rather than injected | correct-but-already-decided | S9 (Section 0.4): the base read `System.currentTimeMillis()` at the same place, and Section 8 allows no other handler seam |
+| 3 | `CommonHandler` is public only for the `ChartLoader` binding | correct-but-already-decided | D2 (Section 0.4), option A as locked: a public `CommonHandler` with an internal constructor and `@Binds val CommonHandler.bindChartLoader: ChartLoader` |
+
+Section 1 forbids changing scrub, picker or loading behaviour in this phase, so observation 1 is not
+fixed here. By the maintainer's ruling it is recorded as a 🟢 row in tech-debt.md's State Mutation
+Discipline, beside F1's: the one documentation edit beyond Section 9.2's list, in a sixth signed
+commit that changes only tech-debt.md and this section. Its gates (the topology script under the
+six Pythons, the personal-data gate, detekt alone) run on its committed tree and are recorded on the
+PR with its CI run.
