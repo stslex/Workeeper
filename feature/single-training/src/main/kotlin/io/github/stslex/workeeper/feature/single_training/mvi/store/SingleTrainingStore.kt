@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
+import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingEditCopy
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -54,6 +55,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         val originalSnapshot: Snapshot?,
         val pickerState: PickerState,
         val dialogState: DialogState,
+        /** D2: the editor's constant copy, resolved once per Store; its click paths read it here. */
+        val editCopy: TrainingEditCopy,
         val isLoading: Boolean,
     ) : Store.State {
 
@@ -149,6 +152,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 originalSnapshot = null,
                 pickerState = PickerState.Closed,
                 dialogState = DialogState.Hidden,
+                editCopy = TrainingEditCopy.EMPTY,
                 isLoading = uuid != null,
             )
         }

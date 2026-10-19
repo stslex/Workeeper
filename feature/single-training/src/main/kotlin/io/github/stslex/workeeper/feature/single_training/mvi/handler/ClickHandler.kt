@@ -36,6 +36,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
@@ -170,23 +171,31 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (!current.canPermanentlyDelete) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        // Rule 1 of compose-state-discipline: no ResourceWrapper calls inside updateState.
-        val title = resourceWrapper.getString(
-            R.string.feature_training_detail_permanent_delete_title,
-            current.name,
-        )
-        val body = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_body)
-        val impactSummary =
-            resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_impact)
-        val confirmLabel =
-            resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_confirm)
-        updateState {
-            it.copy(
-                dialogState = DialogState.PermanentDeleteConfirm(
-                    title = title,
-                    body = body,
-                    impactSummary = impactSummary,
-                    confirmLabel = confirmLabel,
+        val name = current.name
+        // D2: the title takes the name, so the confirm's copy resolves on use, before its write.
+        launch(
+            onSuccess = { confirm ->
+                updateState { latest ->
+                    // Only the menu it replaces may open it: a dismissal that landed first wins.
+                    if (latest.dialogState == DialogState.DetailMenu) {
+                        latest.copy(dialogState = confirm)
+                    } else {
+                        latest
+                    }
+                }
+            },
+        ) {
+            DialogState.PermanentDeleteConfirm(
+                title = resourceWrapper.getString(
+                    R.string.feature_training_detail_permanent_delete_title,
+                    name,
+                ),
+                body = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_body),
+                impactSummary = resourceWrapper.getString(
+                    R.string.feature_training_detail_permanent_delete_impact,
+                ),
+                confirmLabel = resourceWrapper.getString(
+                    R.string.feature_training_detail_permanent_delete_confirm,
                 ),
             )
         }
@@ -297,11 +306,8 @@ internal class ClickHandler @Inject constructor(
             return
         }
         if (current.exercises.isEmpty()) {
-            sendEvent(
-                Event.ShowSaveError(
-                    message = resourceWrapper.getString(R.string.feature_training_edit_error_no_exercises),
-                ),
-            )
+            // D2: the copy was resolved once per Store, so this click path never suspends.
+            sendEvent(Event.ShowSaveError(message = current.editCopy.noExercisesError))
             return
         }
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -312,7 +318,7 @@ internal class ClickHandler @Inject constructor(
             description = current.description.takeIf { it.isNotBlank() },
             isAdhoc = false,
             archived = false,
-            timestamp = System.currentTimeMillis(),
+            timestamp = Clock.System.now().toEpochMilliseconds(),
             labels = current.tags.map { it.name },
             exerciseUuids = current.exercises.sortedBy { it.position }.map { it.exerciseUuid },
         )
@@ -369,28 +375,26 @@ internal class ClickHandler @Inject constructor(
         if (mode.isCreate) {
             consume(Action.Navigation.Back)
         } else {
-            updateState { latest -> latest.applySnapshotOrPop() }
+            // D3: the snapshot's restore is written in the lambda itself, so the lambda is a copy.
+            updateState { latest ->
+                val snapshot = latest.originalSnapshot ?: return@updateState latest.copy(mode = Mode.Read)
+                latest.copy(
+                    mode = Mode.Read,
+                    expandedExerciseUuids = persistentSetOf(),
+                    pendingSetRestores = persistentListOf(),
+                    name = snapshot.name,
+                    nameError = false,
+                    description = snapshot.description,
+                    tags = latest.availableTags
+                        .filter { tag -> tag.uuid in snapshot.tagUuids }
+                        .toImmutableList(),
+                    tagSearchQuery = "",
+                    // The whole snapshot list, never the current one filtered and re-sorted:
+                    // filtering can only remove, and re-sorting would leave `position` stale.
+                    exercises = snapshot.exercises,
+                )
+            }
         }
-    }
-
-    private fun State.applySnapshotOrPop(): State {
-        val snapshot = originalSnapshot ?: return copy(mode = Mode.Read)
-        val matchedTags = availableTags
-            .filter { tag -> tag.uuid in snapshot.tagUuids }
-            .toImmutableList()
-        return copy(
-            mode = Mode.Read,
-            expandedExerciseUuids = persistentSetOf(),
-            pendingSetRestores = persistentListOf(),
-            name = snapshot.name,
-            nameError = false,
-            description = snapshot.description,
-            tags = matchedTags,
-            tagSearchQuery = "",
-            // The whole snapshot list, never the current one filtered and re-sorted:
-            // filtering can only remove, and re-sorting would leave `position` stale.
-            exercises = snapshot.exercises,
-        )
     }
 
     private fun processAddExerciseClick() {
@@ -443,9 +447,7 @@ internal class ClickHandler @Inject constructor(
         if (removed != null) {
             sendEvent(
                 Event.ShowExerciseRemovedUndo(
-                    message = resourceWrapper.getString(
-                        R.string.feature_training_edit_exercise_removed,
-                    ),
+                    message = current.editCopy.exerciseRemoved,
                     item = removed,
                     wasExpanded = action.exerciseUuid in current.expandedExerciseUuids,
                     draftEpoch = current.draftEpoch,
@@ -526,9 +528,7 @@ internal class ClickHandler @Inject constructor(
         ) {
             sendEvent(
                 Event.ShowSetRemovedUndo(
-                    message = resourceWrapper.getString(
-                        R.string.feature_training_edit_plan_set_removed,
-                    ),
+                    message = state.value.editCopy.setRemoved,
                     exerciseUuid = action.exerciseUuid,
                     set = priorDraft[bodyAction.index],
                     index = bodyAction.index,

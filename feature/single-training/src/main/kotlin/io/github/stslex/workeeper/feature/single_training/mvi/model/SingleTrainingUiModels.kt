@@ -17,6 +17,24 @@ data class TrainingExerciseItem(
     val planSummary: String,
 )
 
+/**
+ * D2: the editor's constant copy — the no-exercises error and the two undo toasts — resolved once
+ * per Store by `Init`, so the click paths that show it never suspend.
+ */
+@Stable
+data class TrainingEditCopy(
+    val noExercisesError: String,
+    val exerciseRemoved: String,
+    val setRemoved: String,
+) {
+
+    companion object {
+
+        /** Until `Init`'s resolution lands; a toast needs a draft exercise or a typed name first. */
+        val EMPTY = TrainingEditCopy(noExercisesError = "", exerciseRemoved = "", setRemoved = "")
+    }
+}
+
 @Stable
 data class HistorySessionItem(
     val sessionUuid: String,

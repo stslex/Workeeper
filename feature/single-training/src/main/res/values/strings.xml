@@ -16,10 +16,8 @@
     <string name="feature_training_detail_permanent_delete_body">This training has no history. This cannot be undone.</string>
     <string name="feature_training_detail_permanent_delete_impact">No history affected</string>
     <string name="feature_training_detail_permanent_delete_confirm">Delete</string>
-    <string name="feature_training_detail_other_session_active_format">Active session for ‘%1$s’ is in progress. Finish it first.</string>
     <string name="feature_training_detail_conflict_unnamed">Workout</string>
     <string name="feature_training_detail_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
-    <string name="feature_training_detail_active_pill">Active</string>
 
 
     <plurals name="feature_training_detail_session_count">

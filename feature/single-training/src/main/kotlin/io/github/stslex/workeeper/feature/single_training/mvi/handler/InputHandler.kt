@@ -38,7 +38,7 @@ internal class InputHandler @Inject constructor(
 
     private fun processPickerSearch(action: Action.Input.OnPickerSearchChange) {
         val current = state.value
-        val picker = current.pickerState as? PickerState.Open ?: return
+        if (current.pickerState !is PickerState.Open) return
         // Refresh picker results in the background; the state update is non-blocking so
         // the search field stays responsive even when the active filter is wide.
         launch(
@@ -70,8 +70,5 @@ internal class InputHandler @Inject constructor(
             val latestPicker = latest.pickerState as? PickerState.Open ?: return@updateState latest
             latest.copy(pickerState = latestPicker.copy(query = action.value))
         }
-        // suppress unused: picker reference kept for clarity at the call site.
-        @Suppress("unused")
-        val acknowledged = picker
     }
 }

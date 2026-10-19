@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseT
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingEditCopy
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -69,6 +70,13 @@ internal class ClickHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     private val handler = ClickHandler(interactor, resourceWrapper, Dispatchers.Unconfined, store)
+
+    /** What `Init` resolves (D2); a distinct string per field, so a read of the wrong one fails. */
+    private val editCopy = TrainingEditCopy(
+        noExercisesError = "no-exercises",
+        exerciseRemoved = "exercise-removed",
+        setRemoved = "set-removed",
+    )
 
     /** Meaningful only while Save is never disabled (§26): a predicate would hide both. */
     @Test
@@ -1146,10 +1154,86 @@ internal class ClickHandlerTest {
             canPermanentlyDelete = true,
             dialogState = DialogState.DetailMenu,
         )
+        // D2: the confirm's copy resolves in a launch, so the launch runs here.
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
 
         handler.invoke(Action.Click.OnPermanentDeleteClick)
 
         assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
+    }
+
+    /** D2: the confirm lands only on the menu it replaces; a dismissal in its window wins. */
+    @Test
+    fun `a menu dismissed before the confirm's copy lands stays dismissed`() {
+        stateFlow.value = stateFlow.value.copy(
+            uuid = "training-1",
+            canPermanentlyDelete = true,
+            dialogState = DialogState.DetailMenu,
+        )
+        // The copy's launch dispatches but does NOT complete; both lambdas are captured.
+        var pendingOnSuccess: (suspend CoroutineScope.(Any?) -> Unit)? = null
+        var pendingAction: (suspend CoroutineScope.() -> Any?)? = null
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            pendingOnSuccess = arg(1)
+            pendingAction = arg(4)
+            mockk(relaxed = true)
+        }
+
+        handler.invoke(Action.Click.OnPermanentDeleteClick)
+        assertEquals(DialogState.DetailMenu, stateFlow.value.dialogState)
+
+        handler.invoke(Action.Click.OnDetailMenuDismiss)
+        runBlocking { pendingOnSuccess!!(this, pendingAction!!()) }
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    /** D2: the save error shows the copy `Init` put in State, with no read on the click. */
+    @Test
+    fun `the save error carries the copy Init resolved`() {
+        stateFlow.value = stateFlow.value.copy(name = "Push Day", editCopy = editCopy)
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnSaveClick)
+
+        assertEquals("no-exercises", events.filterIsInstance<Event.ShowSaveError>().single().message)
+    }
+
+    /** D2: each undo toast carries its own field of the copy `Init` put in State. */
+    @Test
+    fun `the undo toasts carry the copy Init resolved`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+                exercise("ex-2", position = 1),
+            ),
+            editCopy = editCopy,
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        handler.invoke(Action.Click.OnExerciseRemove("ex-2"))
+
+        assertEquals("set-removed", events.filterIsInstance<Event.ShowSetRemovedUndo>().single().message)
+        assertEquals(
+            "exercise-removed",
+            events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single().message,
+        )
     }
 
     private fun exercise(

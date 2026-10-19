@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
+import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
@@ -15,6 +16,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
+import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingEditCopy
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
@@ -37,6 +39,7 @@ internal class CommonHandler @Inject constructor(
     private fun processInit() {
         observeTags()
         observeActiveSession()
+        resolveEditCopy()
         val uuid = state.value.uuid ?: run {
             updateState { current ->
                 current.copy(
@@ -63,10 +66,57 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
+    /**
+     * D2: the editor's constant copy, resolved once per Store, so the save error and the two undo
+     * toasts read it from State and their click paths never suspend.
+     */
+    private fun resolveEditCopy() {
+        launch(
+            onSuccess = { copy -> updateState { it.copy(editCopy = copy) } },
+        ) {
+            TrainingEditCopy(
+                noExercisesError = resourceWrapper.getString(
+                    R.string.feature_training_edit_error_no_exercises,
+                ),
+                exerciseRemoved = resourceWrapper.getString(
+                    R.string.feature_training_edit_exercise_removed,
+                ),
+                setRemoved = resourceWrapper.getString(R.string.feature_training_edit_plan_set_removed),
+            )
+        }
+    }
+
     private fun loadTraining(uuid: String) {
         launch(
             onSuccess = { result ->
-                updateState { current -> current.applyLoaded(result) }
+                // F2: the rows read nothing from the State, so they are built before the write;
+                // the lambda keeps only the tag match against the live availableTags, and the copy.
+                val exercises = result.exercises.toExerciseItems()
+                val pastSessions = result.recentSessions.toHistoryItems()
+                updateState { current ->
+                    val training = result.training ?: return@updateState current.copy(isLoading = false)
+                    val tags = training.labels.map { name ->
+                        current.availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
+                            ?: AppTagItem(uuid = name, name = name)
+                    }.toImmutableList()
+                    current.copy(
+                        uuid = training.uuid,
+                        name = training.name,
+                        description = training.description.orEmpty(),
+                        tags = tags,
+                        exercises = exercises,
+                        pastSessions = pastSessions,
+                        historyCount = result.historyCount,
+                        originalSnapshot = State.Snapshot(
+                            name = training.name,
+                            description = training.description.orEmpty(),
+                            tagUuids = tags.map { it.uuid },
+                            exercises = exercises,
+                        ),
+                        canPermanentlyDelete = result.canPermanentlyDelete,
+                        isLoading = false,
+                    )
+                }
             },
             // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
             // compose until the load lands (§26; `SingleTrainingGraph`), so a throw that left
@@ -84,14 +134,8 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
-    private fun State.applyLoaded(result: LoadResult): State {
-        val training = result.training ?: return copy(isLoading = false)
-        val tags = training.labels.map { name ->
-            availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                ?: AppTagItem(uuid = name, name = name)
-        }.toImmutableList()
-        val exercises = result.exercises
-            .sortedBy { it.position }
+    private fun List<TrainingExerciseDetail>.toExerciseItems(): ImmutableList<TrainingExerciseItem> =
+        sortedBy { it.position }
             .mapIndexed { index, detail ->
                 val planSets = detail.planSets
                     ?.map { it.toUi() }
@@ -105,27 +149,8 @@ internal class CommonHandler @Inject constructor(
                     planSets = planSets,
                     planSummary = planSets?.formatPlanSummary().orEmpty(),
                 )
-            }.toImmutableList()
-        val past = result.recentSessions.toHistoryItems()
-        val baseSnapshot = State.Snapshot(
-            name = training.name,
-            description = training.description.orEmpty(),
-            tagUuids = tags.map { it.uuid },
-            exercises = exercises,
-        )
-        return copy(
-            uuid = training.uuid,
-            name = training.name,
-            description = training.description.orEmpty(),
-            tags = tags,
-            exercises = exercises,
-            pastSessions = past,
-            historyCount = result.historyCount,
-            originalSnapshot = baseSnapshot,
-            canPermanentlyDelete = result.canPermanentlyDelete,
-            isLoading = false,
-        )
-    }
+            }
+            .toImmutableList()
 
     private fun List<SessionDomain>.toHistoryItems(): ImmutableList<HistorySessionItem> =
         mapNotNull { session ->

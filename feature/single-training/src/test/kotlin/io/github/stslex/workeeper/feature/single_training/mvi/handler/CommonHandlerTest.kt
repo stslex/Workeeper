@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingEditCopy
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.mockk.coEvery
@@ -111,5 +113,31 @@ internal class CommonHandlerTest {
         // The create branch takes its dirty baseline here, so a new training opens clean.
         assertNotNull(stateFlow.value.originalSnapshot)
         assertFalse(stateFlow.value.hasChanges)
+    }
+
+    /** D2: `Init` resolves the editor's constant copy once per Store, on either route. */
+    @Test
+    fun `Init resolves the editor's constant copy into State`() {
+        every {
+            resourceWrapper.getString(R.string.feature_training_edit_error_no_exercises)
+        } returns "no-exercises"
+        every {
+            resourceWrapper.getString(R.string.feature_training_edit_exercise_removed)
+        } returns "exercise-removed"
+        every {
+            resourceWrapper.getString(R.string.feature_training_edit_plan_set_removed)
+        } returns "set-removed"
+        val (stateFlow, handler) = setup(State.create(uuid = null))
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(
+            TrainingEditCopy(
+                noExercisesError = "no-exercises",
+                exerciseRemoved = "exercise-removed",
+                setRemoved = "set-removed",
+            ),
+            stateFlow.value.editCopy,
+        )
     }
 }
