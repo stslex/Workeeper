@@ -1646,6 +1646,10 @@ class FeatureEntry:
     # count per commonMain file, keyed like preview_inventory. Empty skips the check, so every
     # earlier entry stays byte-identical; home keeps home_preview_contract.
     bare_previews: dict = field(default_factory=dict)
+    # D4 (kmp-phase-7-14-single-training-feature.md Section 12.0): every golden class beside
+    # golden_test, path relative to root -> its exact methods. Empty by default, so every earlier
+    # entry stays byte-identical.
+    extra_golden_tests: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1729,6 +1733,20 @@ FEATURE_STATE_LAMBDA_SIDE_EFFECTS = (
 # byte-identical; any other reference is this pattern's.
 FEATURE_STATE_LAMBDA_RESOLVERS = re.compile(r"\b(stringResolver|resourceWrapper)\b(?!\.)")
 
+# D5 (kmp-phase-7-14-single-training-feature.md Section 12.0): what a State lambda may not hold,
+# it may not reach through a function of its own file either. A function resolves copy when its
+# text holds a side-effect token above or names the wrapper or the resolver at all. `invoke` is
+# the handler's entry point, and `.invoke(` on a function value would collide with it.
+FEATURE_COPY_HELPER_REFERENCES = re.compile(r"\b(?:stringResolver|resourceWrapper)\b")
+SAME_FILE_FUNCTION = re.compile(
+    r"^(?P<indent>[ ]*)(?:(?:private|internal|protected|public|override|open|suspend|inline|"
+    r"tailrec|operator|infix)\s+)*fun\s+(?:<[^>]*>\s*)?(?:[\w.<>?, ]+\.)?(?P<name>\w+)\s*\(",
+    re.MULTILINE,
+)
+
+# D4: golden_test's pattern, for the extra classes and the completeness walk.
+GOLDEN_METHODS = re.compile(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(")
+
 FEATURE_FORBIDDEN_TEST_APIS = ("org.junit", "io.mockk", "@Disabled", "@Ignore")
 
 NATIVE_TEST_NAME_SUPPRESSION = '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")'
@@ -1774,6 +1792,48 @@ KOTLIN_TEST_NAME = re.compile(r"@Test\s+fun\s+(?:`([^`]+)`|(\w+))\s*\(")
 
 def strip_kotlin_comments(source: str) -> str:
     return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL))
+
+
+def calls_function(source: str, name: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(name)}\s*\(", source) is not None
+
+
+def copy_resolving_functions(source: str) -> set:
+    """D5: the functions of a comment-free file that resolve copy, directly or through another
+    of them. A function runs from its line to the next line indented at most as deep that is not
+    its own closing bracket."""
+    lines = source.splitlines(keepends=True)
+    texts: dict[str, list[str]] = {}
+    for match in SAME_FILE_FUNCTION.finditer(source):
+        if match.group("name") == "invoke":
+            continue
+        indent = len(match.group("indent"))
+        first = source.count("\n", 0, match.start())
+        last = first + 1
+        while last < len(lines):
+            text = lines[last].strip()
+            depth = len(lines[last]) - len(lines[last].lstrip(" "))
+            if text and (depth < indent or (depth == indent and text[0] not in ")]}")):
+                break
+            last += 1
+        texts.setdefault(match.group("name"), []).append("".join(lines[first:last]))
+    resolving = {
+        name
+        for name, bodies in texts.items()
+        for body in bodies
+        if FEATURE_COPY_HELPER_REFERENCES.search(body)
+        or any(token in body for token in FEATURE_STATE_LAMBDA_SIDE_EFFECTS)
+    }
+    grown = True
+    while grown:
+        grown = False
+        for name, bodies in texts.items():
+            if name not in resolving and any(
+                calls_function(body, helper) for body in bodies for helper in resolving
+            ):
+                resolving.add(name)
+                grown = True
+    return resolving
 
 
 def read_catalog(path: Path) -> list[tuple]:
@@ -1946,6 +2006,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     for path, source in common_sources.items():
         if "/mvi/handler/" not in path.as_posix():
             continue
+        helpers = copy_resolving_functions(strip_kotlin_comments(source))
         for call in ("updateState", "updateStateImmediate"):
             for body in braced_call_bodies(source, call):
                 update_count += 1
@@ -1965,6 +2026,12 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                         f"{module}: {call} in {path.relative_to(root)} references {name!r} "
                         "inside the State lambda; resolve copy before it"
                     )
+                for helper in sorted(helpers):
+                    if calls_function(strip_kotlin_comments(body), helper):
+                        failures.append(
+                            f"{module}: {call} in {path.relative_to(root)} calls {helper!r}, "
+                            "a same-file function that resolves copy; resolve it before the lambda"
+                        )
     if update_count == 0:
         failures.append(f"{module}: no updateState lambdas were inspected")
 
@@ -2069,6 +2136,26 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             f"{module}: golden methods must be exactly {entry.golden_methods}; "
             f"actual={golden_methods}"
         )
+    # D4: every extra golden class is pinned like golden_test, and no other androidHostTest file
+    # renders goldens.
+    for relative, expected_methods in entry.extra_golden_tests.items():
+        path = root / relative
+        methods = GOLDEN_METHODS.findall(path.read_text(encoding="utf-8") if path.is_file() else "")
+        if methods != expected_methods:
+            failures.append(
+                f"{module}: golden methods in {relative} must be exactly {expected_methods}; "
+                f"actual={methods}"
+            )
+    declared_goldens = {entry.golden_test, *entry.extra_golden_tests}
+    for path in sorted((root / "src/androidHostTest").rglob("*.kt")):
+        relative = path.relative_to(root).as_posix()
+        if relative not in declared_goldens and GOLDEN_METHODS.search(
+            path.read_text(encoding="utf-8")
+        ):
+            failures.append(
+                f"{module}: {relative} renders goldens but is neither golden_test nor "
+                "in extra_golden_tests"
+            )
     if entry.device_test:
         device_source = (root / entry.device_test).read_text(encoding="utf-8")
         for fragment in entry.device_fragments:
