@@ -46,6 +46,7 @@ import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -61,6 +62,7 @@ internal fun AppNavigationHost(
     pastSessionGraphFactory: PastSessionGraph.Factory,
     homeGraphFactory: HomeGraph.Factory,
     exerciseChartGraphFactory: ExerciseChartGraph.Factory,
+    singleTrainingGraphFactory: SingleTrainingGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -149,6 +151,7 @@ internal fun AppNavigationHost(
                             .testTag("AllExercisesGraph"),
                     )
                     singleTrainingsGraph(
+                        factory = singleTrainingGraphFactory,
                         modifier = standardModifier
                             .reportScreenPlace<Screen.Training>()
                             .testTag("SingleTrainingGraph"),

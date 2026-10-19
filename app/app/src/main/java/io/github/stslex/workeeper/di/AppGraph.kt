@@ -49,6 +49,7 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingGraph
 import io.github.stslex.workeeper.feature.wear_bridge.WatchKnownRevisions
 import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
 import io.github.stslex.workeeper.feature.wear_bridge.transport.PhoneChangeNotifier
@@ -107,6 +108,8 @@ internal interface AppGraph :
     override val homeGraphFactory: HomeGraph.Factory
 
     override val exerciseChartGraphFactory: ExerciseChartGraph.Factory
+
+    override val singleTrainingGraphFactory: SingleTrainingGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 

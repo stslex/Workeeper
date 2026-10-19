@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -47,8 +46,7 @@ internal class SingleTrainingExtensionIdentityTest {
         )
 
     private fun AppGraph.singleTraining(uuid: String?): SingleTrainingGraph =
-        asContribution<SingleTrainingGraph.Factory>()
-            .createSingleTrainingGraph(Screen.Training(uuid = uuid))
+        singleTrainingGraphFactory.createSingleTrainingGraph(Screen.Training(uuid = uuid))
 
     @Test
     fun `extension resolves the store through the parent graph`() {
