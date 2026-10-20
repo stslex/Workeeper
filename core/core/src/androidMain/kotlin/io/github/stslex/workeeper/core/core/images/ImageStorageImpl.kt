@@ -91,6 +91,10 @@ class ImageStorageImpl(
         file.exists() && file.delete()
     }
 
+    override suspend fun lastModified(path: String): Long = withContext(ioDispatcher) {
+        File(path).lastModified()
+    }
+
     override suspend fun cleanupTempFiles() {
         withContext(ioDispatcher) {
             tempDir.listFiles()?.forEach(File::delete)

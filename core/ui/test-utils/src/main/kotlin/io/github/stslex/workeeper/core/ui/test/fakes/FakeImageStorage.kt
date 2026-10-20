@@ -20,6 +20,7 @@ class FakeImageStorage : ImageStorage {
     @Volatile private var deleteCount: Int = 0
     @Volatile private var createTempCount: Int = 0
     @Volatile private var cleanupCount: Int = 0
+    @Volatile private var lastModifiedCount: Int = 0
 
     override suspend fun saveImage(
         sourceRef: ImageRef,
@@ -46,6 +47,12 @@ class FakeImageStorage : ImageStorage {
         return removed
     }
 
+    /** 0: the synthetic paths this fake hands out name no file, as `File.lastModified` reports. */
+    override suspend fun lastModified(path: String): Long {
+        lastModifiedCount += 1
+        return 0L
+    }
+
     override suspend fun cleanupTempFiles() {
         cleanupCount += 1
     }
@@ -58,6 +65,7 @@ class FakeImageStorage : ImageStorage {
         deleteCount = deleteCount,
         createTempCount = createTempCount,
         cleanupCount = cleanupCount,
+        lastModifiedCount = lastModifiedCount,
     )
 
     fun reset() {
@@ -68,6 +76,7 @@ class FakeImageStorage : ImageStorage {
         deleteCount = 0
         createTempCount = 0
         cleanupCount = 0
+        lastModifiedCount = 0
     }
 
     data class Snapshot(
@@ -78,5 +87,6 @@ class FakeImageStorage : ImageStorage {
         val deleteCount: Int,
         val createTempCount: Int,
         val cleanupCount: Int,
+        val lastModifiedCount: Int,
     )
 }
