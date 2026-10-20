@@ -2793,6 +2793,14 @@ topology line carries the gate's `feature:single-training: ` prefix unless it is
   the same value, as in 7.12 and 7.13.
 - **Control 37** reads `the seven inherited production` suppressions. That is the gate's wording
   for the eight production annotations in seven files after S5; the row's fragment matches.
+- **tech-debt.md beyond Section 9.2's four items**, by the maintainer's ruling of 2026-10-20 on
+  review findings 1b and 2 of #340. Those findings were two D2 launches that fail silently, and the
+  ruling deferred them with no code change. The section "The default flow `onError` is silent — 21
+  of 22 production collections report nothing" is corrected rather than given a new row:
+  - its Mechanism paragraph had called the action overload of `launch` not silent, which was
+    wrong;
+  - a dated paragraph adds the measurement, the count and the single-training instances;
+  - "Why not now" adds that the fix should land before live-workout adopts D2's template.
 
 ### 19.9 Rejected runs, local limitations, and the remote evidence boundary
 
@@ -2869,7 +2877,8 @@ The documentation edits are Section 9.2's:
 - **tech-debt.md:** three re-pointed links (`ui/SingleTrainingGraph.kt`,
   `mvi/handler/CommonHandler.kt` and `SingleTrainingScreenTest.kt`), the three widened rows in
   Shared (KMP) string resources, the tag-race row in State Mutation Discipline, and D2's template
-  row with the intro's citation in Shared (KMP) feature entries — follow-ups.
+  row with the intro's citation in Shared (KMP) feature entries — follow-ups. Beyond Section 9.2,
+  the silent-`onError` section is corrected by the ruling recorded in Section 19.8.
 
 Deliberately untouched, as Section 9.2 lists them:
 

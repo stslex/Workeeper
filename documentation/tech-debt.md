@@ -199,13 +199,16 @@ stopped covering (name → real file) is exactly what the new device pins now as
 it lives in `core:core`, outside the data layer this phase converts, and it cannot be gated in both
 directions without a logging seam that does not exist (see "Why not now").
 
-**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload, not the action one —
-is `.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
+**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload — is
+`.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
 declaring interfaces: `AppCoroutineScope`, `StoreConsumer` and `HandlerStore`. An upstream flow
 failure is caught, handed to `{}`, and the collection completes normally: nothing reaches logcat,
 nothing reaches Crashlytics, no test observes anything. **The sibling `launch(action, …)` overload is
-not silent** — its `exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics
-*before* the `isLogging` gate. The asymmetry is the whole defect.
+silent the same way** (corrected 2026-10-20, below; this paragraph first said it was not): it runs
+`action` inside `runCatching`, so a throw from the action goes straight to `onError`. Its
+`exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics *before* the
+`isLogging` gate, but the handler only sees a throw that escapes that block: one from `onSuccess`,
+or from `onError` itself. There is no asymmetry. Both overloads hand their main failure to `{}`.
 
 **Blast radius, counted:** 22 production `Flow<T>.launch` call sites; **1** passes an explicit
 `onError`, **21** take the silent default. All three DataStore repositories above are consumed
@@ -224,13 +227,73 @@ requires an `onError`; nothing mechanical stops call site 23.
 **On iOS it is strictly worse:** `FirebaseCrashlyticsHolder` iosMain is `= Unit`, so even the one
 path that does report is a no-op there.
 
-**Why not now.** The fix is one line — `.catch { Log.e(it); onError(it) }`, making the two overloads
-symmetric — and `Flow.catch` rethrows cancellation causes rather than catching them
-(`catchImpl`'s `e.isCancellationCause(coroutineContext)` branch), so it would not spam on normal
-teardown. But `Log` exposes no injectable writer: the kermit `Logger` is constructed inline per
-instance and the only control is a global `isLogging` flag, so "this logged" cannot be asserted, and
-the change alters release Crashlytics volume across 21 call sites. It wants its own PR, with a
-logging seam landed first.
+**2026-10-20, Phase 7.14 review of #340: the action overload, measured.** The review found two of
+D2's launches failing silently. That is this defect, in the overload this section first called
+safe. The action overload's body and its `exceptionHandler` are byte-identical at `d9188da54`
+(where this section was written), at `edfb570e3` and today, so that claim was wrong when it was
+written. A scratch Robolectric probe on the real `AppCoroutineScopeImpl` measured both directions,
+with `FirebaseCrashlyticsHolder` mocked as `LogTelemetrySinkTest` mocks it (the probe was not
+committed):
+
+- a throw from the action reaches `onError` and records nothing;
+- a throw from `onSuccess` is recorded, the known positive;
+- with the default `onError`, a throw from the action leaves no trace at all.
+
+*Blast radius, counted:* 60 production calls of the action overload of `launch`, of which **33**
+take the silent default `onError`:
+
+- 32 `HandlerStore.launch` calls in feature handlers: single-training 10, exercise 7, archive 4,
+  home 3, live-workout 3, all-exercises 2, settings 2 and all-trainings 1;
+- the `scope.launch` in `BaseStore.sendEventWithAwait`.
+
+`launchDefault` adds 18 calls, of which **3** take the default, all in settings'
+`BackupClickHandler`.
+
+The Kotlin compiler resolves the overload, so the count reads compiled classes. A call that omits an
+argument compiles to `launch$default(…, mask, null)`. Bit 0 of the mask marks a defaulted `onError`;
+for `AppCoroutineScope.launch` it is bit 1, after `start`. `javap` read every mask in the debug
+classes of all 39 production modules: 5,328 class files, from each module's one compiler output
+newer than a clean repository build. Two kinds of call were settled from source instead:
+
+- the 14 `launchDefault` calls that pass every argument compile to the handler's own delegated
+  method, not to `launchDefault$default`; all 14 pass an `onError`;
+- `BaseStore`'s two forwarders are excluded: they pass their caller's `onError` on and are not call
+  sites.
+
+A separate source scan matched every call to the compiled census.
+
+*Single-training's two new instances, through D2* (both reproduced against the handlers with a
+resolver that always throws; scratch, not committed):
+
+- `Init`'s `resolveEditCopy`: a throw leaves `editCopy` at `TrainingEditCopy.EMPTY` for the Store's
+  life, so the save error and both undo toasts carry an empty message;
+- `processPermanentDeleteMenu`: a throw leaves the menu open and the confirm never opens; only the
+  haptic fires.
+
+Before D2 both resolved synchronously through `ResourceWrapper`, so a throw would have escaped the
+click path as a crash. The resolver reads bundled, generated resources whose keys the topology gate
+pins, so the trigger is improbable. The silence is not.
+
+*Inherited sites that resolve copy in a launch with the default `onError`:*
+
+- single-training's start-session launch resolves the conflict dialog's copy inside its action, so
+  a throw there is silent and the dialog never opens;
+- single-training's archive launch and all-exercises' bulk delete resolve their copy in
+  `onSuccess`, which the `exceptionHandler` does see. What is silent there is a throw from their
+  actions: the archive and the bulk archive.
+
+**Why not now.** The fix is one line per overload. The flow overload takes
+`.catch { Log.e(it); onError(it) }`, and the action overload the same `Log.e` before `onError` in
+its `onFailure`. `Flow.catch` rethrows cancellation causes rather than catching them
+(`catchImpl`'s `e.isCancellationCause(coroutineContext)` branch), so the flow line would not spam
+on normal teardown. `runCatching` does catch cancellation, so the action line must let a
+`CancellationException` through rather than log it. But `Log` exposes no injectable writer: the
+kermit `Logger` is constructed inline per instance and the only control is a global `isLogging`
+flag, so "this logged" cannot be asserted. The change also alters release Crashlytics volume, across
+the 21 flow call sites and the 36 action-overload ones above. It wants its own PR, with a logging
+seam landed first. That PR should land before live-workout adopts D2's template ("Shared (KMP)
+feature entries — follow-ups"): its delete-session dialog would resolve copy in one more such
+launch, and its three constant dialogs would read copy resolved by one.
 
 ---
 
