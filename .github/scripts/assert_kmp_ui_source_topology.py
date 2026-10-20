@@ -773,6 +773,83 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:single-training": {
+        "root": Path("feature/single-training"),
+        "files": {
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/single_training/golden/TrainingDetailGoldenTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/single_training/golden/TrainingEditGoldenTest.kt",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailEmptyHistory_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailEmptyHistory_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailNoPlanExercise_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailNoPlanExercise_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailWithPlans_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingDetailGoldenTest_detailWithPlans_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editCollapsed_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editCollapsed_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editEmpty_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editEmpty_light.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editExpanded_dark.png",
+            "src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.single_training.golden_TrainingEditGoldenTest_editExpanded_light.png",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/SingleTrainingInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/SingleTrainingInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/mapper/SingleTrainingDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/ActiveSessionDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/ArchiveResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/ExerciseDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/ExercisePlanDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/PickerExercise.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/PlanSetDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/SessionDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/SessionStateDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/SetTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/StartSessionConflict.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/TagDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/TrainingChangeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/TrainingDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/model/TrainingExerciseDetail.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/InputHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/mapper/TagUiMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/model/SingleTrainingUiModels.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/DialogState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/TrainingDetailScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/TrainingEditScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/components/ExercisePickerSheet.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/components/TrainingDetailMenuSheetContent.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/components/TrainingExerciseCard.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/components/TrainingHistoryRow.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStateRouteArgTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -823,7 +900,6 @@ EXPECTED_APP_DEPS_READERS = {
     Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
     Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
-    Path("feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt"): "SingleTrainingGraph.Factory",
 }
 
 FEATURE_PLAN_EDITOR_RESOURCES = {
@@ -887,7 +963,7 @@ FEATURE_SINGLE_TRAINING_RESOURCES = {
 FEATURE_RESOURCE_OWNERS = {
     Path("feature/plan-editor/src/commonMain/composeResources"): FEATURE_PLAN_EDITOR_RESOURCES,
     Path("feature/exercise/src/main/res"): FEATURE_EXERCISE_RESOURCES,
-    Path("feature/single-training/src/main/res"): FEATURE_SINGLE_TRAINING_RESOURCES,
+    Path("feature/single-training/src/commonMain/composeResources"): FEATURE_SINGLE_TRAINING_RESOURCES,
 }
 
 FORMER_CROSS_MODULE_KEYS = {
@@ -1646,6 +1722,10 @@ class FeatureEntry:
     # count per commonMain file, keyed like preview_inventory. Empty skips the check, so every
     # earlier entry stays byte-identical; home keeps home_preview_contract.
     bare_previews: dict = field(default_factory=dict)
+    # D4 (kmp-phase-7-14-single-training-feature.md Section 12.0): every golden class beside
+    # golden_test, path relative to root -> its exact methods. Empty by default, so every earlier
+    # entry stays byte-identical.
+    extra_golden_tests: dict = field(default_factory=dict)
 
     @property
     def common_main(self) -> Path:
@@ -1729,6 +1809,20 @@ FEATURE_STATE_LAMBDA_SIDE_EFFECTS = (
 # byte-identical; any other reference is this pattern's.
 FEATURE_STATE_LAMBDA_RESOLVERS = re.compile(r"\b(stringResolver|resourceWrapper)\b(?!\.)")
 
+# D5 (kmp-phase-7-14-single-training-feature.md Section 12.0): what a State lambda may not hold,
+# it may not reach through a function of its own file either. A function resolves copy when its
+# text holds a side-effect token above or names the wrapper or the resolver at all. `invoke` is
+# the handler's entry point, and `.invoke(` on a function value would collide with it.
+FEATURE_COPY_HELPER_REFERENCES = re.compile(r"\b(?:stringResolver|resourceWrapper)\b")
+SAME_FILE_FUNCTION = re.compile(
+    r"^(?P<indent>[ ]*)(?:(?:private|internal|protected|public|override|open|suspend|inline|"
+    r"tailrec|operator|infix)\s+)*fun\s+(?:<[^>]*>\s*)?(?:[\w.<>?, ]+\.)?(?P<name>\w+)\s*\(",
+    re.MULTILINE,
+)
+
+# D4: golden_test's pattern, for the extra classes and the completeness walk.
+GOLDEN_METHODS = re.compile(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(")
+
 FEATURE_FORBIDDEN_TEST_APIS = ("org.junit", "io.mockk", "@Disabled", "@Ignore")
 
 NATIVE_TEST_NAME_SUPPRESSION = '@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")'
@@ -1774,6 +1868,48 @@ KOTLIN_TEST_NAME = re.compile(r"@Test\s+fun\s+(?:`([^`]+)`|(\w+))\s*\(")
 
 def strip_kotlin_comments(source: str) -> str:
     return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL))
+
+
+def calls_function(source: str, name: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(name)}\s*\(", source) is not None
+
+
+def copy_resolving_functions(source: str) -> set:
+    """D5: the functions of a comment-free file that resolve copy, directly or through another
+    of them. A function runs from its line to the next line indented at most as deep that is not
+    its own closing bracket."""
+    lines = source.splitlines(keepends=True)
+    texts: dict[str, list[str]] = {}
+    for match in SAME_FILE_FUNCTION.finditer(source):
+        if match.group("name") == "invoke":
+            continue
+        indent = len(match.group("indent"))
+        first = source.count("\n", 0, match.start())
+        last = first + 1
+        while last < len(lines):
+            text = lines[last].strip()
+            depth = len(lines[last]) - len(lines[last].lstrip(" "))
+            if text and (depth < indent or (depth == indent and text[0] not in ")]}")):
+                break
+            last += 1
+        texts.setdefault(match.group("name"), []).append("".join(lines[first:last]))
+    resolving = {
+        name
+        for name, bodies in texts.items()
+        for body in bodies
+        if FEATURE_COPY_HELPER_REFERENCES.search(body)
+        or any(token in body for token in FEATURE_STATE_LAMBDA_SIDE_EFFECTS)
+    }
+    grown = True
+    while grown:
+        grown = False
+        for name, bodies in texts.items():
+            if name not in resolving and any(
+                calls_function(body, helper) for body in bodies for helper in resolving
+            ):
+                resolving.add(name)
+                grown = True
+    return resolving
 
 
 def read_catalog(path: Path) -> list[tuple]:
@@ -1946,6 +2082,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     for path, source in common_sources.items():
         if "/mvi/handler/" not in path.as_posix():
             continue
+        helpers = copy_resolving_functions(strip_kotlin_comments(source))
         for call in ("updateState", "updateStateImmediate"):
             for body in braced_call_bodies(source, call):
                 update_count += 1
@@ -1965,6 +2102,12 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                         f"{module}: {call} in {path.relative_to(root)} references {name!r} "
                         "inside the State lambda; resolve copy before it"
                     )
+                for helper in sorted(helpers):
+                    if calls_function(strip_kotlin_comments(body), helper):
+                        failures.append(
+                            f"{module}: {call} in {path.relative_to(root)} calls {helper!r}, "
+                            "a same-file function that resolves copy; resolve it before the lambda"
+                        )
     if update_count == 0:
         failures.append(f"{module}: no updateState lambdas were inspected")
 
@@ -2069,6 +2212,26 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             f"{module}: golden methods must be exactly {entry.golden_methods}; "
             f"actual={golden_methods}"
         )
+    # D4: every extra golden class is pinned like golden_test, and no other androidHostTest file
+    # renders goldens.
+    for relative, expected_methods in entry.extra_golden_tests.items():
+        path = root / relative
+        methods = GOLDEN_METHODS.findall(path.read_text(encoding="utf-8") if path.is_file() else "")
+        if methods != expected_methods:
+            failures.append(
+                f"{module}: golden methods in {relative} must be exactly {expected_methods}; "
+                f"actual={methods}"
+            )
+    declared_goldens = {entry.golden_test, *entry.extra_golden_tests}
+    for path in sorted((root / "src/androidHostTest").rglob("*.kt")):
+        relative = path.relative_to(root).as_posix()
+        if relative not in declared_goldens and GOLDEN_METHODS.search(
+            path.read_text(encoding="utf-8")
+        ):
+            failures.append(
+                f"{module}: {relative} renders goldens but is neither golden_test nor "
+                "in extra_golden_tests"
+            )
     if entry.device_test:
         device_source = (root / entry.device_test).read_text(encoding="utf-8")
         for fragment in entry.device_fragments:
@@ -5096,6 +5259,540 @@ EXERCISE_CHART_ENTRY = FeatureEntry(
     },
 )
 
+
+def single_training_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D2, D3, F2 and S1 (kmp-phase-7-14-single-training-feature.md §5.2–§5.4, §12.1): the editor's
+    # constant copy lives in State, the confirm resolves on use and lands only on the menu, the load
+    # builds its rows before its State lambda, and copy outside composition resolves through the
+    # injected StringResolver. Every count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    def require_parameters(relative: str, source: str, name: str, expected: list) -> None:
+        parameters = data_class_parameters(source, name)
+        if parameters != expected:
+            failures.append(
+                f"{module}: {shown(relative)} {name} parameters must be exactly {expected}; "
+                f"actual={parameters}"
+            )
+
+    # 1. Payload shapes and 2. D2's defaults, exactly once each.
+    store_relative = "mvi/store/SingleTrainingStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        require_parameters(
+            store_relative,
+            store_source,
+            "HapticClick",
+            [
+                "type: HapticFeedbackType",
+            ],
+        )
+        require_parameters(store_relative, store_source, "ShowArchiveSuccess", ["message: String"])
+        require_parameters(store_relative, store_source, "ShowArchiveBlocked", ["message: String"])
+        require_parameters(store_relative, store_source, "ShowSaveError", ["message: String"])
+        require_parameters(
+            store_relative,
+            store_source,
+            "ShowSetRemovedUndo",
+            [
+                "message: String",
+                "exerciseUuid: String",
+                "set: PlanSetUiModel",
+                "index: Int",
+                "draftEpoch: Int",
+            ],
+        )
+        require_parameters(
+            store_relative,
+            store_source,
+            "ShowExerciseRemovedUndo",
+            [
+                "message: String",
+                "item: TrainingExerciseItem",
+                "wasExpanded: Boolean",
+                "draftEpoch: Int",
+            ],
+        )
+        require(store_relative, store_source, "editCopy = TrainingEditCopy.EMPTY,", 1)
+
+    dialog_relative = "mvi/store/DialogState.kt"
+    dialog_source = source_of(dialog_relative)
+    if dialog_source is not None:
+        require_parameters(
+            dialog_relative,
+            dialog_source,
+            "PermanentDeleteConfirm",
+            [
+                "title: String",
+                "body: String",
+                "impactSummary: String",
+                "confirmLabel: String",
+            ],
+        )
+        require_parameters(
+            dialog_relative,
+            dialog_source,
+            "ActiveSessionConflict",
+            [
+                "sessionUuid: String",
+                "activeSessionName: String",
+                "progressLabel: String",
+            ],
+        )
+
+    models_relative = "mvi/model/SingleTrainingUiModels.kt"
+    models_source = source_of(models_relative)
+    if models_source is not None:
+        require_parameters(
+            models_relative,
+            models_source,
+            "TrainingEditCopy",
+            [
+                "noExercisesError: String",
+                "exerciseRemoved: String",
+                "setRemoved: String",
+            ],
+        )
+        require(
+            models_relative,
+            models_source,
+            "val EMPTY = TrainingEditCopy(noExercisesError = \"\", exerciseRemoved = \"\", setRemoved = \"\")",
+            1,
+        )
+
+    # 3. ClickHandler: D2's constant reads and guarded confirm, eight resolver reads, no wrapper.
+    click_relative = "mvi/handler/ClickHandler.kt"
+    click_source = source_of(click_relative)
+    if click_source is not None:
+        for fragment in (
+            "private val stringResolver: StringResolver,",
+            "current.editCopy.noExercisesError",
+            "current.editCopy.exerciseRemoved",
+            "state.value.editCopy.setRemoved",
+            "if (latest.dialogState == DialogState.DetailMenu) {",
+            "latest.copy(dialogState = confirm)",
+        ):
+            require(click_relative, click_source, fragment, 1)
+        require(click_relative, click_source, "stringResolver.getString(", 8)
+        for fragment in ("ResourceWrapper", "resourceWrapper", "applySnapshotOrPop"):
+            require(click_relative, click_source, fragment, 0)
+
+    # 4. CommonHandler: Init's three resolver reads, F2's two rows, and 5. F2's order.
+    common_relative = "mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    if common_source is not None:
+        for fragment in (
+            "private val resourceWrapper: ResourceWrapper,",
+            "private val stringResolver: StringResolver,",
+            "TrainingEditCopy(",
+            "onSuccess = { copy -> updateState { it.copy(editCopy = copy) } },",
+            "val exercises = result.exercises.toExerciseItems()",
+            "val pastSessions = result.recentSessions.toHistoryItems()",
+        ):
+            require(common_relative, common_source, fragment, 1)
+        require(common_relative, common_source, "stringResolver.getString(", 3)
+        require(common_relative, common_source, "resolveEditCopy()", 2)
+        require(common_relative, common_source, "applyLoaded", 0)
+        exercises_at = common_source.find("val exercises = result.exercises.toExerciseItems()")
+        rows_at = common_source.find("val pastSessions = result.recentSessions.toHistoryItems()")
+        items_lambda = common_source.find("updateState { current ->", max(exercises_at, 0))
+        rows_lambda = common_source.find("updateState { current ->", max(rows_at, 0))
+        if (
+            exercises_at < 0
+            or rows_at < exercises_at
+            or rows_lambda < 0
+            or items_lambda != rows_lambda
+        ):
+            failures.append(
+                f"{module}: {shown(common_relative)} must build the exercise items and"
+                " the history rows before the load's State lambda (F2)"
+            )
+
+    # 6. 7.11's rules 4–7: no top-level CMP read; mvi/ reads only through the resolver.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        if posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def single_training_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # §2, §3.5 and §10: core:data:database stays one production edge, read by the domain mapper
+    # alone; no test set reads it or core:data:database-test; shared code names no java.*.
+    failures: list[str] = []
+    module = entry.module
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    if "project(\":core:data:database-test\")" in build_source:
+        failures.append(f"{module}: build must not depend on :core:data:database-test")
+    mapper = entry.common_main / "domain/mapper/SingleTrainingDomainMapper.kt"
+    if "core.data.database" not in strip_kotlin_comments(common_sources.get(mapper, "")):
+        failures.append(
+            f"{module}: {mapper.relative_to(entry.root)} "
+            "must be the module's one reader of core:data:database"
+        )
+    java_reference = re.compile(r"(?<![\w.])java\.")
+    shared_sets = ("src/commonMain/", "src/commonTest/", "src/iosTest/")
+    for path in sorted((entry.root / "src").rglob("*.kt")):
+        source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(entry.root)
+        if path != mapper and "core.data.database" in source:
+            failures.append(
+                f"{module}: {relative} must not read core:data:database;"
+                " only the domain mapper maps its data models"
+            )
+        if relative.as_posix().startswith(shared_sets) and java_reference.search(source):
+            failures.append(f"{module}: {relative} names java.* in shared code")
+    return failures
+
+
+SINGLE_TRAINING_ENTRY = FeatureEntry(
+    module="feature:single-training",
+    short_name="single-training",
+    root=Path("feature/single-training"),
+    package_dir="io/github/stslex/workeeper/feature/single_training",
+    # Every plugin, resource-package, interop, dependency and apply line of §10, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count. The one production core:data:database edge
+    # is here; single_training_dependency_contract keeps every other reader out.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        "packageOfResClass = \"io.github.stslex.workeeper.feature.single_training.resources\"",
+        "includeJavax()",
+        "implementation(project(\":core:core\"))",
+        "api(project(\":core:ui:kit\"))",
+        "api(project(\":core:ui:mvi\"))",
+        "api(project(\":core:ui:navigation\"))",
+        "api(project(\":core:ui:plan-editor\"))",
+        "implementation(project(\":core:data:database\"))",
+        "api(project(\":core:data:exercise\"))",
+        "api(libs.cmp.ui)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.extended)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        "\"androidHostTestImplementation\"(project(\":core:ui:golden-harness\"))",
+        "\"androidDeviceTestImplementation\"(libs.bundles.android.test)",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.junit4)",
+        "\"androidDeviceTestImplementation\"(platform(libs.androidx.compose.bom))",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.manifest)",
+        "\"androidDeviceTestImplementation\"(project(\":core:ui:test-utils\"))",
+        "apply(from = \"$rootDir/gradle/golden-gate.gradle.kts\")",
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as §3.4 prints it
+    # at exit — S5's two dead keys gone and P1's six positional plural items.
+    catalog=(
+        ("string", "feature_training_detail_more", "More", "Ещё"),
+        ("string", "feature_training_detail_exercises", "Exercises", "Упражнения"),
+        ("string", "feature_training_detail_past_sessions", "Past sessions", "История"),
+        ("string", "feature_training_detail_start_session", "Start session", "Начать сессию"),
+        ("string", "feature_training_detail_resume_session", "Resume session", "Продолжить сессию"),
+        ("string", "feature_training_detail_edit", "Edit", "Изменить"),
+        ("string", "feature_training_detail_archive", "Archive", "В архив"),
+        ("string", "feature_training_detail_archive_blocked", "Cannot archive — finish active session first", "Нельзя архивировать — завершите активную сессию"),
+        ("string", "feature_training_detail_archive_success_format", "‘%1$s’ archived", "«%1$s» в архиве"),
+        ("string", "feature_training_detail_permanent_delete", "Delete permanently", "Удалить навсегда"),
+        ("string", "feature_training_detail_permanent_delete_title", "Delete ‘%1$s’ permanently?", "Удалить «%1$s» навсегда?"),
+        ("string", "feature_training_detail_permanent_delete_body", "This training has no history. This cannot be undone.", "У тренировки нет истории. Это нельзя отменить."),
+        ("string", "feature_training_detail_permanent_delete_impact", "No history affected", "История не пострадает"),
+        ("string", "feature_training_detail_permanent_delete_confirm", "Delete", "Удалить"),
+        ("string", "feature_training_detail_conflict_unnamed", "Workout", "Тренировка"),
+        ("string", "feature_training_detail_conflict_progress_format", "%1$d of %2$d exercises done", "%1$d из %2$d упражнений выполнено"),
+        (
+            "plurals",
+            "feature_training_detail_session_count",
+            (("one", "%1$d session"), ("other", "%1$d sessions")),
+            (
+                ("one", "%1$d сессия"),
+                ("few", "%1$d сессии"),
+                ("many", "%1$d сессий"),
+                ("other", "%1$d сессии"),
+            ),
+        ),
+        ("string", "feature_training_edit_close", "Close", "Закрыть"),
+        ("string", "feature_training_edit_title_create", "New training", "Новая тренировка"),
+        ("string", "feature_training_edit_title_edit", "Edit training", "Изменить тренировку"),
+        ("string", "feature_training_edit_label_name", "Name", "Название"),
+        ("string", "feature_training_edit_label_description", "Description", "Описание"),
+        ("string", "feature_training_edit_placeholder_description", "Optional notes — focus, week, etc.", "Заметки — фокус, неделя и т.д."),
+        ("string", "feature_training_edit_label_tags", "Tags", "Теги"),
+        ("string", "feature_training_edit_label_exercises_format", "Exercises (%1$d)", "Упражнения (%1$d)"),
+        ("string", "feature_training_edit_add_exercise", "Add exercise", "Добавить упражнение"),
+        ("string", "feature_training_edit_exercise_removed", "Exercise removed from training", "Упражнение убрано из тренировки"),
+        ("string", "feature_training_edit_no_plan", "no plan yet", "плана пока нет"),
+        ("string", "feature_training_edit_plan_set_removed", "Set removed", "Подход удалён"),
+        ("string", "feature_training_edit_remove_exercise", "Remove exercise", "Удалить упражнение"),
+        ("string", "feature_training_edit_drag_handle", "Reorder", "Переместить"),
+        ("string", "feature_training_edit_error_name_required", "Name is required", "Введите название"),
+        ("string", "feature_training_edit_error_no_exercises", "Add at least one exercise", "Добавьте хотя бы одно упражнение"),
+        ("string", "feature_training_picker_title", "Add exercises", "Добавить упражнения"),
+        ("string", "feature_training_picker_search_placeholder", "Search exercises…", "Поиск упражнений…"),
+        ("string", "feature_training_picker_add_format", "Add (%1$d)", "Добавить (%1$d)"),
+        ("string", "feature_training_picker_cancel", "Cancel", "Отмена"),
+        ("string", "feature_training_picker_empty", "No exercises match", "Ничего не найдено"),
+    ),
+    resource_prefix="feature_training_",
+    # The tag mapper and the two copy-reading handlers are deliberately absent (§12.1).
+    payload_files=frozenset({
+        "DialogState.kt",
+        "SingleTrainingStore.kt",
+        "SingleTrainingUiModels.kt",
+    }),
+    store_file="mvi/store/SingleTrainingStore.kt",
+    state_fields=(
+        ("uuid", "String?"),
+        ("mode", "Mode"),
+        ("draftEpoch", "Int"),
+        ("isSaving", "Boolean"),
+        ("name", "String"),
+        ("nameError", "Boolean"),
+        ("description", "String"),
+        ("tags", "ImmutableList<AppTagItem>"),
+        ("availableTags", "ImmutableList<AppTagItem>"),
+        ("tagSearchQuery", "String"),
+        ("exercises", "ImmutableList<TrainingExerciseItem>"),
+        ("expandedExerciseUuids", "ImmutableSet<String>"),
+        ("pendingSetRestores", "ImmutableList<PendingSetRestore>"),
+        ("pastSessions", "ImmutableList<HistorySessionItem>"),
+        ("historyCount", "Int"),
+        ("activeSession", "ActiveSessionDomain?"),
+        ("canPermanentlyDelete", "Boolean"),
+        ("originalSnapshot", "Snapshot?"),
+        ("pickerState", "PickerState"),
+        ("dialogState", "DialogState"),
+        ("editCopy", "TrainingEditCopy"),
+        ("isLoading", "Boolean"),
+    ),
+    # S1: CommonHandler keeps the one medium date; ClickHandler holds no wrapper.
+    resource_wrapper_readers=frozenset({"mvi/handler/CommonHandler.kt"}),
+    # S3: the three uiMode pairs, as ThemeMode subjects.
+    preview_subjects={
+        "ui/components/ExercisePickerSheet.kt": "ExercisePickerSheet",
+        "ui/components/TrainingExerciseCard.kt": "TrainingExerciseCard",
+        "ui/components/TrainingHistoryRow.kt": "TrainingHistoryRow",
+    },
+    # The eight inherited production suppressions of §0.2, in seven files; nothing under any test
+    # source set.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt": [
+            "\"UNCHECKED_CAST\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/SingleTrainingInteractor.kt": [
+            "\"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/domain/SingleTrainingInteractorImpl.kt": [
+            "\"TooManyFunctions\", \"LongParameterList\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandler.kt": [
+            "\"TooManyFunctions\", \"LongMethod\", \"LargeClass\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt": [
+            "\"LongMethod\", \"CyclomaticComplexMethod\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/components/ExercisePickerSheet.kt": [
+            "\"LongParameterList\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStore.kt": [
+            "\"ComplexInterface\"",
+            "\"MviActionNamingRule\"",
+        ],
+    },
+    # The 62 portable identities of §3.2, S14's four among them, and the scene of §11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandlerTest.kt": [
+            "OnSaveClick with blank name flips nameError — reachable",
+            "OnSaveClick with empty exercises emits ShowSaveError — reachable",
+            "OnSaveClick with a name and exercises raises neither error",
+            "OnEditClick flips into Edit mode",
+            "OnPickerConfirm opens the first inserted card only",
+            "OnExerciseCardToggle expands the tapped card",
+            "OnExerciseCardToggle on the open card collapses it",
+            "cards expand independently",
+            "OnExercisePlanAction adds a set to the addressed exercise and refreshes its summary",
+            "OnExercisePlanAction removing the last set normalizes to null",
+            "a plan edit flips hasChanges through the snapshot signature",
+            "OnExerciseRemove removes the exercise and reindexes positions",
+            "OnExerciseReorder swaps positions on a non-trivial move",
+            "OnExerciseReorder with from equal to to is a no-op",
+            "OnAddExerciseClick emits haptic",
+            "OnConflictDismiss clears the active session conflict dialog",
+            "OnStartSessionClick reports the persisted active session progress",
+            "OnConflictResume consumes OpenLiveWorkout with active session uuid",
+            "OnBackClick closes the dialog before propagating to navigation",
+            "entering the editor after a save collapses every card",
+            "a refreshed exercise name is not an unsaved change",
+            "OnConfirmDiscard restores an exercise the edit removed",
+            "OnConfirmDiscard restores the positions a reorder changed",
+            "OnConfirmDiscard restores the plan a card edited",
+            "remove emits the undo toast and the undo restores item position and expansion",
+            "minus set in a card emits the undo toast and the undo restores the row",
+            "a stale set undo after save flipped to read edits nothing",
+            "a stale set undo does not edit a re-entered draft",
+            "a stale exercise undo after save flipped to read edits nothing",
+            "a stale exercise undo does not edit a re-entered draft",
+            "an undo during the save's write edits nothing",
+            "a failed save re-arms the draft's undos",
+            "a cancel during the save's write raises nothing and reverts nothing",
+            "a confirmed discard during the save's write reverts nothing",
+            "Edit entry resets a stuck isSaving",
+            "createTag resolving to an already-selected tag does not duplicate the chip",
+            "a set undo whose card was already removed waits for the card",
+            "stashed set restores die with the draft",
+            "a picker re-add discards the stash for the returned card",
+            "an exercise undo that finds its card already back discards the stash",
+            "a late picker resolution does not duplicate a card the undo restored",
+            "the dashed add chip opens the tag picker sheet",
+            "dismissing the tag picker clears the query with the sheet",
+            "the topbar menu opens as the DetailMenu sheet",
+            "dismissing the menu hides it",
+            "archive closes the menu before its result lands",
+            "permanent delete replaces the menu with its confirm in one write",
+            "a menu dismissed before the confirm's copy lands stays dismissed",
+            "the save error carries the copy Init resolved",
+            "the undo toasts carry the copy Init resolved",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandlerTest.kt": [
+            "a load that throws clears isLoading or the route is composed on nothing forever",
+            "a training that is not there clears isLoading too",
+            "the История count is the total not the visible page",
+            "a create route never loads so it is never withheld and it opens clean",
+            "Init resolves the editor's constant copy into State",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/NavigationHandlerTest.kt": [
+            "Back triggers popBack",
+            "OpenExerciseDetail navigates to Screen Exercise",
+            "OpenSession navigates to Screen PastSession",
+            "OpenLiveWorkout navigates to Screen LiveWorkout with both uuids",
+            "OpenLiveWorkout passes a null sessionUuid to LiveWorkout when blank",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStateRouteArgTest.kt": [
+            "null uuid yields create-mode initial state with no loading",
+            "non-null uuid yields read-mode initial state and starts loading",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingFeatureSceneIosTest.kt": [
+            "resourcesDetailEditorPickerAndMenuRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/single_training/golden/TrainingDetailGoldenTest.kt"
+    ),
+    # TrainingDetailGoldenTest's 3 methods of §3.3, in source order; each renders light and dark.
+    golden_methods=["detailWithPlans", "detailNoPlanExercise", "detailEmptyHistory"],
+    device_test="src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt",
+    device_fragments=(
+        "@Smoke",
+        "fun cardHead_tapTogglesExpansion()",
+        "fun cardHead_removeIsNotSwallowedByTheHeadTap()",
+        "fun expandedCard_showsThePlanBodyWithItsSetbar()",
+    ),
+    feature_class="SingleTrainingFeature",
+    graph_interface="SingleTrainingGraph",
+    graph_function="singleTrainingsGraph",
+    factory_accessor="singleTrainingGraphFactory",
+    create_method="createSingleTrainingGraph",
+    store_impl="SingleTrainingStoreImpl",
+    store_accessor="singleTrainingStore",
+    feature_file="di/SingleTrainingFeature.kt",
+    graph_file="ui/SingleTrainingGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/SingleTrainingExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.singleTraining(uuid: String?): SingleTrainingGraph = singleTrainingGraphFactory.createSingleTrainingGraph(Screen.Training(uuid = uuid))",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the session subsystem is inherited from the parent, not rebuilt",
+        "both qualified dispatchers are inherited and stay two distinct keys",
+        "each extension carries its own route arg into the store state",
+        "a null route arg survives the binding and reaches the store as null",
+    ],
+    # Each identity reaches the graph once through the accessor; the fifth identity's "tr-2" call
+    # and the helper itself are deliberately not counted.
+    identity_accessor=r'(?<!AppGraph)\.singleTraining\((?:"tr-1"|null)\)',
+    extra_checks=(single_training_copy_contract, single_training_dependency_contract),
+    create_args="screen",
+    preview_inventory={},
+    resource_wrapper_dates={
+        "mvi/handler/CommonHandler.kt": {"formatMediumDate": 1},
+    },
+    # 7.13's D5: the two bare previews, pinned per file; every other commonMain file holds none.
+    bare_previews={
+        "ui/TrainingDetailScreen.kt": 1,
+        "ui/components/TrainingDetailMenuSheetContent.kt": 1,
+    },
+    # D4: TrainingEditGoldenTest's three methods, pinned like golden_test.
+    extra_golden_tests={
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/single_training/golden/TrainingEditGoldenTest.kt": ["editCollapsed", "editExpanded", "editEmpty"],
+    },
+)
+
 # Every shared feature entry the gate holds to its exact contract.
 FEATURE_ENTRIES = (
     ARCHIVE_ENTRY,
@@ -5104,6 +5801,7 @@ FEATURE_ENTRIES = (
     PAST_SESSION_ENTRY,
     HOME_ENTRY,
     EXERCISE_CHART_ENTRY,
+    SINGLE_TRAINING_ENTRY,
 )
 
 

@@ -223,13 +223,14 @@ the Activity's store, silently process-scoping every Store
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
-   navigation library type. The shared image-viewer, plan-editor, past-session, and exercise-chart
-   entries are the shape-B factory-resolution exceptions: their generation-owned root passes the
-   required `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` /
-   `ExerciseChartGraph.Factory` through `AppNavigationHost` and `imageViewerGraph` /
-   `planEditorGraph` / `pastSessionGraph` / `exerciseChartGraph` into `ImageViewerFeature` /
-   `PlanEditorFeature` / `PastSessionFeature` / `ExerciseChartFeature`. Each invokes it only inside
-   the `rememberMetroStoreProcessor` creation lambda.
+   navigation library type. The shared image-viewer, plan-editor, past-session, exercise-chart, and
+   single-training entries are the shape-B factory-resolution exceptions: their generation-owned
+   root passes the required `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` /
+   `PastSessionGraph.Factory` / `ExerciseChartGraph.Factory` / `SingleTrainingGraph.Factory`
+   through `AppNavigationHost` and `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` /
+   `exerciseChartGraph` / `singleTrainingsGraph` into `ImageViewerFeature` / `PlanEditorFeature` /
+   `PastSessionFeature` / `ExerciseChartFeature` / `SingleTrainingFeature`. Each invokes it only
+   inside the `rememberMetroStoreProcessor` creation lambda.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -390,6 +391,10 @@ A synchronous gesture path cannot suspend, so the copy it needs is resolved earl
 and kept in State: exercise-chart's scrub assembles its readout from `readoutCopy` (decision D3 of
 [kmp-phase-7-13-exercise-chart-feature.md](feature-specs/kmp-phase-7-13-exercise-chart-feature.md)).
 
+A State lambda also calls no function of its own file that resolves copy: for the shared feature
+entries the topology gate follows same-file calls from each lambda, transitively (decision D5 of
+[kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md)).
+
 ## Per-feature MVI layout
 
 Each feature module follows the same conventional shape. Using
@@ -423,10 +428,10 @@ feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/
 
 Notes:
 
-- `feature/exercise` and `feature/single-training` keep MVI under a `ui/mvi/` package
-  while the simpler `feature/all-trainings`, `feature/all-exercises`, and `feature/home`
-  keep it directly under `mvi/`. Both layouts work with the linting rules; pick the one
-  that already exists when adding to an existing feature.
+- `feature/exercise` keeps MVI under a `ui/mvi/` package while `feature/single-training` and
+  the simpler `feature/all-trainings`, `feature/all-exercises`, and `feature/home` keep it
+  directly under `mvi/`. Both layouts work with the linting rules; pick the one that already
+  exists when adding to an existing feature.
 - There is no per-feature `Component<Screen>` subclass any more. Route arguments reach the
   Store as a `@Provides` bound instance on the feature's `@GraphExtension.Factory` (see
   [Store construction and route arguments](#store-construction-and-route-arguments) and
@@ -503,14 +508,15 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, home, and exercise-chart no longer use the feature-side Context seam:
-`AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+past-session, home, exercise-chart, and single-training no longer use the feature-side Context
+seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
 `AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
-`AppGraph.homeGraphFactory`, and `AppGraph.exerciseChartGraphFactory` implement the accessors
-declared by `AppRootDeps`, and the admitted composition reads that root contract exactly once.
-Retired generations and generations that lose the publication race resolve it zero times. Exactly
-5 feature/dialog Context readers remain.
+`AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`, and
+`AppGraph.singleTrainingGraphFactory` implement the accessors declared by `AppRootDeps`, and the
+admitted composition reads that root contract exactly once. Retired generations and generations
+that lose the publication race resolve it zero times. Exactly 4 feature/dialog Context readers
+remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -2124,6 +2130,13 @@ The reader is chosen by the catalog a string lives in, not by the module kind:
 Compose resources choose by the **primary** system locale only and format arguments with
 `toString()`. That holds for every Compose-resource string and for `StringResolver`; the remedy
 is a maintainer decision ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
+
+A click path cannot suspend, so it never calls `StringResolver`. Copy it shows that takes no
+argument is resolved once per Store, at `Init`, and read from State; copy that takes an argument
+resolves on use, in a launch whose write is a compare-and-set `updateState` that replaces only the
+state it was opened from (decision D2 of
+[kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md):
+single-training's `TrainingEditCopy` and its permanent-delete confirm).
 
 #### Naming convention
 

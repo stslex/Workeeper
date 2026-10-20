@@ -20,7 +20,7 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 | 🟢 | [feature/archive/.../ui/ArchiveGraph.kt](../feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveGraph.kt) | Snackbar templates (`restoredTemplate.format(event.item.name)`) substituted in graph. Should be pre-formatted; event payload should carry the ready string. |
 | 🟢 | [feature/all-trainings/.../ui/AllTrainingsGraph.kt:55-56](../feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsGraph.kt) | `bulkArchiveMessage(archivedCount, blockedNames)` shapes the bulk-archive snackbar copy in the graph file: the success plural when nothing was blocked, otherwise the partial template with the blocked names joined by `", "`, from the semantic `Event.ShowBulkDeleteSuccess(archivedCount, blockedNames)`. The Resolved list below records this shaping as moved to `ClickHandler`; KMP Phase 7.9 (decision D1, [kmp-phase-7-9-all-trainings-feature.md](feature-specs/kmp-phase-7-9-all-trainings-feature.md) Section 5.3) returns it to the graph because `ResourceWrapper`'s `Int` ids cannot address the feature's private Compose resources, and a resource handle may not ride in the event. The common resolver now exists (`StringResolver`, [kmp-string-resolver.md](feature-specs/kmp-string-resolver.md)); paying the row down also changes `all_trainings_copy_contract`, which pins the semantic event. |
 | 🟢 | [feature/exercise/.../ui/ExerciseGraph.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/ExerciseGraph.kt) | `Event.ShowImageError` → `when (event.errorType) { ... }` shaping in graph. Move to mapper or carry resolved message in the event itself. |
-| 🟢 | [feature/single-training/.../ui/SingleTrainingGraph.kt](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt) | Discard-dialog title/body strings still chosen in graph. Push to state or to event payload. |
+| 🟢 | [feature/single-training/.../ui/SingleTrainingGraph.kt](../feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt) | Discard-dialog title/body strings still chosen in graph. Push to state or to event payload. |
 | 🟢 | [feature/home/.../ui/components/ActiveSessionBanner.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/ui/components/ActiveSessionBanner.kt) | Concatenation `stringResource(label) + " · " + stringResource(progress)` in composable. Pre-format full label in `HomeUiMapper`. |
 | 🟢 | [feature/home/.../ui/components/RecentSessionRow.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/ui/components/RecentSessionRow.kt) | String interpolation `"${item.finishedAtRelativeLabel} · ${item.durationLabel}"` in composable. Add a single combined label to `RecentSessionItem`. |
 | 🟢 | [feature/home/.../ui/components/TrainingPickerSheet.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/ui/components/TrainingPickerSheet.kt) | `listOfNotNull(...).joinToString(" · ")` in composable. Same pattern — pre-format in mapper. |
@@ -37,9 +37,9 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 |---|---|---|
 | 🟢 | [feature/archive/.../mvi/handler/ArchivePagingHandler.kt](../feature/archive/src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/mvi/handler/ArchivePagingHandler.kt), [.../ui/ArchiveGraph.kt](../feature/archive/src/commonMain/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveGraph.kt), [feature/all-trainings/.../mvi/mapper/TrainingListItemMapper.kt](../feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/mapper/TrainingListItemMapper.kt), [.../ui/AllTrainingsGraph.kt](../feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/AllTrainingsGraph.kt), [feature/exercise/.../ui/mvi/handler/ClickHandler.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ClickHandler.kt), [feature/live-workout/.../mvi/handler/CommonHandler.kt](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/CommonHandler.kt) | These six production files call CMP's top-level `getString` / `getPluralString` outside composition; they predate `StringResolver`. Pay down by injecting `StringResolver` in their place. Only `ArchiveGraph.kt` and `AllTrainingsGraph.kt` carry a `TODO(tech-debt)` marker, for their UI Mapping Boundary rows; markers for the other four come with the pay-down ([kmp-string-resolver.md](feature-specs/kmp-string-resolver.md) Section 9). |
 | 🟡 | [core/ui/kit/.../strings/StringResolver.kt](../core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/strings/StringResolver.kt) | Compose resources choose by the primary system locale only and format arguments with `toString()` ([kmp-phase-7-9-all-trainings-feature.md](feature-specs/kmp-phase-7-9-all-trainings-feature.md) Section 5.7). This now holds for every Compose-resource string and for `StringResolver`. The remedy, a locale-list-aware resource environment or a per-app locale, is a maintainer decision. `StringResolver`'s KDoc states the property; like the row above, it gets no `TODO(tech-debt)` marker until the pay-down. |
-| 🟡 | [feature/home/.../composeResources/values-ru/strings.xml](../feature/home/src/commonMain/composeResources/values-ru/strings.xml) | Runtime RU catalog coverage: no test in archive, all-trainings, all-exercises, past-session, home or exercise-chart sets a Russian locale or reads `values-ru` at runtime; the topology gate pins the RU values statically ([kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md) S5). |
-| 🟢 | [core/ui/mvi/.../processor/MetroStoreProcessor.kt](../core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/MetroStoreProcessor.kt) | A typed `rememberMetroStoreProcessor` would drop the inherited `@Suppress("UNCHECKED_CAST")` from the eight shared features' `*Feature.kt` (archive, all-trainings, all-exercises, image-viewer, plan-editor, past-session, home, exercise-chart). |
-| 🟢 | [feature/home/.../mvi/mapper/HomeUiMapper.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/mvi/mapper/HomeUiMapper.kt) | A portable date formatter would retire archive's and exercise-chart's `formatDayMonth`, past-session's `formatMediumDate` and home's two `getAbbreviatedRelativeTime` reads, the only `ResourceWrapper` reads left in shared entries; each iOS scene stubs them. |
+| 🟡 | [feature/home/.../composeResources/values-ru/strings.xml](../feature/home/src/commonMain/composeResources/values-ru/strings.xml) | Runtime RU catalog coverage: no test in archive, all-trainings, all-exercises, past-session, home or exercise-chart sets a Russian locale or reads `values-ru` at runtime; the topology gate pins the RU values statically ([kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md) S5). single-training's goldens are the exception: they render its RU catalog through CMP in Paparazzi, the plural's `few` form included ([kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md) S7). |
+| 🟢 | [core/ui/mvi/.../processor/MetroStoreProcessor.kt](../core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/MetroStoreProcessor.kt) | A typed `rememberMetroStoreProcessor` would drop the inherited `@Suppress("UNCHECKED_CAST")` from the nine shared features' `*Feature.kt` (archive, all-trainings, all-exercises, image-viewer, plan-editor, past-session, home, exercise-chart, single-training). |
+| 🟢 | [feature/home/.../mvi/mapper/HomeUiMapper.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/mvi/mapper/HomeUiMapper.kt) | A portable date formatter would retire archive's and exercise-chart's `formatDayMonth`, past-session's and single-training's `formatMediumDate` and home's two `getAbbreviatedRelativeTime` reads, the only `ResourceWrapper` reads left in shared entries; each iOS scene stubs them. |
 
 ---
 
@@ -47,12 +47,15 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 Items deferred from the shared (KMP) feature-entry phases (see
 [kmp-phase-7-13-exercise-chart-feature.md](feature-specs/kmp-phase-7-13-exercise-chart-feature.md)
+Section 17 and
+[kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md)
 Section 17).
 
 | Severity | Location | Description |
 |---|---|---|
 | 🟢 | [feature/exercise-chart/.../domain/ChartFolderPrRuleParityTest.kt](../feature/exercise-chart/src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise_chart/domain/ChartFolderPrRuleParityTest.kt) | `PrRuleFixture` lives in the Android-only `core:data:database-test`, so exercise-chart's `ChartFolderPrRuleParityTest` runs on the Android host only. A KMP fixture module consumed by `core:data:exercise` and the feature would put the parity on Native; worth it once a second shared consumer appears. |
 | 🟢 | [feature/exercise-chart/.../mvi/handler/ChartLoader.kt](../feature/exercise-chart/src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ChartLoader.kt) | A handler that another handler calls is reached through an interface bound in the graph (exercise-chart's `ChartLoader`, Phase 7.13 D2), because commonTest cannot mock a final handler and Metro's public graph cannot bind an internal one. live-workout's `ClickHandler` and `DialogClickHandler` inject `ExercisePickerHandler` and follow this template when that feature is shared. |
+| 🟢 | [feature/single-training/.../mvi/handler/ClickHandler.kt](../feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandler.kt) | Copy a click path shows is resolved before the click: constant copy once per Store at `Init`, into State; copy that takes an argument on use, in a launch whose write is a compare-and-set `updateState` guarded on the state it replaces (single-training's `TrainingEditCopy` and permanent-delete confirm, Phase 7.14 D2). live-workout's four dialog paths follow this template when that feature is shared: three take constants only, the delete-session one formats live counts. |
 
 ---
 
@@ -196,13 +199,16 @@ stopped covering (name → real file) is exactly what the new device pins now as
 it lives in `core:core`, outside the data layer this phase converts, and it cannot be gated in both
 directions without a logging seam that does not exist (see "Why not now").
 
-**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload, not the action one —
-is `.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
+**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload — is
+`.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
 declaring interfaces: `AppCoroutineScope`, `StoreConsumer` and `HandlerStore`. An upstream flow
 failure is caught, handed to `{}`, and the collection completes normally: nothing reaches logcat,
 nothing reaches Crashlytics, no test observes anything. **The sibling `launch(action, …)` overload is
-not silent** — its `exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics
-*before* the `isLogging` gate. The asymmetry is the whole defect.
+silent the same way** (corrected 2026-10-20, below; this paragraph first said it was not): it runs
+`action` inside `runCatching`, so a throw from the action goes straight to `onError`. Its
+`exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics *before* the
+`isLogging` gate, but the handler only sees a throw that escapes that block: one from `onSuccess`,
+or from `onError` itself. There is no asymmetry. Both overloads hand their main failure to `{}`.
 
 **Blast radius, counted:** 22 production `Flow<T>.launch` call sites; **1** passes an explicit
 `onError`, **21** take the silent default. All three DataStore repositories above are consumed
@@ -221,13 +227,73 @@ requires an `onError`; nothing mechanical stops call site 23.
 **On iOS it is strictly worse:** `FirebaseCrashlyticsHolder` iosMain is `= Unit`, so even the one
 path that does report is a no-op there.
 
-**Why not now.** The fix is one line — `.catch { Log.e(it); onError(it) }`, making the two overloads
-symmetric — and `Flow.catch` rethrows cancellation causes rather than catching them
-(`catchImpl`'s `e.isCancellationCause(coroutineContext)` branch), so it would not spam on normal
-teardown. But `Log` exposes no injectable writer: the kermit `Logger` is constructed inline per
-instance and the only control is a global `isLogging` flag, so "this logged" cannot be asserted, and
-the change alters release Crashlytics volume across 21 call sites. It wants its own PR, with a
-logging seam landed first.
+**2026-10-20, Phase 7.14 review of #340: the action overload, measured.** The review found two of
+D2's launches failing silently. That is this defect, in the overload this section first called
+safe. The action overload's body and its `exceptionHandler` are byte-identical at `d9188da54`
+(where this section was written), at `edfb570e3` and today, so that claim was wrong when it was
+written. A scratch Robolectric probe on the real `AppCoroutineScopeImpl` measured both directions,
+with `FirebaseCrashlyticsHolder` mocked as `LogTelemetrySinkTest` mocks it (the probe was not
+committed):
+
+- a throw from the action reaches `onError` and records nothing;
+- a throw from `onSuccess` is recorded, the known positive;
+- with the default `onError`, a throw from the action leaves no trace at all.
+
+*Blast radius, counted:* 60 production calls of the action overload of `launch`, of which **33**
+take the silent default `onError`:
+
+- 32 `HandlerStore.launch` calls in feature handlers: single-training 10, exercise 7, archive 4,
+  home 3, live-workout 3, all-exercises 2, settings 2 and all-trainings 1;
+- the `scope.launch` in `BaseStore.sendEventWithAwait`.
+
+`launchDefault` adds 18 calls, of which **3** take the default, all in settings'
+`BackupClickHandler`.
+
+The Kotlin compiler resolves the overload, so the count reads compiled classes. A call that omits an
+argument compiles to `launch$default(…, mask, null)`. Bit 0 of the mask marks a defaulted `onError`;
+for `AppCoroutineScope.launch` it is bit 1, after `start`. `javap` read every mask in the debug
+classes of all 39 production modules: 5,328 class files, from each module's one compiler output
+newer than a clean repository build. Two kinds of call were settled from source instead:
+
+- the 14 `launchDefault` calls that pass every argument compile to the handler's own delegated
+  method, not to `launchDefault$default`; all 14 pass an `onError`;
+- `BaseStore`'s two forwarders are excluded: they pass their caller's `onError` on and are not call
+  sites.
+
+A separate source scan matched every call to the compiled census.
+
+*Single-training's two new instances, through D2* (both reproduced against the handlers with a
+resolver that always throws; scratch, not committed):
+
+- `Init`'s `resolveEditCopy`: a throw leaves `editCopy` at `TrainingEditCopy.EMPTY` for the Store's
+  life, so the save error and both undo toasts carry an empty message;
+- `processPermanentDeleteMenu`: a throw leaves the menu open and the confirm never opens; only the
+  haptic fires.
+
+Before D2 both resolved synchronously through `ResourceWrapper`, so a throw would have escaped the
+click path as a crash. The resolver reads bundled, generated resources whose keys the topology gate
+pins, so the trigger is improbable. The silence is not.
+
+*Inherited sites that resolve copy in a launch with the default `onError`:*
+
+- single-training's start-session launch resolves the conflict dialog's copy inside its action, so
+  a throw there is silent and the dialog never opens;
+- single-training's archive launch and all-exercises' bulk delete resolve their copy in
+  `onSuccess`, which the `exceptionHandler` does see. What is silent there is a throw from their
+  actions: the archive and the bulk archive.
+
+**Why not now.** The fix is one line per overload. The flow overload takes
+`.catch { Log.e(it); onError(it) }`, and the action overload the same `Log.e` before `onError` in
+its `onFailure`. `Flow.catch` rethrows cancellation causes rather than catching them
+(`catchImpl`'s `e.isCancellationCause(coroutineContext)` branch), so the flow line would not spam
+on normal teardown. `runCatching` does catch cancellation, so the action line must let a
+`CancellationException` through rather than log it. But `Log` exposes no injectable writer: the
+kermit `Logger` is constructed inline per instance and the only control is a global `isLogging`
+flag, so "this logged" cannot be asserted. The change also alters release Crashlytics volume, across
+the 21 flow call sites and the 36 action-overload ones above. It wants its own PR, with a logging
+seam landed first. That PR should land before live-workout adopts D2's template ("Shared (KMP)
+feature entries — follow-ups"): its delete-session dialog would resolve copy in one more such
+launch, and its three constant dialogs would read copy resolved by one.
 
 ---
 
@@ -479,10 +545,11 @@ that phase and tracked here for the next phase.
 | ✅ RESOLVED | [feature/home/.../mvi/handler/CommonHandler.kt](../feature/home/src/commonMain/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/CommonHandler.kt) | Mapping inside `updateStateImmediate` lambda — `row?.toUi(now, resourceWrapper)` runs on Main.immediate every active-session emit. Hoist out before the lambda. Resolved by Phase 7.12 (F1): the mapping runs before the lambda here and in `ClickHandler`'s picker, and the topology gate fails a resolver or wrapper reference inside any shared entry's State lambda (D3). |
 | 🟡 | [feature/all-exercises/.../mvi/handler/PagingHandler.kt:56-60](../feature/all-exercises/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandler.kt) | Mapping `tags.map { it.toTagUi() }.toImmutableList()` inside `updateStateImmediate` lambda. Same fix shape as above. |
 | 🟡 | [feature/all-trainings/.../mvi/handler/PagingHandler.kt:53-56](../feature/all-trainings/src/commonMain/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/PagingHandler.kt) | Same pattern as the home / all-exercises rows. |
-| 🟡 | [feature/single-training/.../mvi/handler/CommonHandler.kt:55-56](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt) | Same pattern as the home / all-exercises rows. |
+| 🟡 | [feature/single-training/.../mvi/handler/CommonHandler.kt](../feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt) | Same pattern as the home / all-exercises rows, in `observeTags`. |
 | 🟢 | [core/ui/mvi/.../BaseStore.kt](../core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt) | A non-suspend `updateStateImmediate` lambda in core:ui:mvi would make a suspending call inside any State lambda a compile error in every feature; today only the shared entries' gate check (D3, [kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md)) catches it. |
 | 🟢 | [feature/exercise-chart/.../mvi/handler/CommonHandler.kt](../feature/exercise-chart/src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/CommonHandler.kt) | `loadChart`'s `onSuccess` runs on Default, so a scrub on the previous points that lands between `prior = state.value` and the write is overwritten by an index computed from `prior`. The window has no suspension point (Phase 7.13 F1); closing it — the write on Main, or the index choice in a CAS `updateState` — changes behaviour. |
 | 🟢 | [feature/exercise-chart/.../mvi/handler/ClickHandler.kt](../feature/exercise-chart/src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise_chart/mvi/handler/ClickHandler.kt) | A picker switch sets `selectedExercise` and `isLoading` but keeps the previous exercise's `points`, `readoutCopy`, `activeIndex` and `readout` until the load lands, and `State.content` keeps the plot drawn while it reloads, with `ChartCanvas`'s `onScrub` live. A scrub in that window maps the new exercise's type, so its unit, over the old points; the load's write then replaces the readout. Inherited unchanged by Phase 7.13 and found in its review. Clearing the scrub on selection, or gating `onScrub` on `isLoading`, changes behaviour. |
+| 🟢 | [feature/single-training/.../mvi/handler/CommonHandler.kt](../feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt) | A load that lands before the first tags emission chips the training's tags as `AppTagItem(uuid = name)`; the tag picker then shows them unselected, and selecting one adds a second chip of the same tag. Phase 7.14's F2 keeps the match inside the load's State lambda, so the behaviour is unchanged (a static reading, not reproduced). |
 
 ---
 
@@ -566,7 +633,7 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | 🟡 | [feature/all-exercises/.../AllExercisesScreenTest.kt](../feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt) | 5.2 |
 | 🟡 | [feature/exercise/.../ExerciseScreenTest.kt](../feature/exercise/src/androidTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt) | 5.2 |
 | 🟡 | [feature/all-trainings/.../AllTrainingsScreenTest.kt](../feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt) | 5.3 |
-| 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
+| 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
 

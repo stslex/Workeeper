@@ -28,7 +28,6 @@ dependencies {
 
     // The twelve entry providers AppNavigationHost composes.
     implementation(project(":feature:exercise"))
-    implementation(project(":feature:single-training"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:live-workout"))
     api(project(":feature:all-trainings"))
@@ -36,6 +35,7 @@ dependencies {
     api(project(":feature:past-session"))
     api(project(":feature:home"))
     api(project(":feature:exercise-chart"))
+    api(project(":feature:single-training"))
     api(project(":feature:archive"))
     api(project(":feature:image-viewer"))
     api(project(":feature:plan-editor"))

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingGraph
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 
 /**
@@ -50,6 +51,9 @@ interface AppRootDeps {
 
     /** Generation-owned factory for the exercise-chart graph extension. */
     val exerciseChartGraphFactory: ExerciseChartGraph.Factory
+
+    /** Generation-owned factory for the single-training graph extension. */
+    val singleTrainingGraphFactory: SingleTrainingGraph.Factory
 }
 
 /**

@@ -319,9 +319,10 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
 - `AppGraph.stringResolver` still has **no production reader**: no production code reads
   `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler`,
-  past-session's `CommonHandler`, home's `ClickHandler`, `CommonHandler` and `PagingHandler`, and
-  exercise-chart's `CommonHandler` receive the binding by constructor injection through their
-  graph extensions, which inherit it from `AppGraph`. The accessor exists so
+  past-session's `CommonHandler`, home's `ClickHandler`, `CommonHandler` and `PagingHandler`,
+  exercise-chart's `CommonHandler`, and single-training's `ClickHandler` and `CommonHandler`
+  receive the binding by constructor injection through their graph extensions, which inherit it
+  from `AppGraph`. The accessor exists so
   `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
   `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
@@ -701,6 +702,76 @@ on a device by the three `@Regression` journeys that reach the `ExerciseChartGra
 `RouteReachabilityTest.exerciseChartOpensFromHomeAndHomeReturns` (a null route argument), and
 `StoreRetentionTest.exerciseChartStateDoesNotLeakBetweenEntities` (a non-null one) and
 `exerciseChartStoreIsDestroyedWhenItsEntryLeavesTheStack`.
+
+#### Shared single-training feature
+
+`feature:single-training` keeps its four portable suites in `commonTest`, so the same 62 exact
+identities execute through Android host and `iosSimulatorArm64Test`: click handler 50, common
+handler 5, navigation handler 5 and route argument 2. Four of them were added by Phase 7.14 to pin
+decision D2, which no earlier identity observed (decision S14 of
+[kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md)).
+`the История count is the total not the visible page` is the first identity with Cyrillic letters
+to run on Native; the oracle compares it from the UTF-8 XML.
+
+The suites use `kotlin.test`, `kotlinx-coroutines-test` and private in-file fakes. The click
+suite's store fake reproduces the relaxed MockK store: `state` is the identity's flow,
+`updateState` and the update-lambda `updateStateImmediate` apply, events and consumed actions
+record, and every other member fails fast, `logger`, `consumeOnMain` and `Flow.launch` included.
+Its `launch` runs nothing unless the identity sets it up, as SPEC Section 11.1 lists: the action
+then `onSuccess`, the action only, or `onError` alone, launched on the identity's `runTest`
+scheduler, or captured and completed by the identity itself. A throw from a launch that runs is
+routed nowhere, so it fails the identity. The common suite's store fake launches every `launch` on
+the identity's scheduler inside `supervisorScope`, then `onSuccess`, routing a throw to `onError`,
+and records `Flow.launch` without collecting. Every identity that launches advances the scheduler
+until idle before its assertions; none uses `runBlocking`. The interactor and navigator fakes
+answer only what an identity sets up, or the relaxed default, and count their calls; the history
+identity's load returns a real `TrainingDomain`.
+
+Copy outside composition resolves through the injected `StringResolver`. Both suites fake it
+strictly and in-file: the click suite answers the conflict progress with its two counts, the
+permanent-delete title with the training's name and the confirm's three other reads verbatim; the
+common suite answers `Init`'s three edit-copy reads, each with its own string. Both throw on any
+other resource and on any read that does not pass exactly what production passes. `ResourceWrapper`
+keeps only the history rows' medium date (`formatMediumDate`), so the common suite's wrapper answers
+that one member and throws on every other.
+
+D2 is pinned by the four added identities. `Init` resolves the editor's constant copy into State
+once per Store; the save error and both undo toasts carry it, a distinct string per field; and the
+permanent-delete confirm, resolved in a captured launch, lands only on the menu it replaces, so a
+menu dismissed before the copy lands stays dismissed. The module's one production
+`core:data:database` edge is read by the domain mapper alone; no test source set reads
+`core:data:database` or `core:data:database-test`.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.single_training.SingleTrainingFeatureSceneIosTest.resourcesDetailEditorPickerAndMenuRenderAndDispatch`
+switches one content slot, from test-held state, between the production `TrainingDetailScreen`,
+`TrainingEditScreen`, `ExercisePickerSheet` and `TrainingDetailMenuSheetContent` under `AppTheme`.
+Every read outside composition goes through one real `ComposeStringResolver`; the scene declares no
+fake resolver and needs no `ResourceWrapper`, since every date it renders is a pre-formatted label.
+It resolves the whole private EN catalog as stored and the plural filled, the handlers' formatted
+reads with production's arguments, renders the read screen, the editor, the picker and the menu
+content, and asserts every action and picker callback as one exact ordered list. Text goes through
+the `SetText` semantics action; the fields are controlled, so the test-held State takes each typed
+value, as the Store would. Together with the 62 portable cases, the single-training Native XML
+contains exactly 63 passing cases with no skip, failure, or error.
+
+What this does not cover: RU values execute only in the goldens; D2's guard is raced only in
+`commonTest`'s captured launch, never on a device, and no identity measures the confirm's
+one-dispatch delay; the graph's wiring (snackbars, undo actions, `BackHandler`, the discard and
+conflict sheets) and the reorder drag have no scene path; the history rows' medium date runs only
+through `AndroidResourceWrapper` on Android; and the inherited tag race
+([tech-debt.md → State Mutation Discipline](tech-debt.md#state-mutation-discipline)) is raced by
+no identity.
+
+Both golden classes, `TrainingDetailGoldenTest` and `TrainingEditGoldenTest`, moved to
+`androidHostTest` with their 12 byte-identical PNGs. Every method renders `LOCALE_RU`, so they are
+the first goldens to render a shared entry's own RU copy, and a RU plural (`2 СЕССИИ`, the `few`
+form), through CMP. The device test moved to `androidDeviceTest` with its 3 `@Smoke` identities.
+Android keeps the six `SingleTrainingExtensionIdentityTest` cases, which reach the graph through
+`appGraph.singleTrainingGraphFactory`, and the factory flow is proven on a device by the two
+`@Regression` journeys that reach the `SingleTrainingGraph` tag:
+`RouteReachabilityTest.singleTrainingOpensForCreateFromAllTrainingsAndTheListReturns` (a null route
+argument) and `singleTrainingOpensFromASeededRowAndTheListReturns` (a non-null one).
 
 #### Shared string resolver
 
@@ -1201,7 +1272,7 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 |---|---|
 | `feature/all-trainings` | `feature/all-trainings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
 | `feature/all-exercises` | `feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt` |
-| `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
+| `feature/single-training` | `feature/single-training/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt`, `ExerciseFormBasicsTest.kt` |
 | `feature/settings` | `feature/settings/src/androidTest/.../SettingsScreenTest.kt` |
 | `app/app` (`@Regression`, real graph) | `app/app/src/androidTest/.../app/ApplicationBottomBarTest.kt`, `ExerciseCreatePersistenceTest.kt`, `NavigationLifecycleRegressionTest.kt`, `RecoveryActivityDbFreeTest.kt`, `AllTrainingsExtensionDbVisibilityTest.kt` |
@@ -1211,13 +1282,14 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
 `:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
 `:feature:all-exercises` (KMP), `:feature:past-session` (KMP), `:feature:home` (KMP),
-`:feature:exercise-chart` (KMP), and
-`feature/`{`exercise`, `live-workout`, `settings`, `single-training`}. Goldens
+`:feature:exercise-chart` (KMP), `:feature:single-training` (KMP), and
+`feature/`{`exercise`, `live-workout`, `settings`}. Goldens
 live in
 `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
-`:feature:past-session`, `:feature:home`, `:feature:exercise-chart`), and
+`:feature:past-session`, `:feature:home`, `:feature:exercise-chart`,
+`:feature:single-training`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1233,7 +1305,8 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 
 Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
-`:feature:past-session`, `:feature:home`, and `:feature:exercise-chart`
+`:feature:past-session`, `:feature:home`, `:feature:exercise-chart`, and
+`:feature:single-training`
 too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
@@ -1399,11 +1472,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:past-session:iosSimulatorArm64Test \
   :feature:home:iosSimulatorArm64Test \
   :feature:exercise-chart:iosSimulatorArm64Test \
+  :feature:single-training:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 13/13.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 14/14.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1417,6 +1491,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:past-session:linkDebugTestIosArm64 \
   :feature:home:linkDebugTestIosArm64 \
   :feature:exercise-chart:linkDebugTestIosArm64 \
+  :feature:single-training:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities

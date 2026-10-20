@@ -1,0 +1,782 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.single_training.mvi.handler
+
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
+import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ExercisePlanDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toDomain
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
+import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
+import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
+import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
+import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
+import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
+import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
+import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
+import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
+import io.github.stslex.workeeper.feature.single_training.resources.Res
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_archive_blocked
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_archive_success_format
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_conflict_progress_format
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_conflict_unnamed
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_body
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_confirm
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_impact
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_title
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import kotlin.time.Clock
+import kotlin.uuid.Uuid
+
+@Suppress("TooManyFunctions", "LongMethod", "LargeClass")
+@SingleIn(SingleTrainingScope::class)
+internal class ClickHandler @Inject constructor(
+    private val interactor: SingleTrainingInteractor,
+    private val stringResolver: StringResolver,
+    @MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
+    store: SingleTrainingHandlerStore,
+) : Handler<Action.Click>, SingleTrainingHandlerStore by store {
+
+    override fun invoke(action: Action.Click) {
+        when (action) {
+            Action.Click.OnBackClick -> processBackClick()
+            Action.Click.OnDetailMenuClick -> processDetailMenuClick()
+            Action.Click.OnDetailMenuDismiss -> processCloseDialog()
+            Action.Click.OnEditClick -> processEditClick()
+            Action.Click.OnArchiveClick -> processArchiveClick()
+            Action.Click.OnPermanentDeleteClick -> processPermanentDeleteMenu()
+            Action.Click.OnPermanentDeleteConfirm -> processPermanentDeleteConfirm()
+            Action.Click.OnPermanentDeleteDismiss -> processCloseDialog()
+            Action.Click.OnStartSessionClick -> processStartSession()
+            Action.Click.OnConflictResume -> processConflictResume()
+            Action.Click.OnConflictDeleteAndStart -> processConflictDeleteAndStart()
+            Action.Click.OnConflictDismiss -> processCloseDialog()
+            is Action.Click.OnExerciseRowClick -> processExerciseRowClick(action)
+            is Action.Click.OnPastSessionClick -> processPastSessionClick(action)
+            Action.Click.OnSaveClick -> processSaveClick()
+            Action.Click.OnCancelClick -> processBackClick()
+            Action.Click.OnConfirmDiscard -> processConfirmDiscard()
+            Action.Click.OnDismissDiscard -> processCloseDialog()
+            Action.Click.OnAddExerciseClick -> processAddExerciseClick()
+            is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
+            is Action.Click.OnUndoExerciseRemove -> processUndoExerciseRemove(action)
+            is Action.Click.OnUndoSetRemove -> processUndoSetRemove(action)
+            is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
+            is Action.Click.OnExerciseCardToggle -> processExerciseCardToggle(action)
+            is Action.Click.OnExercisePlanAction -> processExercisePlanAction(action)
+            Action.Click.OnTagAddClick -> processTagAddClick()
+            Action.Click.OnTagPickerDismiss -> processTagPickerDismiss()
+            is Action.Click.OnTagToggle -> processTagToggle(action)
+            is Action.Click.OnTagRemove -> processTagRemove(action)
+            is Action.Click.OnTagCreate -> processTagCreate(action)
+            Action.Click.OnPickerDismiss -> processPickerDismiss()
+            is Action.Click.OnPickerToggle -> processPickerToggle(action)
+            Action.Click.OnPickerConfirm -> processPickerConfirm()
+        }
+    }
+
+    private fun processCloseDialog() {
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
+    private fun processDetailMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(dialogState = DialogState.DetailMenu) }
+    }
+
+    private fun processBackClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        if (current.dialogState !is DialogState.Hidden) {
+            updateState { it.copy(dialogState = DialogState.Hidden) }
+            return
+        }
+        if (current.mode !is Mode.Edit) {
+            consume(Action.Navigation.Back)
+            return
+        }
+        // The write is in flight: Отмена may not roll back what the database is about to hold.
+        if (current.isSaving) return
+        if (current.hasChanges) {
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
+        } else {
+            applyDiscard()
+        }
+    }
+
+    /** Entering the editor collapses every card (ED14); D-OPEN-8's insert-opens is unaffected. */
+    private fun processEditClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            current.copy(
+                mode = Mode.Edit(isCreate = false),
+                // A new draft: nothing from the previous one may carry over.
+                draftEpoch = current.draftEpoch + 1,
+                isSaving = false,
+                pendingSetRestores = persistentListOf(),
+                expandedExerciseUuids = persistentSetOf(),
+                originalSnapshot = current.toSnapshot(),
+            )
+        }
+    }
+
+    private fun processArchiveClick() {
+        val uuid = state.value.uuid ?: return
+        val name = state.value.name
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        // Close the `⋮` sheet before the result lands so nothing stacks on it.
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+        launch(
+            onSuccess = { result ->
+                when (result) {
+                    ArchiveResult.Success -> {
+                        sendEvent(
+                            Event.ShowArchiveSuccess(
+                                message = stringResolver.getString(
+                                    Res.string.feature_training_detail_archive_success_format,
+                                    name,
+                                ),
+                            ),
+                        )
+                        withContext(mainDispatcher) { consume(Action.Navigation.Back) }
+                    }
+
+                    is ArchiveResult.Blocked ->
+                        sendEvent(
+                            Event.ShowArchiveBlocked(
+                                message = stringResolver.getString(
+                                    Res.string.feature_training_detail_archive_blocked,
+                                ),
+                            ),
+                        )
+                }
+            },
+        ) {
+            interactor.archive(uuid)
+        }
+    }
+
+    private fun processPermanentDeleteMenu() {
+        val current = state.value
+        if (!current.canPermanentlyDelete) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val name = current.name
+        // D2: the title takes the name, so the confirm's copy resolves on use, before its write.
+        launch(
+            onSuccess = { confirm ->
+                updateState { latest ->
+                    // Only the menu it replaces may open it: a dismissal that landed first wins.
+                    if (latest.dialogState == DialogState.DetailMenu) {
+                        latest.copy(dialogState = confirm)
+                    } else {
+                        latest
+                    }
+                }
+            },
+        ) {
+            DialogState.PermanentDeleteConfirm(
+                title = stringResolver.getString(
+                    Res.string.feature_training_detail_permanent_delete_title,
+                    name,
+                ),
+                body = stringResolver.getString(Res.string.feature_training_detail_permanent_delete_body),
+                impactSummary = stringResolver.getString(
+                    Res.string.feature_training_detail_permanent_delete_impact,
+                ),
+                confirmLabel = stringResolver.getString(
+                    Res.string.feature_training_detail_permanent_delete_confirm,
+                ),
+            )
+        }
+    }
+
+    private fun processPermanentDeleteConfirm() {
+        val uuid = state.value.uuid ?: return
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+        launch(
+            onSuccess = {
+                withContext(mainDispatcher) { consume(Action.Navigation.Back) }
+            },
+        ) {
+            interactor.permanentlyDelete(uuid)
+        }
+    }
+
+    private fun processStartSession() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val trainingUuid = current.uuid ?: return
+        launch {
+            when (val resolution = interactor.resolveStartSessionConflict(trainingUuid)) {
+                StartSessionConflict.ProceedFresh -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkout(
+                        sessionUuid = "",
+                        trainingUuid = trainingUuid,
+                    ),
+                )
+
+                is StartSessionConflict.SilentResume -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkout(
+                        sessionUuid = resolution.sessionUuid,
+                        trainingUuid = trainingUuid,
+                    ),
+                )
+
+                is StartSessionConflict.NeedsUserChoice -> {
+                    val activeName = current.name.takeIf { it.isNotBlank() }
+                        ?: stringResolver.getString(
+                            Res.string.feature_training_detail_conflict_unnamed,
+                        )
+                    val progressLabel = stringResolver.getString(
+                        Res.string.feature_training_detail_conflict_progress_format,
+                        resolution.doneCount,
+                        resolution.totalCount,
+                    )
+                    val sessionUuid = resolution.active.sessionUuid
+                    updateStateImmediate {
+                        it.copy(
+                            dialogState = DialogState.ActiveSessionConflict(
+                                sessionUuid = sessionUuid,
+                                activeSessionName = activeName,
+                                progressLabel = progressLabel,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun processConflictResume() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val info = current.dialogState as? DialogState.ActiveSessionConflict ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+        consume(
+            Action.Navigation.OpenLiveWorkout(
+                sessionUuid = info.sessionUuid,
+                trainingUuid = current.uuid,
+            ),
+        )
+    }
+
+    private fun processConflictDeleteAndStart() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        val current = state.value
+        val info = current.dialogState as? DialogState.ActiveSessionConflict ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+        launch {
+            interactor.deleteSession(info.sessionUuid)
+            consumeOnMain(
+                Action.Navigation.OpenLiveWorkout(
+                    sessionUuid = "",
+                    trainingUuid = state.value.uuid,
+                ),
+            )
+        }
+    }
+
+    private fun processExerciseRowClick(action: Action.Click.OnExerciseRowClick) {
+        if (state.value.mode is Mode.Edit) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenExerciseDetail(action.exerciseUuid))
+    }
+
+    private fun processPastSessionClick(action: Action.Click.OnPastSessionClick) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenSession(action.sessionUuid))
+    }
+
+    private fun processSaveClick() {
+        val current = state.value
+        if (current.name.isBlank()) {
+            updateState { it.copy(nameError = true) }
+            return
+        }
+        if (current.exercises.isEmpty()) {
+            // D2: the copy was resolved once per Store, so this click path never suspends.
+            sendEvent(Event.ShowSaveError(message = current.editCopy.noExercisesError))
+            return
+        }
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val resolvedUuid = current.uuid?.takeIf { it.isNotBlank() } ?: Uuid.random().toString()
+        val snapshot = TrainingChangeDomain(
+            uuid = resolvedUuid,
+            name = current.name.trim(),
+            description = current.description.takeIf { it.isNotBlank() },
+            isAdhoc = false,
+            archived = false,
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            labels = current.tags.map { it.name },
+            exerciseUuids = current.exercises.sortedBy { it.position }.map { it.exerciseUuid },
+        )
+        val isCreate = current.isCreate
+        val plans = current.exercises.map { item ->
+            ExercisePlanDomain(
+                exerciseUuid = item.exerciseUuid,
+                planSets = item.planSets?.map { it.toDomain() },
+            )
+        }
+        // Snapshot captured: until an outcome lands, an undo would miss the write.
+        updateState { it.copy(isSaving = true) }
+        launch(
+            onError = {
+                // The draft is still alive — its undos re-arm with it.
+                updateStateImmediate { latest -> latest.copy(isSaving = false) }
+            },
+            onSuccess = {
+                if (isCreate) {
+                    withContext(mainDispatcher) { consume(Action.Navigation.Back) }
+                } else {
+                    updateStateImmediate { latest ->
+                        latest.copy(
+                            uuid = resolvedUuid,
+                            mode = Mode.Read,
+                            isSaving = false,
+                            originalSnapshot = latest.toSnapshot(),
+                        )
+                    }
+                }
+            },
+        ) {
+            // One transaction: the training row and every plan, which is what lets a create
+            // flow carry plans (ED1).
+            interactor.saveTraining(snapshot, plans)
+        }
+    }
+
+    private fun processConfirmDiscard() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+        // Guarded on its own: the confirm is a second action, and a save can be dispatched
+        // between the sheet and the confirm.
+        if (state.value.isSaving) return
+        applyDiscard()
+    }
+
+    private fun applyDiscard() {
+        val current = state.value
+        val mode = current.mode as? Mode.Edit ?: run {
+            consume(Action.Navigation.Back)
+            return
+        }
+        if (mode.isCreate) {
+            consume(Action.Navigation.Back)
+        } else {
+            // D3: the snapshot's restore is written in the lambda itself, so the lambda is a copy.
+            updateState { latest ->
+                val snapshot = latest.originalSnapshot ?: return@updateState latest.copy(mode = Mode.Read)
+                latest.copy(
+                    mode = Mode.Read,
+                    expandedExerciseUuids = persistentSetOf(),
+                    pendingSetRestores = persistentListOf(),
+                    name = snapshot.name,
+                    nameError = false,
+                    description = snapshot.description,
+                    tags = latest.availableTags
+                        .filter { tag -> tag.uuid in snapshot.tagUuids }
+                        .toImmutableList(),
+                    tagSearchQuery = "",
+                    // The whole snapshot list, never the current one filtered and re-sorted:
+                    // filtering can only remove, and re-sorting would leave `position` stale.
+                    exercises = snapshot.exercises,
+                )
+            }
+        }
+    }
+
+    private fun processAddExerciseClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        launch(
+            onSuccess = { results ->
+                updateStateImmediate { latest ->
+                    latest.copy(
+                        pickerState = PickerState.Open(
+                            query = "",
+                            results = results.map { picker ->
+                                PickerExerciseItem(
+                                    uuid = picker.exercise.uuid,
+                                    name = picker.exercise.name,
+                                    type = picker.exercise.type.toUi(),
+                                    tags = picker.labels.toImmutableList(),
+                                )
+                            }.toImmutableList(),
+                            selectedUuids = persistentListOf(),
+                        ),
+                    )
+                }
+            },
+        ) {
+            interactor.searchExercisesForPicker(
+                query = "",
+                excludeUuids = current.exercises.map { it.exerciseUuid }.toSet(),
+            )
+        }
+    }
+
+    // Immediate and unconfirmed (D-OPEN-11): the draft is unsaved, and the undo toast is
+    // the affordance ED11 pairs with that absence.
+    private fun processExerciseRemove(action: Action.Click.OnExerciseRemove) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val removed = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+        updateState { latest ->
+            latest.copy(
+                exercises = latest.exercises
+                    .filterNot { it.exerciseUuid == action.exerciseUuid }
+                    .mapIndexed { index, item -> item.copy(position = index) }
+                    .toImmutableList(),
+                expandedExerciseUuids = latest.expandedExerciseUuids
+                    .filterNot { it == action.exerciseUuid }
+                    .toImmutableSet(),
+            )
+        }
+        if (removed != null) {
+            sendEvent(
+                Event.ShowExerciseRemovedUndo(
+                    message = current.editCopy.exerciseRemoved,
+                    item = removed,
+                    wasExpanded = action.exerciseUuid in current.expandedExerciseUuids,
+                    draftEpoch = current.draftEpoch,
+                ),
+            )
+        }
+    }
+
+    private fun processExerciseReorder(action: Action.Click.OnExerciseReorder) {
+        if (action.from == action.to) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        updateState { current ->
+            val mutable = current.exercises.toMutableList()
+            val from = action.from.coerceIn(0, mutable.lastIndex)
+            val to = action.to.coerceIn(0, mutable.lastIndex)
+            val removed = mutable.removeAt(from)
+            mutable.add(to, removed)
+            current.copy(
+                exercises = mutable
+                    .mapIndexed { index, item -> item.copy(position = index) }
+                    .toImmutableList(),
+            )
+        }
+    }
+
+    // Per card, never an accordion (ED14): closing card N must not move card N+3.
+    private fun processExerciseCardToggle(action: Action.Click.OnExerciseCardToggle) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val expanded = current.expandedExerciseUuids
+            current.copy(
+                expandedExerciseUuids = if (action.exerciseUuid in expanded) {
+                    expanded.filterNot { it == action.exerciseUuid }.toImmutableSet()
+                } else {
+                    (expanded + action.exerciseUuid).toImmutableSet()
+                },
+            )
+        }
+    }
+
+    /**
+     * The expanded card's plan edit (ED1), in memory only — Save persists every plan alongside
+     * the training, which is what lets a not-yet-saved training edit its plans.
+     */
+    private fun processExercisePlanAction(action: Action.Click.OnExercisePlanAction) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val bodyAction = action.action
+        val priorDraft = state.value.exercises
+            .firstOrNull { it.exerciseUuid == action.exerciseUuid }
+            ?.planSets
+        updateState { current ->
+            val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+                ?: return@updateState current
+            val nextDraft = PlanDraftReducer.reduce(
+                draft = target.planSets ?: persistentListOf(),
+                action = action.action,
+                isWeighted = target.exerciseType == ExerciseTypeUiModel.WEIGHTED,
+            )
+            // Empty normalizes to null — `plan_sets IS NULL` is the persisted no-plan shape.
+            val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
+            current.copy(
+                exercises = current.exercises.map { item ->
+                    if (item.exerciseUuid == action.exerciseUuid) {
+                        item.copy(
+                            planSets = nextPlan,
+                            planSummary = nextPlan?.formatPlanSummary().orEmpty(),
+                        )
+                    } else {
+                        item
+                    }
+                }.toImmutableList(),
+            )
+        }
+        // `− подход` gets its undo toast (§4): a draft restore, no timer, nothing deferred.
+        if (bodyAction is PlanEditorBodyAction.OnSetRemove &&
+            priorDraft != null &&
+            bodyAction.index in priorDraft.indices
+        ) {
+            sendEvent(
+                Event.ShowSetRemovedUndo(
+                    message = state.value.editCopy.setRemoved,
+                    exerciseUuid = action.exerciseUuid,
+                    set = priorDraft[bodyAction.index],
+                    index = bodyAction.index,
+                    draftEpoch = state.value.draftEpoch,
+                ),
+            )
+        }
+    }
+
+    /** The set-removed toast's «Отменить»: the addressed card's draft takes the row back. */
+    private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
+        updateState { current ->
+            // A stale «Отменить» edits nothing: the toast can outlive its draft or land mid-save.
+            if (current.isSaving ||
+                current.mode !is Mode.Edit ||
+                action.draftEpoch != current.draftEpoch
+            ) {
+                return@updateState current
+            }
+            val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+                // The card itself was removed too (both toasts queue): stash the restore
+                // for the exercise undo to apply.
+                ?: return@updateState current.copy(
+                    pendingSetRestores = (
+                        current.pendingSetRestores + State.PendingSetRestore(
+                            exerciseUuid = action.exerciseUuid,
+                            set = action.set,
+                            index = action.index,
+                        )
+                        ).toImmutableList(),
+                )
+            val draft = target.planSets ?: persistentListOf()
+            val at = action.index.coerceIn(0, draft.size)
+            val nextPlan = draft.toMutableList()
+                .apply { add(at, action.set) }
+                .toImmutableList()
+            current.copy(
+                exercises = current.exercises.map { item ->
+                    if (item.exerciseUuid == action.exerciseUuid) {
+                        item.copy(
+                            planSets = nextPlan,
+                            planSummary = nextPlan.formatPlanSummary(),
+                        )
+                    } else {
+                        item
+                    }
+                }.toImmutableList(),
+            )
+        }
+    }
+
+    /** The exercise-removed toast's «Отменить»: the item returns where it stood, clamped. */
+    private fun processUndoExerciseRemove(action: Action.Click.OnUndoExerciseRemove) {
+        updateState { current ->
+            // Same stale-toast guard as the set undo above.
+            if (current.isSaving ||
+                current.mode !is Mode.Edit ||
+                action.draftEpoch != current.draftEpoch
+            ) {
+                return@updateState current
+            }
+            if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
+                // Already back by another route: its stashes belong to the dead chain.
+                return@updateState current.copy(
+                    pendingSetRestores = current.pendingSetRestores
+                        .filterNot { it.exerciseUuid == action.item.exerciseUuid }
+                        .toImmutableList(),
+                )
+            }
+            // Stashes that fired while the card was absent go back in tap order; the plan
+            // was frozen meanwhile, so each captured index still points where it did.
+            val stashes = current.pendingSetRestores
+                .filter { it.exerciseUuid == action.item.exerciseUuid }
+            val restoredItem = stashes
+                .fold(action.item) { item, stash ->
+                    val draft = item.planSets ?: persistentListOf()
+                    val at = stash.index.coerceIn(0, draft.size)
+                    item.copy(
+                        planSets = draft.toMutableList()
+                            .apply { add(at, stash.set) }
+                            .toImmutableList(),
+                    )
+                }
+                .let { item ->
+                    if (stashes.isEmpty()) {
+                        item
+                    } else {
+                        item.copy(planSummary = item.planSets?.formatPlanSummary().orEmpty())
+                    }
+                }
+            val at = action.item.position.coerceIn(0, current.exercises.size)
+            val nextExercises = current.exercises.toMutableList()
+                .apply { add(at, restoredItem) }
+                .mapIndexed { index, item -> item.copy(position = index) }
+                .toImmutableList()
+            current.copy(
+                exercises = nextExercises,
+                pendingSetRestores = current.pendingSetRestores
+                    .filterNot { it.exerciseUuid == action.item.exerciseUuid }
+                    .toImmutableList(),
+                expandedExerciseUuids = if (action.wasExpanded) {
+                    (current.expandedExerciseUuids + action.item.exerciseUuid).toImmutableSet()
+                } else {
+                    current.expandedExerciseUuids
+                },
+            )
+        }
+    }
+
+    private fun processTagAddClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(dialogState = DialogState.TagPicker) }
+    }
+
+    /** The query clears with the sheet, so reopening starts from the whole dictionary. */
+    private fun processTagPickerDismiss() {
+        updateState {
+            it.copy(
+                dialogState = DialogState.Hidden,
+                tagSearchQuery = "",
+            )
+        }
+    }
+
+    private fun processTagToggle(action: Action.Click.OnTagToggle) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val tag = current.availableTags.firstOrNull { it.uuid == action.tagUuid }
+                ?: return@updateState current
+            val tags = if (current.tags.any { it.uuid == action.tagUuid }) {
+                current.tags.filterNot { it.uuid == action.tagUuid }.toImmutableList()
+            } else {
+                (current.tags + tag).toImmutableList()
+            }
+            current.copy(tags = tags)
+        }
+    }
+
+    private fun processTagRemove(action: Action.Click.OnTagRemove) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            current.copy(
+                tags = current.tags.filterNot { it.uuid == action.tagUuid }.toImmutableList(),
+            )
+        }
+    }
+
+    private fun processTagCreate(action: Action.Click.OnTagCreate) {
+        if (action.name.isBlank()) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        launch(
+            onSuccess = { tag ->
+                updateStateImmediate { current ->
+                    // The repository returns the EXISTING row for a name that already
+                    // exists, so an already-selected tag must not be chipped twice.
+                    val alreadySelected = current.tags.any { it.uuid == tag.uuid }
+                    current.copy(
+                        tags = if (alreadySelected) {
+                            current.tags
+                        } else {
+                            (
+                                current.tags + AppTagItem(
+                                    uuid = tag.uuid,
+                                    name = tag.name,
+                                )
+                                ).toImmutableList()
+                        },
+                        tagSearchQuery = "",
+                    )
+                }
+            },
+        ) {
+            interactor.createTag(action.name.trim())
+        }
+    }
+
+    private fun processPickerDismiss() {
+        updateState { current -> current.copy(pickerState = PickerState.Closed) }
+    }
+
+    private fun processPickerToggle(action: Action.Click.OnPickerToggle) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val picker = current.pickerState as? PickerState.Open ?: return@updateState current
+            val nextSelection = if (action.uuid in picker.selectedUuids) {
+                picker.selectedUuids - action.uuid
+            } else {
+                picker.selectedUuids + action.uuid
+            }
+            current.copy(pickerState = picker.copy(selectedUuids = nextSelection.toImmutableList()))
+        }
+    }
+
+    private fun processPickerConfirm() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val picker = current.pickerState as? PickerState.Open ?: return
+        if (picker.selectedUuids.isEmpty()) {
+            updateState { it.copy(pickerState = PickerState.Closed) }
+            return
+        }
+        launch(
+            onSuccess = { resolved ->
+                updateStateImmediate { latest ->
+                    // Against LATEST: an undo can restore a card while this query is in
+                    // flight, and Save cannot write a duplicate (training_uuid, exercise_uuid).
+                    val fresh = resolved.filterNot { picker ->
+                        latest.exercises.any { it.exerciseUuid == picker.exercise.uuid }
+                    }
+                    val nextItems = fresh.mapIndexed { localIndex, picker ->
+                        TrainingExerciseItem(
+                            exerciseUuid = picker.exercise.uuid,
+                            exerciseName = picker.exercise.name,
+                            exerciseType = picker.exercise.type.toUi(),
+                            tags = picker.labels.toImmutableList(),
+                            position = latest.exercises.size + localIndex,
+                            // null, not an empty list — the persisted no-plan shape.
+                            planSets = null,
+                            planSummary = "",
+                        )
+                    }
+                    latest.copy(
+                        exercises = (latest.exercises + nextItems).toImmutableList(),
+                        // A fresh card owes the removed card's stash chain nothing.
+                        pendingSetRestores = latest.pendingSetRestores
+                            .filterNot { stash ->
+                                nextItems.any { it.exerciseUuid == stash.exerciseUuid }
+                            }
+                            .toImmutableList(),
+                        pickerState = PickerState.Closed,
+                        // D-OPEN-8: the inserted card opens — the first only on a multi-insert.
+                        expandedExerciseUuids = (
+                            latest.expandedExerciseUuids +
+                                listOfNotNull(nextItems.firstOrNull()?.exerciseUuid)
+                            ).toImmutableSet(),
+                    )
+                }
+            },
+        ) {
+            interactor.resolveExercises(picker.selectedUuids)
+        }
+    }
+}
