@@ -151,6 +151,15 @@ internal class ExerciseInteractorImplTest {
     }
 
     @Test
+    fun `getImageLastModified forwards to the image storage`() = runTest {
+        coEvery { imageStorage.lastModified("/files/x.jpg") } returns 1234L
+
+        assertEquals(1234L, interactor.getImageLastModified("/files/x.jpg"))
+
+        coVerify(exactly = 1) { imageStorage.lastModified("/files/x.jpg") }
+    }
+
+    @Test
     fun `canPermanentlyDelete delegates to repository`() = runTest {
         coEvery { exerciseRepository.canPermanentlyDeleteImmediately("uuid-1") } returns true
         assertTrue(interactor.canPermanentlyDelete("uuid-1"))

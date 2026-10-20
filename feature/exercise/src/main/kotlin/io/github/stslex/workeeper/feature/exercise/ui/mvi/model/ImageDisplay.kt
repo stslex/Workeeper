@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 
-import android.net.Uri
 import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.core.core.images.ImageRef
 
 @Stable
 sealed interface ImageDisplay {
@@ -11,5 +11,5 @@ sealed interface ImageDisplay {
 
     data class FromPath(val path: String, val lastModified: Long) : ImageDisplay
 
-    data class FromUri(val uri: Uri) : ImageDisplay
+    data class FromUri(val ref: ImageRef) : ImageDisplay
 }

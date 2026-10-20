@@ -21,8 +21,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Identity claims for the exercise `@GraphExtension`: two qualified dispatchers, a bare `Context`
- * and the route arg. See documentation/graph-extension-arc/HANDOFF.md.
+ * Identity claims for the exercise `@GraphExtension`: two qualified dispatchers, the app-scoped
+ * camera permission and the route arg. See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class ExerciseExtensionIdentityTest {
 
@@ -102,13 +102,15 @@ internal class ExerciseExtensionIdentityTest {
     }
 
     @Test
-    fun `the bare app Context is inherited from the parent's bound instance`() {
-        val extension = buildAppGraph().exercise("ex-1")
+    fun `the camera permission is inherited from the parent graph`() {
+        val appGraph = buildAppGraph()
+
+        val extension = appGraph.exercise("ex-1")
 
         assertSame(
-            appContextMock,
-            extension.appContext,
-            "The extension's Context must be the parent's create(applicationContext) bound instance",
+            appGraph.cameraPermission,
+            extension.cameraPermission,
+            "The extension's CameraPermission must be the parent graph's app-scoped instance",
         )
     }
 

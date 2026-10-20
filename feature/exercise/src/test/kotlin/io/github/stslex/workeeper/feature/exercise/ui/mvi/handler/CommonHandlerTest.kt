@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import android.net.Uri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -151,16 +152,56 @@ internal class CommonHandlerTest {
 
     @Test
     fun `ImagePicked sets pendingImage to NewFromUri and hides the source dialog`() {
-        val uri = mockk<Uri>(relaxed = true)
+        val ref = ImageRef("content://picked/1")
         val (stateFlow, handler) = setup(
             State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
         )
 
-        handler.invoke(Action.Common.ImagePicked(uri))
+        handler.invoke(Action.Common.ImagePicked(ref))
 
-        assertEquals(PendingImage.NewFromUri(uri), stateFlow.value.pendingImage)
+        assertEquals(PendingImage.NewFromUri(ref), stateFlow.value.pendingImage)
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
+
+    @Test
+    fun `the load keys the image by its file's modification time`() {
+        coEvery { interactor.getExercise("uuid-1") } returns exercise(imagePath = "/files/bench.jpg")
+        coEvery { interactor.getImageLastModified("/files/bench.jpg") } returns 1234L
+        val (stateFlow, handler) = setup(State.create(uuid = "uuid-1"))
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals("Bench", stateFlow.value.name)
+        assertEquals(1234L, stateFlow.value.imageLastModified)
+        assertEquals(
+            ImageDisplay.FromPath("/files/bench.jpg", 1234L),
+            stateFlow.value.effectiveImageDisplay,
+        )
+    }
+
+    @Test
+    fun `an exercise without an image reads no modification time`() {
+        coEvery { interactor.getExercise("uuid-1") } returns exercise(imagePath = null)
+        val (stateFlow, handler) = setup(State.create(uuid = "uuid-1"))
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals("Bench", stateFlow.value.name)
+        assertEquals(0L, stateFlow.value.imageLastModified)
+        coVerify(exactly = 0) { interactor.getImageLastModified(any()) }
+    }
+
+    private fun exercise(imagePath: String?) = ExerciseDomain(
+        uuid = "uuid-1",
+        name = "Bench",
+        type = ExerciseTypeDomain.WEIGHTED,
+        description = null,
+        imagePath = imagePath,
+        archived = false,
+        archivedAt = null,
+        timestamp = 0L,
+        lastAdhocSets = null,
+    )
 
     @Test
     fun `ImagePickCancelled hides the source dialog without staging a pending image`() {

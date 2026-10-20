@@ -59,6 +59,9 @@ interface ExerciseInteractor {
 
     suspend fun deleteImageFile(path: String): Boolean
 
+    /** The stored image's modification time, Coil's cache key; 0 when the file is absent. */
+    suspend fun getImageLastModified(path: String): Long
+
     /**
      * Resolve whether an active session blocks Track now. Unlike Home and Training detail there is
      * no silent-resume case — Track now always creates a fresh ad-hoc training.

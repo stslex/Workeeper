@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui
 
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.core.net.toUri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
@@ -25,6 +15,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
+import io.github.stslex.workeeper.core.ui.kit.media.rememberImageSourceLauncher
 import io.github.stslex.workeeper.core.ui.kit.resources.Res
 import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
 import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_body
@@ -65,7 +56,6 @@ fun NavGraphScope.exerciseGraph(
         }
 
         val haptic = LocalHapticFeedback.current
-        val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
         val undoToastLabel = stringResource(Res.string.core_ui_kit_toast_undo)
         val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
@@ -73,39 +63,16 @@ fun NavGraphScope.exerciseGraph(
         val imageDecodeFailed =
             stringResource(R.string.feature_exercise_image_error_decode_failed)
 
-        // Bridge state for the camera contract: the result callback needs the URI it launched
-        // with. Rotation between launch and result is out of scope.
-        var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
-
-        val cameraLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.TakePicture(),
-        ) { success ->
-            val uri = pendingCameraTempUri
-            if (success && uri != null) {
-                processor.consume(Action.Common.ImagePicked(uri))
-            } else {
-                processor.consume(Action.Common.ImagePickCancelled)
-            }
-            pendingCameraTempUri = null
-        }
-        val galleryLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.PickVisualMedia(),
-        ) { uri ->
-            if (uri != null) {
-                processor.consume(Action.Common.ImagePicked(uri))
-            } else {
-                processor.consume(Action.Common.ImagePickCancelled)
-            }
-        }
-        val cameraPermissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission(),
-        ) { granted ->
-            if (granted) {
-                processor.consume(Action.Click.RequestCameraCapture)
-            } else {
-                processor.consume(Action.Click.OnCameraPermissionDenied)
-            }
-        }
+        // The camera, the photo picker, the permission request and the settings link (core:ui:kit).
+        val imageSources = rememberImageSourceLauncher(
+            onImagePicked = { ref -> processor.consume(Action.Common.ImagePicked(ImageRef(ref))) },
+            onImagePickCancelled = { processor.consume(Action.Common.ImagePickCancelled) },
+            onCameraPermissionResult = { granted ->
+                processor.consume(
+                    if (granted) Action.Click.RequestCameraCapture else Action.Click.OnCameraPermissionDenied,
+                )
+            },
+        )
 
         processor.Handle { event ->
             when (event) {
@@ -137,28 +104,13 @@ fun NavGraphScope.exerciseGraph(
                     ),
                 )
 
-                is Event.NavigateLaunchCamera -> {
-                    pendingCameraTempUri = event.tempUri
-                    cameraLauncher.launch(event.tempUri)
-                }
+                is Event.NavigateLaunchCamera -> imageSources.launchCamera(event.target.value)
 
-                Event.NavigateLaunchGallery -> {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                    )
-                }
+                Event.NavigateLaunchGallery -> imageSources.launchGallery()
 
-                Event.NavigateRequestCameraPermission -> {
-                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                }
+                Event.NavigateRequestCameraPermission -> imageSources.requestCameraPermission()
 
-                is Event.NavigateOpenAppSettings -> {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = "package:${event.packageName}".toUri()
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                }
+                Event.NavigateOpenAppSettings -> imageSources.openAppSettings()
 
                 is Event.ShowImageError -> {
                     // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md

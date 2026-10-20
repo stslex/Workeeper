@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.di
 
-import android.content.Context
 import dev.zacsweers.metro.Binds
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.GraphExtension
@@ -9,6 +8,7 @@ import dev.zacsweers.metro.Provides
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractorImpl
@@ -32,7 +32,7 @@ interface ExerciseGraph {
     @MainImmediateDispatcher
     val mainImmediateDispatcher: CoroutineDispatcher
 
-    val appContext: Context
+    val cameraPermission: CameraPermission
 
     @Binds
     val ExerciseInteractorImpl.bindInteractor: ExerciseInteractor

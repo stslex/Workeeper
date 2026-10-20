@@ -131,6 +131,8 @@ class ExerciseInteractorImpl internal constructor(
 
     override suspend fun deleteImageFile(path: String): Boolean = imageStorage.deleteImage(path)
 
+    override suspend fun getImageLastModified(path: String): Long = imageStorage.lastModified(path)
+
     override suspend fun resolveTrackNowConflict(): TrackNowConflict =
         resolveTrackNowConflictUseCase()
 

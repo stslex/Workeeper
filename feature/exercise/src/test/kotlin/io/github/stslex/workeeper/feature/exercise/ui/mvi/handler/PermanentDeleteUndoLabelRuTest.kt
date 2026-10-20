@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import android.content.Context
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -58,7 +57,7 @@ internal class PermanentDeleteUndoLabelRuTest {
         val handler = ClickHandler(
             interactor = mockk<ExerciseInteractor>(relaxed = true),
             resourceWrapper = mockk<ResourceWrapper>(relaxed = true),
-            context = mockk<Context>(relaxed = true),
+            cameraPermission = mockk(relaxed = true),
             mainDispatcher = Dispatchers.Unconfined,
             store = store,
         )

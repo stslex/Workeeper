@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
-import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -77,7 +77,7 @@ interface ExerciseStore : Store<State, Action, Event> {
         /** What the UI should display right now — pending overrides committed. */
         val effectiveImageDisplay: ImageDisplay
             get() = when (val pending = pendingImage) {
-                is PendingImage.NewFromUri -> ImageDisplay.FromUri(pending.uri)
+                is PendingImage.NewFromUri -> ImageDisplay.FromUri(pending.ref)
                 PendingImage.RemoveExisting -> ImageDisplay.None
                 PendingImage.Unchanged -> when (val path = imagePath) {
                     null -> ImageDisplay.None
@@ -164,7 +164,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data object Init : Common
 
-            data class ImagePicked(val uri: Uri) : Common
+            data class ImagePicked(val ref: ImageRef) : Common
 
             data object ImagePickCancelled : Common
 
@@ -325,13 +325,13 @@ interface ExerciseStore : Store<State, Action, Event> {
             val draftEpoch: Int,
         ) : Event
 
-        data class NavigateLaunchCamera(val tempUri: Uri) : Event
+        data class NavigateLaunchCamera(val target: ImageRef) : Event
 
         data object NavigateLaunchGallery : Event
 
         data object NavigateRequestCameraPermission : Event
 
-        data class NavigateOpenAppSettings(val packageName: String) : Event
+        data object NavigateOpenAppSettings : Event
 
         data class ShowImageError(val errorType: ImageErrorType) : Event
     }

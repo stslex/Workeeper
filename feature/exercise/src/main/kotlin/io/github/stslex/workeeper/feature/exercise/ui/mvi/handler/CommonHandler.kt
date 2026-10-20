@@ -25,7 +25,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import java.io.File
 
 @SingleIn(ExerciseScope::class)
 internal class CommonHandler @Inject constructor(
@@ -61,7 +60,7 @@ internal class CommonHandler @Inject constructor(
     private fun processImagePicked(action: Action.Common.ImagePicked) {
         updateState {
             it.copy(
-                pendingImage = PendingImage.NewFromUri(action.uri),
+                pendingImage = PendingImage.NewFromUri(action.ref),
                 dialogState = DialogState.Hidden,
             )
         }
@@ -100,13 +99,17 @@ internal class CommonHandler @Inject constructor(
             val historyCount = async { interactor.countSessions(uuid) }
             val canPermanentlyDelete = async { interactor.canPermanentlyDelete(uuid) }
             val adhocPlan = async { interactor.getAdhocPlan(uuid) }
+            val loadedExercise = exercise.await()
+            // Capture mtime so Coil can key by `?v=<mtime>` and not serve a stale cache entry.
+            val imageLastModified = loadedExercise?.imagePath?.let { interactor.getImageLastModified(it) } ?: 0L
             LoadResult(
-                exercise = exercise.await(),
+                exercise = loadedExercise,
                 labels = labels.await(),
                 history = history.await(),
                 historyCount = historyCount.await(),
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
+                imageLastModified = imageLastModified,
             )
         }
     }
@@ -146,8 +149,6 @@ internal class CommonHandler @Inject constructor(
             }
             .toImmutableList()
         val imagePath = exercise.imagePath
-        // Capture mtime so Coil can key by `?v=<mtime>` and not serve a stale cache entry.
-        val imageLastModified = imagePath?.let { File(it).lastModified() } ?: 0L
         val loaded = copy(
             name = exercise.name,
             type = exercise.type.toUi(),
@@ -159,7 +160,7 @@ internal class CommonHandler @Inject constructor(
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
             imagePath = imagePath,
-            imageLastModified = imageLastModified,
+            imageLastModified = result.imageLastModified,
             pendingImage = PendingImage.Unchanged,
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
@@ -195,5 +196,6 @@ internal class CommonHandler @Inject constructor(
         val historyCount: Int,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: List<PlanSetDomain>?,
+        val imageLastModified: Long,
     )
 }
