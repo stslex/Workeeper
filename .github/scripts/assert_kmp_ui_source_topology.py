@@ -1726,6 +1726,12 @@ class FeatureEntry:
     # golden_test, path relative to root -> its exact methods. Empty by default, so every earlier
     # entry stays byte-identical.
     extra_golden_tests: dict = field(default_factory=dict)
+    # G1 (kmp-phase-7-15-exercise-feature.md Section B12.0): the navComponentScreen overload the
+    # entry's graph registers through. The default keeps every earlier entry byte-identical.
+    screen_registration: str = "navComponentScreen"
+    # G2 (same section): keys that share resource_prefix but belong to another owner. The
+    # ownership walk skips them; the default skips nothing, so every earlier entry is unchanged.
+    foreign_resource_prefixes: tuple = ()
 
     @property
     def common_main(self) -> Path:
@@ -1980,7 +1986,9 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     owners: dict[str, list[str]] = {}
     for catalog in source_files("strings.xml"):
         for row in read_catalog(catalog):
-            if row[1].startswith(entry.resource_prefix):
+            if row[1].startswith(entry.resource_prefix) and not row[1].startswith(
+                entry.foreign_resource_prefixes
+            ):
                 owners.setdefault(row[1], []).append(catalog.as_posix())
     expected_owners = sorted(path.as_posix() for path in entry.catalog_paths)
     for name, paths in sorted(owners.items()):
@@ -2266,7 +2274,10 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         ),
         (
             graph_path,
-            [f"factory: {graph_factory},", f"navComponentScreen({entry.feature_class}(factory))"],
+            [
+                f"factory: {graph_factory},",
+                f"{entry.screen_registration}({entry.feature_class}(factory))",
+            ],
         ),
         (
             feature_path,
