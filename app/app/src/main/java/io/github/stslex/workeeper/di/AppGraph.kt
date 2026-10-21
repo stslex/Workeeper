@@ -41,6 +41,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartGraph
 import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
@@ -111,6 +112,8 @@ internal interface AppGraph :
     override val exerciseChartGraphFactory: ExerciseChartGraph.Factory
 
     override val singleTrainingGraphFactory: SingleTrainingGraph.Factory
+
+    override val exerciseGraphFactory: ExerciseGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 

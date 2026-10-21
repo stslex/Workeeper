@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.TestSingleScreenHost
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.harness.MetroTestGraphHolder
 import io.github.stslex.workeeper.harness.MetroTestRule
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -40,11 +41,13 @@ internal class ExerciseCreatePersistenceTest {
 
     @Test
     fun f02_create_with_name_only_persists() {
+        val factory = MetroTestGraphHolder.graph.exerciseGraphFactory
+
         composeRule.setContent {
             // ExerciseEditScreen reads `LocalAppColors`, so the mount must live inside `AppTheme`.
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 TestSingleScreenHost(start = Screen.Exercise(uuid = null)) {
-                    exerciseGraph()
+                    exerciseGraph(factory = factory)
                 }
             }
         }
