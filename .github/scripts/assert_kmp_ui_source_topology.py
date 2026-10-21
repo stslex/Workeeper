@@ -5936,6 +5936,734 @@ SINGLE_TRAINING_ENTRY = FeatureEntry(
     },
 )
 
+def exercise_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # S2, S3, F2 and S4 (kmp-phase-7-15-exercise-feature.md §B5.2–§B5.4, §B12.1): the click paths'
+    # constant copy lives in State, the confirm resolves on use and lands only on the menu sheet,
+    # the load builds its rows before its State lambda, and copy outside composition resolves
+    # through the injected StringResolver. Every count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    def require_parameters(relative: str, source: str, name: str, expected: list) -> None:
+        parameters = data_class_parameters(source, name)
+        if parameters != expected:
+            failures.append(
+                f"{module}: {shown(relative)} {name} parameters must be exactly {expected}; "
+                f"actual={parameters}"
+            )
+
+    # 1. Payload shapes and 2. S2's defaults, exactly once each.
+    store_relative = "ui/mvi/store/ExerciseStore.kt"
+    store_source = source_of(store_relative)
+    if store_source is not None:
+        require_parameters(store_relative, store_source, "Haptic", ["type: HapticFeedbackType"])
+        require_parameters(
+            store_relative, store_source, "ShowArchiveSuccess", ["uuid: String", "message: String"]
+        )
+        require_parameters(store_relative, store_source, "ShowTagLimitReached", ["message: String"])
+        require_parameters(
+            store_relative,
+            store_source,
+            "ShowSetRemovedUndo",
+            [
+                "message: String",
+                "set: PlanSetUiModel",
+                "index: Int",
+                "draftEpoch: Int",
+            ],
+        )
+        require(store_relative, store_source, "clickCopy = ExerciseClickCopy.EMPTY,", 1)
+
+    dialog_relative = "ui/mvi/store/DialogState.kt"
+    dialog_source = source_of(dialog_relative)
+    if dialog_source is not None:
+        for name in ("TypeChangeConfirm", "PermanentDeleteConfirm"):
+            require_parameters(
+                dialog_relative,
+                dialog_source,
+                name,
+                [
+                    "title: String",
+                    "body: String",
+                    "impactSummary: String",
+                    "confirmLabel: String",
+                ],
+            )
+        require_parameters(
+            dialog_relative,
+            dialog_source,
+            "ActiveSessionConflict",
+            [
+                "sessionUuid: String",
+                "activeSessionName: String",
+                "progressLabel: String",
+            ],
+        )
+
+    copy_fields = (
+        "typeChangeTitle",
+        "typeChangeBody",
+        "typeChangeImpact",
+        "typeChangeConfirm",
+        "setRemoved",
+        "tagLimit",
+        "permanentDeleteSuccess",
+        "undoLabel",
+    )
+    model_relative = "ui/mvi/model/ExerciseClickCopy.kt"
+    model_source = source_of(model_relative)
+    if model_source is not None:
+        require_parameters(
+            model_relative,
+            model_source,
+            "ExerciseClickCopy",
+            [f"{field_name}: String" for field_name in copy_fields],
+        )
+        require(model_relative, model_source, "val EMPTY = ExerciseClickCopy(", 1)
+        for field_name in copy_fields:
+            require(model_relative, model_source, f'{field_name} = "",', 1)
+
+    # 3. ClickHandler: S2's constant reads and guarded confirm, nine resolver reads, no wrapper.
+    click_relative = "ui/mvi/handler/ClickHandler.kt"
+    click_source = source_of(click_relative)
+    if click_source is not None:
+        for fragment in (
+            "private val stringResolver: StringResolver,",
+            "val copy = current.clickCopy",
+            "title = copy.typeChangeTitle,",
+            "body = copy.typeChangeBody,",
+            "impactSummary = copy.typeChangeImpact,",
+            "confirmLabel = copy.typeChangeConfirm,",
+            "message = current.clickCopy.setRemoved,",
+            "val message = current.clickCopy.permanentDeleteSuccess",
+            "val undoLabel = current.clickCopy.undoLabel",
+            "actionLabel = undoLabel,",
+            "if (latest.bottomSheetState == BottomSheetState.DetailMenu) {",
+            "latest.copy(dialogState = confirm, bottomSheetState = BottomSheetState.Hidden)",
+        ):
+            require(click_relative, click_source, fragment, 1)
+        require(click_relative, click_source, "message = current.clickCopy.tagLimit,", 2)
+        require(click_relative, click_source, "stringResolver.getString(", 9)
+        for fragment in ("ResourceWrapper", "resourceWrapper", "System.currentTimeMillis"):
+            require(click_relative, click_source, fragment, 0)
+
+    # 4. CommonHandler: Init's eight resolver reads, F2's two rows, and 5. F2's order.
+    common_relative = "ui/mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    if common_source is not None:
+        history_line = "val recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList()"
+        plan_line = "val adhocPlan = result.adhocPlan?.map { it.toUi() }?.toImmutableList()"
+        for fragment in (
+            "private val resourceWrapper: ResourceWrapper,",
+            "private val stringResolver: StringResolver,",
+            "ExerciseClickCopy(",
+            "onSuccess = { copy -> updateState { it.copy(clickCopy = copy) } },",
+            "undoLabel = stringResolver.getString(Res.string.core_ui_kit_toast_undo),",
+            history_line,
+            plan_line,
+            ").withDraftCarriedFrom(current)",
+        ):
+            require(common_relative, common_source, fragment, 1)
+        require(common_relative, common_source, "stringResolver.getString(", 8)
+        require(common_relative, common_source, "resolveClickCopy()", 2)
+        require(common_relative, common_source, "applyLoaded", 0)
+        history_at = common_source.find(history_line)
+        plan_at = common_source.find(plan_line)
+        history_lambda = common_source.find("updateStateImmediate { current ->", max(history_at, 0))
+        plan_lambda = common_source.find("updateStateImmediate { current ->", max(plan_at, 0))
+        if (
+            history_at < 0
+            or plan_at < history_at
+            or plan_lambda < 0
+            or history_lambda != plan_lambda
+        ):
+            failures.append(
+                f"{module}: {shown(common_relative)} must build the history rows and the plan"
+                " before the load's State lambda (F2)"
+            )
+
+    # 6. 7.11's rules 4–7 over this module's layout: no top-level CMP read; ui/mvi/ reads only
+    # through the resolver; no other ui/ file reads copy outside composition.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "ui/mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under ui/mvi/: {token!r}"
+                    )
+        elif posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} ui/mvi/ and {ui_files} other ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def exercise_media_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # §B5.6: Part A's launcher and its four event routes stay in the graph, the camera permission is
+    # read once, and the description block's Coil request is image-viewer's chain on
+    # LocalPlatformContext. Counts are over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+    required = {
+        "ui/ExerciseGraph.kt": (
+            "val imageSources = rememberImageSourceLauncher(",
+            "is Event.NavigateLaunchCamera -> imageSources.launchCamera(event.target.value)",
+            "Event.NavigateLaunchGallery -> imageSources.launchGallery()",
+            "Event.NavigateRequestCameraPermission -> imageSources.requestCameraPermission()",
+            "Event.NavigateOpenAppSettings -> imageSources.openAppSettings()",
+        ),
+        "ui/mvi/handler/ClickHandler.kt": ("if (cameraPermission.isGranted()) {",),
+        "ui/components/ExerciseDescriptionBlock.kt": (
+            "import coil3.compose.LocalPlatformContext",
+            "ImageRequest.Builder(",
+        ),
+    }
+    for relative, fragments in required.items():
+        path = entry.common_main / relative
+        source = strip_kotlin_comments(common_sources.get(path, ""))
+        for fragment in fragments:
+            count = source.count(fragment)
+            if count != 1:
+                failures.append(
+                    f"{module}: {path.relative_to(entry.root)} media contract requires "
+                    f"{fragment!r} exactly once; found {count}"
+                )
+    block = strip_kotlin_comments(
+        common_sources.get(entry.common_main / "ui/components/ExerciseDescriptionBlock.kt", "")
+    )
+    chain = "ImageRequest.Builder(LocalPlatformContext.current).data(it).crossfade(true).build()"
+    if compact(block).count(compact(chain)) != 1:
+        failures.append(
+            f"{module}: Coil request must use exactly one "
+            "LocalPlatformContext/data(it)/crossfade(true)/build() chain"
+        )
+    return failures
+
+
+def exercise_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # §B3.5 and §B10: core:data:database stays one production edge, read by the domain mapper
+    # alone; no test set reads it or core:data:database-test; shared code names no java.*.
+    # Ruling of 2026-10-21 (§B19): the domain suite's in-file ExerciseRepository fake has to spell
+    # setAdhocPlan's parameter type (7.10 D5's precedent), so that one suite may import
+    # PlanSetDataModel once and name it once more, and nothing else from core:data:database.
+    failures: list[str] = []
+    module = entry.module
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    if "project(\":core:data:database-test\")" in build_source:
+        failures.append(f"{module}: build must not depend on :core:data:database-test")
+    mapper = entry.common_main / "domain/mapper/ExerciseDomainMapper.kt"
+    domain_suite = (
+        entry.root / "src/commonTest/kotlin" / entry.package_dir
+        / "domain/ExerciseInteractorImplTest.kt"
+    )
+    if "core.data.database" not in strip_kotlin_comments(common_sources.get(mapper, "")):
+        failures.append(
+            f"{module}: {mapper.relative_to(entry.root)} "
+            "must be the module's one reader of core:data:database"
+        )
+    java_reference = re.compile(r"(?<![\w.])java\.")
+    shared_sets = ("src/commonMain/", "src/commonTest/", "src/iosTest/")
+    for path in sorted((entry.root / "src").rglob("*.kt")):
+        source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(entry.root)
+        if path == domain_suite:
+            references = re.findall(r"core\.data\.database[\w.]*", source)
+            if references != ["core.data.database.sets.PlanSetDataModel"]:
+                failures.append(
+                    f"{module}: {relative} may name core:data:database only in one "
+                    f"PlanSetDataModel import; found {references}"
+                )
+            mentions = len(re.findall(r"\bPlanSetDataModel\b", source))
+            if mentions != 2:
+                failures.append(
+                    f"{module}: {relative} must name PlanSetDataModel exactly twice, the import "
+                    f"and setAdhocPlan's parameter; found {mentions}"
+                )
+        elif path != mapper and "core.data.database" in source:
+            failures.append(
+                f"{module}: {relative} must not read core:data:database;"
+                " only the domain mapper maps its data models"
+            )
+        if relative.as_posix().startswith(shared_sets) and java_reference.search(source):
+            failures.append(f"{module}: {relative} names java.* in shared code")
+    return failures
+
+
+def exercise_device_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D5 (§B11.3): the second device class is pinned like device_test, each fragment exactly once;
+    # a missing file reads as empty, so every fragment reports.
+    failures: list[str] = []
+    relative = (
+        "src/androidDeviceTest/kotlin/" + entry.package_dir + "/ExerciseFormBasicsTest.kt"
+    )
+    path = entry.root / relative
+    source = path.read_text(encoding="utf-8") if path.is_file() else ""
+    for fragment in (
+        "@Smoke",
+        "fun f02_saveIsEnabledWithAnEmptyName_soTheBlankNameErrorIsReachable()",
+        "fun f02_tappingSaveWithAValidName_dispatchesOnSaveClick()",
+    ):
+        if source.count(fragment) != 1:
+            failures.append(f"{entry.module}: {relative} must keep {fragment!r} exactly once")
+    return failures
+
+
+EXERCISE_ENTRY = FeatureEntry(
+    module="feature:exercise",
+    short_name="exercise",
+    root=Path("feature/exercise"),
+    package_dir="io/github/stslex/workeeper/feature/exercise",
+    # Every plugin, resource-package, interop, dependency and apply line of §B10, each exactly
+    # once; kotlin("test") is counted by kotlin_test_count. The one production core:data:database
+    # edge is here; exercise_dependency_contract keeps every other reader out.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        "packageOfResClass = \"io.github.stslex.workeeper.feature.exercise.resources\"",
+        "includeJavax()",
+        "api(project(\":core:core\"))",
+        "api(project(\":core:ui:kit\"))",
+        "api(project(\":core:ui:mvi\"))",
+        "api(project(\":core:ui:navigation\"))",
+        "api(project(\":core:ui:plan-editor\"))",
+        "implementation(project(\":core:data:database\"))",
+        "implementation(project(\":core:data:exercise\"))",
+        "api(libs.cmp.ui)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.coil.compose)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        "\"androidHostTestImplementation\"(project(\":core:ui:golden-harness\"))",
+        "\"androidDeviceTestImplementation\"(libs.bundles.android.test)",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.junit4)",
+        "\"androidDeviceTestImplementation\"(platform(libs.androidx.compose.bom))",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.manifest)",
+        "\"androidDeviceTestImplementation\"(project(\":core:ui:test-utils\"))",
+        "apply(from = \"$rootDir/gradle/golden-gate.gradle.kts\")",
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as §B3.4 prints
+    # it at exit — P1's six positional plural items.
+    catalog=(
+        ("string", "feature_exercise_detail_recent", "History", "История"),
+        ("string", "feature_exercise_detail_track_now", "Log now", "Записать сейчас"),
+        ("string", "feature_exercise_detail_default_plan", "Default plan", "План по умолчанию"),
+        ("string", "feature_exercise_track_now_default_training_name", "Track now", "Отдельная тренировка"),
+        ("string", "feature_exercise_track_now_conflict_unnamed", "Workout", "Тренировка"),
+        ("string", "feature_exercise_track_now_conflict_progress_format", "%1$d of %2$d exercises done", "%1$d из %2$d упражнений выполнено"),
+        ("string", "feature_exercise_detail_edit", "Edit", "Изменить"),
+        ("string", "feature_exercise_detail_action_more", "More actions", "Ещё"),
+        ("string", "feature_exercise_detail_archive", "Archive", "В архив"),
+        ("string", "feature_exercise_detail_archive_success_format", "‘%1$s’ archived", "«%1$s» в архиве"),
+        ("string", "feature_exercise_detail_archive_blocked_title", "Cannot archive", "Нельзя архивировать"),
+        ("string", "feature_exercise_detail_archive_blocked_used_in_format", "used in %1$s", "в тренировках: %1$s"),
+        ("string", "feature_exercise_detail_archive_blocked_next_step", "Remove it from those trainings first, then archive.", "Сначала уберите его из этих тренировок, затем архивируйте."),
+        ("string", "feature_exercise_detail_archive_blocked_ok", "OK", "ОК"),
+        ("string", "feature_exercise_detail_archive_undo", "Undo", "Восстановить"),
+        ("string", "feature_exercise_detail_permanent_delete", "Delete permanently", "Удалить навсегда"),
+        ("string", "feature_exercise_detail_permanent_delete_confirm_title", "Delete ‘%1$s’ permanently?", "Удалить «%1$s» навсегда?"),
+        ("string", "feature_exercise_detail_permanent_delete_confirm_body", "This exercise has no history. This cannot be undone.", "У упражнения нет истории. Действие необратимо."),
+        ("string", "feature_exercise_detail_permanent_delete_confirm_impact", "No history affected", "История не затронута"),
+        ("string", "feature_exercise_detail_permanent_delete_confirm_button", "Delete", "Удалить"),
+        ("string", "feature_exercise_detail_permanent_delete_success", "Exercise deleted", "Упражнение удалено"),
+        ("string", "feature_exercise_edit_title_create", "New exercise", "Новое упражнение"),
+        ("string", "feature_exercise_edit_title_edit", "Edit exercise", "Изменить упражнение"),
+        ("string", "feature_exercise_edit_close_description", "Close", "Закрыть"),
+        ("string", "feature_exercise_edit_label_name", "Name", "Название"),
+        ("string", "feature_exercise_edit_label_tags", "Tags", "Теги"),
+        ("string", "feature_exercise_edit_label_description", "Description", "Описание"),
+        ("string", "feature_exercise_edit_placeholder_description", "Optional notes — technique, gym-specific details", "Заметки — техника, особенности зала"),
+        ("string", "feature_exercise_edit_tag_limit", "Maximum 10 tags per exercise", "Максимум 10 тегов на упражнение"),
+        ("string", "feature_exercise_edit_error_name_required", "Name is required", "Введите название"),
+        ("string", "feature_exercise_edit_error_name_duplicate", "Exercise with this name already exists", "Упражнение с таким именем уже есть"),
+        ("string", "feature_exercise_edit_plan_info_body", "This is the plan for when the exercise is performed on its own — from its card, with the “Log now” button, outside any training.\\n\\nInside a training every exercise has a plan of its own: it is set in the training editor and does not touch this one. If neither plan exists, sets are added right in the session.", "Это план на случай, когда упражнение выполняется само по себе — из его карточки, кнопкой «Записать сейчас», без тренировки.\\n\\nВнутри тренировки план у каждого упражнения свой: он задаётся в редакторе тренировки и этот план не трогает. Если планов нет ни там, ни тут, подходы добавляются прямо в сессии."),
+        ("string", "feature_exercise_edit_plan_info_description", "What the default plan is for", "Что такое план по умолчанию"),
+        ("string", "feature_exercise_edit_plan_set_type_tooltip", "Tap to cycle: warmup → work → failure → drop", "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп"),
+        ("string", "feature_exercise_edit_plan_type_change_weightless_title", "Switch to weightless?", "Переключить на без веса?"),
+        ("string", "feature_exercise_edit_plan_type_change_weightless_body", "Weight values from this exercise’s plans will be cleared. This cannot be undone.", "Значения веса из планов этого упражнения будут очищены. Это нельзя отменить."),
+        ("string", "feature_exercise_edit_plan_type_change_weightless_impact", "All plan weights cleared", "Все веса в планах очищены"),
+        ("string", "feature_exercise_edit_plan_type_change_weightless_confirm", "Switch", "Переключить"),
+        ("string", "feature_exercise_edit_plan_set_removed", "Set removed", "Подход удалён"),
+        ("string", "feature_exercise_edit_tags_counter", "%1$d of %2$d", "%1$d из %2$d"),
+        ("string", "feature_exercise_image_thumb_description", "Attached exercise photo", "Прикреплённое фото упражнения"),
+        ("string", "feature_exercise_image_thumb_open_description", "Open photo full screen", "Открыть фото на весь экран"),
+        ("string", "feature_exercise_image_thumb_pick_description", "Add a photo", "Добавить фото"),
+        ("string", "feature_exercise_image_placeholder_description", "No exercise photo attached", "Фото упражнения не прикреплено"),
+        ("string", "feature_exercise_image_source_dialog_title", "Choose source", "Выберите источник"),
+        ("string", "feature_exercise_image_source_camera", "Take photo", "Сделать фото"),
+        ("string", "feature_exercise_image_source_gallery", "Choose from gallery", "Выбрать из галереи"),
+        ("string", "feature_exercise_image_permission_denied_title", "Camera permission denied", "Доступ к камере запрещён"),
+        ("string", "feature_exercise_image_permission_denied_body", "To take a photo, grant camera access in app settings. You can still choose an existing photo from your gallery.", "Чтобы сделать фото, разрешите доступ к камере в настройках приложения. Вы можете выбрать фото из галереи."),
+        ("string", "feature_exercise_image_permission_denied_action_settings", "Open settings", "Открыть настройки"),
+        ("string", "feature_exercise_image_error_save_failed", "Could not save image — try again", "Не удалось сохранить фото — попробуйте ещё раз"),
+        ("string", "feature_exercise_image_error_load_failed", "Could not load image", "Не удалось загрузить фото"),
+        ("string", "feature_exercise_image_error_decode_failed", "Image format not supported", "Формат изображения не поддерживается"),
+        (
+            "plurals",
+            "feature_exercise_detail_history_count",
+            (("one", "%1$d session"), ("other", "%1$d sessions")),
+            (
+                ("one", "%1$d сессия"),
+                ("few", "%1$d сессии"),
+                ("many", "%1$d сессий"),
+                ("other", "%1$d сессии"),
+            ),
+        ),
+    ),
+    resource_prefix="feature_exercise_",
+    # G2: exercise-chart's keys and kit's two type labels share the prefix; they are not ours.
+    foreign_resource_prefixes=("feature_exercise_chart_", "feature_exercise_detail_type_"),
+    # The mapper and the two copy-reading handlers are deliberately absent (§B12.1).
+    payload_files=frozenset({
+        "DialogState.kt",
+        "ExerciseStore.kt",
+        "ExerciseClickCopy.kt",
+        "HistoryUiModel.kt",
+        "ImageDisplay.kt",
+        "ImageErrorType.kt",
+        "ImageSourceUiModel.kt",
+        "PendingImage.kt",
+        "PersonalRecordUiModel.kt",
+    }),
+    store_file="ui/mvi/store/ExerciseStore.kt",
+    state_fields=(
+        ("uuid", "String?"),
+        ("mode", "Mode"),
+        ("draftEpoch", "Int"),
+        ("isSaving", "Boolean"),
+        ("name", "String"),
+        ("nameError", "Boolean"),
+        ("nameDuplicateError", "Boolean"),
+        ("type", "ExerciseTypeUiModel"),
+        ("description", "String"),
+        ("tags", "ImmutableList<AppTagItem>"),
+        ("availableTags", "ImmutableList<AppTagItem>"),
+        ("tagSearchQuery", "String"),
+        ("recentHistory", "ImmutableList<HistoryUiModel>"),
+        ("historyCount", "Int"),
+        ("originalSnapshot", "Snapshot?"),
+        ("isLoading", "Boolean"),
+        ("canPermanentlyDelete", "Boolean"),
+        ("adhocPlan", "ImmutableList<PlanSetUiModel>?"),
+        ("pendingTypeChange", "ExerciseTypeUiModel?"),
+        ("imagePath", "String?"),
+        ("imageLastModified", "Long"),
+        ("pendingImage", "PendingImage"),
+        ("dialogState", "DialogState"),
+        ("clickCopy", "ExerciseClickCopy"),
+        ("bottomSheetState", "BottomSheetState"),
+        ("personalRecord", "PersonalRecordUiModel?"),
+    ),
+    # S4: the UI mapper keeps the two dates; CommonHandler hands it the wrapper.
+    resource_wrapper_readers=frozenset({"ui/mvi/handler/CommonHandler.kt", "ui/mvi/mapper/ExerciseUiMapper.kt"}),
+    # S6: the one uiMode pair, as a ThemeMode subject.
+    preview_subjects={"ui/components/ImageSourceSheetContent.kt": "ImageSourceSheetContent"},
+    # The seven inherited production suppressions of §B0.2, in six files; nothing under any test
+    # source set.
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt": [
+            "\"UNCHECKED_CAST\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/domain/ExerciseInteractor.kt": [
+            "\"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/domain/ExerciseInteractorImpl.kt": [
+            "\"LongParameterList\", \"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/ui/ExerciseGraph.kt": [
+            "\"LongMethod\", \"CyclomaticComplexMethod\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ClickHandler.kt": [
+            "\"TooManyFunctions\", \"LargeClass\"",
+            "\"LongMethod\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/store/ExerciseStore.kt": [
+            "\"MviActionNamingRule\"",
+        ],
+    },
+    # The 133 portable identities of §B3.2, S17's six among them, and the scene of §B11.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ClickHandlerTest.kt": [
+            "OnTypeToggle to WEIGHTLESS with weighted rows raises the confirm instead of switching",
+            "OnTypeToggle to WEIGHTLESS with no weights switches immediately and asks nothing",
+            "OnTypeChangeConfirm commits the switch and clears the weights it warned about",
+            "OnTypeChangeDismiss leaves both the type and the weights alone",
+            "OnSaveClick with blank name sets nameError without saving — reachable",
+            "OnSaveClick with a name does not set nameError and proceeds",
+            "OnEditClick flips mode to Edit and snapshots current state",
+            "OnDetailMenuClick opens the detail-menu sheet",
+            "OnSheetDismiss hides the detail-menu sheet",
+            "OnPlanInfoClick opens the plan-info sheet",
+            "OnEditClick from the sheet closes it in the same transition",
+            "OnPermanentDeleteMenuClick swaps the sheet for the confirm dialog",
+            "OnArchiveMenuClick closes the sheet before the archive result lands",
+            "confirm permanent delete defers - nothing runs until the commit",
+            "minus set emits the undo toast and the undo restores the row",
+            "a stale set undo after save flipped to read edits nothing",
+            "a stale set undo does not edit a re-entered draft",
+            "an undo restored across a type switch re-enters weightless",
+            "an undo during the save's write edits nothing",
+            "a duplicate-name save re-arms the draft's undos",
+            "a cancel during the save's write raises nothing and reverts nothing",
+            "a back during the save's write raises nothing",
+            "a confirmed discard during the save's write pops nothing",
+            "FlipToReadMode during the save's write flips nothing",
+            "Edit entry resets a stuck isSaving",
+            "createTag resolving to an already-selected tag does not duplicate the chip",
+            "a second create landing on a full draft chips nothing past the cap",
+            "a plan value edit emits no undo toast",
+            "the dashed add chip opens the tag picker sheet",
+            "dismissing the tag picker clears the query with the sheet",
+            "OnTagToggle adds tag when not selected",
+            "OnTagToggle blocks adding when 10 tags already selected",
+            "OnDismissArchiveBlocked is no-op",
+            "OnTrackNowClick emits ContextClick haptic",
+            "OnTrackNowClick reports the persisted active session progress",
+            "OnTrackNowResumeConfirm with no pending conflict is a no-op",
+            "OnTrackNowResumeConfirm consumes OpenLiveWorkout with active session uuid",
+            "OnTrackNowConflictDismiss clears the active session conflict dialog",
+            "OnCancelClick from clean Edit on existing flips to Read mode",
+            "OnCancelClick from clean create mode pops back",
+            "OnCancelClick from dirty Edit on existing shows FLIP_TO_READ discard dialog",
+            "OnConfirmDiscard with POP_SCREEN navigates back",
+            "OnConfirmDiscard with FLIP_TO_READ flips mode without popping",
+            "OnConfirmDiscard with FLIP_TO_READ restores the plan the edit changed",
+            "OnConfirmDiscard with FLIP_TO_READ restores a plan that was absent",
+            "OnBackClick in clean Edit on existing flips to Read mode",
+            "OnPermanentDeleteMenuClick is no-op when not eligible",
+            "OnPermanentDeleteMenuClick surfaces the PermanentDeleteConfirm dialog when eligible",
+            "OnEditImageClick opens the image source picker dialog",
+            "OnRemoveImageClick stages a RemoveExisting pending image",
+            "saving an image removal clears the persisted path before deleting the old file",
+            "a rejected image removal keeps the attachment file and the staged draft",
+            "cancelling an image removal restores the attachment without deleting its file",
+            "OnImageSourceDialogDismiss hides the source dialog",
+            "OnPermissionDeniedDialogDismiss hides the permission dialog",
+            "OnCameraPermissionDenied surfaces the permission denied dialog",
+            "OnPermissionDeniedSettingsClick emits NavigateOpenAppSettings",
+            "camera with the permission creates a capture target and launches the camera",
+            "camera without the permission asks for it and creates no capture target",
+            "gallery launches the photo picker and reads no permission",
+            "a granted permission launches the camera on a fresh capture target",
+            "OnImageThumbnailClick with committed path consumes OpenImageViewer with the path",
+            "Edit mode opens the viewer as editable",
+            "Read mode opens the viewer as NOT editable",
+            "OnImageThumbnailClick with no image is a no-op",
+            "OnAdhocPlanEditorAction OnAddSet appends a default set to the in-memory plan",
+            "OnAdhocPlanEditorAction OnSetRemove on the only row normalizes the plan back to null",
+            "OnAdhocPlanEditorAction OnSetWeightChange routes through the reducer",
+            "OnAdhocPlanEditorAction OnSetRepsChange routes through the reducer",
+            "OnAdhocPlanEditorAction OnSetTypeChange routes through the reducer",
+            "OnCancelClick from create-mode with edited plan surfaces POP_SCREEN discard dialog",
+            "OnBackClick from create-mode with edited plan surfaces POP_SCREEN discard dialog",
+            "a menu dismissed before the confirm's copy lands stays dismissed",
+            "the type-change confirm carries the copy Init resolved",
+            "the set-removed toast carries the copy Init resolved",
+            "both tag-limit toasts carry the copy Init resolved",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/CommonHandlerTest.kt": [
+            "Init for create mode does not load exercise",
+            "Init for read mode kicks off observe + load",
+            "a load that throws clears isLoading or the route is composed on nothing forever",
+            "a create route never loads so it is never withheld",
+            "a re-fired Init preserves a dirty draft and its staged image removal",
+            "ImagePicked sets pendingImage to NewFromUri and hides the source dialog",
+            "the load keys the image by its file's modification time",
+            "an exercise without an image reads no modification time",
+            "ImagePickCancelled hides the source dialog without staging a pending image",
+            "a REPLACE request reopens the image source picker",
+            "a REMOVE request stages the removal",
+            "an unrecognised request name is dropped rather than acted on",
+            "every declared request verb resolves to an action",
+            "Init resolves the click paths' constant copy into State",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/domain/ExerciseInteractorImplTest.kt": [
+            "countSessions forwards to countSessionsUsing",
+            "saveExercise forwards the snapshot uuid to repository on Success",
+            "saveExercise propagates the lastAdhocSets payload",
+            "saveExercise propagates DuplicateName from repository",
+            "archive returns Blocked when active trainings exist",
+            "archive returns Success when no active trainings",
+            "getImageLastModified forwards to the image storage",
+            "canPermanentlyDelete delegates to repository",
+            "permanentlyDelete delegates to repository",
+            "observePersonalRecord forwards to repository and maps to domain",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/store/ExerciseDirtyStateTest.kt": [
+            "a freshly loaded exercise is clean",
+            "ONLY the snapshot term - a renamed exercise with no image and no plan edit",
+            "ONLY the image term - a staged picture the snapshot cannot see",
+            "ONLY the plan term - create mode where there is no snapshot to compare against",
+            "create mode with no plan and nothing typed is clean",
+            "a plan the baseline has seen reads clean",
+            "an inline plan edit the baseline has not seen reads dirty",
+            "an empty plan and a null plan are the same plan",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/NavigationHandlerTest.kt": [
+            "Back triggers popBack",
+            "OpenSession navigates to Screen PastSession with the session uuid",
+            "OpenLiveWorkout navigates to Screen LiveWorkout with the resume session uuid",
+            "OpenImageViewer carries the model arg and the caller's own capability",
+            "OpenImageViewer forwards a non-editable caller as non-editable",
+            "OpenChart navigates to Screen ExerciseChart with the exercise uuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/mapper/ExerciseUiMapperTest.kt": [
+            "weighted record splits into trimmed weight and reps with the medium date",
+            "fractional record weight trims trailing zeros",
+            "weightless record carries no weight label",
+            "history entry maps day-month date and the tight summary form",
+            "history summary caps at five sets and appends an ellipsis",
+            "weightless history sets summarize as bare reps",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ExerciseDeferredDeleteDbTest.kt": [
+            "confirming deletes nothing while the snackbar lives",
+            "back is consumed only after the snackbar is queued with the real undo label",
+            "the window closing commits the delete",
+            "undo — or a process death inside the window — leaves the row",
+            "the commit outlives the screen that scheduled it",
+            "the queued delete carries the message and the undo label Init resolved",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/InputHandlerTest.kt": [
+            "OnNameChange updates name and clears nameError",
+            "OnNameChange clears nameDuplicateError",
+            "OnDescriptionChange truncates to 2000 chars",
+            "OnTagSearchChange updates tagSearchQuery",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/store/ExerciseStateRouteArgTest.kt": [
+            "null uuid yields create-mode initial state with no loading flag",
+            "non-null uuid yields read-mode initial state and starts loading",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/PermanentDeleteUndoLabelRuTest.kt": [
+            "the queued undo label resolves from the real russian catalog",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseFeatureSceneIosTest.kt": [
+            "resourcesDetailEditorSheetsAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise/golden/ExerciseDetailGoldenTest.kt"
+    ),
+    # ExerciseDetailGoldenTest's 15 methods of §B3.3, in source order; each renders light and dark.
+    golden_methods=["screenLoaded", "screenEmpty", "screenNoRecord", "screenEmptyHistory", "screenEmptyPlan", "screenImageNoDescription", "screenWeightless", "topbar", "sheetDetailMenu", "sheetDetailMenuDeletable", "recordHero", "recordHeroWeightless", "recordHeroMetaClamped", "historyRow", "historyRowRecord"],
+    device_test="src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt",
+    device_fragments=(
+        "@Smoke",
+        "fun edit_inCreateMode_startsFromAnEmptyInlinePlan()",
+        "fun edit_inCreateMode_rendersPlanRowsWhenAdhocPlanIsPresent()",
+        "fun edit_forExistingExercise_editsThePlanInlineToo()",
+    ),
+    feature_class="ExerciseFeature",
+    graph_interface="ExerciseGraph",
+    graph_function="exerciseGraph",
+    factory_accessor="exerciseGraphFactory",
+    create_method="createExerciseGraph",
+    store_impl="ExerciseStoreImpl",
+    store_accessor="exerciseStore",
+    feature_file="di/ExerciseFeature.kt",
+    graph_file="ui/ExerciseGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/ExerciseExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.exercise(uuid: String?): ExerciseGraph = exerciseGraphFactory.createExerciseGraph(Screen.Exercise(uuid = uuid))",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "both qualified dispatchers are inherited and stay two distinct keys",
+        "the camera permission is inherited from the parent graph",
+        "each extension carries its own route arg into the store state",
+        "a null route arg survives the binding and reaches the store as null",
+    ],
+    # Each identity reaches the graph once through the accessor; the fifth identity's "ex-2" call
+    # and the helper itself are deliberately not counted.
+    identity_accessor=r'(?<!AppGraph)\.exercise\((?:"ex-1"|null)\)',
+    extra_checks=(
+        exercise_copy_contract,
+        exercise_media_contract,
+        exercise_dependency_contract,
+        exercise_device_contract,
+    ),
+    create_args="screen",
+    preview_inventory={},
+    resource_wrapper_dates={
+        "ui/mvi/mapper/ExerciseUiMapper.kt": {"formatDayMonth": 1, "formatMediumDate": 1},
+    },
+    # 7.13's D5: the 14 bare previews, pinned per file; every other commonMain file holds none.
+    bare_previews={
+        "ui/ExerciseDetailScreen.kt": 5,
+        "ui/ExerciseEditScreen.kt": 3,
+        "ui/components/ExerciseDescriptionBlock.kt": 2,
+        "ui/components/ExerciseDetailSheets.kt": 1,
+        "ui/components/ExerciseHistoryRow.kt": 2,
+        "ui/components/PlanInfoSheetContent.kt": 1,
+    },
+    # 7.14's D4: the Description and Edit golden classes, pinned like golden_test.
+    extra_golden_tests={
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise/golden/ExerciseDescriptionBlockGoldenTest.kt": ["readWithImage", "readWithPlaceholder", "editable"],
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/exercise/golden/ExerciseEditGoldenTest.kt": ["createEmpty", "editWeighted", "editWeightless", "editBlankNameError", "editDuplicateNameError", "sheetPlanInfo"],
+    },
+    # G1: exercise reads the image viewer's result back, so it registers through this overload.
+    screen_registration="navComponentScreenWithResults",
+)
+
 # Every shared feature entry the gate holds to its exact contract.
 FEATURE_ENTRIES = (
     ARCHIVE_ENTRY,
@@ -5945,6 +6673,7 @@ FEATURE_ENTRIES = (
     HOME_ENTRY,
     EXERCISE_CHART_ENTRY,
     SINGLE_TRAINING_ENTRY,
+    EXERCISE_ENTRY,
 )
 
 
