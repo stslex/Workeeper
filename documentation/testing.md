@@ -326,6 +326,11 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
   `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
   `commonMain`) and that two reads give one app-scoped instance. Do not delete it as unread.
+- `AppGraph.cameraPermission` has **no production reader**: exercise's `ClickHandler` receives
+  `CameraPermission` by constructor injection through its graph extension. The accessor exists so
+  `ExerciseExtensionIdentityTest` can prove the extension inherits the app-scoped check
+  (`AndroidCameraPermission`, contributed by `@ContributesBinding(AppScope)` in `core:core`
+  `androidMain`) as the parent graph's instance. Do not delete it as unread.
 - `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
   resolved there at all. That is why the ordering pins in `AppRuntimeReplacementTest` record a
   database touch with
@@ -794,6 +799,17 @@ module's plurals through the real resolver; Android host has no route to it (see
 [Shared all-exercises feature](#shared-all-exercises-feature)). The mapper identities use a fake,
 so they do not execute it. Feature tests fake the interface in-file, switching on the generated
 resource objects; there is no shared fake or fixtures module.
+
+#### Image sources
+
+`core:ui:kit`'s `ImageSourceLauncherTest.launchesEachContractAndRoutesItsResult` drives the
+Android actual of `rememberImageSourceLauncher` in one Robolectric composition, under a recording
+`ActivityResultRegistry` provided through `LocalActivityResultRegistryOwner` and a recording
+`Context`: each verb's contract and input, each result's callback, and the app-details settings
+intent. The system camera and photo-picker apps, and the exercise graph's mapping of the
+permission result to `RequestCameraCapture` / `OnCameraPermissionDenied`, are the maintainer's
+device check (kmp-phase-7-15-exercise-feature.md Section 12.2). The iOS actual is compiled, never
+executed.
 
 #### Shared MVI runtime
 

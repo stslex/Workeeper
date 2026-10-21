@@ -17,6 +17,9 @@ interface ImageStorage {
     /** Deletes the file at [path]. No-op if absent; returns true if a file was deleted. */
     suspend fun deleteImage(path: String): Boolean
 
+    /** The file's last-modified time in epoch millis; 0 when [path] names no file. */
+    suspend fun lastModified(path: String): Long
+
     /** Removes temp capture files left behind by killed processes. Runs once at app startup. */
     suspend fun cleanupTempFiles()
 

@@ -74,6 +74,27 @@ internal class ImageStorageImplTest {
     }
 
     @Test
+    fun `lastModified returns the stored file's modification time`() = runTest {
+        val target = File(rootDir, "stamped.jpg").apply {
+            writeBytes(byteArrayOf(0x1))
+            setLastModified(1_700_000_000_000L)
+        }
+
+        val modified = storage.lastModified(target.absolutePath)
+
+        // Compared with the file's own read-back, so the host file system's granularity cancels.
+        assertEquals(target.lastModified(), modified)
+        assertTrue(modified > 0L)
+    }
+
+    @Test
+    fun `lastModified returns 0 when the file is absent`() = runTest {
+        val target = File(rootDir, "missing.jpg")
+
+        assertEquals(0L, storage.lastModified(target.absolutePath))
+    }
+
+    @Test
     fun `cleanupTempFiles removes everything in the temp subdirectory`() = runTest {
         File(tempDir, "leftover-1.jpg").writeBytes(byteArrayOf(0x1))
         File(tempDir, "leftover-2.jpg").writeBytes(byteArrayOf(0x2))

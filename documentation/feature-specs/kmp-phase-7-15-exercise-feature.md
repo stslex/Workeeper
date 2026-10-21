@@ -1,7 +1,7 @@
 # KMP Phase 7.15 — feature:exercise. Part A: the media seams (PR-M)
 
-**Status:** SPECIFIED — Part A (PR-M) only. Part B (the move) is specified by an amendment of this
-file after PR-M merges and the maintainer's device check (Section 12.2) passes.
+**Status:** Part A COMPLETE — implemented by the PR whose merge brought this line to dev. Part B
+is specified by an amendment.
 
 **Discovery baseline:** dev @ 63d511dee5829e5c7b1338aa69c9dc56123f055e (2026-10-20, the merge of
 #340, Phase 7.14).
@@ -782,3 +782,214 @@ each verdict quoted; the source census of Section 4.4; the PNG blob-set hash; th
 (Xcode, Pythons, the emulator and its serial); deviations, if any. GitHub's signature verification,
 the CI run ids and the review classification go in the PR body and the report, because they cannot
 exist before this commit does.
+
+This section records the bounded implementation the maintainer's GO of 2026-10-20 authorized:
+Part A exactly (Sections 4 and 5) inside Section 9, in Section 11's five commits. Sections 0–13
+remain the specification and are not rewritten here; where the measured tree differs from their
+prose, Section 14.7 says so.
+
+Every load-bearing Gradle invocation below ran after `./gradlew --stop` and a sample of every other
+Gradle client and daemon on the host (`gradle-wrapper.jar`, `GradleWrapperMain` and `GradleDaemon`,
+each with its working directory read through `lsof`), with
+`--rerun-tasks --no-build-cache --no-configuration-cache --console=plain` (plus `--continue` where
+stated). This run's Gradle used its own daemon registry (`-Dorg.gradle.daemon.registry.base` in
+`GRADLE_OPTS`, the pre-commit hook's detekt and `mutation_harness.py` included), so its `--stop`
+reached no other daemon. Across the 64 gate invocations (the 13 harness runs of Section 14.3 come on top; each stops this run's daemons itself), the samples taken before each stop
+list 63 of this run's daemons (63 distinct PIDs, each with its working directory in this
+run's registry), one foreign daemon in every sample (PID 3369, Gradle 9.6.1, the default registry,
+idle: 1:03 of CPU, all at its start, before this run's first gate), and no client. Every "Executed"
+cell is the logged `N actionable tasks: N executed`. Only JUnit XML written after the run's recorded
+start was parsed, and each gate's XML was copied aside at once. detekt never shared an invocation
+with tests. Every census, scorer and audit below is a script this one session wrote and ran; no
+sub-agent took part, and no git worktree was created.
+
+### 14.1 Entry, drift, census and baselines
+
+This specification landed on `dev` as `cb2da0e456d77d8a814daeb43a79557e220807f9`, one signed commit
+that fast-forwarded `63d511dee`; its blob had the input sha256 `4a464dc1…690938`. It was pushed with
+the launch prompt's guarded command, which the maintainer authorized in their own message, run as
+written (the push printed GitHub's bypass notice for the two required status checks). GitHub reports
+the commit `verified: true`, `reason: valid`. A Markdown-only push starts no unified run, and none
+started. That SHA is the implementation base.
+
+| Entry check | Result |
+| --- | --- |
+| latest push run of `Android CI/CD - Unified Build and Tests` on `dev` | run `39396179621` on `63d511dee`, `success` (Build and Unit Tests, Release bundle identity, KMP iOS kit smoke, Unit Test Results, Detailed Unit Test Report) |
+| `63d511de` is an ancestor of the base | yes (the base's parent) |
+| drift | the one commit since `63d511de` is the SPEC commit, which touches only this document's path; no Section 9 path changed (no conflict) |
+
+The census reads every figure twice, from git objects at the base (`ls-tree`, `cat-file`) and from
+the working tree, under both Pythons, with byte-identical output; A equals B and both equal this
+specification on every row:
+
+| Figure | Base |
+| --- | --- |
+| `feature/exercise/src/main`: `import android.` / `import java.` / `import androidx.core.` lines | 10 / 1 / 3 |
+| activity-result imports of `ui/ExerciseGraph.kt` | 3 (`rememberLauncherForActivityResult`, `PickVisualMediaRequest`, `ActivityResultContracts`) |
+| non-golden identities, by `@Test`, by the topology gate's `KOTLIN_TEST_NAME` and distinct | 120 in 10 suites: 68/11/9/8/6/6/5/4/2/1 |
+| golden methods (the gate's `GOLDEN_METHODS`) | 24 in 3 classes (3, 15, 6) |
+| PNGs under `src/test/snapshots` | 48, all `100644`, 48 distinct blobs, blob-set sha256 `0e4ba874…6a6353` |
+| `ExerciseInteractor` / `ImageStorage` abstract members | 20 / 4 |
+| `ImageStorage` implementers | 3: `ImageStorageImpl`, `FakeImageStorage`, the `ExerciseRepositoryDuplicateNameDeviceTest` object |
+| `ExerciseExtensionIdentityTest` names | the six of Section 5.4's baseline |
+| identities in the module that drive `OnImageSourceSelected` or `RequestCameraCapture` | 0 |
+
+The census also lists two fully qualified `android.` references outside imports: the graph's
+`android.Manifest.permission.CAMERA` (gone at commit 4) and the preview `uiMode` in
+`ImageSourceSheetContent.kt` (Part B's `uiMode` pair, unchanged).
+
+| Baseline on the base | Executed | Fresh XML |
+| --- | ---: | --- |
+| topology gate, both Pythons | — | exit 0, 712 lines, empty stderr, byte-identical (BASE_GATE_OUTPUT) |
+| `:feature:exercise:testDebugUnitTest` | 212 | 10 suites, 120 cases |
+| `:feature:exercise:verifyPaparazziDebug` | 213 | 13 suites, 168 cases; `Visual gate live: 48 golden test case(s) executed for 48 golden image(s).` |
+| `:core:core:testAndroidHostTest` | 25 | 8 suites, 42 cases |
+| `:core:ui:kit:testAndroidHostTest` | 87 | 26 suites, 415 cases |
+| `:app:app:testDebugUnitTest` | 592 | 23 suites, 200 cases; `ExerciseExtensionIdentityTest` 6 |
+| fourteen-module `iosSimulatorArm64Test`, `--continue --full-stacktrace` | 386 | 84 suites, 483 cases; then `assert_kmp_ios_smoke.py`, exit 0, 14 modules verified (kit 2 tuples), byte-identical under both Pythons |
+
+### 14.2 Commits and per-commit gates
+
+Each commit was made through the signed-commits procedure; its raw object carries a `gpgsig`
+header, and `Co-Authored-By` is its only trailer. detekt ran alone on the staged tree before each
+commit and again on the committed tree after it: 63 tasks, 55 fresh reports, 0 findings every time;
+the pre-commit hook's detekt passed on every commit.
+
+| Commit | Gate | Executed | Fresh XML |
+| --- | --- | ---: | --- |
+| 1 `665783561` test(exercise) | `:feature:exercise:testDebugUnitTest` | 212 | 10 suites, 124 cases; the four Section 5.3 names added, none removed |
+| 2 `b37b153df` feat(core) | `:core:core:testAndroidHostTest` | 25 | 9 suites, 46 cases; the four Section 5.1 names added |
+| | `:core:core:assembleDebug` | 35 | `core.aar`; `compileKotlinIosArm64` and `compileKotlinIosSimulatorArm64` klibs fresh |
+| | `:core:ui:test-utils:assembleDebug :core:data:exercise:assembleAndroidDeviceTest` | 244 | — (`compileAndroidDeviceTest` executed) |
+| | `:app:app:testDebugUnitTest` | 592 | 23 suites, 200 cases (= base) |
+| 3 `555eec09c` feat(kit) | `:core:ui:kit:testAndroidHostTest` | 87 | 27 suites, 416 cases; `launchesEachContractAndRoutesItsResult` added, 2.5 s, no hang |
+| | `:core:ui:kit:assembleDebug` | 128 | `kit.aar` and both iOS klibs fresh |
+| | fourteen-module Native, `--continue` | 386 | 84 suites, 483 cases; oracle exit 0, output byte-identical to the base and across both Pythons (kit's 2 tuples unchanged) |
+| | fourteen-module `linkDebugTestIosArm64`, `--continue` | 372 | 14/14 `test.kexe` written after the run's start |
+| 4 `1c7a27f91` refactor(exercise) | `:feature:exercise:testDebugUnitTest` | 212 | 10 suites, 127 cases (72/13/10/8/6/6/5/4/2/1); against commit 1 exactly Section 5.3's three names added, none removed |
+| | `:feature:exercise:verifyPaparazziDebug` | 213 | 13 suites, 175 cases; `Visual gate live: 48 golden test case(s) executed for 48 golden image(s).`; porcelain empty; blob-set hash unchanged |
+| | `:app:app:testDebugUnitTest` | 592 | 23 suites, 200 cases; `ExerciseExtensionIdentityTest` 6/6: Section 5.4's replacement in, the `Context` identity out, the other five unchanged |
+| | `:feature:exercise:assembleDebug :app:app:assembleDebug` | 411 | — |
+
+The four commit-1 identities pass at commit 1 (static stubs) and at commit 4 (the `CameraPermission`
+mock), under the same names.
+
+### 14.3 Known-negative controls
+
+Each control ran through `mutation_harness.py` one-shot (`--no-configuration-cache --console=plain`
+in `--task`; the harness adds `--rerun-tasks --no-build-cache`) between two fresh GREEN runs of the
+same task, all with every task executed. The verdict is scored from the mutated run's fresh XML,
+never from the harness's verdict line. After each run the file's sha256 equalled the one before and
+`git status --porcelain --untracked-files=no` was empty. K0 ran on commit 1, K1–K12 on commit 4.
+
+| Id | Mutation | RED quoted from the fresh XML | GREEN before / after |
+| --- | --- | --- | --- |
+| K0 | `if (hasCameraPermission())` → `if (!hasCameraPermission())` | exactly the two camera identities: `expected: <[Haptic(type=ContextClick), NavigateLaunchCamera(tempUri=Uri(#53))]> but was: <[Haptic(type=ContextClick), NavigateRequestCameraPermission]>` and the converse; 2 of 72 | 72 / 72 |
+| K1 | `AndroidCameraPermission.isGranted` returns `true` | only `isGranted is false while the camera permission is denied`: `expected: <false> but was: <true>`; 1 of 2 | 2 / 2 |
+| K2 | `ImageStorageImpl.lastModified` returns `0L` | only `lastModified returns the stored file's modification time`: `expected: <1700000000000> but was: <0>`; 1 of 7 | 7 / 7 |
+| K3 | `success && target != null` → `target != null` | the failed-capture row: `failed capture picked ==> expected: <[content://test/capture-1.jpg]> but was: <[content://test/capture-1.jpg, content://test/capture-2.jpg]>`, `failed capture cancels ==> expected: <1> but was: <0>` (the later rows' running totals follow) | 1 / 1 |
+| K4 | `launchCamera` no longer writes `pendingCameraTarget` | the capture row reports a cancel: `capture picked ==> expected: <[content://test/capture-1.jpg]> but was: <[]>`, `capture cancels ==> expected: <0> but was: <1>` | 1 / 1 |
+| K5 | `PickVisualMedia.ImageOnly` → `ImageAndVideo` | only `gallery media type` (expected `ImageOnly`) | 1 / 1 |
+| K6 | `Manifest.permission.CAMERA` → `READ_MEDIA_IMAGES` | only `permission input ==> expected: <android.permission.CAMERA> but was: <android.permission.READ_MEDIA_IMAGES>` | 1 / 1 |
+| K7 | the settings intent's `data = …` line removed | only `settings data ==> expected: <package:io.github.stslex.workeeper.core.ui.kit.test> but was: <null>` | 1 / 1 |
+| K8 | the camera branch reads `!cameraPermission.isGranted()` | exactly the two camera identities, e.g. `expected: <[Haptic(type=ContextClick), NavigateRequestCameraPermission]> but was: <[Haptic(type=ContextClick), NavigateLaunchCamera(target=ImageRef(value=))]>`; 2 of 72 | 72 / 72 |
+| K9 | the gallery branch reads the permission and sends `NavigateLaunchGallery` either way | only the gallery identity: `Verification failed: call 1 of 1: CameraPermission(#484).isGranted()) should not be called`; 1 of 72 | 72 / 72 |
+| K10 | the load carries `0L` instead of the read | only `the load keys the image by its file's modification time`: `expected: <1234> but was: <0>`; 1 of 13 | 13 / 13 |
+| K11 | `getImageLastModified` returns `0L` | only `getImageLastModified forwards to the image storage`: `expected: <1234> but was: <0>`; 1 of 10 | 10 / 10 |
+| K12 | `@SingleIn(AppScope::class)` removed from `AndroidCameraPermission` | only `the camera permission is inherited from the parent graph`: `The extension's CameraPermission must be the parent graph's app-scoped instance`; 1 of 6 | 6 / 6 |
+
+Executed tasks per run: K0 and K8–K11 212, K1–K2 25, K3–K7 87, K12 592.
+
+### 14.4 Repository and Native gates on commit 4
+
+| Gate | Executed | Result |
+| --- | ---: | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2775 | 472 suites, 3345 cases, 0 failures, errors or skips (7.14's 470 / 3333 plus this PR's 2 suites and 12 cases); lint: 36 modules `Lint found no errors or warnings`, and `app:app`, `app:dev` and `app:store` `Lint found 77 warnings` each, all dependency-version checks (GradleDependency 37, NewerVersionAvailable 34, AndroidGradlePluginVersion 6) in `gradle/libs.versions.toml` and `gradle-wrapper.properties`, none in source — the same as 7.14 Section 19.8 |
+| `detekt --continue` | 63 | 55 fresh reports, 0 findings |
+| `assembleDebugAndroidTest` | 2171 | — |
+| `verifyPaparazziDebug` | 673 | 169 suites, 1751 cases; 13 `Visual gate live` lines, 456 golden cases for 456 images; porcelain empty |
+| `:lint-rules:test` | 9 | 16 suites, 151 cases |
+| topology gate, both Pythons | — | exit 0, 712 lines, empty stderr, byte-identical to BASE_GATE_OUTPUT |
+| `python3 documentation/personal_data_gate.py -v` | — | `[PASS] no personal data in tracked files` |
+| fourteen-module Native, `--continue` | 386 | 84 suites, 483 cases; oracle exit 0, output byte-identical to the base and across both Pythons |
+| fourteen-module device link, `--continue` | 372 | 14/14 fresh `test.kexe` |
+
+### 14.5 Device gates
+
+On `emulator-5554` (`Pixel_6_API_34`, API 34), booted by this run at 12:05Z (boot completed 12:05:24Z) with the launch
+prompt's command (qemu PID 41871) and shut down by `adb -s emulator-5554 emu kill` at 12:24:34Z,
+after the last device run. Before and after every run (eight snapshots) the three animation scales
+read 0, `accelerometer_rotation` and `user_rotation` 0, the keyguard was down, nothing was
+instrumenting, and the one installed workeeper package, the maintainer's
+`io.github.stslex.workeeper.dev`, kept its `lastUpdateTime` of 2026-09-07; no test APK stayed
+installed. Every run had `ANDROID_SERIAL=emulator-5554`.
+
+| Gate | Executed | Fresh XML |
+| --- | ---: | --- |
+| `:feature:exercise:connectedDebugAndroidTest` | 248 | 2 suites, 5 cases: `ExerciseScreenTest` 3, `ExerciseFormBasicsTest` 2 |
+| `:app:app:connectedDebugAndroidTest` with `-Pandroid.testInstrumentationRunnerArguments.class=` `RouteReachabilityTest`, `StoreRetentionTest`, `BackStackStateRestorationTest`, `--max-workers=2 --continue` | 753 | 3 suites, 22 cases: 15 + 3 + 4, among them the exercise create, seeded-row and image-viewer journeys |
+| Smoke suite: `connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke -Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue` | 2131 | 15 fresh XML owners, 11 with cases, 44 cases: 41 passed and exactly the three documented skips (`ArchiveScreenTest`, `AllTrainingsScreenTest`, `AllExercisesScreenTest` `pendingFeatureRewrite`); 0 failures and errors; exercise's 5 among them. Then `assert_mvi_device_identities.py`: `core:ui:mvi (androidDeviceTest): 2 executed / 0 skipped / 0 failed / 0 errored — verified 2 exact identities` |
+| Regression suite: the same with `…annotations.Regression` | 2131 | 88 cases, all executed, 0 skips, failures or errors: `app:app` 49 (`RouteReachabilityTest` 15, `StoreRetentionTest` 3, `UiAdmissionRaceTest` 3, `ApplicationBottomBarTest` 4, `AllTrainingsExtensionDbVisibilityTest` 1, `UiGenerationSwapTest` 1, `AppRuntimeUiHandshakeDeviceTest` 1, and the rest), `core:data:database` 35, `core:data:exercise` 1, `feature:all-exercises` 1, `feature:wear-bridge` 2 |
+
+Against Phase 7.14's record (its Section 19.8): the same 44 Smoke cases with the same three skips and
+the same 88 Regression cases in the same modules; no new failure or skip. The Smoke run wrote 15 XML
+owners where 7.14 counted 14; the four without cases belong to `app:app`, `core:data:database`,
+`core:data:exercise` and `feature:wear-bridge`, which carry no `@Smoke` test.
+
+### 14.6 Exit census and PNG proof
+
+At commit 4, the census in exit mode (both methods, both Pythons, byte-identical) reads, for
+`feature/exercise/src/main`: `import android.` 0 (10 at the base), `import java.` 0 (1),
+`import androidx.core.` 0 (3), activity-result imports 0 (3). The one fully qualified `android.`
+reference left is the preview `uiMode` in `ImageSourceSheetContent.kt`, not an import. What Section
+4.4 leaves for Part B is all there: `LocalContext` in `di/ExerciseFeature.kt` and
+`ExerciseDescriptionBlock.kt`, the activity `BackHandler` in `ui/ExerciseGraph.kt`,
+`androidx.compose.ui.res.*` in seven files, `@VisibleForTesting` in `ExerciseStoreImpl.kt` and the
+two `System.currentTimeMillis()` in `ClickHandler.kt`. `ExerciseInteractor` has 21 abstract members,
+`ImageStorage` 5 with the same 3 implementers, and four identities drive the image sources.
+
+The PNG set at commit 4 and at this commit's parent: 48 files, all `100644`, 48 distinct blobs,
+`git ls-files -s feature/exercise/src/test/snapshots | awk '{print $2}' | sort | shasum -a 256` =
+`0e4ba8746577ab0198e29fc09e58f7fd145d41dbf6a6cc01489dfcd09b5a6353`, the base's value. No golden was
+recorded and no PNG path is in the diff.
+
+The diff against the base: after commit 4, `git diff -M30% --name-status` lists exactly Section 9's
+30 code paths (7 `A`, 23 `M`); after this commit, its 34 (the four documents `M`). No `.png`,
+`strings.xml`, `*.gradle.kts` or `gradle/libs.versions.toml` path.
+
+### 14.7 Environment, worktrees, deviations and limits
+
+| Item | Value |
+| --- | --- |
+| Xcode | 27.0 (27A266a) here, `/Applications/Xcode.app/Contents/Developer`, first launch done; iOS runtimes 18.0, 18.2, 18.6, 26.5. CI's `KMP iOS kit smoke` selects Xcode 26.6 |
+| JDK | JBR 21.0.11 |
+| Pythons | `/opt/homebrew/bin/python3` 3.15.0 and `/usr/bin/python3` 3.9.6; the topology gate, the oracle and the census ran under both with byte-identical output |
+| Gradle | 9.6.1, this run's own daemon registry in the session scratchpad |
+| emulator | `Pixel_6_API_34` (API 34) as `emulator-5554`, qemu PID 41871, booted and shut down by this run (Section 14.5) |
+| free disk | 101.8 GiB at the first gate, 91.0 GiB at the lowest (after the repository build gate); no disk-full event |
+
+Worktrees: at Phase 0 the repository had none besides the main checkout, so none was removed and
+none was kept. This run created none.
+
+Deviations and implementation decisions, none of which widens Section 9:
+
+1. Commit 1's four identities share one private helper in `ClickHandlerTest`,
+   `withStaticCameraMocks(granted) { captureUri -> … }`, which installs both static mocks and undoes
+   them in a `finally`; commit 4 removes it. Every identity also wires the synchronous launch, the
+   gallery one included, so its `createTempCaptureRef` never-call is not vacuous.
+2. `ClickHandler`'s `ImageRef` import goes in commit 4: after `saveImage(pending.ref, …)` the class
+   names the type nowhere, and an unused import fails detekt.
+3. The load names the awaited exercise `loadedExercise`; the six `async` reads are unchanged, and the
+   modification time is read after the exercise is awaited and before `LoadResult` is built.
+4. The two new `CommonHandlerTest` identities build their exercise with one private
+   `exercise(imagePath)` and also assert that the load landed (`name == "Bench"`), so neither can pass
+   on a load that never ran.
+5. `ExerciseExtensionIdentityTest`'s class KDoc named the bare `Context`; it now names the camera
+   permission. `ImageStorageImplTest` gains one comment on the granularity the comparison absorbs.
+6. K3's RED also moves the running totals the later rows assert (the failed capture's reference stays
+   in `picked`); the failed-capture row is the one Section 6 names.
+
+Not verifiable on this host: GitHub's verification of this commit and the CI runs on the PR (they
+are in the PR body and the report); the iOS actuals' behaviour (compiled and linked, never
+executed); the system camera and photo-picker apps and the graph's permission-result mapping
+(Section 12.2); Xcode 26.6, which only CI runs.

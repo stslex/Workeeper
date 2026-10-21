@@ -61,6 +61,9 @@ internal class ExerciseRepositoryDuplicateNameDeviceTest {
         override suspend fun deleteImage(path: String): Boolean =
             error("saveItem must not reach ImageStorage.deleteImage")
 
+        override suspend fun lastModified(path: String): Long =
+            error("saveItem must not reach ImageStorage.lastModified")
+
         override suspend fun cleanupTempFiles() =
             error("saveItem must not reach ImageStorage.cleanupTempFiles")
     }

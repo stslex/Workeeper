@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
@@ -190,6 +191,12 @@ internal interface AppGraph :
      * reader here is the graph identity test, `StringResolverIdentityTest`.
      */
     val stringResolver: StringResolver
+
+    /**
+     * The camera-permission check (kmp-phase-7-15-exercise-feature.md Part A). Its only reader here
+     * is the graph identity test, `ExerciseExtensionIdentityTest`.
+     */
+    val cameraPermission: CameraPermission
 
     @Provides
     @SingleIn(AppScope::class)

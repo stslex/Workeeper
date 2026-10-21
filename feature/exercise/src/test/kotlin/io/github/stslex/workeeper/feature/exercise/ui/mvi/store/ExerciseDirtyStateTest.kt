@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
-import android.net.Uri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -61,7 +60,7 @@ internal class ExerciseDirtyStateTest {
     @Test
     fun `ONLY the image term - a staged picture the snapshot cannot see`() {
         // `Snapshot` does not carry the image, which is why the image needs its own term.
-        val state = loaded().copy(pendingImage = PendingImage.NewFromUri(mockk<Uri>(relaxed = true)))
+        val state = loaded().copy(pendingImage = PendingImage.NewFromUri(ImageRef("content://picked/1")))
 
         assertTrue(state.hasChanges)
         assertFalse(state.isAdhocPlanDirty)

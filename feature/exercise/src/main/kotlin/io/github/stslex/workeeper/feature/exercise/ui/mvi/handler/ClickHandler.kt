@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
+import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
@@ -57,8 +52,7 @@ import kotlin.uuid.Uuid
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
-    // Plain Context: the app graph binds it bare — one Context per graph.
-    private val context: Context,
+    private val cameraPermission: CameraPermission,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
     store: ExerciseHandlerStore,
@@ -366,7 +360,7 @@ internal class ClickHandler @Inject constructor(
         PendingImage.RemoveExisting -> ImageCommitOutcome.Removed(previousPath = current.imagePath)
         is PendingImage.NewFromUri -> when (
             val saveResult =
-                interactor.saveImage(ImageRef(pending.uri.toString()), resolvedUuid.toString())
+                interactor.saveImage(pending.ref, resolvedUuid.toString())
         ) {
             is ImageSaveResult.Success -> ImageCommitOutcome.Stored(
                 newPath = saveResult.absolutePath,
@@ -773,7 +767,7 @@ internal class ClickHandler @Inject constructor(
         // Whatever is displayed: the committed file path or the freshly-picked content URI.
         val model = when (val display = state.value.effectiveImageDisplay) {
             is ImageDisplay.FromPath -> display.path
-            is ImageDisplay.FromUri -> display.uri.toString()
+            is ImageDisplay.FromUri -> display.ref.value
             ImageDisplay.None -> return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
@@ -791,7 +785,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(dialogState = DialogState.Hidden) }
         when (action.source) {
             ImageSourceUiModel.Camera -> {
-                if (hasCameraPermission()) {
+                if (cameraPermission.isGranted()) {
                     launchCameraCapture()
                 } else {
                     sendEvent(Event.NavigateRequestCameraPermission)
@@ -805,7 +799,7 @@ internal class ClickHandler @Inject constructor(
     private fun launchCameraCapture() {
         launch(
             onSuccess = { ref ->
-                sendEvent(Event.NavigateLaunchCamera(ref.value.toUri()))
+                sendEvent(Event.NavigateLaunchCamera(ref))
             },
         ) {
             interactor.createTempCaptureRef()
@@ -831,15 +825,10 @@ internal class ClickHandler @Inject constructor(
     private fun processPermissionDeniedSettingsClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        sendEvent(Event.NavigateOpenAppSettings(context.packageName))
+        sendEvent(Event.NavigateOpenAppSettings)
     }
 
     private fun processCameraPermissionDenied() {
         updateState { it.copy(dialogState = DialogState.PermissionDenied) }
     }
-
-    private fun hasCameraPermission(): Boolean = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.CAMERA,
-    ) == PackageManager.PERMISSION_GRANTED
 }

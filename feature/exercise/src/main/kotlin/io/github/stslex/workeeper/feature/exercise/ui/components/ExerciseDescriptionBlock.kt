@@ -45,7 +45,7 @@ internal fun ExerciseDescriptionBlock(
     val model: Any? = when (imageDisplay) {
         ImageDisplay.None -> null
         is ImageDisplay.FromPath -> "${imageDisplay.path}?v=${imageDisplay.lastModified}"
-        is ImageDisplay.FromUri -> imageDisplay.uri
+        is ImageDisplay.FromUri -> imageDisplay.ref.value
     }
     Row(
         modifier = modifier

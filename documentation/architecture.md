@@ -39,9 +39,10 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   dispatcher qualifiers (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`,
   `IODispatcher`), Firebase logging holders, the platform expect/actual seams
   (`PlatformInfoProvider`, `AppReinitializer`), `ResourceWrapper`/`ImageStorage` interfaces,
-  `AppResult`, common extensions. `androidMain`: the Android actuals and framework impls plus
-  the Metro binding containers (`DispatchersBindingContainer`, `ResourceWrapperBindingContainer`,
-  `ImageStorageFactory`, `TempFileProvider`).
+  the synchronous `CameraPermission` check, `AppResult`, common extensions. `androidMain`: the
+  Android actuals and framework impls plus the Metro binding containers
+  (`DispatchersBindingContainer`, `ResourceWrapperBindingContainer`, `ImageStorageFactory`,
+  `TempFileProvider`), and `AndroidCameraPermission`, contributed to `AppScope`.
 - `core/data/database` — KMP Room module. `commonMain` owns `AppDatabase`, entities, DAOs,
   type converters, and `migration/` (including `MigrationsRegistry`); `androidMain` owns
   `AppDatabaseFactory` and Android snapshot I/O. Exported schemas live under
@@ -55,9 +56,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `DataStoreProviderFactory`).
 - `core/ui/kit` — reusable Compose UI: theme (`AppTheme`, `AppDimension`, `AppUi`), components
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
-  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`, and
+  (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`,
   `StringResolver`, which reads Compose-resource strings outside composition (see
-  [Localization](#localization)).
+  [Localization](#localization)), and `rememberImageSourceLauncher`: the camera, the photo
+  picker, the camera-permission request and the app settings behind one platform seam, inert on
+  iOS until the iOS host.
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
 - `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
   command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),

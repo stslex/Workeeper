@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import android.content.Context
-import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.core.images.ImageRef
+import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -52,9 +53,8 @@ internal class ClickHandlerTest {
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val context = mockk<Context>(relaxed = true).apply {
-        every { packageName } returns "io.github.stslex.workeeper.test"
-        every { checkPermission(any(), any(), any()) } returns PackageManager.PERMISSION_GRANTED
+    private val cameraPermission = mockk<CameraPermission>(relaxed = true).apply {
+        every { isGranted() } returns true
     }
 
     private fun setup(initialState: State = State.create(uuid = "uuid-1")): TestSetup {
@@ -72,7 +72,7 @@ internal class ClickHandlerTest {
             handler = ClickHandler(
                 interactor = interactor,
                 resourceWrapper = resourceWrapper,
-                context = context,
+                cameraPermission = cameraPermission,
                 mainDispatcher = Dispatchers.Unconfined,
                 store = store,
             ),
@@ -1148,6 +1148,91 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.NavigateOpenAppSettings })
+    }
+
+    private val captureRef = ImageRef("content://capture/1.jpg")
+
+    @Test
+    fun `camera with the permission creates a capture target and launches the camera`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
+        )
+        wireSynchronousLaunch(store, stateFlow)
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        coEvery { interactor.createTempCaptureRef() } returns captureRef
+
+        handler.invoke(Action.Click.OnImageSourceSelected(ImageSourceUiModel.Camera))
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(
+            listOf(
+                Event.Haptic(HapticFeedbackType.ContextClick),
+                Event.NavigateLaunchCamera(ImageRef("content://capture/1.jpg")),
+            ),
+            events,
+        )
+        coVerify(exactly = 1) { interactor.createTempCaptureRef() }
+    }
+
+    @Test
+    fun `camera without the permission asks for it and creates no capture target`() {
+        every { cameraPermission.isGranted() } returns false
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
+        )
+        wireSynchronousLaunch(store, stateFlow)
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnImageSourceSelected(ImageSourceUiModel.Camera))
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(
+            listOf(
+                Event.Haptic(HapticFeedbackType.ContextClick),
+                Event.NavigateRequestCameraPermission,
+            ),
+            events,
+        )
+        coVerify(exactly = 0) { interactor.createTempCaptureRef() }
+    }
+
+    @Test
+    fun `gallery launches the photo picker and reads no permission`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
+        )
+        wireSynchronousLaunch(store, stateFlow)
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnImageSourceSelected(ImageSourceUiModel.Gallery))
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(
+            listOf(
+                Event.Haptic(HapticFeedbackType.ContextClick),
+                Event.NavigateLaunchGallery,
+            ),
+            events,
+        )
+        verify(exactly = 0) { cameraPermission.isGranted() }
+        coVerify(exactly = 0) { interactor.createTempCaptureRef() }
+    }
+
+    @Test
+    fun `a granted permission launches the camera on a fresh capture target`() {
+        val (stateFlow, store, handler) = setup()
+        wireSynchronousLaunch(store, stateFlow)
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        coEvery { interactor.createTempCaptureRef() } returns captureRef
+
+        handler.invoke(Action.Click.RequestCameraCapture)
+
+        assertEquals(listOf<Event>(Event.NavigateLaunchCamera(ImageRef("content://capture/1.jpg"))), events)
+        coVerify(exactly = 1) { interactor.createTempCaptureRef() }
     }
 
     @Test
