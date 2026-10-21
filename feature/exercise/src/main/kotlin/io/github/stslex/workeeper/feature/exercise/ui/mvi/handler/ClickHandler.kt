@@ -11,8 +11,6 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
-import io.github.stslex.workeeper.core.ui.kit.resources.Res
-import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -44,7 +42,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.getString
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LargeClass")
@@ -326,7 +324,7 @@ internal class ClickHandler @Inject constructor(
                 description = current.description.takeIf { it.isNotBlank() },
                 imagePath = finalImagePath,
                 archived = false,
-                timestamp = System.currentTimeMillis(),
+                timestamp = Clock.System.now().toEpochMilliseconds(),
                 labels = current.tags.map { it.name },
                 lastAdhocSets = current.adhocPlan?.map { it.toDomain() },
             )
@@ -396,7 +394,7 @@ internal class ClickHandler @Inject constructor(
                     isSaving = false,
                     originalSnapshot = savedSnapshot,
                     imagePath = finalImagePath,
-                    imageLastModified = System.currentTimeMillis(),
+                    imageLastModified = Clock.System.now().toEpochMilliseconds(),
                     pendingImage = PendingImage.Unchanged,
                 )
             }
@@ -490,41 +488,47 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (!current.canPermanentlyDelete) return
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        // Strings resolved outside `updateState` — Rule 1 of compose-state-discipline.
-        val title = resourceWrapper.getString(
-            R.string.feature_exercise_detail_permanent_delete_confirm_title,
-            current.name,
-        )
-        val body = resourceWrapper.getString(
-            R.string.feature_exercise_detail_permanent_delete_confirm_body,
-        )
-        val impactSummary = resourceWrapper.getString(
-            R.string.feature_exercise_detail_permanent_delete_confirm_impact,
-        )
-        val confirmLabel = resourceWrapper.getString(
-            R.string.feature_exercise_detail_permanent_delete_confirm_button,
-        )
-        updateState {
-            it.copy(
-                dialogState = DialogState.PermanentDeleteConfirm(
-                    title = title,
-                    body = body,
-                    impactSummary = impactSummary,
-                    confirmLabel = confirmLabel,
+        val name = current.name
+        // D2: the title takes the name, so the confirm's copy resolves on use, before its write.
+        launch(
+            onSuccess = { confirm ->
+                updateState { latest ->
+                    // Only the menu it replaces may open it: a dismissal that landed first wins.
+                    if (latest.bottomSheetState == BottomSheetState.DetailMenu) {
+                        latest.copy(dialogState = confirm, bottomSheetState = BottomSheetState.Hidden)
+                    } else {
+                        latest
+                    }
+                }
+            },
+        ) {
+            DialogState.PermanentDeleteConfirm(
+                title = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_title,
+                    name,
                 ),
-                bottomSheetState = BottomSheetState.Hidden,
+                body = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_body,
+                ),
+                impactSummary = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_impact,
+                ),
+                confirmLabel = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_button,
+                ),
             )
         }
     }
 
     /** The deferred delete (ED11): the commit is the snackbar's `onDismissed`, run on dismiss. */
     private fun processConfirmPermanentDelete() {
-        val uuid = state.value.uuid ?: return
+        val current = state.value
+        val uuid = current.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        val message = resourceWrapper.getString(
-            R.string.feature_exercise_detail_permanent_delete_success,
-        )
+        // D2: both labels were resolved once per Store, so nothing suspends before the queue.
+        val message = current.clickCopy.permanentDeleteSuccess
+        val undoLabel = current.clickCopy.undoLabel
         // GUARD: main-immediate work dispatcher, so the coroutine starts inside this click's
         // call stack, and NonCancellable around the registration, so the pop this flow itself
         // triggers cannot separate the already-closed dialog from the queued undo window.
@@ -537,7 +541,7 @@ internal class ClickHandler @Inject constructor(
                 SnackbarManager.showSnackbar(
                     AppSnackbarModel(
                         message = message,
-                        actionLabel = getString(Res.string.core_ui_kit_toast_undo),
+                        actionLabel = undoLabel,
                         // «Отменить» declines a delete that has not run — declining is doing nothing.
                         action = { },
                         // GUARD: the delete runs only here, never before the undo window closes; the
@@ -567,27 +571,16 @@ internal class ClickHandler @Inject constructor(
             current.adhocPlan?.any { it.weight != null } == true
         if (needsWeightWipe) {
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-            // Strings resolved outside `updateState` — Rule 1 of compose-state-discipline.
-            val title = resourceWrapper.getString(
-                R.string.feature_exercise_edit_plan_type_change_weightless_title,
-            )
-            val body = resourceWrapper.getString(
-                R.string.feature_exercise_edit_plan_type_change_weightless_body,
-            )
-            val impact = resourceWrapper.getString(
-                R.string.feature_exercise_edit_plan_type_change_weightless_impact,
-            )
-            val confirmLabel = resourceWrapper.getString(
-                R.string.feature_exercise_edit_plan_type_change_weightless_confirm,
-            )
+            // D2: the confirm's copy was resolved once per Store, so this click path never suspends.
+            val copy = current.clickCopy
             updateState {
                 it.copy(
                     pendingTypeChange = target,
                     dialogState = DialogState.TypeChangeConfirm(
-                        title = title,
-                        body = body,
-                        impactSummary = impact,
-                        confirmLabel = confirmLabel,
+                        title = copy.typeChangeTitle,
+                        body = copy.typeChangeBody,
+                        impactSummary = copy.typeChangeImpact,
+                        confirmLabel = copy.typeChangeConfirm,
                     ),
                 )
             }
@@ -632,9 +625,7 @@ internal class ClickHandler @Inject constructor(
         if (bodyAction is PlanEditorBodyAction.OnSetRemove && nextDraft.size < draft.size) {
             sendEvent(
                 Event.ShowSetRemovedUndo(
-                    message = resourceWrapper.getString(
-                        R.string.feature_exercise_edit_plan_set_removed,
-                    ),
+                    message = current.clickCopy.setRemoved,
                     set = draft[bodyAction.index],
                     index = bodyAction.index,
                     draftEpoch = current.draftEpoch,
@@ -700,7 +691,7 @@ internal class ClickHandler @Inject constructor(
             if (current.tags.size >= State.MAX_TAGS_PER_EXERCISE) {
                 sendEvent(
                     Event.ShowTagLimitReached(
-                        message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
+                        message = current.clickCopy.tagLimit,
                     ),
                 )
                 return
@@ -725,7 +716,7 @@ internal class ClickHandler @Inject constructor(
         if (current.tags.size >= State.MAX_TAGS_PER_EXERCISE) {
             sendEvent(
                 Event.ShowTagLimitReached(
-                    message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
+                    message = current.clickCopy.tagLimit,
                 ),
             )
             return

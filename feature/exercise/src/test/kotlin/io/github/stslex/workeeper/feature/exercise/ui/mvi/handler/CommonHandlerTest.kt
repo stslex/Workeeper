@@ -3,12 +3,17 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -39,6 +44,7 @@ internal class CommonHandlerTest {
         every { observePersonalRecord(any()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val stringResolver = mockk<StringResolver>(relaxed = true)
 
     /**
      * The store mock runs `launch` synchronously and routes a throw to `onError` — production's
@@ -70,7 +76,7 @@ internal class CommonHandlerTest {
                 mockk<Job>(relaxed = true)
             }
         }
-        return stateFlow to CommonHandler(interactor, resourceWrapper, store)
+        return stateFlow to CommonHandler(interactor, resourceWrapper, stringResolver, store)
     }
 
     @Test
@@ -223,7 +229,7 @@ internal class CommonHandlerTest {
         val store = mockk<ExerciseHandlerStore>(relaxed = true).apply {
             every { state } returns MutableStateFlow(State.create(uuid = "uuid-1"))
         }
-        return store to CommonHandler(interactor, resourceWrapper, store)
+        return store to CommonHandler(interactor, resourceWrapper, stringResolver, store)
     }
 
     @Test
@@ -267,5 +273,47 @@ internal class CommonHandlerTest {
 
             verify(exactly = 1) { store.consume(any()) }
         }
+    }
+
+    /** D2: `Init` resolves the click paths' constant copy once per Store, on either route. */
+    @Test
+    fun `Init resolves the click paths' constant copy into State`() {
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_edit_plan_type_change_weightless_title)
+        } returns "type-title"
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_edit_plan_type_change_weightless_body)
+        } returns "type-body"
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_edit_plan_type_change_weightless_impact)
+        } returns "type-impact"
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_edit_plan_type_change_weightless_confirm)
+        } returns "type-confirm"
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_edit_plan_set_removed)
+        } returns "set-removed"
+        every { resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit) } returns "tag-limit"
+        every {
+            resourceWrapper.getString(R.string.feature_exercise_detail_permanent_delete_success)
+        } returns "exercise-deleted"
+        coEvery { stringResolver.getString(Res.string.core_ui_kit_toast_undo) } returns "undo"
+        val (stateFlow, handler) = setup(State.create(uuid = null))
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(
+            ExerciseClickCopy(
+                typeChangeTitle = "type-title",
+                typeChangeBody = "type-body",
+                typeChangeImpact = "type-impact",
+                typeChangeConfirm = "type-confirm",
+                setRemoved = "set-removed",
+                tagLimit = "tag-limit",
+                permanentDeleteSuccess = "exercise-deleted",
+                undoLabel = "undo",
+            ),
+            stateFlow.value.clickCopy,
+        )
     }
 }

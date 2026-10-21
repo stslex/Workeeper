@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
@@ -53,6 +54,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val imageLastModified: Long,
         val pendingImage: PendingImage,
         val dialogState: DialogState,
+        /** D2: the click paths' constant copy, resolved once per Store; they read it here. */
+        val clickCopy: ExerciseClickCopy,
         val bottomSheetState: BottomSheetState,
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
@@ -151,6 +154,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
                 dialogState = DialogState.Hidden,
+                clickCopy = ExerciseClickCopy.EMPTY,
                 bottomSheetState = BottomSheetState.Hidden,
                 personalRecord = null,
             )

@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.mockk.every
@@ -23,7 +24,10 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
-/** The undo label of the deferred delete, resolved from the REAL Russian catalog — no mocks. */
+/**
+ * The deferred delete queues the undo label the State holds; kit's ComposeStringResolverRuTest
+ * owns the Russian catalog.
+ */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33], qualifiers = "ru")
 internal class PermanentDeleteUndoLabelRuTest {
@@ -34,7 +38,10 @@ internal class PermanentDeleteUndoLabelRuTest {
             SnackbarManager.snackbar.first()
         }
         val stateFlow = MutableStateFlow(
-            State.create(uuid = "uuid-ru").copy(canPermanentlyDelete = true),
+            State.create(uuid = "uuid-ru").copy(
+                canPermanentlyDelete = true,
+                clickCopy = ExerciseClickCopy.EMPTY.copy(undoLabel = "Отменить"),
+            ),
         )
         val store = mockk<ExerciseHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractorImpl
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -136,7 +137,13 @@ internal class ExerciseDeferredDeleteDbTest {
 
     private suspend fun confirmDelete(uuid: Uuid): AppSnackbarModel {
         val (_, _, handler) = handlerFor(
-            State.create(uuid = uuid.toString()).copy(canPermanentlyDelete = true),
+            State.create(uuid = uuid.toString()).copy(
+                canPermanentlyDelete = true,
+                clickCopy = ExerciseClickCopy.EMPTY.copy(
+                    permanentDeleteSuccess = "Exercise deleted",
+                    undoLabel = "Undo",
+                ),
+            ),
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
@@ -153,7 +160,7 @@ internal class ExerciseDeferredDeleteDbTest {
         assertNotNull(env.exerciseDao.getById(uuid))
     }
 
-    /** The real catalog resolves the label — no static mock — and Back rides after the queue. */
+    /** The queued label is the one the State holds, and Back rides after the queue. */
     @Test
     fun `back is consumed only after the snackbar is queued with the real undo label`() = runTest {
         val uuid = seedExercise()
@@ -206,5 +213,26 @@ internal class ExerciseDeferredDeleteDbTest {
 
         assertNull(env.exerciseDao.getById(uuid))
         assertTrue(env.exerciseDao.getAllActive().isEmpty())
+    }
+
+    /** D2: the deferred delete queues the copy `Init` resolved into the State, not a fresh read. */
+    @Test
+    fun `the queued delete carries the message and the undo label Init resolved`() = runTest {
+        val uuid = seedExercise()
+        val (_, _, handler) = handlerFor(
+            State.create(uuid = uuid.toString()).copy(
+                canPermanentlyDelete = true,
+                clickCopy = ExerciseClickCopy.EMPTY.copy(
+                    permanentDeleteSuccess = "exercise-deleted",
+                    undoLabel = "undo",
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmPermanentDelete)
+        val pending = SnackbarManager.snackbar.first().model
+
+        assertEquals("exercise-deleted", pending.message)
+        assertEquals("undo", pending.actionLabel)
     }
 }

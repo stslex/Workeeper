@@ -12,6 +12,14 @@ import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractorImpl
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ArchiveExerciseUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ArchiveExerciseUseCaseImpl
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.DeleteSessionUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.DeleteSessionUseCaseImpl
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ResolveTrackNowConflictUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ResolveTrackNowConflictUseCaseImpl
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.StartTrackNowSessionUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.StartTrackNowSessionUseCaseImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -39,6 +47,18 @@ interface ExerciseGraph {
 
     @Binds
     val ExerciseHandlerStoreImpl.bindHandlerStore: ExerciseHandlerStore
+
+    @Binds
+    val ArchiveExerciseUseCaseImpl.bindArchiveExercise: ArchiveExerciseUseCase
+
+    @Binds
+    val DeleteSessionUseCaseImpl.bindDeleteSession: DeleteSessionUseCase
+
+    @Binds
+    val ResolveTrackNowConflictUseCaseImpl.bindResolveTrackNowConflict: ResolveTrackNowConflictUseCase
+
+    @Binds
+    val StartTrackNowSessionUseCaseImpl.bindStartTrackNowSession: StartTrackNowSessionUseCase
 
     /** GUARD: the creator name must be unique — every factory is merged into AppGraph. */
     @ContributesTo(AppScope::class)

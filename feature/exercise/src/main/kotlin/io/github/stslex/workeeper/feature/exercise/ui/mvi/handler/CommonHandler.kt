@@ -5,8 +5,12 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -15,6 +19,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDoma
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -30,6 +35,7 @@ import kotlinx.coroutines.flow.map
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
+    private val stringResolver: StringResolver,
     store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -72,6 +78,7 @@ internal class CommonHandler @Inject constructor(
 
     private fun processInit() {
         observeTags()
+        resolveClickCopy()
         val uuid = state.value.uuid ?: return
         loadExercise(uuid)
     }
@@ -83,10 +90,76 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
+    /**
+     * D2: the click paths' constant copy, resolved once per Store, so the weight-wipe confirm, the
+     * two toasts and the deferred delete read it from State and their click paths never suspend.
+     */
+    private fun resolveClickCopy() {
+        launch(
+            onSuccess = { copy -> updateState { it.copy(clickCopy = copy) } },
+        ) {
+            ExerciseClickCopy(
+                typeChangeTitle = resourceWrapper.getString(
+                    R.string.feature_exercise_edit_plan_type_change_weightless_title,
+                ),
+                typeChangeBody = resourceWrapper.getString(
+                    R.string.feature_exercise_edit_plan_type_change_weightless_body,
+                ),
+                typeChangeImpact = resourceWrapper.getString(
+                    R.string.feature_exercise_edit_plan_type_change_weightless_impact,
+                ),
+                typeChangeConfirm = resourceWrapper.getString(
+                    R.string.feature_exercise_edit_plan_type_change_weightless_confirm,
+                ),
+                setRemoved = resourceWrapper.getString(R.string.feature_exercise_edit_plan_set_removed),
+                tagLimit = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
+                permanentDeleteSuccess = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_success,
+                ),
+                undoLabel = stringResolver.getString(Res.string.core_ui_kit_toast_undo),
+            )
+        }
+    }
+
     private fun loadExercise(uuid: String) {
         launch(
             onSuccess = { result ->
-                updateStateImmediate { current -> current.applyLoaded(result) }
+                // F2: the history rows and the plan read nothing from the State, so they are built
+                // before the write; the lambda keeps what reads `current`, and the copy.
+                val recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList()
+                val adhocPlan = result.adhocPlan?.map { it.toUi() }?.toImmutableList()
+                updateStateImmediate { current ->
+                    val exercise = result.exercise
+                        ?: return@updateStateImmediate current.copy(isLoading = false)
+                    val tags = result.labels
+                        .map { name ->
+                            val matched = current.availableTags
+                                .firstOrNull { it.name.equals(name, ignoreCase = true) }
+                            matched ?: AppTagItem(uuid = name, name = name)
+                        }
+                        .toImmutableList()
+                    current.copy(
+                        name = exercise.name,
+                        type = exercise.type.toUi(),
+                        description = exercise.description.orEmpty(),
+                        tags = tags,
+                        recentHistory = recentHistory,
+                        historyCount = result.historyCount,
+                        isLoading = false,
+                        canPermanentlyDelete = result.canPermanentlyDelete,
+                        adhocPlan = adhocPlan,
+                        imagePath = exercise.imagePath,
+                        imageLastModified = result.imageLastModified,
+                        pendingImage = PendingImage.Unchanged,
+                        originalSnapshot = State.Snapshot(
+                            name = exercise.name,
+                            type = exercise.type.toUi(),
+                            description = exercise.description.orEmpty(),
+                            tagUuids = tags.map { it.uuid },
+                            adhocPlan = adhocPlan,
+                        ),
+                    ).withDraftCarriedFrom(current)
+                }
                 if (result.exercise != null) observePersonalRecord(uuid)
             },
             // Clearing `isLoading` here is load-bearing: the route does not compose until the
@@ -132,45 +205,6 @@ internal class CommonHandler @Inject constructor(
                     current.copy(personalRecord = pr)
                 }
             }
-    }
-
-    // TODO: DON'T RETURN A BIG RESULT -> MAP it to ui in mappinmg flow, not in collect !!!!
-    private fun State.applyLoaded(
-        result: LoadResult,
-    ): State {
-        val exercise = result.exercise ?: return copy(isLoading = false)
-        val adhocPlan = result.adhocPlan
-            ?.map { it.toUi() }
-            ?.toImmutableList()
-        val tags = result.labels
-            .map { name ->
-                val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                matched ?: AppTagItem(uuid = name, name = name)
-            }
-            .toImmutableList()
-        val imagePath = exercise.imagePath
-        val loaded = copy(
-            name = exercise.name,
-            type = exercise.type.toUi(),
-            description = exercise.description.orEmpty(),
-            tags = tags,
-            recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList(),
-            historyCount = result.historyCount,
-            isLoading = false,
-            canPermanentlyDelete = result.canPermanentlyDelete,
-            adhocPlan = adhocPlan,
-            imagePath = imagePath,
-            imageLastModified = result.imageLastModified,
-            pendingImage = PendingImage.Unchanged,
-            originalSnapshot = State.Snapshot(
-                name = exercise.name,
-                type = exercise.type.toUi(),
-                description = exercise.description.orEmpty(),
-                tagUuids = tags.map { it.uuid },
-                adhocPlan = adhocPlan,
-            ),
-        )
-        return loaded.withDraftCarriedFrom(this)
     }
 
     /**

@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDo
 import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
@@ -254,12 +255,13 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnPermanentDeleteMenuClick swaps the sheet for the confirm dialog`() {
-        val (stateFlow, _, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 canPermanentlyDelete = true,
                 bottomSheetState = BottomSheetState.DetailMenu,
             ),
         )
+        wireSynchronousLaunch(store, stateFlow)
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
         assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
@@ -983,12 +985,14 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnPermanentDeleteMenuClick surfaces the PermanentDeleteConfirm dialog when eligible`() {
-        val (stateFlow, _, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 canPermanentlyDelete = true,
                 name = "Bench",
+                bottomSheetState = BottomSheetState.DetailMenu,
             ),
         )
+        wireSynchronousLaunch(store, stateFlow)
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
     }
@@ -1418,5 +1422,120 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
+    }
+
+    /** What `Init` resolves (D2); a distinct string per field, so a read of the wrong one fails. */
+    private val clickCopy = ExerciseClickCopy(
+        typeChangeTitle = "type-title",
+        typeChangeBody = "type-body",
+        typeChangeImpact = "type-impact",
+        typeChangeConfirm = "type-confirm",
+        setRemoved = "set-removed",
+        tagLimit = "tag-limit",
+        permanentDeleteSuccess = "exercise-deleted",
+        undoLabel = "undo",
+    )
+
+    /** D2: the confirm's copy resolves on use, and its write lands only on the menu it replaces. */
+    @Test
+    fun `a menu dismissed before the confirm's copy lands stays dismissed`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                name = "Bench",
+                canPermanentlyDelete = true,
+                bottomSheetState = BottomSheetState.DetailMenu,
+            ),
+        )
+        val parked = mutableListOf<Pair<suspend CoroutineScope.(Any?) -> Unit, suspend CoroutineScope.() -> Any?>>()
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            parked += arg<suspend CoroutineScope.(Any?) -> Unit>(1) to
+                arg<suspend CoroutineScope.() -> Any?>(4)
+            mockk(relaxed = true)
+        }
+
+        handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
+        assertEquals(BottomSheetState.DetailMenu, stateFlow.value.bottomSheetState)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+
+        handler.invoke(Action.Click.OnSheetDismiss)
+        val (onSuccess, action) = parked.single()
+        runBlocking { onSuccess(this, action()) }
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `the type-change confirm carries the copy Init resolved`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+                clickCopy = clickCopy,
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        assertEquals(
+            DialogState.TypeChangeConfirm(
+                title = "type-title",
+                body = "type-body",
+                impactSummary = "type-impact",
+                confirmLabel = "type-confirm",
+            ),
+            stateFlow.value.dialogState,
+        )
+    }
+
+    @Test
+    fun `the set-removed toast carries the copy Init resolved`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+                clickCopy = clickCopy,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(1)),
+        )
+
+        assertEquals("set-removed", events.filterIsInstance<Event.ShowSetRemovedUndo>().single().message)
+    }
+
+    @Test
+    fun `both tag-limit toasts carry the copy Init resolved`() {
+        val tags = (1..10).map { AppTagItem("tag-$it", "Tag$it") }
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                tags = tags.toImmutableList(),
+                availableTags = (tags + AppTagItem("tag-11", "Tag11")).toImmutableList(),
+                clickCopy = clickCopy,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnTagToggle("tag-11"))
+        handler.invoke(Action.Click.OnTagCreate("New"))
+
+        assertEquals(
+            listOf("tag-limit", "tag-limit"),
+            events.filterIsInstance<Event.ShowTagLimitReached>().map { it.message },
+        )
+        verify(exactly = 0) {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        }
     }
 }
