@@ -6635,6 +6635,14 @@ EXERCISE_ENTRY = FeatureEntry(
     # Each identity reaches the graph once through the accessor; the fifth identity's "ex-2" call
     # and the helper itself are deliberately not counted.
     identity_accessor=r'(?<!AppGraph)\.exercise\((?:"ex-1"|null)\)',
+    # The one app device test that composes the graph directly passes the factory (7.9's §6
+    # precedent; ruling of 2026-10-21, §B19).
+    extra_root_fragments={
+        "app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt": (
+            "MetroTestGraphHolder.graph.exerciseGraphFactory",
+            "exerciseGraph(factory = factory)",
+        ),
+    },
     extra_checks=(
         exercise_copy_contract,
         exercise_media_contract,
