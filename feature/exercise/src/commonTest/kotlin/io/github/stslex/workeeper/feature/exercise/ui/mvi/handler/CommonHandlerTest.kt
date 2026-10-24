@@ -117,6 +117,42 @@ internal class CommonHandlerTest {
         assertFalse(stateFlow.value.isLoading)
     }
 
+    /** D-01: the baseline is the empty form, so a create route opens clean. */
+    @Test
+    fun `Init in create mode records the starting values as the baseline`() = runTest {
+        val (stateFlow, handler) = setup(State.create(uuid = null), this)
+
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+
+        assertEquals(
+            State.Snapshot(
+                name = "",
+                type = ExerciseTypeUiModel.WEIGHTED,
+                description = "",
+                tagUuids = emptyList(),
+                adhocPlan = null,
+            ),
+            stateFlow.value.originalSnapshot,
+        )
+        assertFalse(stateFlow.value.hasChanges)
+    }
+
+    /** The image viewer's return re-fires `Init`; it must not adopt the typed draft as the baseline. */
+    @Test
+    fun `a re-fired Init in create mode keeps the first baseline`() = runTest {
+        val (stateFlow, handler) = setup(State.create(uuid = null), this)
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+        stateFlow.value = stateFlow.value.copy(name = "Bench")
+
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+
+        assertEquals("", stateFlow.value.originalSnapshot?.name)
+        assertTrue(stateFlow.value.hasChanges)
+    }
+
     @Test
     fun `a re-fired Init preserves a dirty draft and its staged image removal`() = runTest {
         interactor.exercise = {

@@ -70,8 +70,9 @@ interface ExerciseStore : Store<State, Action, Event> {
             get() = pendingImage != PendingImage.Unchanged
 
         /**
-         * Dirty check for the ad-hoc plan; needed in create mode, where [originalSnapshot] is
-         * null until the first save. That snapshot is the only baseline; do not add a second.
+         * Dirty check for the ad-hoc plan. [originalSnapshot] is null until a load, an edit or create
+         * mode's first Init records one (D-01); before that this term is the plan's only reading.
+         * That snapshot is the only baseline; do not add a second.
          */
         val isAdhocPlanDirty: Boolean
             get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=

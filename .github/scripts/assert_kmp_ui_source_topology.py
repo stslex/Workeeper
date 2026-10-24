@@ -6438,7 +6438,7 @@ EXERCISE_ENTRY = FeatureEntry(
             "\"MviActionNamingRule\"",
         ],
     },
-    # The 133 portable identities of §B3.2, S17's six among them, and the scene of §B11.4.
+    # The 142 portable identities: §B3.2's 133 (S17's six among them), D-01's nine, and the scene of §B11.4.
     test_names={
         "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ClickHandlerTest.kt": [
             "OnTypeToggle to WEIGHTLESS with weighted rows raises the confirm instead of switching",
@@ -6513,6 +6513,7 @@ EXERCISE_ENTRY = FeatureEntry(
             "OnAdhocPlanEditorAction OnSetTypeChange routes through the reducer",
             "OnCancelClick from create-mode with edited plan surfaces POP_SCREEN discard dialog",
             "OnBackClick from create-mode with edited plan surfaces POP_SCREEN discard dialog",
+            "OnBackClick in create mode with a typed name raises the discard sheet",
             "a menu dismissed before the confirm's copy lands stays dismissed",
             "the type-change confirm carries the copy Init resolved",
             "the set-removed toast carries the copy Init resolved",
@@ -6523,6 +6524,8 @@ EXERCISE_ENTRY = FeatureEntry(
             "Init for read mode kicks off observe + load",
             "a load that throws clears isLoading or the route is composed on nothing forever",
             "a create route never loads so it is never withheld",
+            "Init in create mode records the starting values as the baseline",
+            "a re-fired Init in create mode keeps the first baseline",
             "a re-fired Init preserves a dirty draft and its staged image removal",
             "ImagePicked sets pendingImage to NewFromUri and hides the source dialog",
             "the load keys the image by its file's modification time",
@@ -6555,6 +6558,12 @@ EXERCISE_ENTRY = FeatureEntry(
             "a plan the baseline has seen reads clean",
             "an inline plan edit the baseline has not seen reads dirty",
             "an empty plan and a null plan are the same plan",
+            "a create draft with a typed name reads dirty",
+            "a create draft with a typed description reads dirty",
+            "a create draft with a switched type reads dirty",
+            "a create draft with a selected tag reads dirty",
+            "a create draft whose type is switched back reads clean",
+            "back is intercepted in create mode only once something is typed",
         ],
         "src/commonTest/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/NavigationHandlerTest.kt": [
             "Back triggers popBack",
