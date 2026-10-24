@@ -226,14 +226,17 @@ the Activity's store, silently process-scoping every Store
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
-   navigation library type. The shared image-viewer, plan-editor, past-session, exercise-chart, and
-   single-training entries are the shape-B factory-resolution exceptions: their generation-owned
-   root passes the required `ImageViewerGraph.Factory` / `PlanEditorGraph.Factory` /
-   `PastSessionGraph.Factory` / `ExerciseChartGraph.Factory` / `SingleTrainingGraph.Factory`
-   through `AppNavigationHost` and `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` /
-   `exerciseChartGraph` / `singleTrainingsGraph` into `ImageViewerFeature` / `PlanEditorFeature` /
-   `PastSessionFeature` / `ExerciseChartFeature` / `SingleTrainingFeature`. Each invokes it only
-   inside the `rememberMetroStoreProcessor` creation lambda.
+   navigation library type. The shared image-viewer, plan-editor, past-session, exercise-chart,
+   single-training, and exercise entries are the shape-B factory-resolution exceptions: their
+   generation-owned root passes the required `ImageViewerGraph.Factory` /
+   `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` / `ExerciseChartGraph.Factory` /
+   `SingleTrainingGraph.Factory` / `ExerciseGraph.Factory` through `AppNavigationHost` and
+   `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` / `exerciseChartGraph` /
+   `singleTrainingsGraph` / `exerciseGraph` into `ImageViewerFeature` / `PlanEditorFeature` /
+   `PastSessionFeature` / `ExerciseChartFeature` / `SingleTrainingFeature` / `ExerciseFeature`.
+   Each invokes it only inside the `rememberMetroStoreProcessor` creation lambda. Exercise
+   registers through `navComponentScreenWithResults`, the `FeatureAssisted` overload that also
+   hands the content the destination's `NavResults`.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -511,15 +514,15 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, home, exercise-chart, and single-training no longer use the feature-side Context
-seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+past-session, home, exercise-chart, single-training, and exercise no longer use the feature-side
+Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
 `AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
-`AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`, and
-`AppGraph.singleTrainingGraphFactory` implement the accessors declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. Exactly 4 feature/dialog Context readers
-remain.
+`AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`,
+`AppGraph.singleTrainingGraphFactory`, and `AppGraph.exerciseGraphFactory` implement the
+accessors declared by `AppRootDeps`, and the admitted composition reads that root contract
+exactly once. Retired generations and generations that lose the publication race resolve it
+zero times. Exactly 3 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -2127,7 +2130,7 @@ The reader is chosen by the catalog a string lives in, not by the module kind:
   strings read by Android-only features): `org.jetbrains.compose.resources.stringResource` /
   `pluralStringResource` in composition, an injected `StringResolver` (`core/ui/kit`) outside
   it, never CMP's top-level `getString` / `getPluralString` (only `ComposeStringResolver`
-  itself calls those). The six production files that predate this rule are a debt row
+  itself calls those). The five production files that predate this rule are a debt row
   ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
 
 Compose resources choose by the **primary** system locale only and format arguments with
@@ -2139,7 +2142,9 @@ argument is resolved once per Store, at `Init`, and read from State; copy that t
 resolves on use, in a launch whose write is a compare-and-set `updateState` that replaces only the
 state it was opened from (decision D2 of
 [kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md):
-single-training's `TrainingEditCopy` and its permanent-delete confirm).
+single-training's `TrainingEditCopy` and its permanent-delete confirm; exercise's
+`ExerciseClickCopy` and its confirm, [kmp-phase-7-15-exercise-feature.md](feature-specs/kmp-phase-7-15-exercise-feature.md)
+S2).
 
 #### Naming convention
 

@@ -1,7 +1,6 @@
 # KMP Phase 7.15 — feature:exercise. Part A: the media seams (PR-M)
 
-**Status:** Part A COMPLETE — implemented by PR #341. Part B SPECIFIED — Sections B0–B18; the PR
-that implements it fills Section B19.
+**Status:** COMPLETE — Part A by PR #341, Part B by the PR whose merge brought this line to dev.
 
 **Discovery baseline:** dev @ 63d511dee5829e5c7b1338aa69c9dc56123f055e (2026-10-20, the merge of
 #340, Phase 7.14).
@@ -3509,11 +3508,957 @@ Merge stays the maintainer's.
 
 ## B19. Implementation evidence
 
-Filled by commit 5, in 7.14 Section 19's shape: the base SHA and the specification commit; commits
-1–4 with the signed-commits skill's local `gpgsig` check, and commit 5 as "this commit"; the census
-of Section B12.2 reproduced; commit 1's proof; the gate table with executed-task lines and case
-counts; every control of Section B13 with its verdict quoted; the PNG proof; the environment (Xcode,
-Pythons, JDK, Gradle, the emulator and its serial, free disk); deviations and implementation
-decisions, if any; rejected runs, if any. GitHub's signature verification, the CI run ids and the
-review classification go in the PR body and the report, because they cannot exist before this commit
-does.
+This section records the implementation of Part B, which the maintainer's GO of 2026-10-20 authorized
+(Section B18), in six signed commits on `feature/kmp-exercise-entry`. Sections 0–14 and B0–B18
+remain the specification and are not rewritten here. Where the measured tree differs from their
+prose, Section B19.10 says so, with the five maintainer rulings that settled the differences.
+
+The work ran in the main checkout only, with no `git worktree` for anything (Section B0.2). Every
+load-bearing Gradle invocation ran after `./gradlew --stop`, with a sample before the stop of every
+other Gradle client and daemon on the host (`gradle-wrapper.jar`, `GradleWrapperMain` and
+`GradleDaemon`, each with its working directory read through `lsof`). Each invocation used
+`--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`, plus `--continue` where
+stated.
+
+This run's Gradle used its own daemon registry (`-Dorg.gradle.daemon.registry.base` in
+`GRADLE_OPTS`, the pre-commit hook's detekt and `mutation_harness.py` included), so its `--stop`
+reached no other checkout's daemon. Across the 79 gates, the samples taken before each
+stop list 76 daemons with 76 distinct PIDs, each with its working
+directory in this run's registry, and no client. So no other checkout's Gradle was alive at any
+gate, and no daemon survived from one gate to the next.
+
+Every "Executed" cell is the logged `N actionable tasks: N executed`. Only JUnit XML written after
+the run's recorded start was parsed, and each gate's XML was copied aside at once. detekt never ran
+in the same invocation as tests. Every census, transcription, audit and scorer below is a script
+this one session wrote and ran, each with its own parser. No sub-agent took part.
+
+### B19.1 Entry, drift, and the census
+
+The main checkout started on `feature/kmp-media-seams` at `cf91a9831` with an empty porcelain and no
+untracked entry. `git worktree list` named the main checkout alone, so no worktree was removed and
+none was kept. One other Claude Code process was open on the host, in the home directory with no
+child process. It was not an implementation session.
+
+The input specification had the sha256 `1eccc0f0f6fd02ca…c11b0b` (3,519 lines). Against dev's copy of
+this document (blob `e958fdc5f`), it differed only in the Status lines 3–4 and in Part B, appended
+after line 995.
+
+It landed on `dev` as `405656c44052444b35ac68390d01da103173e480`, one signed commit that
+fast-forwarded `509bfba2d`. It was pushed once, with the launch prompt's guarded command, which the
+maintainer authorized in their own message, run as written. The push printed GitHub's bypass notice
+for the two required status checks. GitHub reports the commit `verified: true`, `reason: valid`,
+verified at 2026-10-21T10:05:40Z. A Markdown-only push starts no unified run, and none started.
+That SHA is the implementation base. The branch was created from it, and the local
+`docs/spec-kmp-7-15b` branch was deleted with `git branch -d`.
+
+| Entry check | Result |
+| --- | --- |
+| latest push run of `Android CI/CD - Unified Build and Tests` on `dev` | run `39580491369` on `509bfba2d`, `success` (all five jobs) |
+| `cf91a9831` (PR #341's head, merged as `509bfba2d`) is an ancestor of the base | yes; `509bfba2d`'s tree is `624401e2c`, the tree Part A's merge recorded |
+| drift | `git diff cf91a9831 405656c44` names one path, this document; the one commit since `509bfba2d` is the specification commit |
+| open PRs touching the module | none (no open PR at all) |
+| merged worktrees | none: the main checkout was the only worktree |
+
+A read-only census script reproduced Sections B2 and B3.1–B3.7 on the base through two views of
+it:
+
+- view A read git objects at the base (`ls-tree`, `cat-file`);
+- view B read the clean main checkout from disk and computed git blob IDs in Python from the file
+  bytes, running no git command.
+
+Both views ran the same measurements: comments stripped, XML through ElementTree, and the base's
+own topology gate loaded for its D5 span rule and its reader list. They agreed on all 50 measured
+keys. The script then compared them with 83 values parsed out of this document's tables and lists
+or written beside the sentence they come from. Under all five interpreters it printed `CENSUS
+EQUAL: 133/133 checks`, byte-identical.
+
+| Section | Specification | Measured |
+| --- | --- | --- |
+| B3 tracked paths | 112, by kind | 112: the build file, 46 production, 2 catalogs, 13 unit and golden suites, 48 PNGs, 2 device classes |
+| B3.1 production | 46 files, 4,089 lines, the per-file table | equal, file by file |
+| B3.1 coupling | as listed | `R.*` at 60 references over 54 identifiers in eight files; UI 38 identifiers at 43 references (7/12/10/6/3/3/2), 40 Android `stringResource` / `pluralStringResource` call sites (7/11/10/4/3/3/2); ClickHandler 16 identifiers at 17 `getString`, 12 on F3's six paths and 5 inside launches; kit's `Res` at 12 sites in four UI files (1/2/8/1) plus one top-level CMP `getString` in ClickHandler; `ResourceWrapper` in three files; `BackHandler` once (the graph), `LocalContext` in the Feature and the description block, `@VisibleForTesting` once, `System.currentTimeMillis()` twice in ClickHandler, one `uiMode` preview pair; 14 bare previews (5/3/2/1/2/1); State 25 fields |
+| B3.2 identities | 127 (72/13/10/8/6/6/5/4/2/1) | equal by name and order, by `@Test` and by the gate's regex, in every suite; no `@ParameterizedTest`, `@Nested` or `@DisplayName` in a portable suite; S17's six marked and absent at the base; abstract members 21/34/5/4/5/1/12/6/5/2 |
+| B3.3 goldens and device | 15/3/6 methods, 48 PNGs, 2 device classes | equal; Detail on the harness's EN default, Description and Edit `LOCALE_RU`; 48 PNG names from the methods, all `100644`, 48 distinct blobs; device classes, methods and class-level `@Smoke` as listed |
+| B3.4 catalog | 53 strings and 1 plural per locale, the exit table | per locale: key order equal to rows 1–54, the 53 string values equal decoded, the plural equal with P1 reversed (bare `%d`), row 32 holding the `\n` escape twice; identical key order EN/RU; the EN root's `xmlns:tools`, rows 4 and 6's `tools:ignore`, and the `&#8216;` / `&#8217;` character references |
+| B0.2 suppressions | seven production in six files | equal, at Section B3.1's lines; none in a test |
+| B2 State lambdas | 50; one without `.copy(`; 7.14 D5's one hit | equal: the one is the load's `applyLoaded`, which D5 also finds; no token or resolver finding; no `java.` token |
+| B3.5 build | plugins and edges | equal |
+| B3.6 consumers | six identities; the journeys | equal: the helper calls `ex-1` five times, `ex-2` once and `null` once, through `asContribution`; the app classes hold 15/3/3/4 identities (25), `RouteReachabilityTest` and `NavigationResultTest` class-level `@Regression`, the named journeys present; `AppNavigationHost` calls `exerciseGraph` once; both app edges `implementation` |
+| B3.7 readers and PNGs | 4 readers; the manifests and the blob set | the four `Context.appDeps` readers equal `EXPECTED_APP_DEPS_READERS`; Paparazzi manifest 456 entries over 13 owners, the path list, all-PNG manifest 528, the exercise blob set and the three projections equal |
+| B12.0 | the base gate's sha256 | `b6cd65ad…2384b44` |
+
+The census script had two defects of its own, fixed before its recorded verdict (Section B19.10).
+
+Environment:
+
+- Gradle 9.6.1 (wrapper); launcher and daemon JBR 21.0.11; Kotlin 2.4.10; Compose Multiplatform
+  1.11.1; Metro 1.3.2; Paparazzi 2.0.0-alpha05; AGP 9.3.0.
+- Xcode 27.0 (27A266a) at `/Applications/Xcode.app`, first launch complete; iOS simulator runtimes
+  18.0, 18.2, 18.6 and 26.5. CI selects Xcode 26.6 on `macos-26`.
+- Five Python interpreters: `/usr/bin/python3` 3.9.6, `~/.local/bin/python3.11` 3.11.16,
+  `python3.13` 3.13.16, `python3.14` 3.14.8 and `/opt/homebrew/bin/python3` 3.15.0. There is no
+  3.12 on this host.
+- The main checkout's gitignored local files (`local.properties`, both `google-services.json`,
+  `keystore.properties` and the keystore it names) were used in place; none was printed, copied or
+  moved.
+- Free disk stayed between 88 and 97 GiB at every gate sample. The 16 GB host
+  ran the maintainer's own applications throughout and swapped. Wall-clock times below are not
+  comparable across runs (Section B19.11).
+
+### B19.2 Fresh baselines before any edit
+
+All on the base `405656c44`. Device runs were on `emulator-5554` (`Pixel_6_API_34`, API 34), booted
+by this run, with animations off, rotation locked and the keyguard dismissed.
+
+| Gate | Executed | Fresh XML |
+| --- | ---: | --- |
+| topology gate, five interpreters | — | exit 0, 712 lines, empty stderr, byte-identical (BASE_GATE_OUTPUT) |
+| `:feature:exercise:assembleDebug` | 119 | — |
+| `:feature:exercise:testDebugUnitTest` | 212 | 10 suites, 127 cases, names exactly Section B3.2's base |
+| `:feature:exercise:verifyPaparazziDebug` | 213 | 13 suites, 175 cases; `Visual gate live: 48 golden test case(s) executed for 48 golden image(s).` |
+| `:app:app:testDebugUnitTest` (both identity classes) | 592 | 2 suites, 8 cases |
+| fourteen-module Native command, `--continue` | 386 | 84 suites, 483 cases; oracle exit 0 under the five interpreters, byte-identical, 14 modules verified |
+| `:feature:exercise:connectedDebugAndroidTest` | 248 | 2 suites, 5 cases |
+| the four app classes of Section B12.2 | 753 | 4 suites, 25 cases |
+
+The development app installed on the emulator before this run kept its `lastUpdateTime`
+(2026-09-07 14:16:51) through every device run of this section and of Sections B19.4–B19.9. No
+test APK was left installed.
+
+### B19.3 Commit 1: G1 and G2 (Section B12.0)
+
+`ecd25a8db` changes only `.github/scripts/assert_kmp_ui_source_topology.py`: 13 insertions and 2
+deletions, the widest added line 96 columns. The base's script was saved aside first; its sha256 is
+`b6cd65ad…2384b44`, Section B12.0's. The proof ran on the committed tree in the main checkout,
+under all five interpreters, each mutation through a scratchpad copy restored with `cp` and checked
+by sha256 and mode:
+
+| Row | Result |
+| --- | --- |
+| GREEN before | old and new byte-identical under the five interpreters, exit 0, empty stderr, equal to BASE_GATE_OUTPUT (712 lines) |
+| M1 | old and new byte-identical and RED with exactly `feature:single-training: exact root-factory flow requires 'navComponentScreen(SingleTrainingFeature(factory))' once in feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt` |
+| M2 | the same for archive: `feature:archive: exact root-factory flow requires 'navComponentScreen(ArchiveFeature(factory))' once in …/feature/archive/ui/ArchiveGraph.kt` |
+| M3 | old and new byte-identical and RED with exactly single-training's EN catalog mismatch (`feature_training_picker_cancel: expected='Cancel', actual=None`, `order=drifted`) and its ownership drift, `actual=['feature/settings/src/main/res/values/strings.xml', 'feature/single-training/src/commonMain/composeResources/values-ru/strings.xml']` |
+| M4 | the same for exercise-chart's `feature_exercise_chart_empty_no_data_title`: exercise-chart's EN catalog mismatch and its ownership drift, `actual=['feature/exercise-chart/src/commonMain/composeResources/values-ru/strings.xml', 'feature/settings/src/main/res/values/strings.xml']` |
+| G1 | both scripts GREEN under the five interpreters, stdout equal to BASE_GATE_OUTPUT |
+| GREEN after | as before |
+
+M1 and M2 pin G1's default fragment, M3 and M4 G2's default walk for a prefix that does and one
+that does not share a stem with another module, and G1 the overload's longer name. The proof
+printed `PROOF PASS: 7/7 rows, 5 interpreters x 2 scripts`, and every mutated file was restored to
+its sha256 and mode. detekt alone on the staged tree: 63/63, no finding.
+
+### B19.4 Commit 2: copy before the click, the split, the seam (still classic)
+
+`fc50fcc88` changes 17 files in `src/main` and `src/test` (540 insertions, 209 deletions; five
+added). They are:
+
+- S2's `ExerciseClickCopy`, `State.clickCopy` and `resolveClickCopy()` from `processInit`;
+- the weight-wipe confirm, the set-removed and tag-limit toasts and the deferred delete reading
+  State;
+- the permanent-delete confirm resolving in a launch with the compare-and-set write guarded on
+  `BottomSheetState.DetailMenu`;
+- kit's undo label through the injected `StringResolver`;
+- S3's split of the load, with `applyLoaded` gone;
+- S8's four use-case interfaces with their four `…Impl` classes, bound in `ExerciseGraph`;
+- `Clock.System.now()` for both timestamps;
+- S17's six identities and Section B11.1's two setups.
+
+By the maintainer's first ruling (Section B19.10), the commit also gives the deferred-delete pair
+Section B11.1's exit State and rewords their two comments. Both assertions stayed byte-identical.
+That ruling came before commit 2 existed, so the commit was made once, with no amend. The pre-commit
+hook's detekt passed, and so did detekt alone on the staged tree.
+
+| Gate on `fc50fcc88` | Executed | Fresh XML |
+| --- | ---: | --- |
+| `:feature:exercise:testDebugUnitTest` | 212 | 10 suites, 133 cases, 0/0/0; names exactly Section B3.2, S17's six among them |
+| `:feature:exercise:verifyPaparazziDebug` | 213 | 13 suites, 181 cases; 48 golden cases executed for 48 golden images; porcelain empty |
+| both identity classes | 592 | 8 cases |
+| `:feature:exercise:connectedDebugAndroidTest` | 248 | 5 cases |
+| detekt | 63 | 55 fresh reports, no finding |
+| topology gate, five interpreters | — | 712 lines, byte-identical to commit 1's output |
+
+### B19.5 Commit 3: the move, the early Native check, the scene, the amendment and the focused gates
+
+`44c9b8f03`, which amends `5ed360fbf` once by the maintainer's third ruling (Section B19.10), changes
+127 paths: 2,494 insertions and 759 deletions. Under `-M30%`:
+
+- **115 renames.** 51 production files, 2 catalogs, 9 of the 10 suites, the 3 golden classes, the
+  48 PNGs and the 2 device classes. The golden classes, the device classes and the PNGs move
+  byte-identical. The catalogs change only by P1's six items (EN 2, RU 4).
+- **One delete and one add.** `PermanentDeleteUndoLabelRuTest`, rewritten on kotlin.test with an
+  in-file fake, falls below 30 % similarity and shows as a deleted and an added path. The other
+  ported suites read between 32 % and 97 %.
+- **The other added path** is the iOS scene.
+- **Nine modified paths.** The module's build file (Section B10's, its comments moved as Section
+  B10 says), the topology script (134 insertions and 2 deletions: the module's manifest, one
+  `Context.appDeps` reader fewer, and the exercise resource owner's root), and seven app paths:
+  Section B9.2's six and the third ruling's `ExerciseCreatePersistenceTest.kt`.
+
+By the second ruling, the domain suite's in-file `ExerciseRepository` fake imports `PlanSetDataModel`
+once and names it once more, in `setAdhocPlan`'s parameter. `getAdhocPlans` and `getAdhocPlan`
+return `Nothing`. The type resolved through commonMain's existing `core:data:database` edge, with
+no build change.
+
+**Early Native check.** With production and `commonTest` in place, and before the scene and the
+app paths, `:feature:exercise:iosSimulatorArm64Test` compiled production for Native and passed on
+its first run: 125 executed, 10 suites, 133 cases, 0/0/0, names exactly Section B3.2. It was the
+first Native compilation of this module's CMP `BackHandler` opt-in, Coil's `LocalPlatformContext`,
+the results overload and kit's launcher call site. The `+` identity appears in the XML as
+`<testcase name="Init for read mode kicks off observe + load[iosSimulatorArm64]"
+classname="iosSimulatorArm64Test.io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandlerTest"
+time="0.0"/>`, the `+` as the single byte `2b`, and the oracle compares it from there.
+
+**The scene.** Its first compile lacked the `getOrNull` import for a semantics read. With the
+import, the scene passed on its first run. Its long expected literals are wrapped as `+`
+concatenations to stay within detekt's 120 columns.
+
+**The amendment.** The four app classes' run on `5ed360fbf` failed to compile
+`:app:app:compileDebugAndroidTestKotlin`. `ExerciseCreatePersistenceTest` (`@Regression`) calls
+`exerciseGraph()` inside `TestSingleScreenHost`, and the call now needs `factory`. Sections B3.6
+and B6 had said that no app test composes the graph. The maintainer ruled to amend commit 3 with
+7.9's `AllTrainingsExtensionDbVisibilityTest` fix:
+
+- `val factory = MetroTestGraphHolder.graph.exerciseGraphFactory` before `setContent`;
+- `exerciseGraph(factory = factory)`;
+- the `MetroTestGraphHolder` import.
+
+The amend went through the signed-commits skill. Every gate of commit 3 then re-ran from scratch on
+`44c9b8f03`; the gates of `5ed360fbf` are kept only as a record (Section B19.11).
+
+| Gate on `44c9b8f03` | Executed | Fresh XML |
+| --- | ---: | --- |
+| topology gate, five interpreters | — | exit 0, 832 lines, byte-identical |
+| `:feature:exercise:assembleDebug` | 344 | the Android AAR and both iOS klibs (`iosArm64MainKlibrary`, `iosSimulatorArm64MainKlibrary`) |
+| `:feature:exercise:testAndroidHostTest` | 196 | 10 suites, 133 cases, 0/0/0; names exactly Section B3.2 |
+| `:feature:exercise:verifyPaparazziDebug` | 197 | 13 suites, 181 cases; `Visual gate live: 48 golden test case(s) executed for 48 golden image(s).`; porcelain empty — every PNG byte-identical under CMP's EN and RU catalogs and the EN plural (S11) |
+| `:feature:exercise:iosSimulatorArm64Test` | 125 | 11 suites, 134 tuples, names exactly Sections B3.2 and B11.4 |
+| `:app:common:assembleDebug` | 343 | — |
+| both identity classes | 595 | 8 cases, through `appGraph.exerciseGraphFactory` and the real app-scoped `StringResolver` |
+| detekt | 63 | 55 fresh reports, no finding |
+| `:feature:exercise:connectedDebugAndroidTest` | 248 | 2 suites, 5 cases (`emulator-5554`, third boot) |
+| the four app classes | 756 | 4 suites, 25 cases, names equal to the base run's |
+
+The relative PNG proof (Section B3.7): exactly the 48 exercise paths are rewritten from `src/test/`
+to `src/androidHostTest/`. The head manifests equal the rewritten base byte for byte: `0af65bda…`
+(456 entries, 13 owners), `aa39f858…` and `73df6dd5…` (528). The blob set is `0e4ba874…`,
+unchanged, and the 528 tracked PNGs on disk hash to HEAD's blobs.
+
+### B19.6 Commit 4: the entry, the oracle, and the fifteen-module gates
+
+`92270f46b`. `EXERCISE_ENTRY` and its four checks were generated by a script that reads only this
+document (Sections B0.2, B0.3, B3.2–B3.6, B5.5, B10, B11.4 and B12.1) and the second ruling's diff,
+never the files they check. The contract code is a template whose fragments, counts and messages it
+parses out of Section B12.1. A second script with its own parser (line, cell and backtick
+splitting, no regex shared with the generator) rebuilt every field and compared it with the entry
+the committed gate defines, and the oracle entry with the committed oracle. Under the five
+interpreters it printed `TRANSCRIPTION EQUAL (45/45 checks)`. Its first run reported four
+mismatches, all defects of its own parser (Section B19.10).
+
+- **The topology diff** is 729 insertions and 0 deletions. The prototype's figure was 684; the second
+  ruling adds the domain-suite branch, and the rest is line wrapping. `check_feature_entry` and the
+  seven earlier entries are byte-identical.
+- **The oracle** gained the 134-tuple entry after single-training's, names in UTF-8: 194 insertions.
+  Its classes follow Section B12.1's listing, and each class's names follow Section B3.2's order.
+- **The workflow** gained the two commands, the loop line, `/15 linked`, the upload line and the
+  comments: 9 insertions, 6 deletions.
+
+| Gate on `92270f46b` | Executed | Result |
+| --- | ---: | --- |
+| topology gate, five interpreters | — | exit 0, 833 lines, byte-identical; the one new line is Section B12.1's |
+| fifteen-module Native command, `--continue` | 410 | 95 suites, 617 cases, 0/0/0; oracle exit 0 under the five interpreters, byte-identical, 15 modules verified, exercise 134 |
+| fifteen-module device link | 395 | `15/15 linked`, each `test.kexe` newer than the run's start |
+| detekt | 63 | 55 fresh reports, no finding |
+| workflow static checks | — | the YAML parses; actionlint 1.7.12 prints the same pre-existing SC2129 note at the base and at head, nothing new |
+
+### B19.7 Commit 5: the pin the third ruling implied
+
+`44e91e3d7` changes only `.github/scripts/assert_kmp_ui_source_topology.py`: 8 insertions and 0
+deletions. It adds `EXERCISE_ENTRY`'s `extra_root_fragments` directly after `identity_accessor`,
+with the fourth ruling's comment and its two fragments for
+`app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt`:
+`MetroTestGraphHolder.graph.exerciseGraphFactory` and `exerciseGraph(factory = factory)`. Each
+occurs once in that file. The finding behind it is control 62's first run, which left the gate
+GREEN on `92270f46b` (Section B19.10).
+
+| Gate on `44e91e3d7` | Executed | Result |
+| --- | ---: | --- |
+| topology gate, five interpreters, on the staged and on the committed tree | — | exit 0, 833 lines, empty stderr, byte-identical, and byte-equal to commit 4's output |
+| detekt alone on the staged tree | 63 | 55 fresh reports, no finding; the pre-commit hook skipped lint (no Kotlin file) |
+
+No Gradle, Native or device gate reads the topology script, so commit 4's evidence for them stands
+(the fourth ruling). Every control of Section B19.8 ran on `44e91e3d7`.
+
+### B19.8 Mandatory known-negative controls
+
+All 61 applicable controls ran on the committed tree `44e91e3d7` in the main checkout: Section B13's
+1–17 and 19–58 (18 has no counterpart), the second ruling's 59–61 and the note's 62. Each went
+fresh GREEN → one named observable RED → restoration, checked → fresh GREEN. No mutation was
+committed. Every control started from HEAD `44e91e3d7` with an empty porcelain. The Python,
+Gradle, oracle and device records name that HEAD. The detekt and PNG controls checked the file
+against HEAD's blob and the porcelain empty, and ran between gates whose metadata names it.
+
+**The Python-scored controls (51: 1–14, 17, 26–52 and 54–62).** They ran as one batch under the
+correction of Section B19.10: one interpreter, `python3` on PATH (`/opt/homebrew/bin/python3`,
+Python 3.15.0), with the workflow's command `python3 .github/scripts/assert_kmp_ui_source_topology.py`
+run from the repository root. The batch ran on 2026-10-22 from 07:45Z to 08:45Z and wrote one log.
+For each control, in order, it:
+
+- took the GREEN: control 1 its own; each later control the previous control's post-restore GREEN,
+  under the shared-GREEN ruling's four conditions, recorded with the control (an identical command,
+  HEAD unchanged, both porcelains empty, and the previous control's restored files' sha256 and mode
+  equal to HEAD's). All 50 shares met them, so no control fell back to its own GREEN;
+- applied the mutation exactly as its row writes it, each anchor occurring once;
+- captured the RED;
+- restored every touched path with `cp -p` from a scratchpad snapshot, proved its sha256 and mode
+  equal to the snapshot's and to HEAD's, and proved every created path absent;
+- proved `git status --porcelain --untracked-files=no` empty, and the `--untracked-files=all` form
+  too;
+- took a fresh GREEN. Control 62's closed the batch.
+
+A GREEN is exit 0, stdout byte-equal to commit 5's 833-line output under the same interpreter, and
+an empty stderr. A single-pass scorer then read the log. It accepted a RED only when all of these
+held: a non-zero exit, an empty stdout, the gate's failure header, no Traceback, each expected
+fragment matched by exactly one line, and no other line. It printed `SCORED 51/51 PASS`. The 44
+controls the earlier passes had recorded (1–14, 17, 26–52, 54 and 55) gave exactly those passes'
+lines; 56–62 had no earlier record. Control 62 printed exactly the fourth ruling's line:
+`feature:exercise: exact root-factory flow requires 'exerciseGraph(factory = factory)' once in
+app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt`.
+
+**The Gradle-scored controls** ran through `documentation/mockups/mutation_harness.py` in one-shot
+mode, its flags kept as they are (`--stop`, `--rerun-tasks` and `--no-build-cache` on every run),
+with `--no-configuration-cache --console=plain` passed in `--task` and this run's daemon registry.
+For each control the driver required the file to equal HEAD's blob and the porcelain to be empty,
+ran the harness, and copied the run's fresh XML aside at once. It scored the named identities from
+that XML, never from the harness's verdict line. It then proved the file's sha256 and mode equal to
+HEAD's and the porcelain empty, and took a fresh GREEN through the gate runner: the same command,
+exit 0, `N actionable tasks: N executed`, and fresh XML with no failure, error or skip. Two
+exceptions to the harness:
+
+- control 57 ran under the fifth ruling: two edits, applied to the file and restored from a
+  scratchpad copy with `cp`, checked by sha256 and mode against the copy and HEAD. The RED went
+  through the gate runner with the group's command, and the control took its own GREENs, since
+  other runs had come between it and control 53;
+- the PNG control is scored in Python, from the on-disk bytes of every tracked PNG.
+
+The groups and their commands:
+
+- **host and Native**, `:feature:exercise:testAndroidHostTest :feature:exercise:iosSimulatorArm64Test
+  --continue`: 19–22, 32–37, 50's Native half, 51, 53 and 57. A RED is the row's names, "only" or
+  "at least" as the row says, in fresh host XML of 133 cases and Native XML of 134;
+- **Paparazzi**, `:feature:exercise:verifyPaparazziDebug`: 48, 49 and 50's golden half. A RED names
+  its golden cases from Paparazzi's fresh delta files, which must agree with the XML's failure count,
+  with all 48 golden cases run and the 133 host cases passing;
+- **the fifteen-module Native command and the oracle**, `--continue --full-stacktrace` over the
+  fifteen modules' `iosSimulatorArm64Test`: 23 and 52. The renamed test still passes, so the
+  harness's own line reads `GREEN — GATE HOLE` for both, as it must. The observable is the oracle's
+  exact-identity failure, `python3 .github/scripts/assert_kmp_ios_smoke.py` as CI runs it, with
+  every other module `ok`. The other four interpreters gave byte-identical output;
+- **detekt**, `detekt --continue` alone: 25;
+- **device**, `:app:app:connectedDebugAndroidTest
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.UiAdmissionRaceTest
+  --max-workers=2 --continue` on `emulator-5554`: 15 and 16.
+
+**The shared GREENs.** Under the shared-GREEN ruling, the fresh GREEN after a control served as the
+GREEN before the next control of its group. This held only with a byte-identical command, HEAD
+unchanged, the porcelain empty, and the restored file's sha256 and mode equal to HEAD's, all checked
+when the next control started. Each GREEN below is named by its gate, whose fresh XML it is, with
+the controls it served:
+
+- **host and Native** — every GREEN: 284/284 executed, exit 0, exercise's `testAndroidHostTest` XML
+  10 files and 133 cases, its `iosSimulatorArm64Test` XML 11 files and 134 cases, 0 failed, errored
+  or skipped
+  - `c7-hn-green-pre-19`: before 19
+  - `c7-hn-green-19`: after 19 and before 20
+  - `c7-hn-green-20`: after 20 and before 21
+  - `c7-hn-green-21`: after 21 and before 22
+  - `c7-hn-green-22`: after 22 and before 32
+  - `c7-hn-green-32`: after 32 and before 33
+  - `c7-hn-green-33`: after 33 and before 34
+  - `c7-hn-green-34`: after 34 and before 35
+  - `c7-hn-green-35`: after 35 and before 36
+  - `c7-hn-green-36`: after 36 and before 37
+  - `c7-hn-green-37`: after 37 and before 50n
+  - `c7-hn-green-50n`: after 50n and before 51
+  - `c7-hn-green-51`: after 51 and before 53
+  - `c7-hn-green-53`: after 53
+  - `c7-hn-green-pre-57r5`: before 57
+  - `c7-hn-green-57r5`: after 57
+- **Paparazzi** — every GREEN: 197/197 executed, exit 0, exercise's 13 XML files, 181 cases (48
+  golden and 133), 0 failed, errored or skipped
+  - `c7-pap-green-pre-48`: before 48
+  - `c7-pap-green-48`: after 48 and before 49
+  - `c7-pap-green-49`: after 49 and before 50p
+  - `c7-pap-green-50p`: after 50p
+- **fifteen-module Native and the oracle** — every GREEN: 410/410 executed, exit 0, the fifteen
+  modules' 95 Native XML files, 617 cases, 0 failed, errored or skipped, and the oracle exit 0,
+  byte-identical under the five interpreters
+  - `c7-n15-green-pre-23`: before 23
+  - `c7-n15-green-23`: after 23 and before 52
+  - `c7-n15-green-52`: after 52
+- **device** — every GREEN: 756/756 executed, exit 0, app:app's device XML: 1 file,
+  `UiAdmissionRaceTest`'s 3 cases, 0 failed, errored or skipped
+  - `c7-dev-green-pre-15`: before 15
+  - `c7-dev-green-15`: after 15 and before 16
+  - `c7-dev-green-16`: after 16
+- **detekt** — `c7-detekt-green-pre` before 25 and `c7-detekt-green-25` after it, each 63/63
+  executed, exit 0, 55 fresh reports and 0 findings
+
+`50n` and `50p` are control 50's Native and golden halves. The Python-scored batch's shared GREENs
+are recorded with each control (above): all 50 came from the previous control's post-restore
+GREEN.
+
+**The table.** The mutation cell is Section B13's row, or the second ruling's and the note's for
+59–62. The RED cell quotes the scorer's lines from each control's last record and its copied XML.
+Every row below scored PASS, and no mutation remains in the tree.
+
+| # | Mutation | Observable RED (quoted) |
+| ---: | --- | --- |
+| 1 | delete `ui/components/ExerciseDetailSheets.kt` | topology: `source manifest mismatch; missing=['src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt'], extra=[]` and `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt must hold bare @Preview annotations but is missing` |
+| 2 | copy `di/ExerciseScope.kt` into `src/main/kotlin/…/di/` | topology: `source manifest mismatch; missing=[], extra=['src/main/kotlin/…/di/ExerciseScope.kt']` and `legacy source set src/main still contains ['src/main/kotlin/…/di/ExerciseScope.kt']` and `unexpected Kotlin-bearing source set src/main: ['src/main/kotlin/…/di/ExerciseScope.kt']` |
+| 3 | move `ui/components/ExerciseDetailSheets.kt` to `ui/ExerciseDetailSheets.kt` | topology: `source manifest mismatch; missing=['src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt'], extra=['src/commonMain/kotlin/…/ui/ExerciseDetailSheets.kt']` and `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt must hold bare @Preview annotations but is missing` and `src/commonMain/kotlin/…/ui/ExerciseDetailSheets.kt must hold exactly 0 bare @Preview annotation(s); found 1` |
+| 4 | `import android.util.Log` in `ui/components/ExerciseDetailSheets.kt` | topology: `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt imports a platform API in commonMain: 'import android.'` |
+| 5 | rename the EN key `feature_exercise_image_source_gallery` to `…_renamed` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_exercise_image_source_gallery: expected='Choose from gallery', actual=None"], unexpected=['feature_exercise_image_source_gallery_renamed'], order=drifted` and `resource ownership drift for feature_exercise_image_source_gallery; expected=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/exercise/src/commonMain/composeResources/values/strings.xml'], actual=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml']` and `resource ownership drift for feature_exercise_image_source_gallery_renamed; expected=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/exercise/src/commonMain/composeResources/values/strings.xml'], actual=['feature/exercise/src/commonMain/composeResources/values/strings.xml']` |
+| 6 | the RU value of `feature_exercise_image_source_gallery` `Выбрать из галереи` → `Выбрать из альбома` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["feature_exercise_image_source_gallery: expected='Выбрать из галереи', actual=('string', 'feature_exercise_image_source_gallery', 'Выбрать из альбома')"], unexpected=[], order=exact` |
+| 7 | move the EN `feature_exercise_image_source_gallery` into `feature/settings/src/main/res/values/strings.xml` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_exercise_image_source_gallery: expected='Choose from gallery', actual=None"], unexpected=[], order=drifted` and `resource ownership drift for feature_exercise_image_source_gallery; expected=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/exercise/src/commonMain/composeResources/values/strings.xml'], actual=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/settings/src/main/res/values/strings.xml']` |
+| 8 | `val titleRes: Int = 0,` as State's last field | topology: `Store State must stay semantic with exactly (('uuid', 'String?'), ('mode', 'Mode'), ('draftEpoch', 'Int'), ('isSaving', 'Boolean'), ('name', 'String'), ('nameError', 'Boolean'), ('nameDuplicateError', 'Boolean'), ('type', 'ExerciseTypeUiModel'), ('description', 'String'), ('tags', 'Immutab … Record', 'PersonalRecordUiModel?'), ('titleRes', 'Int = 0'))` |
+| 9 | `resolveClickCopy`'s `setRemoved = stringResolver.getString(ExerciseRes.string.feature_exercise_edit_plan_set_removed),` → `setRemoved = resourceWrapper.getString(0),` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt resolves exercise copy through ResourceWrapper.getString; use the private Compose resources` and `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt copy contract requires 'stringResolver.getString(' exactly eight times; found 7` and `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt reads copy outside the StringResolver: 'getString(' 8 time(s), 7 through stringResolver` |
+| 10 | `val label = stringResolver.getString(ExerciseRes.string.feature_exercise_edit_plan_set_removed)` as the first line of the load's `updateStateImmediate { current -> … }` | topology: `updateStateImmediate in src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt resolves a resource inside the State lambda: 'getString('` and `updateStateImmediate in src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt resolves a resource inside the State lambda: 'Res.'` and `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt copy contract requires 'stringResolver.getString(' exactly eight times; found 9` |
+| 11 | the bare `@Preview` above `ExerciseDetailMenuSheetContentPreview` → `@Preview(uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)` | topology: `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt contains forbidden platform/lookup API 'android.content'` and `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt contains forbidden platform/lookup API 'uiMode'` and `exactly two portable previews are required; found 3` and `src/commonMain/kotlin/…/ui/components/ExerciseDetailSheets.kt must hold exactly 1 bare @Preview annotation(s); found 0` |
+| 12 | `val context = LocalContext.current` and `context.appDeps<ExerciseGraph.Factory>()` in `ExerciseFeature` | topology: `remaining Context.appDeps readers are not the exact 3 unported entries; expected={PosixPath('feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt'): ['AppDialogGraph.Factory'], PosixPath('feature/live-workout/src/main/kotlin/io … settings/di/SettingsFeature.kt'): ['SettingsGraph.Factory']}` and `src/commonMain/kotlin/…/di/ExerciseFeature.kt contains forbidden platform/lookup API 'LocalContext'` and `src/commonMain/kotlin/…/di/ExerciseFeature.kt contains forbidden platform/lookup API 'appDeps<'` and `factory invocation must occur exactly inside retained Store creation` |
+| 13 | delete `val exerciseGraphFactory: ExerciseGraph.Factory` and its KDoc from `AppRootDeps` | topology: `exact root-factory flow requires 'val exerciseGraphFactory: ExerciseGraph.Factory' once in app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt` |
+| 14 | `val graph = factory.createExerciseGraph(screen)` before `rememberMetroStoreProcessor`, whose lambda then reads `graph.exerciseStore` | topology: `factory invocation must occur exactly inside retained Store creation` |
+| 15 | a second `(context.applicationContext as AppRootDepsHolder).appRootDeps()` inside the admitted `remember(currentPhase.id) { … }` in `App.kt` | `UiAdmissionRaceTest` on the device (3 cases): `admittedGeneration_composesTheRegion_andResolvesItsDependencies` (`an admitted region resolves the generation's app-scope deps expected:<1> but was:<2>`), and only it |
+| 16 | hoist `val deps = remember(currentPhase.id) { …appRootDeps() }` above `if (admission.granted) {` | `UiAdmissionRaceTest` on the device (3 cases): `retiredGeneration_composesNothing_andResolvesNothing` (`a retired generation must resolve NOTHING — not even the app root deps expected:<0> but was:<1>`); `retirementBetweenPublicationAndFrame_resolvesNothing` (`the stale generation's region must resolve NOTHING expected:<0> but was:<1>`), and only them |
+| 17 | identity helper `= asContribution<ExerciseGraph.Factory>().createExerciseGraph(…)` | topology: `exact root-factory flow requires 'private fun AppGraph.exercise(uuid: String?): ExerciseGraph = exerciseGraphFactory.createExerciseGraph(Screen.Exercise(uuid = uuid))' once in app/app/src/test/kotlin/io/github/stslex/workeeper/di/ExerciseExtensionIdentityTest.kt` and `extension identities must not bypass AppRootDeps via asContribution` |
+| 18 | archive-specific; no counterpart | archive-specific; no counterpart |
+| 19 | `processFlipToReadMode`'s `adhocPlan = snapshot.adhocPlan,` → `adhocPlan = current.adhocPlan,` | host and Native: `OnConfirmDiscard with FLIP_TO_READ restores a plan that was absent` and `OnConfirmDiscard with FLIP_TO_READ restores the plan the edit changed` (`actual value is not null ==> expected: <null> but was: <[PlanSetUiModel(weight=100.0, reps=3, type=WORK)]>`; `expected: <[PlanSetUiModel(weight=80.0, reps=8, type=WORK)]> but was: <[PlanSetUiModel(weight=100.0, reps=3, type=WORK), PlanSetUiModel(weight=100.0, reps=3,…`), which include the row's (2 of 133 host, 2 of 134 Native) |
+| 20 | the argument rule: the Track-now progress read's `resolution.doneCount,` / `resolution.totalCount,` swapped | host and Native: `OnTrackNowClick reports the persisted active session progress` (`the progress passes done, then total; got [2, 1]`), and only it (1 of 133 host, 1 of 134 Native) |
+| 21 | the scene's `setContent { … }` body → `setContent { }` | Native: `resourcesDetailEditorSheetsAndActionsRenderAndDispatch` (`Failed to perform isDisplayed check.`), and only it (1 of 134); host: none of 133 failing |
+| 22 | production `ui/ExerciseDetailScreen.kt`: the back button's `onClick = { consume(Action.Click.OnBackClick) },` → `onClick = { },` | Native: `resourcesDetailEditorSheetsAndActionsRenderAndDispatch` (`Expected <[OnBackClick, OnDetailMenuClick, OnPrCardClick, OnHistoryRowClick(sessionUuid=s-2), OnEditClick, OnTrackNowClick, OnImageThumbnailClick, OnCancelCl…`), and only it (1 of 134); host: none of 133 failing |
+| 23 | rename the scene method to `renamedSceneSubstitute` | the fifteen-module Native run passes (617 cases, the renamed identity among them); the oracle exits 1 with exactly `expected exactly one testcase with classname='…ExerciseFeatureSceneIosTest' name='resourcesDetailEditorSheetsAndActionsRenderAndDispatch[iosSimulatorArm64]', found 0`, and the other 14 modules `ok` |
+| 24 | flip (XOR 0xFF) the last byte of `…golden_ExerciseEditGoldenTest_sheetPlanInfo_light.png` | the PNG scorer (on-disk bytes of every tracked PNG): the target's blob `5ceaeb57…` → `491bf9c8…`; exercise's golden blob set `0e4ba874…` → `a92e4a94…`; the all-PNG manifest `73df6dd5…` → `5ac50a6c…`; the Paparazzi manifest `0af65bda…` → `194c798d…`; restored, and the post GREEN equals the pre |
+| 25 | a compile-valid overlong assertion line in `src/commonTest/…/ui/mvi/handler/NavigationHandlerTest.kt` | root detekt, alone (63/63): 6 findings in the 55 fresh reports, all on that file's line 20 (`ArgumentListWrapping` ×4, `MaxLineLength`, `MaximumLineLength`); the post-GREEN detekt (63/63) wrote 55 fresh reports with 0 findings |
+| 26 | G1: `navComponentScreenWithResults(ExerciseFeature(factory))` → `navComponentScreen(ExerciseFeature(factory))` | topology: `exact root-factory flow requires 'navComponentScreenWithResults(ExerciseFeature(factory))' once in feature/exercise/src/commonMain/kotlin/…/ui/ExerciseGraph.kt` |
+| 27 | G2: `EXERCISE_ENTRY`'s `foreign_resource_prefixes` loses `"feature_exercise_detail_type_"` | topology: `resource ownership drift for feature_exercise_detail_type_weighted; expected=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/exercise/src/commonMain/composeResources/values/strings.xml'], actual=['core/ui/kit/src/commonMain/composeResources/values-ru/str … /ui/kit/src/commonMain/composeResources/values/strings.xml']` and `resource ownership drift for feature_exercise_detail_type_weightless; expected=['feature/exercise/src/commonMain/composeResources/values-ru/strings.xml', 'feature/exercise/src/commonMain/composeResources/values/strings.xml'], actual=['core/ui/kit/src/commonMain/composeResources/values-ru/s … /ui/kit/src/commonMain/composeResources/values/strings.xml']` |
+| 28 | 7.14's D4: `ExerciseEditGoldenTest`'s `fun sheetPlanInfo(` → `fun sheetPlanInfoProbe(` | topology: `golden methods in src/androidHostTest/kotlin/…/golden/ExerciseEditGoldenTest.kt must be exactly ['createEmpty', 'editWeighted', 'editWeightless', 'editBlankNameError', 'editDuplicateNameError', 'sheetPlanInfo']; actual=['createEmpty', 'editWeighted', 'editWeightless', 'editBlankNameError', 'editDuplicateNameError', 'sheetPlanInfoProbe']` |
+| 29 | 7.14's D4: copy `golden/ExerciseDescriptionBlockGoldenTest.kt` to `golden/ExerciseDescriptionBlockCopyGoldenTest.kt` (androidHostTest) | topology: `source manifest mismatch; missing=[], extra=['src/androidHostTest/kotlin/…/golden/ExerciseDescriptionBlockCopyGoldenTest.kt']` and `src/androidHostTest/kotlin/…/golden/ExerciseDescriptionBlockCopyGoldenTest.kt renders goldens but is neither golden_test nor in extra_golden_tests` |
+| 30 | S3 over F2: the load lambda's `recentHistory = recentHistory,` → `recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList(),` | topology: `updateStateImmediate in src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt references 'resourceWrapper' inside the State lambda; resolve copy before it` |
+| 31 | 7.14's D5, transitive: `processInit()` as the first line of the load's `updateStateImmediate { current -> … }` | topology: `updateStateImmediate in src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt calls 'processInit', a same-file function that resolves copy; resolve it before the lambda` |
+| 32 | S2: delete the `resolveClickCopy()` call from `processInit` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt copy contract requires 'resolveClickCopy()' exactly two times; found 1`; host and Native: `Init resolves the click paths' constant copy into State` (`expected: <ExerciseClickCopy(typeChangeTitle=type-title, typeChangeBody=type-body, typeChangeImpact=type-impact, typeChangeConfirm=type-confirm, setRemoved=s…`), and only it (1 of 133 host, 1 of 134 Native) |
+| 33 | S2: the weight-wipe confirm's `title = copy.typeChangeTitle,` → `title = copy.typeChangeBody,` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'title = copy.typeChangeTitle,' exactly once; found 0`; host and Native: `the type-change confirm carries the copy Init resolved` (`expected: <TypeChangeConfirm(title=type-title, body=type-body, impactSummary=type-impact, confirmLabel=type-confirm)> but was: <TypeChangeConfirm(title=type-…`), and only it (1 of 133 host, 1 of 134 Native) |
+| 34 | S2: `message = current.clickCopy.setRemoved,` → `message = current.clickCopy.tagLimit,` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'message = current.clickCopy.setRemoved,' exactly once; found 0` and `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'message = current.clickCopy.tagLimit,' exactly two times; found 3`; host and Native: `the set-removed toast carries the copy Init resolved` (`expected: <set-removed> but was: <tag-limit>`), and only it (1 of 133 host, 1 of 134 Native) |
+| 35 | S2: the first `message = current.clickCopy.tagLimit,` (`processTagToggle`'s) → `message = current.clickCopy.setRemoved,` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'message = current.clickCopy.setRemoved,' exactly once; found 2` and `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'message = current.clickCopy.tagLimit,' exactly two times; found 1`; host and Native: `both tag-limit toasts carry the copy Init resolved` (`expected: <[tag-limit, tag-limit]> but was: <[set-removed, tag-limit]>`), and only it (1 of 133 host, 1 of 134 Native) |
+| 36 | S2: the deferred delete's `actionLabel = undoLabel,` → `actionLabel = message,` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'actionLabel = undoLabel,' exactly once; found 0`; host and Native: `back is consumed only after the snackbar is queued with the real undo label`, `the queued delete carries the message and the undo label Init resolved` and `the queued undo label resolves from the real russian catalog` (`expected: <Undo> but was: <Exercise deleted>`; `expected: <undo> but was: <exercise-deleted>`), which include the row's (3 of 133 host, 3 of 134 Native) |
+| 37 | S2: the confirm's guard `if (latest.bottomSheetState == BottomSheetState.DetailMenu) {` → `if (true) {` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'if (latest.bottomSheetState == BottomSheetState.DetailMenu) {' exactly once; found 0`; host and Native: `a menu dismissed before the confirm's copy lands stays dismissed` (`expected: <Hidden> but was: <PermanentDeleteConfirm(title=, body=, impactSummary=, confirmLabel=)>`), and only it (1 of 133 host, 1 of 134 Native) |
+| 38 | S3's order: `val adhocPlan = result.adhocPlan?.map { it.toUi() }?.toImmutableList()` moves from before the load's lambda to directly after its `?: return@updateStateImmediate current.copy(isLoading = false)` line | topology: `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt must build the history rows and the plan before the load's State lambda (F2)` |
+| 39 | S3: the load's lambda → `updateStateImmediate { current -> current.withLoaded(result, recentHistory, adhocPlan) }` | topology: `updateStateImmediate in src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt must return a State copy` and `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt copy contract requires ').withDraftCarriedFrom(current)' exactly once; found 0` |
+| 40 | P1: EN `<item quantity="one">%1$d session</item>` → `%d session` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_exercise_detail_history_count: expected=(('one', '%1$d session'), ('other', '%1$d sessions')), actual=('plurals', 'feature_exercise_detail_history_count', (('one' … , ('other', '%1$d sessions')))"], unexpected=[], order=exact` and `compose-resource placeholder is not %N$d or %N$s with N >= 1: feature/exercise/src/commonMain/composeResources/values/strings.xml key feature_exercise_detail_history_count[one] token '%d'` |
+| 41 | `"androidHostTestImplementation"(project(":core:data:database-test"))` after the golden-harness edge | topology: `build must not depend on :core:data:database-test` |
+| 42 | `import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel` in `domain/ExerciseInteractorImpl.kt` | topology: `src/commonMain/kotlin/…/domain/ExerciseInteractorImpl.kt must not read core:data:database; only the domain mapper maps its data models` |
+| 43 | `private val probe = java.util.UUID.randomUUID()` in `CommonHandlerTest` | topology: `src/commonTest/kotlin/…/ui/mvi/handler/CommonHandlerTest.kt names java.* in shared code` |
+| 44 | a 134th `@Test`, `` `a hundred-and-thirty-fourth identity nobody declared` ``, in `NavigationHandlerTest` | topology: `exact test identities drifted in src/commonTest/kotlin/…/ui/mvi/handler/NavigationHandlerTest.kt; missing=[], unexpected=['a hundred-and-thirty-fourth identity nobody declared']` |
+| 45 | in `ExerciseExtensionIdentityTest`, `val store = buildAppGraph().exercise("ex-1").exerciseStore` → `val store = buildAppGraph().exerciseGraphFactory.createExerciseGraph(Screen.Exercise(uuid = "ex-1")).exerciseStore` | topology: `all six extension identities must reach the graph through the accessor` |
+| 46 | `AppNavigationHost`: delete `factory = exerciseGraphFactory,` from the `exerciseGraph(` call | topology: `exact root-factory flow requires 'exerciseGraph(factory = exerciseGraphFactory,' once in app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` |
+| 47 | S14: `FEATURE_RESOURCE_OWNERS`' exercise root back to `src/main/res` | topology: `resource ownership mismatch for feature_exercise_edit_plan_set_type_tooltip; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'Tap to cycle: warmup → work → failure → drop', PosixPath('feature/exercise/src/main/res/values-ru/strings.xml'): 'Нажмите, чтобы переключит … ите, чтобы переключить: разминка → рабочий → отказ → дроп')]` and `resource ownership mismatch for feature_exercise_edit_plan_type_change_weightless_title; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'Switch to weightless?', PosixPath('feature/exercise/src/main/res/values-ru/strings.xml'): 'Переключить на без веса?'}, actual=[ … ources/values-ru/strings.xml'), 'Переключить на без веса?')]` and `resource ownership mismatch for feature_exercise_edit_plan_type_change_weightless_body; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'Weight values from this exercise’s plans will be cleared. This cannot be undone.', PosixPath('feature/exercise/src/main/res/valu … анов этого упражнения будут очищены. Это нельзя отменить.')]` and `resource ownership mismatch for feature_exercise_edit_plan_type_change_weightless_impact; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'All plan weights cleared', PosixPath('feature/exercise/src/main/res/values-ru/strings.xml'): 'Все веса в планах очищены'}, act … urces/values-ru/strings.xml'), 'Все веса в планах очищены')]` and `resource ownership mismatch for feature_exercise_edit_plan_type_change_weightless_confirm; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'Switch', PosixPath('feature/exercise/src/main/res/values-ru/strings.xml'): 'Переключить'}, actual=[(PosixPath('feature/exerci … in/composeResources/values-ru/strings.xml'), 'Переключить')]` and `resource ownership mismatch for feature_exercise_edit_plan_set_removed; expected={PosixPath('feature/exercise/src/main/res/values/strings.xml'): 'Set removed', PosixPath('feature/exercise/src/main/res/values-ru/strings.xml'): 'Подход удалён'}, actual=[(PosixPath('feature/exercise/src/commo … /composeResources/values-ru/strings.xml'), 'Подход удалён')]` |
+| 48 | S11, RU: `feature_exercise_edit_label_tags` `Теги` → `Теги!` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["feature_exercise_edit_label_tags: expected='Теги', actual=('string', 'feature_exercise_edit_label_tags', 'Теги!')"], unexpected=[], order=exact`; `verifyPaparazziDebug`: `ExerciseEditGoldenTest`'s `createEmpty`, `editBlankNameError`, `editDuplicateNameError`, `editWeighted` and `editWeightless`, both themes, and only them: 10 of 48 golden cases, named by their delta files, `Images differ` by 0.000947% to 0.001030%; the 133 host cases pass |
+| 49 | S11, the escape: RU `feature_exercise_edit_plan_info_body`'s `без тренировки.\n\nВнутри` → `без тренировки.\nВнутри` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["feature_exercise_edit_plan_info_body: expected='Это план на случай, когда упражнение выполняется само по себе — из его карточки, кнопкой «Записать сейчас», без трениро …  добавляются прямо в сессии.')"], unexpected=[], order=exact`; `verifyPaparazziDebug`: `ExerciseEditGoldenTest`'s `sheetPlanInfo`, both themes, and only them: 2 of 48 golden cases, named by their delta files, `Images differ` by 6.979908% to 7.570217%; the 133 host cases pass |
+| 50 | S11, the EN plural: `<item quantity="other">%1$d sessions</item>` → `%1$d sessionz` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_exercise_detail_history_count: expected=(('one', '%1$d session'), ('other', '%1$d sessions')), actual=('plurals', 'feature_exercise_detail_history_count', (('one' … , ('other', '%1$d sessionz')))"], unexpected=[], order=exact`; Native: `resourcesDetailEditorSheetsAndActionsRenderAndDispatch` (`Expected <[History, Log now, Default plan, Track now, Workout, %1$d of %2$d exercises done, Edit, More actions, Archive, ‘%1$s’ archived, Cannot archive, use…`), and only it (1 of 134); host: none of 133 failing; `verifyPaparazziDebug`: `ExerciseDetailGoldenTest`'s `screenEmptyPlan`, `screenLoaded` and `screenNoRecord`, both themes, and only them: 6 of 48 golden cases, named by their delta files, `Images differ` by 0.002488% to 0.002725%; the 133 host cases pass |
+| 51 | EN `feature_exercise_image_source_camera` `Take photo` → `Take photo.` | topology: `exact private CMP catalog mismatch in feature/exercise/src/commonMain/composeResources/values/strings.xml; mismatched=["feature_exercise_image_source_camera: expected='Take photo', actual=('string', 'feature_exercise_image_source_camera', 'Take photo.')"], unexpected=[], order=exact`; Native: `resourcesDetailEditorSheetsAndActionsRenderAndDispatch` (`Expected <[History, Log now, Default plan, Track now, Workout, %1$d of %2$d exercises done, Edit, More actions, Archive, ‘%1$s’ archived, Cannot archive, use…`), and only it (1 of 134); host: none of 133 failing |
+| 52 | the `+` identity renamed to `` `Init for read mode kicks off observe and load` `` | topology: `exact test identities drifted in src/commonTest/kotlin/…/ui/mvi/handler/CommonHandlerTest.kt; missing=['Init for read mode kicks off observe + load'], unexpected=['Init for read mode kicks off observe and load']`; the fifteen-module Native run passes (617 cases, the renamed identity among them); the oracle exits 1 with exactly `expected exactly one testcase with classname='…ui.mvi.handler.CommonHandlerTest' name='Init for read mode kicks off observe + load[iosSimulatorArm64]', found 0`, and the other 14 modules `ok` |
+| 53 | the argument rule: the confirm's title read drops `name` (`stringResolver.getString(Res.string.feature_exercise_detail_permanent_delete_confirm_title)`) | host and Native: `OnPermanentDeleteMenuClick surfaces the PermanentDeleteConfirm dialog when eligible`, `OnPermanentDeleteMenuClick swaps the sheet for the confirm dialog` and `a menu dismissed before the confirm's copy lands stays dismissed` (`the title passes the exercise's name; got []`), which include the row's (3 of 133 host, 3 of 134 Native) |
+| 54 | Part A's routes: `Event.NavigateLaunchGallery -> imageSources.launchGallery()` → `Event.NavigateLaunchGallery -> imageSources.openAppSettings()` | topology: `src/commonMain/kotlin/…/ui/ExerciseGraph.kt media contract requires 'Event.NavigateLaunchGallery -> imageSources.launchGallery()' exactly once; found 0` |
+| 55 | Coil: `.crossfade(true)` → `.crossfade(false)` in `ui/components/ExerciseDescriptionBlock.kt` | topology: `Coil request must use exactly one LocalPlatformContext/data(it)/crossfade(true)/build() chain` |
+| 56 | D5: `fun f02_tappingSaveWithAValidName_dispatchesOnSaveClick()` → `fun f02_tappingSaveWithAValidName_dispatchesSave()` | topology: `src/androidDeviceTest/kotlin/…/ExerciseFormBasicsTest.kt must keep 'fun f02_tappingSaveWithAValidName_dispatchesOnSaveClick()' exactly once` |
+| 57 | S2, kit's label: `undoLabel = stringResolver.getString(Res.string.core_ui_kit_toast_undo),` → `undoLabel = stringResolver.getString(Res.string.core_ui_kit_action_cancel),` (host and Native: plus `import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel` after the `core_ui_kit_toast_undo` import, the fifth ruling) | topology: `src/commonMain/kotlin/…/ui/mvi/handler/CommonHandler.kt copy contract requires 'undoLabel = stringResolver.getString(Res.string.core_ui_kit_toast_undo),' exactly once; found 0`; host and Native: `Init resolves the click paths' constant copy into State` (`expected: <ExerciseClickCopy(typeChangeTitle=type-title, typeChangeBody=type-body, typeChangeImpact=type-impact, typeChangeConfirm=type-confirm, setRemoved=s…`), and only it (1 of 133 host, 1 of 134 Native) |
+| 58 | the clock: `timestamp = Clock.System.now().toEpochMilliseconds(),` → `timestamp = System.currentTimeMillis(),` | topology: `src/commonMain/kotlin/…/ui/mvi/handler/ClickHandler.kt copy contract requires 'System.currentTimeMillis' exactly zero times; found 1` |
+| 59 | in `domain/ExerciseInteractorImplTest.kt` (commonTest), `import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel` directly after the `PlanSetDataModel` import (the second ruling) | topology: `src/commonTest/kotlin/…/domain/ExerciseInteractorImplTest.kt may name core:data:database only in one PlanSetDataModel import; found ['core.data.database.sets.PlanSetDataModel', 'core.data.database.sets.SetTypeDataModel']` |
+| 60 | in commonTest's `ui/mvi/mapper/ExerciseUiMapperTest.kt`, `import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel` (the second ruling) | topology: `src/commonTest/kotlin/…/ui/mvi/mapper/ExerciseUiMapperTest.kt must not read core:data:database; only the domain mapper maps its data models` |
+| 61 | in `domain/ExerciseInteractorImplTest.kt`, a top-level `private val unusedPlan: List<PlanSetDataModel>? = null` (the second ruling) | topology: `src/commonTest/kotlin/…/domain/ExerciseInteractorImplTest.kt must name PlanSetDataModel exactly twice, the import and setAdhocPlan's parameter; found 3` |
+| 62 | in `app/app/src/androidTest/…/app/ExerciseCreatePersistenceTest.kt`, `exerciseGraph(factory = factory)` → `exerciseGraph(factory)` (the note of 2026-10-22, from the third ruling) | topology: `exact root-factory flow requires 'exerciseGraph(factory = factory)' once in app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt` |
+
+### B19.9 Repository, visual and device gates
+
+**Repository and visual gates (Section B12.4)**, each its own invocation on the committed tree
+`44e91e3d7`, in sequence on 2026-10-23 from 15:57Z to 16:20Z, so detekt never ran beside tests:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2808/2808 | 472 fresh host XML files across 32 modules, 3,351 test cases, 0/0/0 (2,991 unique module/classname/name triples); exercise 10 suites, 133 cases, names exactly commit 3's gate (Section B19.5); lint: 36 modules `Lint found no errors or warnings`, and `app:app`, `app:dev` and `app:store` `Lint found 80 warnings` each, all dependency-version checks (GradleDependency 40, NewerVersionAvailable 34, AndroidGradlePluginVersion 6) in `gradle/libs.versions.toml` and `gradle-wrapper.properties`, none in source (7.14 read 77); 91 GiB free before, 88 after |
+| `detekt --continue` | 63/63 | 55 fresh reports, 0 findings |
+| `assembleDebugAndroidTest --continue` | 2171/2171 | GREEN |
+| `verifyPaparazziDebug --continue` | 675/675 | 13 liveness lines, 456 golden cases executed for 456 images: all-exercises 52/52, all-trainings 50/50, archive 14/14, exercise 48/48, exercise-chart 30/30, home 42/42, kit 86/86, live-workout 60/60, past-session 30/30, core plan-editor 18/18, settings 12/12, single-training 12/12, start-mode 2/2; 169 fresh XML files, 1,757 cases, 0/0/0; exercise 181 cases (48 golden and 133, the 133 names exactly the host gate's); no record task; porcelain empty |
+| `:lint-rules:test` | 9/9 | 16 suites, 151 tests, 0/0/0 |
+| `python3 documentation/personal_data_gate.py -v` | GREEN | `[PASS] no personal data in tracked files`; six excused lines, all pre-existing, in four paths this branch does not touch |
+| PNG on disk, after the Paparazzi gate | GREEN | 528/528 tracked PNGs hash to HEAD's blobs; the 48 moved goldens keep their blobs (the blob set `0e4ba874…` at base and head); the Paparazzi manifest `0af65bda…` (456 entries), the path list `aa39f858…` and the all-PNG manifest `73df6dd5…` equal Section B3.7's projections |
+| topology gate, five interpreters | — | exit 0, 833 lines, empty stderr, byte-identical, sha256 `37315e70…`, byte-equal to commit 4's and commit 5's output |
+| boundary and hygiene (static) | GREEN | `git diff --check` clean for every commit and for base..head; at commit 5, the module's 118 tracked paths (109 renames, 8 added, 2 deleted, the build file modified) and 10 others, the seven app and three CI paths; seven production suppressions in the six files that held them at the base, and none in a test |
+| mockup shell gate | static GREEN | checks 1–6, 9 and 10 PASS; 7 and 8 unmeasured locally (Section B19.11) |
+
+**Device gates**, on this run's fourth emulator boot (Pixel 6, API 34, `emulator-5554`, booted
+2026-10-23 16:19:52Z, torn down with `adb emu kill` at 16:47:03Z), with animations off and rotation
+fixed. Controls 15 and 16 ran first (Section B19.8). Then, each its own invocation on `44e91e3d7`,
+with `ANDROID_SERIAL=emulator-5554`:
+
+| Command | Executed | Parsed result |
+| --- | ---: | --- |
+| `:feature:exercise:connectedDebugAndroidTest` | 248/248 | 5 cases, 0/0/0: `ExerciseScreenTest` 3 and `ExerciseFormBasicsTest` 2, names equal to the base's, from `connected/androidMain`, the KMP device result directory |
+| `:app:app:connectedDebugAndroidTest` with the four app classes of Section B12.2, `--max-workers=2 --continue` | 756/756 | 25 cases, 0/0/0: `RouteReachabilityTest` 15, `BackStackStateRestorationTest` 4, `NavigationResultTest` 3, `StoreRetentionTest` 3; the 25 names equal the base's |
+| Smoke suite: `connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke -Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue` | 2131/2131 | 15 fresh XML owners, 11 of them with cases, 44 cases: 41 passed and exactly the three documented skips, `ArchiveScreenTest`, `AllTrainingsScreenTest` and `AllExercisesScreenTest` `pendingFeatureRewrite`; 0 failures and errors; exercise's 5 from `connected/androidMain`. Then, as `run_smoke_ui_tests.sh` does, `assert_mvi_device_identities.py`: `core:ui:mvi (androidDeviceTest): 2 executed / 0 skipped / 0 failed / 0 errored — verified 2 exact identities` |
+| Regression suite: the same with `…annotations.Regression` | 2131/2131 | 5 fresh XML owners with cases, 88 cases, all executed, 0 skip, failure or error: app:app 49 (among them `RouteReachabilityTest` 15, `ExerciseCreatePersistenceTest` 1, `UiAdmissionRaceTest` 3, `StoreRetentionTest` 3, `AllTrainingsExtensionDbVisibilityTest` 1), core:data:database 35, core:data:exercise 1, feature:all-exercises 1, feature:wear-bridge 2, the same membership as 7.14 |
+
+The porcelain was empty after the device gates. Before and after each device invocation the only
+Workeeper package installed was `io.github.stslex.workeeper.dev`, its `lastUpdateTime`
+`2026-09-07 14:16:51` in all 14 samples, so nothing this run did not install was replaced or removed.
+
+### B19.10 Maintainer rulings, deviations, and implementation decisions
+
+Three gaps in Sections B0–B18 stopped the run, and two more came out of controls. Each time the
+maintainer ruled, and each ruling is quoted here as given, as is the maintainer's note that set the
+control procedure and the shared GREEN. None changes a decision of Sections 0–14 or B0–B18; each
+narrows the text it names for this one case.
+
+**Ruling 1 (2026-10-21), the deferred-delete pair in commit 2.** S2 removes the pair's label source
+in commit 2, while Section B11.1 gave them their exit State only for commit 3.
+
+> Ruling (maintainer, 2026-10-21): a spec gap. You were right to stop.
+>
+> S2 lands in commit 2, so the deferred-delete pair loses its label source in commit 2, not in
+> commit 3. SPEC B11.1 (the D4 bullets) already gives both suites their exit State. Bring that State
+> forward to commit 2. In addition to B11.1's two ClickHandlerTest setups, commit 2 may change:
+>
+> 1. ExerciseDeferredDeleteDbTest, confirmDelete's State:
+>    State.create(uuid = uuid.toString()).copy(canPermanentlyDelete = true,
+>        clickCopy = ExerciseClickCopy.EMPTY.copy(permanentDeleteSuccess = "Exercise deleted", undoLabel = "Undo"))
+> 2. PermanentDeleteUndoLabelRuTest, its State:
+>    State.create(uuid = "uuid-ru").copy(canPermanentlyDelete = true,
+>        clickCopy = ExerciseClickCopy.EMPTY.copy(undoLabel = "Отменить"))
+>    Wrap both as detekt wants.
+> 3. The two comments that would become false. Reword them to what the identities now pin. The
+>    identity names stay, because the gate pins them.
+>    - The DB test's KDoc above the label identity becomes:
+>      /** The queued label is the one the State holds, and Back rides after the queue. */
+>    - The RU test's class KDoc becomes:
+>      /** The deferred delete queues the undo label the State holds; kit's ComposeStringResolverRuTest owns the Russian catalog. */
+>
+> Everything else in both suites stays as it is: Robolectric, RepositoryTestEnv, the drain and the
+> relaxed ResourceWrapper. Both assertions stay byte-identical ("Undo", "Отменить"). In commit 3 these
+> State lines carry over to D4's fakes unchanged, exactly as SPEC B11.1 writes them.
+>
+> Do not do either of these:
+> - resolve the label from the real catalog in the test setup. Commit 3 would undo that second
+>   setup change;
+> - keep the undo label on CMP's getString until commit 3. That would split S2 across the move.
+>
+> Ordering:
+> - If commit 2 is not made yet, include these changes in it.
+> - If commit 2 already exists locally, redo it once with git commit --amend through the
+>   signed-commits skill. The branch stays unpushed until Phase 9. A separate fix commit would leave
+>   commit 2 red, which SPEC B15 forbids. This one amend is authorized. Record both SHAs.
+> - Then rerun SPEC B12.3's "After commit 2" gates from scratch.
+>
+> Record this ruling, quoted, in SPEC B19 under deviations and implementation decisions, and add one
+> line about it to the PR body. Sections B0–B18 stay byte-identical. Continue.
+
+Commit 2 had not been made, so the changes went into it, with no amend. Both assertions stayed
+byte-identical (`"Undo"`, `"Отменить"`), and the two State lines carried over to D4's fakes in
+commit 3 unchanged.
+
+**Ruling 2 (2026-10-21), the domain suite's repository fake.** `exercise_dependency_contract`
+inherited single-training's rule that only the mapper names `core.data.database`. This module's
+domain suite, however, implements `ExerciseRepository`, whose `setAdhocPlan` takes a
+`PlanSetDataModel`.
+
+> Ruling (maintainer, 2026-10-21): a second spec gap. You were right to stop.
+>
+> exercise_dependency_contract inherited single-training's rule that only the mapper names
+> core.data.database. This module's domain suite, however, must implement ExerciseRepository, and
+> that interface's setAdhocPlan parameter is a PlanSetDataModel. 7.10 D5 is the precedent:
+> all-exercises' in-file ExerciseRepository fake names the same type.
+>
+> Commit 3, the test port:
+> - The in-file ExerciseRepository fake in ExerciseInteractorImplTest.kt imports
+>   io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel once. It names the type once
+>   more, in setAdhocPlan's parameter (List<PlanSetDataModel>?).
+> - getAdhocPlans and getAdhocPlan return Nothing.
+> - No other file under src names core.data.database, and no other type from it is named.
+> - No build change: commonTest resolves the type through commonMain's existing
+>   implementation(project(":core:data:database")). If it does not resolve without a build change,
+>   STOP.
+> - Commit 3's topology output stays at 832 lines.
+>
+> Commit 4: exercise_dependency_contract admits that one file, as below. Formatting may differ, but
+> the logic and the two messages may not. The GREEN output stays byte-identical, 833 lines under
+> every Python.
+>
+> ```diff
+>      # §B3.5 and §B10: core:data:database stays one production edge, read by the domain mapper
+>      # alone; no test set reads it or core:data:database-test; shared code names no java.*.
+> +    # Ruling of 2026-10-21 (§B19): the domain suite's in-file ExerciseRepository fake has to spell
+> +    # setAdhocPlan's parameter type (7.10 D5's precedent), so that one suite may import
+> +    # PlanSetDataModel once and name it once more, and nothing else from core:data:database.
+>      ...
+>      mapper = entry.common_main / "domain/mapper/ExerciseDomainMapper.kt"
+> +    domain_suite = (
+> +        entry.root / "src/commonTest/kotlin" / entry.package_dir
+> +        / "domain/ExerciseInteractorImplTest.kt"
+> +    )
+>      ...
+>      for path in sorted((entry.root / "src").rglob("*.kt")):
+>          source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+>          relative = path.relative_to(entry.root)
+> -        if path != mapper and "core.data.database" in source:
+> +        if path == domain_suite:
+> +            references = re.findall(r"core\.data\.database[\w.]*", source)
+> +            if references != ["core.data.database.sets.PlanSetDataModel"]:
+> +                failures.append(
+> +                    f"{module}: {relative} may name core:data:database only in one "
+> +                    f"PlanSetDataModel import; found {references}"
+> +                )
+> +            mentions = len(re.findall(r"\bPlanSetDataModel\b", source))
+> +            if mentions != 2:
+> +                failures.append(
+> +                    f"{module}: {relative} must name PlanSetDataModel exactly twice, the import "
+> +                    f"and setAdhocPlan's parameter; found {mentions}"
+> +                )
+> +        elif path != mapper and "core.data.database" in source:
+>              failures.append(
+>                  f"{module}: {relative} must not read core:data:database;"
+>                  " only the domain mapper maps its data models"
+> ```
+>
+> Phase 7 adds three Python-scored controls beside SPEC B13's. Control 42 stays as written.
+> "…" stands for the module-relative path; write it out.
+>
+> 59. Mutation: in ExerciseInteractorImplTest.kt, add
+>     `import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel` directly after the
+>     PlanSetDataModel import.
+>     Expected RED, exactly:
+>     `…/domain/ExerciseInteractorImplTest.kt may name core:data:database only in one PlanSetDataModel import; found ['core.data.database.sets.PlanSetDataModel', 'core.data.database.sets.SetTypeDataModel']`
+> 60. Mutation: in commonTest's ui/mvi/mapper/ExerciseUiMapperTest.kt, add
+>     `import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel`.
+>     Expected RED, exactly:
+>     `…/ui/mvi/mapper/ExerciseUiMapperTest.kt must not read core:data:database; only the domain mapper maps its data models`
+> 61. Mutation: in ExerciseInteractorImplTest.kt, add a top-level
+>     `private val unusedPlan: List<PlanSetDataModel>? = null`.
+>     Expected RED, exactly:
+>     `…/domain/ExerciseInteractorImplTest.kt must name PlanSetDataModel exactly twice, the import and setAdhocPlan's parameter; found 3`
+>
+> The three controls and the GREEN output were dry-run on the simulated exit tree under Python 3.11,
+> 3.12 and 3.13. The output was identical across them, and each control produced exactly its line.
+> That dry run is not evidence.
+>
+> Recording:
+> - Record this ruling, quoted, in SPEC B19 under deviations. It narrows B3.5, B12.1, B14 and B16 for
+>   this one file.
+> - Add one line about it to the PR body.
+> - Sections B0–B18 stay byte-identical.
+>
+> Continue.
+
+Commit 3's topology output stayed at 832 lines and commit 4's at 833, byte-identical to their
+Section B12.1 rows. Controls 59–61 are recorded in Section B19.8. This ruling narrows Sections B3.5,
+B12.1, B14 and B16 for that one file.
+
+**Ruling 3 (2026-10-21), the seventh app path.** Sections B3.6 and B6 said that no app test composes
+`exerciseGraph()`, so the app boundary was six paths. `ExerciseCreatePersistenceTest` does compose
+it.
+
+> Ruling (maintainer, 2026-10-21), answer to the third spec gap: "Amend commit 3 with it (Recommended)".
+>
+> The option as put to the maintainer: Add the precedent's three-line change to
+> ExerciseCreatePersistenceTest.kt and amend commit 3 once through the signed-commits skill, so commit 3
+> stays bisect-green. I record both SHAs, rerun commit 3's gates from scratch, and quote the ruling in
+> B19 and the PR body. The boundary becomes 7 app paths (16 non-module paths).
+>
+> The gap: SPEC B3.6 and B6 say no app test composes exerciseGraph() directly, so the app boundary is
+> six paths. But app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt
+> (@Regression) calls exerciseGraph() inside TestSingleScreenHost, and with the now-required factory
+> parameter :app:app:compileDebugAndroidTestKotlin fails ('No value passed for parameter factory').
+> The fix follows 7.9's AllTrainingsExtensionDbVisibilityTest exactly: val factory =
+> MetroTestGraphHolder.graph.exerciseGraphFactory before setContent, exerciseGraph(factory = factory),
+> and the MetroTestGraphHolder import.
+
+The amend replaced `5ed360fbf` with `44c9b8f03` (Section B19.5), and the boundary is 118 module
+paths and 16 others (Section B19.12). This ruling narrows Section B15's "Nothing is amended" for
+this one amend of commit 3, which kept commit 3 green on its own tree, and Section B12.5's "15
+others".
+
+**The note of 2026-10-22: control 62, the batch, and the shared GREEN.** The note adds control 62
+from the third ruling, sets the procedure for the Python-scored controls still to run, and rules on
+GREENs shared between Gradle controls:
+
+> Maintainer notes (2026-10-22), as given:
+>
+> Two notes; the plan stands.
+>
+> 1. Control 62 is missing from your list. It comes from the third ruling: in
+>    ExerciseCreatePersistenceTest.kt, exerciseGraph(factory = factory) → exerciseGraph(factory),
+>    with exactly one RED line. The Python-scored set is 51, not 50, so add 62 to this pass.
+>
+> 2. A Python-scored control is a seconds-long gate run, so run the remaining 13 (49–52, 54–62)
+>    as one script you write, in this order for each control:
+>    - fresh GREEN;
+>    - the mutation, exactly as its row writes it;
+>    - the RED output, captured;
+>    - restoration with cp, checked by sha256 and mode;
+>    - `git status --porcelain --untracked-files=no` empty;
+>    - fresh GREEN.
+>    Write one log for all of them, then check it against the expected lines in a single pass and
+>    quote the lines as before.
+>    Keep mutation_harness.py's flags for the Gradle controls exactly as they are (--stop,
+>    --rerun-tasks, --no-build-cache per run).
+>
+> 3. Maintainer ruling: consecutive Gradle controls with the identical command may share a GREEN.
+>    The fresh GREEN after control N serves as the fresh GREEN before control N+1 when the command
+>    is byte-identical and nothing changed in between (HEAD unchanged, porcelain empty, every
+>    restored file's sha256 and mode checked). Name the shared GREEN's XML for both controls in
+>    B19, and record this ruling there, quoted.
+
+Section B19.8 records the batch, and names each shared GREEN's XML for both controls it serves.
+
+**The correction of 2026-10-22: one interpreter for the Python-scored controls.**
+
+> One correction; everything else stands.
+>
+> Python-scored controls run the topology script as CI runs it, which means one interpreter: python3
+> on PATH, the workflow's `python3 .github/scripts/assert_kmp_ui_source_topology.py`. The five-Python
+> byte-identity applies only to the positive gates of Phases 2, 3, 6, 7 (step 2) and 8, and you
+> already have it on 44e91e3d7. My Phase 1 wording invited the broader reading.
+>
+> 1. Stop the batch cleanly at the current control, as you did overnight. Send SIGTERM, restore the
+>    file, check its sha256 and mode, and confirm the porcelain is empty.
+> 2. Restart all 51 controls under python3 alone, and record its path and version.
+>    - Consecutive Python controls share a GREEN under the Gradle ruling's conditions: an identical
+>      command, HEAD unchanged, an empty porcelain, and the restored file's sha256 and mode checked.
+>    - The first control gets its own fresh GREEN. The last control's post-restore GREEN closes the
+>      batch.
+> 3. Keep the scorer, and keep the 51/51 PASS gate in front of the host battery. Control 1's
+>    five-Python record can stay in the log as an extra; the scored pass reads the new run.
+
+The five-interpreter batch on `44e91e3d7` was stopped by SIGTERM during control 14. Its handler
+restored `di/ExerciseFeature.kt` (sha256 `2e057ed9…7ebdbc` and mode `100644`, equal to HEAD's), and
+both porcelains were empty. Its 13 records stay in the log as extras.
+
+**Ruling 4 (2026-10-22), the pin the third ruling implied.** Control 62, run once on `92270f46b`,
+left the gate GREEN: exit 0, stdout byte-equal to commit 4's 833-line output, empty stderr. No rule
+read `ExerciseCreatePersistenceTest.kt`, because Section B12.1 sets `extra_root_fragments` to "none".
+That GREEN is the finding that produced commit 5.
+
+> Ruling (maintainer, 2026-10-22). Control 62 did its job: a GREEN under a mutation is a gate hole.
+> Ruling 3 also covered commit 4: EXERCISE_ENTRY gets an extra_root_fragments row directly after
+> identity_accessor. That part never reached the gate. Apply it now.
+>
+> 1. New commit. Commit 4's tree is green, so per SPEC B15 this is a new signed commit, not an
+>    amend. Subject:
+>    `ci(kmp): pin the app test that composes the exercise graph directly`
+>    Change only EXERCISE_ENTRY: add this field directly after identity_accessor.
+>
+> ```python
+>     # The one app device test that composes the graph directly passes the factory (7.9's §6
+>     # precedent; ruling of 2026-10-21, §B19).
+>     extra_root_fragments={
+>         "app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt": (
+>             "MetroTestGraphHolder.graph.exerciseGraphFactory",
+>             "exerciseGraph(factory = factory)",
+>         ),
+>     },
+> ```
+>
+> 2. Re-run everything the change reaches (SPEC B15):
+>    - The topology script under every Python: exit 0, 833 lines, byte-identical to commit 4's
+>      output.
+>    - All 51 Python-scored controls, as one batch script on the new HEAD. Controls 1–61 must
+>      reproduce the lines you already quoted. Control 62 must give exactly:
+>      `feature:exercise: exact root-factory flow requires 'exerciseGraph(factory = factory)' once in app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt`
+>    No Gradle, Native or device gate reads the topology script, so commit 4's evidence for them
+>    stands. Every control still to run (Gradle, oracle, detekt, PNG, device) runs on the new HEAD.
+>
+> 3. Record in SPEC B19:
+>    - this ruling, quoted;
+>    - the sixth commit (the docs commit becomes the sixth);
+>    - control 62's first GREEN, as the finding that produced the commit.
+>    Add one line about it to the PR body. Sections B0–B18 stay byte-identical. Continue.
+
+Commit 5 is `44e91e3d7` (Section B19.7), and the documentation commit became the sixth. This ruling
+narrows Section B12.1's `extra_root_fragments` row to that one file and Section B15's five commits
+to six.
+
+**Ruling 5 (2026-10-23), control 57's import.** Section B13's row 57 replaces
+`Res.string.core_ui_kit_toast_undo` with `Res.string.core_ui_kit_action_cancel`. The key is in kit's
+catalog, but `CommonHandler.kt` imports each kit accessor by name. So the row's one edit did not
+compile (`Unresolved reference 'core_ui_kit_action_cancel'` at `CommonHandler.kt:126:65`), and the
+harness marked the run INVALID. The topology half had passed in the batch with the row's exact edit.
+
+> Question (2026-10-23): Control 57's host and Native half didn't compile, so it proves nothing. SPEC B13 row 57 swaps `Res.string.core_ui_kit_toast_undo` for `Res.string.core_ui_kit_action_cancel`. The key exists in kit's catalog, but CommonHandler.kt imports each kit accessor by name, and the row adds no `import …core.ui.kit.resources.core_ui_kit_action_cancel`. The result was `Unresolved reference 'core_ui_kit_action_cancel'`, CommonHandler.kt:126:65. The row's topology half already PASSED in the python3 batch with the exact mutation. How should 57's Gradle half run?
+>
+> Answer (maintainer): "Add the import (Recommended)": For the Gradle half only, two edits: the row's replacement plus `import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel` directly after the `core_ui_kit_toast_undo` import. Applied through a scratchpad copy restored with cp and checked by sha256 and mode, since the harness takes one find/replace. Expected: host and Native fail only `Init resolves the click paths' constant copy into State`. The topology half stands as scored. Recorded in B19.10 as a ruling, plus one PR-body line.
+
+Section B19.8 records the run. This ruling narrows Section B13's row 57 for its host and Native half.
+
+**Deviations and implementation decisions.**
+
+- **Five interpreters, where they apply.** Sections B12.0, B12.1 and B13 dry-ran under Python
+  3.11, 3.12 and 3.13. This host has no 3.12 and has 3.9 and 3.15 (Section B19.1). Every positive
+  topology gate, the oracle, the census, the transcription audit and commit 1's proof ran under the
+  host's five, byte-identical each time. By the correction above, the Python-scored controls run
+  the gate as CI does, under `python3` on PATH alone.
+- **Rename detection.** `PermanentDeleteUndoLabelRuTest` was rewritten below 30 % similarity, so
+  `git diff -M30%` shows it as a deleted and an added path. The other nine suites read as renames,
+  at 32 % to 97 %.
+- **Commit 4's size.** The topology diff is 729 insertions against the prototype's 684. The second
+  ruling's domain-suite branch accounts for part of it, and the rest is line wrapping. The audit of
+  Section B19.6 compared the fields, not the line count.
+- **The four app classes' task count** reads 756 at commit 3 against the base's 753. The KMP module
+  brings its own task graph: the run's log names 68 `:feature:exercise` tasks against the base's 60.
+  The class selection and the 25 identities are the same.
+- **Topology concurrency.** On this host, five concurrent topology runs slowed each other from about
+  40 s to between 15 and 60 minutes, all of it in the kernel's directory opens. The earlier passes
+  then ran three interpreters at a time; the recorded batch runs one. The gate, its inputs and its
+  outputs are unchanged by either.
+- **Host sleep.** Overnight on 2026-10-21/22 the Mac slept on battery, and two earlier-pass
+  controls took hours of wall-clock time for minutes of work. The remaining batteries ran under
+  `caffeinate -ims`. No result depends on wall-clock time.
+- **tech-debt.md beyond Section B9.2's letter.** Section B9.2 has the top-level-read row read "These
+  five production files …" once exercise's `ClickHandler` leaves it. The same row's tail said
+  "markers for the other four come with the pay-down", which counts the same list, so it reads "the
+  other three". No other row changed beyond Section B9.2's.
+- **testing.md's database sentence** names the second ruling's one test exception, so the
+  subsection does not contradict the dependency contract the gate enforces.
+- **Rotation.** The emulator's `accelerometer_rotation` flipped from 0 to 1 during device runs. It
+  was set back to 0 before every device run.
+- **Four emulator boots.** The 16 GB host could not hold the emulator beside Native
+  compilation, so this run shut its emulator down for the host phases:
+  - the first boot served Phase 2's baselines and commit 2;
+  - the second served commit 3's device gates on `5ed360fbf`;
+  - the third served them again on `44c9b8f03`;
+  - the fourth served controls 15 and 16, the module's and the app classes' device gates, and the
+    canonical suites.
+
+  Each was booted by this run with the same command line and torn down with `adb emu kill`.
+- **Scratch-script defects**, all fixed before their recorded verdicts, none in a committed file:
+  - the census's abstract-member count first entered a nested data class's parameters, and its
+    `@Smoke` / `@Regression` reader missed `internal class`;
+  - executing the base's gate inside the census needed a registered module for `@dataclass` under
+    Python 3.9–3.14;
+  - commit 1's proof first outlived the shell's timeout and was relaunched detached; the interrupted
+    run's `finally` had restored its file (sha256 and mode checked);
+  - the identity comparison first kept JUnit 5's `()` suffix;
+  - the transcription audit's parser first ran past Section B3.2's lists, read B3.4's plural row as a
+    string, and compared the oracle's class order by a wrong slice;
+  - control 7's scorer first expected the ownership list in the order the specification's prose
+    gives; the gate prints it sorted, and the row names no order;
+  - the host battery's wait for the batch matched a watcher's command line by name (`pgrep -f`), so
+    the battery started 29.5 hours after the batch ended (2026-10-22 08:45Z against 2026-10-23
+    14:15Z). The tree was clean and HEAD unchanged when it started, and the Gradle controls took
+    their own first GREEN;
+  - the Paparazzi controls' delta collector first read only the top of `build/paparazzi/failures/`
+    (Section B19.11).
+
+### B19.11 Rejected runs, local limitations, and the remote evidence boundary
+
+- **The gates of `5ed360fbf`.** Commit 3's first form passed every module gate and the module's
+  device classes, and failed the four app classes at compile (748/748 executed, `BUILD FAILED`):
+  `:app:app:compileDebugAndroidTestKotlin` reported `No value passed for parameter 'factory'` in
+  `ExerciseCreatePersistenceTest`. The third ruling followed, and every commit-3 gate re-ran on
+  `44c9b8f03` (Section B19.5). The first form's runs are kept as a record and are not evidence.
+- **Development runs** before the recorded gates, none recorded as evidence:
+  - the scene's first compile (the missing `getOrNull` import);
+  - `:app:app:compileDebugAndroidTestKotlin` and the repository-wide `assembleDebugAndroidTest` on
+    the amended tree, before the recorded runs.
+- **Three earlier Python control runs.** They are kept as a record and are not evidence; the
+  evidence is the `python3` batch of Section B19.8 on `44e91e3d7`. The first two ran on
+  `92270f46b`, the third on `44e91e3d7`.
+  - The first pass ran five interpreters at a time. It recorded controls 1–6 PASS and control 7 FAIL
+    on its scorer defect (Section B19.10). It was stopped during control 8 at a moment when the tree
+    was clean, with the porcelain checked empty before and after the process was frozen.
+  - The second pass ran three at a time from control 7 and recorded 7–14, 17, 26–52, 54 and 55
+    PASS. It was stopped by SIGTERM during control 56, when the maintainer's note set the batch
+    procedure. Its handler restored the file, and that file's blob and mode `100644` were checked
+    equal to HEAD's.
+  - The third, on `44e91e3d7` under five interpreters, logged controls 1–13. It was stopped
+    during control 14 by the correction above.
+  - Every RED of 1–55 in the first two passes is the line the batch reproduced (Section B19.8).
+- **Control 57's first host and Native run** applied the row's one edit, did not compile, and proves
+  nothing (the fifth ruling).
+- **The first Paparazzi runs of controls 48, 49 and 50.** The collector looked for delta files only
+  at the top of `build/paparazzi/failures/`. The KMP module writes them under
+  `failures/androidMain/`, so the collector named no case and scored FAIL. Their XML failed exactly
+  10, 2 and 6 of the module's 48 golden cases, and each failure message names its delta file; the
+  names are exactly each row's cases. The three ran again with the fixed collector, each with fresh GREENs
+  (Section B19.8).
+- **Mockup shell gate.** It ran against the merge base `405656c44`. Checks 1–6, 9 and 10 PASS.
+  This host has no headless Chromium, so the precondition row `headless browser available` FAILs
+  and checks 7 and 8 report `UNMEASURED — the probe stopped at 'no-browser'`; the script exits 1.
+  The branch touches neither `documentation/mockups/pass2d.html` nor `AppColors.kt`. CI's
+  `Mockup Appearance Gate` measures 7 and 8.
+- **Xcode.** Every Native run here used Xcode 27.0. CI pins Xcode 26.6, so the CI run on the PR is
+  the Xcode 26.6 measurement.
+- **Device suites** ran testing.md's canonical selection in CI's form (`-Dorg.gradle.jvmargs=-Xmx3g
+  --max-workers=2 --full-stacktrace --continue`), plus the stable flags.
+- **iosArm64** test binaries are compiled and linked, never run: this host has no iOS device.
+- **Not covered by any test** (Section B11.5):
+  - RU values at runtime, outside the Description and Edit goldens (the topology gate pins them
+    statically);
+  - S2's guard on a device, and the confirm's one-dispatch delay;
+  - the graph's wiring in the scene: the image-source launcher and its four routes, snackbars, undo
+    actions, `BackHandler`, the result read-back, and the confirm and conflict sheets;
+  - the system camera and photo picker (Part A's device check);
+  - the history and record dates off Android;
+  - the create-mode dirty check (Section B17), pinned by no identity in either direction.
+
+  Section B17's follow-ups (the create-mode dirty check, `setAdhocPlan`, the two
+  `withContext(mainDispatcher)` calls, and the capture across process death) are out of this PR.
+- **The remote boundary.** This commit cannot record CI on its own head. The PR records three
+  things: its CI run, the KMP iOS kit smoke job's duration against its 120-minute timeout (Section
+  B12.5, next to 7.14's), and the review.
+
+### B19.12 Documentation boundary
+
+At exit the module tracks exactly Section B9.1's 118 paths: the build file and 117 files under
+`src`, against 112 at the base. Against the base, `git diff -M30%` reads them as follows:
+
+- the build file as modified;
+- 109 paths as renames. Each base use-case file pairs with its new `…Impl`, since S8 moved the
+  implementation there;
+- eight as added:
+  - the four use-case interfaces;
+  - `ExerciseClickCopy`;
+  - the commonTest `ExerciseDeferredDeleteDbTest` and `PermanentDeleteUndoLabelRuTest`, both below
+    30 % against their base forms;
+  - the scene;
+- two as deleted, the classic forms of those two suites.
+
+Nothing remains under `src/main`, `src/test` or `src/androidTest`.
+
+Outside the module the commits change exactly 16 paths: Section B9.2's 15 and the third ruling's
+`app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt`.
+That is seven app paths, three CI paths, the one kit comment and five documentation paths.
+
+The documentation edits are Section B9.2's:
+
+- **architecture.md:** the shape-list sentence (exercise's factory flow beside the five earlier
+  entries, and its `navComponentScreenWithResults` registration), the Context-seam paragraph
+  (`Exactly 3 feature/dialog Context readers remain.`), and Localization's five predating files and
+  D2's citation of S2.
+- **ci-cd.md:** the workflows-table row, the alias list, the Native module description, the
+  every-module list, the validator paragraph (`exactly 134 target tuples`),
+  `All fifteen result directories`, `The same fifteen modules'` and `N/15 linked`.
+- **testing.md:** the `AppGraph.stringResolver` bullet, the `Shared exercise feature` subsection,
+  and the fifteen-module lists and command blocks.
+- **tech-debt.md:** the re-pointed links (single-training's stale `Event.ShowError` link among
+  them); the four widened rows in Shared (KMP) string resources; the D2-template row; the
+  process-death row's camera-capture sentence; and the new create-mode dirty-check row. Beyond the
+  letter, the "other three" of Section B19.10.
+- **The kit comment:** `ImageSourceLauncher.android.kt`'s rotation line, replaced by Section B9.2's
+  two lines; nothing else in core:ui:kit.
+
+Deliberately untouched, as Section B9.2 lists them:
+
+- `documentation/features.md`'s exercise section;
+- `documentation/feature-specs/exercises.md`'s catalog blocks and `src/main` paths;
+- `documentation/test-scenarios/exercise.md`;
+- `documentation/research/domain-boundary-audit-codex.md`;
+- tech-debt.md's resolved lines that name exercise files in plain text;
+- `.claude/skills/*`;
+- `graphify-out/`.
