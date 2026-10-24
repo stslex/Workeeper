@@ -21,7 +21,8 @@ actual fun rememberImageSourceLauncher(
 ): ImageSourceLauncher {
     val context = LocalContext.current
     // The camera's result carries no URI, so the target it launched with is kept here.
-    // Rotation between launch and result is out of scope, as it was in the graph.
+    // A rotation keeps it (MainActivity handles configuration changes); a process death between
+    // launch and result loses it (tech-debt.md, the exercise process-death row).
     val pendingCameraTarget = remember { mutableStateOf<String?>(null) }
     // GUARD: remembered — rememberLauncherForActivityResult keys its registration on the
     // contract instance, so a contract built per recomposition re-registers every time.
