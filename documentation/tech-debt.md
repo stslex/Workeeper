@@ -194,7 +194,24 @@ stopped covering (name → real file) is exactly what the new device pins now as
 
 ---
 
-## The default flow `onError` is silent — 21 of 22 production collections report nothing (measured 2026-08-16, KMP phase 6)
+## ✅ RESOLVED — The default flow `onError` is silent — 21 of 22 production collections report nothing (measured 2026-08-16, KMP phase 6; resolved 2026-10-25, Phase 7.16 PR-L)
+
+**Resolution (Phase 7.16 PR-L, 2026-10-25).** Both `AppCoroutineScopeImpl.launch` overloads now
+record every failure through the Store's logger before `onError` receives it: the action
+overload in its `onFailure`, after an `ensureActive()` on the launch's own scope, and the flow
+overload inside its existing `.catch`. The coroutine's own cancellation is exempt in both; a
+`CancellationException` raised inside an active coroutine (a timeout) is not. The
+`CoroutineExceptionHandler` backstop records through the same logger, so its tag moved from
+`Workeeper` to `SCREEN_<name>`. The logger is a required `AppCoroutineScopeImpl` parameter, and
+`BaseStore` passes its own. The 14 call-site records went, so each failure is recorded once:
+nine `logger.e` calls inside explicit `onError` lambdas, and
+`BackupClickHandler.emitUnknownErrorAndIdle`, the whole `onError` of five more launches. The
+base census at `1b9618412`: the action overload 62 calls with 35 default `onError`s,
+`launchDefault` 19 with 3, `Flow.launch` 22 with 21. Ten identities pin it, the nine of
+`LaunchFailureRecordingTest` (commonTest, JVM host and Native) and
+`StoreLaunchFailureTelemetryTest`, and the known-negative controls K1–K8 prove them
+([Phase 7.16 specification](feature-specs/kmp-phase-7-16-live-workout-feature.md), Section 14).
+The original entry follows as the record.
 
 **Not fixed here.** Measured while auditing the mechanism that hid the DataStore stragglers above;
 it lives in `core:core`, outside the data layer this phase converts, and it cannot be gated in both

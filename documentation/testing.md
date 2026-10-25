@@ -210,6 +210,8 @@ These bite any JVM host test, not only the ones named as carriers.
   sibling class, and the discard branch logs); `BackupInteractorImplTest`
   (`RestoreLatestBackupUseCase`'s committed-without-a-durable-record `logger.w {}`);
   `StoreGenerationJoinTest` (a real `BaseStore.consume`, whose first call would otherwise throw).
+  Since Phase 7.16 a failing Store launch logs too, so a host test that drives a real `BaseStore`
+  into a failure needs the same gate.
 - **`mockkObject(Log)` cannot replace the gate for a logging `object`.** `SnackbarManager`'s
   private `logger` is captured at class init — possibly by an earlier test in the same JVM — so
   stubbing `Log.tag` after the fact never reaches it.
@@ -900,16 +902,17 @@ executed.
 
 #### Shared MVI runtime
 
-`core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
-contracts; `androidHostTest` for the clean JVM ABI and real Android Firebase-provider seam;
+`core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result, event-pressure and
+launch-failure recording contracts; `androidHostTest` for the clean JVM ABI, the real Android
+Firebase-provider seam and the Store-tag wiring of a launch failure;
 `iosTest` for the production Compose processor scene; and `androidDeviceTest` for the two
 `@Smoke` lifetime/retention cases. The legacy `src/test` and `src/androidTest` directories must
 remain empty.
 
 The identity gates parse JUnit XML structurally rather than accepting a Gradle exit code or module
-total. They require seven exact Android-host identities, five exact MVI Native identities, and both
-Android-device identities. Native results live under `build/test-results/iosSimulatorArm64Test`;
-the AGP-KMP connected result path is
+total. They require twenty exact Android-host identities, fourteen exact MVI Native identities,
+and both Android-device identities. Native results live under
+`build/test-results/iosSimulatorArm64Test`; the AGP-KMP connected result path is
 `core/ui/mvi/build/outputs/androidTest-results/connected/androidMain`.
 
 - `NavResults.OnResult` is deliberately not unit-tested: it is a `@Composable` and needs a

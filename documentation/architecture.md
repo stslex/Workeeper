@@ -1461,8 +1461,8 @@ a sealed destination and one of its variants are DIFFERENT channels. For the pla
 both producer and consumer pass `Screen.PlanEditor` while the route actually registered and popped
 is the concrete `Existing`; that mismatch is deliberate, because the runtime type never enters the
 key. Narrowing either side to the variant still compiles and still typechecks (`R` is identical on
-both) and the result simply stops arriving — silently, per the `.catch { onError(it) }` swallow
-below. If a result goes missing with both sides looking correct, compare the two `KClass`
+both) and the result simply stops arriving — silently: nothing throws, so nothing is recorded
+either. If a result goes missing with both sides looking correct, compare the two `KClass`
 references first. Pinned by `NavigationResultContractTest`'s
 `a destination and its variant do not share a result channel`.
 
@@ -1476,11 +1476,11 @@ Pinned by `NavigatorEventBusTest`'s pending-result lifecycle tests (`navTo clear
 result`, `replaceTo clears a pending result`, `plain popBack clears a pending result`,
 `popBackWithResult does not clear other pending channels`).
 
-> **Note for tests.** `AppCoroutineScopeImpl.launch(flow, …)` applies
-> `.catch { onError(it) }`, so a flow error inside a Store is swallowed: a
-> broken result path surfaces as a screen quietly holding default state, not as
-> a throw. Assert the observable effect — the originating screen reflecting the
-> save — never the absence of an exception, or the test passes vacuously.
+> **Note for tests.** `AppCoroutineScopeImpl.launch(flow, …)` records an upstream
+> failure and hands it to `onError` without rethrowing, so a broken result path
+> still surfaces as a screen quietly holding default state, not as a throw.
+> Assert the observable effect — the originating screen reflecting the save —
+> never the absence of an exception, or the test passes vacuously.
 
 ### `CompositionLocal` in the navigation path — a decision for Nav3, not a rule in force
 
@@ -2064,15 +2064,19 @@ haptic call at all (measured), which is why the nav-tab `SegmentTick` is fired i
 - `core/core/.../coroutine/scope/AppCoroutineScope.kt` wraps a `CoroutineScope`,
   a `defaultDispatcher` (work), and an `immediateDispatcher` (delivery). Both `BaseStore` and
   `HandlerStore` expose `launch { ... }` helpers built on top of it that automatically catch
-  exceptions, invoke `onError`, and switch to the immediate dispatcher for `onSuccess` / per-flow
-  emissions.
+  exceptions, record each failure through the Store's logger (one non-fatal under
+  `SCREEN_<name>`), then invoke `onError`, and switch to the immediate dispatcher for
+  `onSuccess` / per-flow emissions. The coroutine's own cancellation is neither recorded nor
+  handed on, and a timeout is a failure. So `onError` never logs: it restores state or tells the
+  user.
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
   and `@MainImmediateDispatcher`, both contributed by
   `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt`.
 - `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` is the backstop that keeps an `async`
-  fan-out recoverable. `feature/exercise`'s `CommonHandler.loadExercise` fans out through SIX
-  `async` children (`getExercise`, `getLabels`, `getRecentHistory`, `countSessions`,
-  `canPermanentlyDelete`, `getAdhocPlan`); in a plain (non-supervisor) scope the first child
+  fan-out recoverable, and it records through the same logger. `feature/exercise`'s
+  `CommonHandler.loadExercise` fans out through SIX `async` children (`getExercise`,
+  `getLabels`, `getRecentHistory`, `countSessions`, `canPermanentlyDelete`, `getAdhocPlan`); in a
+  plain (non-supervisor) scope the first child
   failure cancels the parent before the `onError` arm that clears `isLoading` can run, and only
   that backstop saves it. A handler test must reproduce the same observable with
   `runCatching { supervisorScope { action() } }` — simplifying the mock to a bare scope turns the
