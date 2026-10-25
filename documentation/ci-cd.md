@@ -377,7 +377,7 @@ readout, footer and grouping copy through the real `StringResolver`, the loading
 and four empty states, the picker, and dispatch, canvas presses included),
 `:feature:single-training` (all 62 portable cases plus the production scene: the catalog and the
 handlers' formatted copy through the real `StringResolver`, the read screen, the editor, the
-exercise picker, the menu, and dispatch, text input included), and `:feature:exercise` (all 133
+exercise picker, the menu, and dispatch, text input included), and `:feature:exercise` (all 142
 portable cases plus the production scene: the catalog and the handlers' copy through the real
 `StringResolver`, the read screen, the editor, the three sheets, and dispatch, text input
 included).
@@ -443,10 +443,10 @@ exactly once each, for exactly 72 target tuples. The exercise-chart feature vali
 exactly once, for exactly 69 target tuples. The single-training feature validator requires all 62
 portable tuples and
 `io.github.stslex.workeeper.feature.single_training.SingleTrainingFeatureSceneIosTest.resourcesDetailEditorPickerAndMenuRenderAndDispatch`
-exactly once, for exactly 63 target tuples. The exercise feature validator requires all 133
+exactly once, for exactly 63 target tuples. The exercise feature validator requires all 142
 portable tuples and
 `io.github.stslex.workeeper.feature.exercise.ExerciseFeatureSceneIosTest.resourcesDetailEditorSheetsAndActionsRenderAndDispatch`
-exactly once, for exactly 134 target tuples. All fifteen result directories upload under
+exactly once, for exactly 143 target tuples. All fifteen result directories upload under
 `if: always()` regardless.
 
 The same fifteen modules' iosArm64 (device) test binaries are then linked in one forced invocation

@@ -781,9 +781,9 @@ argument) and `singleTrainingOpensFromASeededRowAndTheListReturns` (a non-null o
 
 #### Shared exercise feature
 
-`feature:exercise` keeps its ten portable suites in `commonTest`, so the same 133 exact identities
-execute through Android host and `iosSimulatorArm64Test`: click handler 76, common handler 14,
-interactor 10, dirty state 8, navigation handler 6, UI mapper 6, deferred delete 6, input handler
+`feature:exercise` keeps its ten portable suites in `commonTest`, so the same 142 exact identities
+execute through Android host and `iosSimulatorArm64Test`: click handler 77, common handler 16,
+interactor 10, dirty state 14, navigation handler 6, UI mapper 6, deferred delete 6, input handler
 4, route argument 2 and the Russian undo label 1. Six of them were added by Phase 7.15 to pin S2,
 which no earlier identity observed (S17 of
 [kmp-phase-7-15-exercise-feature.md](feature-specs/kmp-phase-7-15-exercise-feature.md)).
@@ -842,17 +842,15 @@ the plural filled, row 32's `\n\n` escape as two line breaks, the handlers' copy
 arguments, renders the read screen, the editor and the three sheets, and asserts every action and
 source callback as one exact ordered list. Text goes through the `SetText` semantics action; the
 fields are controlled, so the test-held State takes each typed value, as the Store would. Together
-with the 133 portable cases, the exercise Native XML contains exactly 134 passing cases with no
+with the 142 portable cases, the exercise Native XML contains exactly 143 passing cases with no
 skip, failure, or error.
 
 What this does not cover: RU values execute only in the Description and Edit goldens; S2's guard
 is raced only in `commonTest`'s captured launch, never on a device, and no identity measures the
 confirm's one-dispatch delay; the graph's wiring (the image-source launcher and its four routes,
 snackbars, undo actions, `BackHandler`, the result read-back, the confirm and conflict sheets) has
-no scene path; the system camera and photo picker are Part A's device check; the history and record
-dates run only through `AndroidResourceWrapper` on Android; and the create-mode dirty check
-([tech-debt.md → v2.4 Design foundation](tech-debt.md#v24-design-foundation--follow-ups)) is pinned
-by no identity.
+no scene path; the system camera and photo picker are Part A's device check; and the history and
+record dates run only through `AndroidResourceWrapper` on Android.
 
 The three golden classes, `ExerciseDetailGoldenTest`, `ExerciseDescriptionBlockGoldenTest` and
 `ExerciseEditGoldenTest`, moved to `androidHostTest` with their 48 byte-identical PNGs. The Detail
