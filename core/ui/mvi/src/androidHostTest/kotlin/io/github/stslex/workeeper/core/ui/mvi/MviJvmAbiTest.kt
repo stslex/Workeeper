@@ -137,6 +137,18 @@ internal class MviJvmAbiTest {
             scopeConstructor.parameterTypes.last().name,
             "AppCoroutineScopeImpl must require the non-null generation Job as its last argument",
         )
+        assertEquals(
+            listOf(
+                "androidx.lifecycle.LifecycleOwner",
+                "kotlinx.coroutines.CoroutineDispatcher",
+                "kotlinx.coroutines.CoroutineDispatcher",
+                "io.github.stslex.workeeper.core.core.logger.Logger",
+                "kotlinx.coroutines.Job",
+            ),
+            scopeConstructor.parameterTypes.map { it.name },
+            "D3: AppCoroutineScopeImpl requires the Store's Logger, before the generation Job, to " +
+                "record every launch failure",
+        )
         assertFalse(
             AppCoroutineScopeImpl::class.java.declaredConstructors.any { constructor ->
                 constructor.parameterTypes.any { parameter ->

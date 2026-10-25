@@ -106,6 +106,43 @@ EXPECTED = [
                 f"{MVI_PACKAGE}.StoreProcessorSceneIosTest",
                 "productionProcessorRetainsOneStoreAndDrivesTheRenderSeam",
             ),
+            # Launch-failure recording: once, before onError, cancellation exempt.
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anActionFailureIsRecordedOnceBeforeOnErrorReceivesIt",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aCancelledActionRecordsNothingAndSkipsOnError",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aTimeoutInsideALiveActionIsRecordedAndReachesOnError",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anAsyncChildFailureIsRecordedOnceThroughTheBackstop",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anOnSuccessFailureIsRecordedOnceThroughTheBackstop",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anUpstreamFlowFailureIsRecordedOnceBeforeOnErrorReceivesIt",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aCancelledCollectionRecordsNothingAndSkipsOnError",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aTimeoutInsideALiveCollectionIsRecordedAndReachesOnError",
+            ),
+            native(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "successfulLaunchesRecordNothing",
+            ),
         ],
     },
     {

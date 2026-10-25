@@ -72,12 +72,14 @@ EXPECTED_PATHS_BY_SOURCE_SET = {
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder.ios.kt",
     },
     "commonTest": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/LaunchFailureRecordingTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/NavigationResultContractTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreEventPressureTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreGenerationJoinTest.kt",
     },
     "androidHostTest": {
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/MviJvmAbiTest.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreLaunchFailureTelemetryTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreTelemetryRedactionTest.kt",
         "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/AndroidPerformanceProviderTest.kt",
     },

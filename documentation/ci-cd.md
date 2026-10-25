@@ -356,7 +356,8 @@ required context for the Phase-7 native tests. One forced Gradle invocation exec
 `iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene and the
 `StringResolver` catalog reads),
 `:core:ui:navigation` (all 12 routes through the production serialization registry),
-`:core:ui:mvi` (lifetime/event/navigation/processor contracts), `:core:ui:start-mode`
+`:core:ui:mvi` (lifetime/event/navigation/processor contracts and launch-failure recording),
+`:core:ui:start-mode`
 (production sheet composition, migrated resources, selected-state semantics, and callback),
 `:core:ui:plan-editor` (common reducer coverage plus the production read-only-to-editable scene),
 `:feature:image-viewer` (12 common handler cases plus the production resource, branch, Coil, and

@@ -1,7 +1,7 @@
 # KMP Phase 7.16 — feature:live-workout. Part A: the launch failure seam (PR-L)
 
-**Status:** Part A (PR-L) specified; its implementation is authorized by the maintainer's GO of
-2026-10-25. Parts B (PR-P) and C (PR-M) follow by amendment.
+**Status:** Part A COMPLETE — implemented by the PR whose merge brought this line to dev.
+Parts B (PR-P) and C (PR-M) are specified by amendment.
 
 **Discovery baseline:** dev @ 1b96184125d0bbb621b38a5485ba00fe558857db (2026-10-25, the merge of
 #343, the D-01 fix after Phase 7.15).
@@ -737,16 +737,187 @@ Accepted with the discovery and unchanged by Part A:
 
 ## 14. Implementation evidence
 
-Filled by commit 3:
+Recorded by commit 3. Every Gradle gate ran after `./gradlew --stop` with `--rerun-tasks
+--no-build-cache --no-configuration-cache --console=plain`, on its own daemon registry, and every
+count below is parsed from JUnit XML written after the gate's recorded start. Repository-wide,
+Native and link gates added `-Dorg.gradle.jvmargs=-Xmx4g --max-workers=2`; device suites used
+testing.md's canonical `-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue`.
 
-- the base SHA;
-- commits 1 and 2, with the signed-commits skill's local `gpgsig` check, and commit 3 as "this
-  commit";
-- the gate table, with executed-task lines and case counts, the HOST_BASELINE comparison included;
-- K1–K8 and G1–G3, each verdict quoted (and K3's identity-4 outcome);
-- the entry census (Section 7.1) and Section 4.4's exit scan;
-- the environment: Xcode, the Pythons, the daemon registry, the emulator and its serial;
-- deviations, if any.
+### 14.1 Base and commits
+
+- Base: `85f099bb9a73086bb66e4a3c03214e341d50758c`, this document's landing on dev (parent
+  `1b9618412`). It changed one Markdown file, so no unified run started for it.
+- Commit 1: `8a9efee19fd0e00896f711fb8f8edd1ffa205d6f`, the 9 paths of Section 11; local `gpgsig`
+  header present.
+- Commit 2: `bbdf6ffde9aae58cb4752f96ab5a9a754d961d7d`, the 4 call-site paths; local `gpgsig`
+  header present.
+- Commit 3: this commit.
+
+### 14.2 Entry gate (Section 7.1)
+
+- The latest `Android CI/CD - Unified Build and Tests` push run on dev: `40193083943`, head
+  `1b9618412`, success.
+- Drift: since `1b9618412`, only this document's landing touched a Section 9 path.
+- Census: one script read the base's git objects (1,071 production Kotlin files: `main`,
+  `commonMain`, `androidMain`, `iosMain`), blanked comments and strings, and parsed every `launch` /
+  `launchDefault` token's receiver and named arguments. Each receiver was classified by its declared
+  type: a Store launch inside a handler context, kotlinx, ActivityResult or a forwarder. Zero
+  tokens were left unresolved. The output was byte-identical under all five Pythons (sha256
+  `eaa5bd1d449bee41…`).
+
+| Item (method) | Measured | Verdict |
+| --- | --- | --- |
+| Launch table: action, `launchDefault`, `Flow.launch` (calls / default `onError`) | 62/35, 19/3, 22/21 | equal |
+| The 35 by module | single-training 10, exercise 9, archive 4, home 3, live-workout 3, all-exercises 2, settings 2, all-trainings 1, `BaseStore.sendEventWithAwait` 1 | equal |
+| The 3 `launchDefault` defaults | settings' `BackupClickHandler` | equal |
+| `launchDefault` calls passing both `onError` and `onSuccess` (reported, Section 1.1) | 15 of 19: app-dialogs 3, exercise-chart 2, settings 10 | as measured |
+| The 22 flow calls; the explicit `onError` | 21 features + 1 app/wear; past-session | equal |
+| Explicit `onError` arguments in feature and app/wear code | 44: 43 inline lambdas + `PendingUndoOps.undoPending`'s forwarded parameter, whose one caller passes a lambda | equal |
+| Lambdas that branch on the throwable's type (`is` / `as?` test) | 1, past-session's `InputHandler` | equal |
+| Call-site records (logger call in the lambda, or in a function it calls) | 9 direct (app-dialogs 3, settings 5, live-workout 1) + 5 through `emitUnknownErrorAndIdle`: 14, in ten places | equal |
+| Section 4.4's base lines (exact stripped-line comparison) | 15 rows, all equal | equal |
+| `AppCoroutineScopeImpl(` constructions (every source set, tests included) | 1, `BaseStore.init` | equal |
+| The backstop calls `Log.e(throwable)`; `onFailure` and the flow `catch` call no logger | yes, no, no | equal |
+| `withTimeout(` in production | none; `withTimeoutOrNull(` sits outside Store launches | equal |
+| core:ui:mvi `@Test` counts | commonTest 7/1/5, androidHostTest 6/2/7, iosTest 1 | equal |
+| CI scripts (AST): host tuples, core:ui:mvi native tuples, manifest sizes | 10, 5, commonTest 3, androidHostTest 3 | equal |
+| `Logger` members | 13 abstract, 3 with bodies | equal |
+| Section 1.2's static facts (logger chain, `Log.e` order, iOS no-op, Android filter, ABI pins) | all hold | equal |
+| Failure messages that interpolate a value (Section 1.2: 8) | 19 in shipped production (9 single-line), none user-entered | deviation 1 |
+
+Outside the table, core:core's `ResultUtils.fold` calls `AppCoroutineScope.launch(flow = …)`
+directly: 1 site with an explicit `onError`. It is not a `Flow.launch` call site. The six
+`BaseStore` / `BaseHandlerStore` overrides are forwarders.
+
+Baselines on the base:
+
+| Gate | Executed | Fresh XML |
+| --- | --- | --- |
+| `assert_kmp_ui_source_topology.py`, five Pythons | — | 833 lines, exit 0, empty stderr, one sha256 `37315e70…` (BASE_GATE_OUTPUT) |
+| `assert_mvi_source_topology.py` | — | exit 0 (BASE_MVI_TOPOLOGY) |
+| `:core:ui:mvi:testAndroidHostTest` + host gate | 62/62 | 6 suites, 28 cases; 10 identities |
+| `:core:core:testAndroidHostTest` | 25/25 | 9 suites, 46 cases |
+| fifteen-module `iosSimulatorArm64Test --continue` + oracle | 410/410 | 95 suites, 626 cases; core:ui:mvi 14 cases, 5 identities |
+| fifteen-module `linkDebugTestIosArm64 --continue` | 395/395 | 15/15 fresh `test.kexe` |
+| `testDebugUnitTest --continue` (HOST_BASELINE) | 1290/1290 | 34 module/task rows, 472 suites, 3,360 cases, 0 failures |
+
+### 14.3 After commits 1 and 2 (Sections 7.2 and 7.3)
+
+| Gate | Executed | Result |
+| --- | --- | --- |
+| `:core:ui:mvi:testAndroidHostTest` + host gate | 62/62 | 8 suites, 38 cases: the 28 baseline names plus exactly Section 5's ten; 20 identities |
+| `assert_mvi_source_topology.py` | — | equal to BASE_MVI_TOPOLOGY but the counts line (`commonTest=4`, `androidHostTest=4`) |
+| fifteen-module Native + oracle | 410/410 | 635 cases; core:ui:mvi 23 (the 14 plus the nine), 14 identities; every other module's names and oracle line equal to the baseline |
+| fifteen-module link | 395/395 | 15/15 |
+| `:core:core:testAndroidHostTest` | 25/25 | 46 cases, names equal to the baseline |
+| `:core:core:assembleDebug :core:ui:mvi:assembleDebug` | 136/136 | Android plus both iOS klibs of each module |
+| detekt (alone, before and after each commit) | 63/63 | 0 findings in 55 fresh reports |
+| app-dialogs, settings, live-workout `testDebugUnitTest` | 325/325 | 39, 120, 227 cases: each name set equal to its HOST_BASELINE row |
+
+### 14.4 Known-negative controls (Section 6)
+
+Task T ran through `mutation_harness.py` one-shot. Every control's RED is scored by identity from
+the fresh XML of both result directories, and every other case of the task passed. Each control
+restored its file to HEAD's sha256 and mode with an empty porcelain. Consecutive controls with a
+byte-identical command shared the fresh GREEN between them (38 host and 23 Native cases each; K6's
+were the host task alone).
+
+| Id | Required | Measured RED (host / Native), quoted |
+| --- | --- | --- |
+| K1 | only 1, 3 (both), 10 (host) | 1, 3, 10 / 1, 3. Identity 1: `expected: <[record:e:IllegalStateException:action, onError:IllegalStateException:action]> but was: <[onError:IllegalStateException:action]>`. Identity 10: `but was: <[]>` |
+| K2 | only 2, 4 | 2, 4 / 2, 4. Identity 2: `expected: <[]> but was: <[record:e:JobCancellationException:StandaloneCoroutine was cancelled]>`. Identity 4 records the child twice |
+| K3 | 3; others but 3, 4 pass | 3, 4 / 3, 4. Identity 3: `but was: <[]>`. Identity 4: `but was: <[record:e:IllegalStateException:child, record:e:IllegalStateException:child, onError:IllegalStateException:child]>` |
+| K4 | only 6, 8 | 6, 8 / 6, 8. Identity 6: `but was: <[onError:IllegalStateException:upstream]>` |
+| K5 | only 4, 5 | 4, 5 / 4, 5. Identity 5: `but was: <[onError:IllegalStateException:success]>` |
+| K6 | only 10 (host task) | 10. `expected: <[SCREEN_LaunchProbe\|IllegalStateException\|probe]> but was: <[Workeeper\|IllegalStateException\|probe]>` |
+| K7 | only 8 | 8 / 8: the timeout's record is missing |
+| K8 | only 1, 3 | 1, 3 / 1, 3. Identity 1: `but was: <[onError:IllegalStateException:action, record:e:IllegalStateException:action]>` |
+
+K3's identity 4, on both platforms: `await()` surfaced the child's own `IllegalStateException`, not
+the parent's cancellation. So K3's type test did not rethrow, `onFailure` recorded the child, and
+the backstop recorded it a second time.
+
+| Id | Mutation (scratchpad copy, restored with `cp`) | Measured |
+| --- | --- | --- |
+| G1 | host tuple → `…TagX` | exit 1: `expected exactly one testcase with classname='…StoreLaunchFailureTelemetryTest' name='aFailingStoreLaunchIsRecordedOnceUnderTheStoreTagX()', found 0` |
+| G2 | native tuple → `…NothingX` | exit 1: `… name='successfulLaunchesRecordNothingX[iosSimulatorArm64]', found 0` |
+| G3 | commonTest path removed | exit 1: `commonTest Kotlin manifest mismatch; missing=[], extra=['kotlin/io/github/stslex/workeeper/core/ui/mvi/LaunchFailureRecordingTest.kt']` |
+
+Each restored script's sha256 equalled HEAD's, and its GREEN exited 0.
+
+### 14.5 Exit scan (Section 4.4)
+
+The census parser, on commit 2: 1,071 production files, 162 launch tokens, none unresolved. Its
+input is 37 explicit inline `onError` lambdas (36 in feature code, plus `ResultUtils.fold`'s) and
+the one forwarded parameter, whose caller's lambda is checked too: 38 lambdas. One logs: the
+lambda in `ResultUtils.fold`, through its `onError` parameter's default
+`{ logger.e(it, it.message) }`, which has no consumer. The known negative holds: on the base and on
+commit 1 the same scan fails with exactly the 14 call-site records.
+
+### 14.6 Repository, Native and device gates (Sections 7.4 and 7.5), on commit 2
+
+| Gate | Executed | Result |
+| --- | --- | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2808/2808 | 474 suites, 3,370 cases, 0 failures. Every module/task row's names equal HOST_BASELINE except core:ui:mvi, which gains 2 suites and 10 cases, Section 5's names |
+| lint, inside that gate | — | no finding in any module except app:app, app:dev and app:store. Those three each report the same 80 dependency-version advisories (`GradleDependency` 40, `NewerVersionAvailable` 34, `AndroidGradlePluginVersion` 6) on `gradle/libs.versions.toml` and `gradle-wrapper.properties`, and dev's run `40193083943` reports the same on the base. No finding names a changed path |
+| `detekt --continue` | 63/63 | 0 findings |
+| `assembleDebugAndroidTest` | 2171/2171 | built |
+| `verifyPaparazziDebug` | 675/675 | 169 suites, 1,766 cases, 0 failures; porcelain empty, no PNG changed |
+| `:lint-rules:test` | 9/9 | 16 suites, 151 cases |
+| `:app:wear:testStoreReleaseUnitTest … --tests '*ReleaseRuntimeBoundaryTest*'` | 107/107 | 3 cases |
+| `assert_kmp_ui_source_topology.py`, five Pythons | — | byte-identical to BASE_GATE_OUTPUT (833 lines, sha256 `37315e70…`) |
+| `assert_mvi_source_topology.py` | — | equal to commit 1's output |
+| `personal_data_gate.py -v` | — | PASS |
+| fifteen-module Native + oracle | 410/410 | 635 cases; names and oracle equal to commit 1's run |
+| fifteen-module link | 395/395 | 15/15 fresh `test.kexe` |
+
+On `emulator-5554` (API 34, animations off), each suite ran with `ANDROID_SERIAL` set and its XML
+read fresh:
+
+| Suite | Executed | Result |
+| --- | --- | --- |
+| `:core:ui:mvi:connectedDebugAndroidTest` | 160/160 | 2 cases, `AppFeatureScopeTest` |
+| Smoke, then `assert_mvi_device_identities.py` | 2131/2131 | 44 cases, the 3 documented `pendingFeatureRewrite` skips, 0 failures; 2 device identities |
+| Regression | 2131/2131 | 88 cases, 0 failures |
+
+Smoke and Regression equal Phase 7.15 Part B's record name for name, taken from the D-01 run's
+lists of the same suites. Before and after every suite, the device state (the three animation
+scales, rotation, keyguard) and the pre-installed dev app's `lastUpdateTime` were unchanged, and no
+other instrumentation ran on the serial.
+
+### 14.7 Environment
+
+- Xcode 27.0 (27A266a) here, with iOS simulator runtimes 18.0, 18.2, 18.6 and 26.5; CI selects
+  Xcode 26.6. JDK 21.0.11 (JBR).
+- Pythons: 3.9.6 (`/usr/bin/python3`), 3.11.16, 3.13.16, 3.14.8 and 3.15.0 (`python3`). Controls
+  ran under `python3` only.
+- Gradle ran on a daemon registry private to this run, so another checkout's `--stop` could not
+  reach it, and its own `--stop` reached no other daemon.
+- Emulator: `Pixel_6_API_34`, serial `emulator-5554` (API 34, `sdk_gphone64_arm64`), cold-booted
+  with animations off. Another device was attached over adb throughout; every adb command and
+  device task named the serial.
+- Spotlight indexing was enabled on `/`; it was left as it was.
+
+### 14.8 Deviations
+
+1. **Section 1.2's "8 messages that interpolate a value".** The census found 19 in shipped
+   production code (9 if the keyword and the literal share a line), plus 7 in build-logic and the
+   test-support modules. None interpolates a user-entered value: they carry file, directory and
+   DataStore names, the package name, WAL counters, restore-phase enums, attempt and owner ids, the
+   plan-editor route's UUIDs and a schema SQL preview. Section 10 makes a census difference a STOP;
+   the maintainer ruled on 2026-10-25 to proceed and record the count here and in the PR.
+2. **The helper `FakeLifecycleOwner` (Sections 5.1 and 5.2).** commonTest and androidHostTest
+   compile into one package, where StoreGenerationJoinTest already declares a private
+   `FakeLifecycleOwner`. A second private copy is a compile error, measured:
+   `LaunchFailureRecordingTest.kt:257:15 Redeclaration`. The copies follow the module's per-file
+   prefix convention instead, as `RecordingLifecycleOwner` and `LaunchProbeLifecycleOwner`. Their
+   bodies are StoreGenerationJoinTest's.
+
+### 14.9 Not verified on this host
+
+- Xcode 26.6, which CI's KMP iOS kit smoke job runs; this host has 27.0.
+- The iosArm64 test binaries run on a device: they are linked, never executed.
+- Crashlytics volume in release (Section 12.2), and iOS crash reporting (the holder is a no-op).
 
 GitHub's signature verification, the CI run ids and the review classification go in the PR body
 and the report, because they cannot exist before this commit does.

@@ -28,19 +28,13 @@ internal class AppDialogRepoHandler @Inject constructor(
     }
 
     private fun publishDialog(action: Action.RepoAction.Publish) {
-        launchDefault(
-            onError = { e -> logger.e(e, "Failed to publish ${action.dialog.id}") },
-            onSuccess = { },
-        ) {
+        launchDefault {
             repository.publish(action.dialog)
         }
     }
 
     private fun dismissDialog(action: Action.RepoAction.Dismiss) {
-        launchDefault(
-            onError = { e -> logger.e(e, "Failed to dismiss ${action.dialog.id}") },
-            onSuccess = { },
-        ) {
+        launchDefault {
             repository.dismiss(action.dialog)
         }
     }

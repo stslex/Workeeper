@@ -92,10 +92,7 @@ internal class BackupClickHandler @Inject constructor(
     }
 
     private fun requestRevertLastRestore() {
-        launchDefault(
-            onError = { e -> logger.e(e, "Failed to publish UndoRestoreConfirmation") },
-            onSuccess = { },
-        ) {
+        launchDefault {
             val activeUndo = restoreStateRepository.observeActiveUndo().first()
                 ?: return@launchDefault
             appDialogPublisher.publish(
@@ -169,7 +166,7 @@ internal class BackupClickHandler @Inject constructor(
     private fun signIn() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.SigningIn) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { emitUnknownErrorAndIdle() },
             onSuccess = { result ->
                 when (result) {
                     SignInOutcomeDomain.Success -> {
@@ -213,7 +210,7 @@ internal class BackupClickHandler @Inject constructor(
 
     private fun handleAuthResult(resultIntent: android.content.Intent?) {
         launchDefault(
-            onError = { e -> emitUnknownErrorAndIdle(e) },
+            onError = { emitUnknownErrorAndIdle() },
             onSuccess = { result ->
                 // The in-flight operation tells an AI-export grant apart from a plain
                 // sign-in; read it before resetting to Idle.
@@ -264,8 +261,7 @@ internal class BackupClickHandler @Inject constructor(
             current.copy(backupOperation = BackupOperationUi.TogglingAiExport)
         }
         launchDefault(
-            onError = { e ->
-                logger.e(e, "Failed to request drive.file for AI export")
+            onError = {
                 updateStateImmediate { current ->
                     current.copy(backupOperation = BackupOperationUi.Idle)
                 }
@@ -327,7 +323,7 @@ internal class BackupClickHandler @Inject constructor(
             )
         }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { emitUnknownErrorAndIdle() },
             onSuccess = { result ->
                 val errorUi = (result as? BackupResult.Failure)?.error?.toUi()
                 updateStateImmediate { current ->
@@ -346,7 +342,7 @@ internal class BackupClickHandler @Inject constructor(
     private fun createBackup() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.CreatingBackup) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { emitUnknownErrorAndIdle() },
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
@@ -374,7 +370,7 @@ internal class BackupClickHandler @Inject constructor(
     private fun requestRestore() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.FetchingBackups) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { emitUnknownErrorAndIdle() },
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
@@ -422,8 +418,7 @@ internal class BackupClickHandler @Inject constructor(
             )
         }
         launchDefault(
-            onError = { e ->
-                logger.e(e, "Unknown error during restore operation")
+            onError = {
                 updateStateImmediate { current ->
                     current.copy(
                         backupOperation = BackupOperationUi.Idle,
@@ -462,7 +457,6 @@ internal class BackupClickHandler @Inject constructor(
 
     private fun loadBackupList() {
         launchDefault(
-            onError = { e -> logger.e(e, "Failed to load backup list") },
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
@@ -520,10 +514,7 @@ internal class BackupClickHandler @Inject constructor(
     ) {
         updateState { current -> current.copy(dialogState = DialogState.Hidden) }
         val domainSchedule = schedule.toDomain()
-        launchDefault(
-            onError = { e -> logger.e(e, "Failed to save frequency") },
-            onSuccess = { },
-        ) {
+        launchDefault {
             // GUARD: overlay onto persisted preferences — DEFAULT.copy(...) would hand
             // schedulePeriodic sentinel values for every field the user did not edit.
             val current = preferencesRepository.observe().first()
@@ -541,8 +532,7 @@ internal class BackupClickHandler @Inject constructor(
         }
     }
 
-    private suspend fun emitUnknownErrorAndIdle(e: Throwable) {
-        logger.e(e, "Unknown error during backup operation")
+    private suspend fun emitUnknownErrorAndIdle() {
         updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
         sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
     }

@@ -77,10 +77,9 @@ internal object PendingUndoOps {
         pending: PendingUndo?,
     ) {
         val deferred = pending?.deferredCommit ?: return
-        launch(
-            // A failed hard-delete resurfaces on the next reload; logged, not surfaced.
-            onError = { error -> logger.e(error, "deferred exercise delete failed") },
-        ) {
+        // A failed hard-delete resurfaces on the next reload: the launch records it, and nothing
+        // is surfaced.
+        launch {
             interactor.deleteExerciseFromSession(
                 performedExerciseUuid = deferred.performedExerciseUuid,
                 exerciseUuid = deferred.exerciseUuid,

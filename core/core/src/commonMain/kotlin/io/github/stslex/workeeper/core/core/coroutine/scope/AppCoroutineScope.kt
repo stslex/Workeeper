@@ -14,7 +14,11 @@ interface AppCoroutineScope : CoroutineScope {
 
     val immediateDispatcher: CoroutineDispatcher
 
-    /** Collects [flow] on this scope: work on [workDispatcher], [each] on [eachDispatcher]. */
+    /**
+     * Collects [flow] on this scope: work on [workDispatcher], [each] on [eachDispatcher]. An
+     * upstream failure is recorded through the scope's logger, then handed to [onError]; the
+     * collector's own cancellation is neither.
+     */
     fun <T> launch(
         flow: Flow<T>,
         workDispatcher: CoroutineDispatcher? = null,
@@ -23,7 +27,11 @@ interface AppCoroutineScope : CoroutineScope {
         each: suspend (T) -> Unit,
     ): Job
 
-    /** Launches [action] on this scope, routing its failures to [onError]. */
+    /**
+     * Launches [action] on this scope. A failure is recorded through the scope's logger, then
+     * routed to [onError]; the coroutine's own cancellation is neither, while a
+     * `CancellationException` raised as it runs (a timeout) is a failure.
+     */
     fun <T> launch(
         start: CoroutineStart = CoroutineStart.DEFAULT,
         onError: suspend (Throwable) -> Unit = {},
