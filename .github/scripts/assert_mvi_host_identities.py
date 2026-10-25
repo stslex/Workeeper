@@ -74,6 +74,48 @@ EXPECTED = [
                 f"{MVI_PACKAGE}.performance.AndroidPerformanceProviderTest",
                 "theComposableAndroidScreenProviderKeepsTheFirebaseAdapter",
             ),
+            # Launch failures (D2–D4): recorded once through the Store's logger before
+            # onError, the coroutine's own cancellation exempt, and under the Store's tag.
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anActionFailureIsRecordedOnceBeforeOnErrorReceivesIt",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aCancelledActionRecordsNothingAndSkipsOnError",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aTimeoutInsideALiveActionIsRecordedAndReachesOnError",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anAsyncChildFailureIsRecordedOnceThroughTheBackstop",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anOnSuccessFailureIsRecordedOnceThroughTheBackstop",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "anUpstreamFlowFailureIsRecordedOnceBeforeOnErrorReceivesIt",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aCancelledCollectionRecordsNothingAndSkipsOnError",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "aTimeoutInsideALiveCollectionIsRecordedAndReachesOnError",
+            ),
+            host(
+                f"{MVI_PACKAGE}.LaunchFailureRecordingTest",
+                "successfulLaunchesRecordNothing",
+            ),
+            host(
+                f"{MVI_PACKAGE}.StoreLaunchFailureTelemetryTest",
+                "aFailingStoreLaunchIsRecordedOnceUnderTheStoreTag",
+            ),
         ],
     },
 ]

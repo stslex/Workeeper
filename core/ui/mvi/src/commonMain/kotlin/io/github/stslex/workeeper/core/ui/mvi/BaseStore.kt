@@ -94,6 +94,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
             lifecycleOwner = currentLifecycleOwner,
             defaultDispatcher = storeDispatchers.defaultDispatcher,
             immediateDispatcher = storeDispatchers.mainImmediateDispatcher,
+            logger = logger,
             generationJob = appScopeLifetime.job,
         )
         scope.addObserver(lifecycleObserver)
