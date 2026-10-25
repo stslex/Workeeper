@@ -42,6 +42,20 @@ internal class ExerciseDirtyStateTest {
             ),
         )
 
+    /** A create route as its first `Init` leaves it: the baseline is the empty form (D-01). */
+    private fun createDraft(): ExerciseStore.State = ExerciseStore.State
+        .create(uuid = null)
+        .copy(
+            isLoading = false,
+            originalSnapshot = ExerciseStore.State.Snapshot(
+                name = "",
+                type = ExerciseTypeUiModel.WEIGHTED,
+                description = "",
+                tagUuids = emptyList(),
+                adhocPlan = null,
+            ),
+        )
+
     @Test
     fun `a freshly loaded exercise is clean`() {
         assertFalse(loaded().hasChanges)
@@ -69,7 +83,7 @@ internal class ExerciseDirtyStateTest {
 
     @Test
     fun `ONLY the plan term - create mode where there is no snapshot to compare against`() {
-        // `originalSnapshot` is null until the first save, so the first term is false here.
+        // `originalSnapshot` is null until create mode's first Init records it (D-01), so the first term is false here.
         val state = ExerciseStore.State
             .create(uuid = null)
             .copy(isLoading = false, adhocPlan = loadedPlan)
@@ -127,5 +141,60 @@ internal class ExerciseDirtyStateTest {
 
         assertFalse(state.isAdhocPlanDirty)
         assertFalse(state.hasChanges)
+    }
+
+    @Test
+    fun `a create draft with a typed name reads dirty`() {
+        val state = createDraft().copy(name = "Bench")
+
+        assertTrue(state.hasChanges)
+        // As in the ONLY cases: the other two terms are false, so this measures the snapshot term.
+        assertFalse(state.isImageDirty)
+        assertFalse(state.isAdhocPlanDirty)
+    }
+
+    @Test
+    fun `a create draft with a typed description reads dirty`() {
+        val state = createDraft().copy(description = "note")
+
+        assertTrue(state.hasChanges)
+        assertFalse(state.isImageDirty)
+        assertFalse(state.isAdhocPlanDirty)
+    }
+
+    @Test
+    fun `a create draft with a switched type reads dirty`() {
+        val state = createDraft().copy(type = ExerciseTypeUiModel.WEIGHTLESS)
+
+        assertTrue(state.hasChanges)
+        assertFalse(state.isImageDirty)
+        assertFalse(state.isAdhocPlanDirty)
+    }
+
+    @Test
+    fun `a create draft with a selected tag reads dirty`() {
+        val state = createDraft().copy(
+            tags = listOf(AppTagItem(uuid = "t1", name = "грудь")).toImmutableList(),
+        )
+
+        assertTrue(state.hasChanges)
+        assertFalse(state.isImageDirty)
+        assertFalse(state.isAdhocPlanDirty)
+    }
+
+    /** Compared by value: a type switched and switched back is the starting type again. */
+    @Test
+    fun `a create draft whose type is switched back reads clean`() {
+        val switched = createDraft().copy(type = ExerciseTypeUiModel.WEIGHTLESS)
+        val state = switched.copy(type = ExerciseTypeUiModel.WEIGHTED)
+
+        assertFalse(state.hasChanges)
+    }
+
+    /** `interceptBack`'s create arm: a clean create pops at once, a typed one asks first. */
+    @Test
+    fun `back is intercepted in create mode only once something is typed`() {
+        assertFalse(createDraft().interceptBack)
+        assertTrue(createDraft().copy(name = "Bench").interceptBack)
     }
 }

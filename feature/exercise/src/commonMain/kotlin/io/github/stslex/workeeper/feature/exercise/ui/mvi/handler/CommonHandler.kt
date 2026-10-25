@@ -86,8 +86,27 @@ internal class CommonHandler @Inject constructor(
     private fun processInit() {
         observeTags()
         resolveClickCopy()
-        val uuid = state.value.uuid ?: return
+        val uuid = state.value.uuid
+        if (uuid == null) {
+            recordCreateBaseline()
+            return
+        }
         loadExercise(uuid)
+    }
+
+    /** D-01: create mode compares against its starting values; a re-fired Init keeps the first. */
+    private fun recordCreateBaseline() {
+        updateState { current ->
+            current.copy(
+                originalSnapshot = current.originalSnapshot ?: State.Snapshot(
+                    name = current.name,
+                    type = current.type,
+                    description = current.description,
+                    tagUuids = current.tags.map { it.uuid },
+                    adhocPlan = current.adhocPlan,
+                ),
+            )
+        }
     }
 
     private fun observeTags() {

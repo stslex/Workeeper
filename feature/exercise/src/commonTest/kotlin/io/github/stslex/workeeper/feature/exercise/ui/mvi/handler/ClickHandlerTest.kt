@@ -1353,6 +1353,29 @@ internal class ClickHandlerTest {
         assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
     }
 
+    /** D-01: a typed field is a change too, so the create draft asks before it is lost. */
+    @Test
+    fun `OnBackClick in create mode with a typed name raises the discard sheet`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = null).copy(
+                isLoading = false,
+                name = "Bench",
+                originalSnapshot = State.Snapshot(
+                    name = "",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertEquals(DialogState.DiscardConfirm(DiscardTarget.POP_SCREEN), stateFlow.value.dialogState)
+        assertFalse(Action.Navigation.Back in store.consumed)
+    }
+
     /** What `Init` resolves (D2); a distinct string per field, so a read of the wrong one fails. */
     private val clickCopy = ExerciseClickCopy(
         typeChangeTitle = "type-title",
