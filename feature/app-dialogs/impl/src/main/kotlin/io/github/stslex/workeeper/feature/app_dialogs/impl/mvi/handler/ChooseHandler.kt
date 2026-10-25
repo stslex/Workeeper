@@ -21,12 +21,7 @@ internal class ChooseHandler @Inject constructor(
 ) : Handler<Action.Choose>, AppDialogHandlerStore by store {
 
     override fun invoke(action: Action.Choose) {
-        launchDefault(
-            onError = { e ->
-                logger.e(e, "Failed to emit choice ${action.dialog.id} → ${action.action}")
-            },
-            onSuccess = { },
-        ) {
+        launchDefault {
             observer.emit(AppDialogUserChoice(action.dialog, action.action))
         }
     }
