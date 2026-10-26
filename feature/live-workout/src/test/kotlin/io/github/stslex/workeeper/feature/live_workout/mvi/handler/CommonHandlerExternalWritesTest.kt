@@ -5,7 +5,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolver
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -62,6 +62,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.util.Collections
@@ -85,8 +86,7 @@ internal class CommonHandlerExternalWritesTest {
     private val lifetime = AppScopeLifetime()
     private val writes = MutableSharedFlow<ExternalWriteDomain>(extraBufferCapacity = WRITE_BUFFER)
     private val loads = Loads()
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))
+    private val setMutator = LiveSetMutator(StateStatusMapper())
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
         every { observeExternalWrites(SESSION) } returns writes
         coEvery { loadSession(SESSION) } coAnswers { loads.next() }
@@ -105,7 +105,8 @@ internal class CommonHandlerExternalWritesTest {
     private val handler by lazy {
         CommonHandler(
             interactor = interactor,
-            resourceWrapper = resourceWrapper,
+            copyReader = LiveWorkoutCopyReader(RuntimeEnvironment.getApplication()),
+            stringResolver = ComposeStringResolver(),
             setMutator = setMutator,
             storeDispatchers = storeDispatchers,
             store = handlerStore,

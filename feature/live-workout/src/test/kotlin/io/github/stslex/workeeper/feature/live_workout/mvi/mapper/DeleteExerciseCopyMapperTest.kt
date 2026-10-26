@@ -2,7 +2,11 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.bodyRes
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.confirmRes
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.titleRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.DeleteExerciseCopyUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.NAMED_COPY
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -16,12 +20,12 @@ internal class DeleteExerciseCopyMapperTest {
         )
 
         assertEquals(DeleteExerciseCopyUiModel.ADHOC_WORKOUT, copy)
-        assertEquals(R.string.feature_live_workout_delete_workout_title, copy.titleRes)
-        assertEquals(R.string.feature_live_workout_delete_workout_body, copy.bodyRes)
-        assertEquals(R.string.feature_live_workout_delete_workout_confirm, copy.confirmRes)
+        assertEquals(R.string.feature_live_workout_delete_workout_title, copy.titleRes())
+        assertEquals(R.string.feature_live_workout_delete_workout_body, copy.bodyRes())
+        assertEquals(R.string.feature_live_workout_delete_workout_confirm, copy.confirmRes())
         assertEquals(
-            R.string.feature_live_workout_toast_exercise_removed_from_workout,
-            copy.toastRes,
+            "toastExerciseRemovedFromWorkoutTemplate %1\$s",
+            DeleteExerciseCopyMapper.toastTemplate(copy, NAMED_COPY),
         )
     }
 
@@ -44,10 +48,10 @@ internal class DeleteExerciseCopyMapperTest {
         )
 
         assertEquals(DeleteExerciseCopyUiModel.TEMPLATE_PLANNED, copy)
-        assertEquals(R.string.feature_live_workout_delete_plan_title, copy.titleRes)
-        assertEquals(R.string.feature_live_workout_delete_plan_body_planned, copy.bodyRes)
-        assertEquals(R.string.feature_live_workout_delete_plan_confirm, copy.confirmRes)
-        assertEquals(R.string.feature_live_workout_toast_exercise_removed, copy.toastRes)
+        assertEquals(R.string.feature_live_workout_delete_plan_title, copy.titleRes())
+        assertEquals(R.string.feature_live_workout_delete_plan_body_planned, copy.bodyRes())
+        assertEquals(R.string.feature_live_workout_delete_plan_confirm, copy.confirmRes())
+        assertEquals("toastExerciseRemovedTemplate %1\$s", DeleteExerciseCopyMapper.toastTemplate(copy, NAMED_COPY))
     }
 
     @Test
@@ -58,9 +62,9 @@ internal class DeleteExerciseCopyMapperTest {
         )
 
         assertEquals(DeleteExerciseCopyUiModel.TEMPLATE_ADDITION, copy)
-        assertEquals(R.string.feature_live_workout_delete_plan_title, copy.titleRes)
-        assertEquals(R.string.feature_live_workout_delete_plan_body_added, copy.bodyRes)
-        assertEquals(R.string.feature_live_workout_delete_plan_confirm, copy.confirmRes)
-        assertEquals(R.string.feature_live_workout_toast_exercise_removed, copy.toastRes)
+        assertEquals(R.string.feature_live_workout_delete_plan_title, copy.titleRes())
+        assertEquals(R.string.feature_live_workout_delete_plan_body_added, copy.bodyRes())
+        assertEquals(R.string.feature_live_workout_delete_plan_confirm, copy.confirmRes())
+        assertEquals("toastExerciseRemovedTemplate %1\$s", DeleteExerciseCopyMapper.toastTemplate(copy, NAMED_COPY))
     }
 }

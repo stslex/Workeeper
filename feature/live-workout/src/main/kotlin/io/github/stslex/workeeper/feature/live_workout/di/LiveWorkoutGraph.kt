@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractorImpl
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.ExercisePicker
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.ExercisePickerHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -39,6 +41,13 @@ interface LiveWorkoutGraph {
 
     @Binds
     val LiveWorkoutHandlerStoreImpl.bindHandlerStore: LiveWorkoutHandlerStore
+
+    /**
+     * SP5: ClickHandler and DialogClickHandler reach the picker through the seam; the picker
+     * handler is the scope's one instance.
+     */
+    @Binds
+    val ExercisePickerHandler.bindExercisePicker: ExercisePicker
 
     /**
      * GUARD: the creator name must be unique across contributed factories — all of them merge

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.ui.kit.strings.fillTemplate
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.bestOfDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
@@ -26,6 +25,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
@@ -44,8 +44,7 @@ internal object LiveWorkoutMapper {
 
     fun SessionSnapshotDomain.toState(
         nowMillis: Long,
-        resourceWrapper: ResourceWrapper,
-        repsUnitLabel: String,
+        liveCopy: LiveWorkoutCopy,
     ): State {
         val typeByUuid = exercises.associate {
             it.performed.exerciseUuid to it.exerciseType
@@ -72,7 +71,7 @@ internal object LiveWorkoutMapper {
             setsLogged = 0,
             progress = 0f,
             headerMetaLabel = "",
-            repsUnitLabel = repsUnitLabel,
+            liveCopy = liveCopy,
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
@@ -87,7 +86,7 @@ internal object LiveWorkoutMapper {
             loadFailed = false,
             dialogState = DialogState.Hidden,
             bottomSheetState = BottomSheetState.Hidden,
-        ).withPresentation(resourceWrapper)
+        ).withPresentation()
     }
 
     fun List<LiveExerciseDomain>.toUiList(
@@ -185,12 +184,12 @@ internal object LiveWorkoutMapper {
         .toMap()
         .toImmutableMap()
 
-    fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
+    fun State.withPresentation(): State {
         // Refreshes `visibleSets` here so handlers never have to do it themselves.
         val withVisible = withVisibleSets()
         val presentedExercises = withVisible.exercises.map { exercise ->
             exercise.copy(
-                statusLabel = exercise.toStatusLabel(resourceWrapper, withVisible.repsUnitLabel),
+                statusLabel = exercise.toStatusLabel(withVisible.liveCopy),
             )
         }.toImmutableList()
         val doneCount = presentedExercises.count { it.status == ExerciseStatusUiModel.DONE }
@@ -200,14 +199,12 @@ internal object LiveWorkoutMapper {
         val safeTotal = totalCount.coerceAtLeast(1)
         val progress = (doneCount.toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
         return withVisible.copy(
-            trainingNameLabel = trainingName.ifBlank {
-                resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
-            },
+            trainingNameLabel = trainingName.ifBlank { liveCopy.trainingNamePlaceholder },
             doneCount = doneCount,
             totalCount = totalCount,
             setsLogged = setsLogged,
             progress = progress,
-            headerMetaLabel = presentedExercises.toHeaderMetaLabel(resourceWrapper),
+            headerMetaLabel = presentedExercises.toHeaderMetaLabel(liveCopy),
             exercises = presentedExercises,
         )
     }
@@ -217,24 +214,19 @@ internal object LiveWorkoutMapper {
      * session gets a blank line. See the screen-extraction spec §1.3.
      */
     private fun List<LiveExerciseUiModel>.toHeaderMetaLabel(
-        resourceWrapper: ResourceWrapper,
+        copy: LiveWorkoutCopy,
     ): String {
         if (isEmpty()) return ""
         val nonSkipped = filter { it.status != ExerciseStatusUiModel.SKIPPED }
         val skippedCount = size - nonSkipped.size
-        val base = resourceWrapper.getString(
-            R.string.feature_live_workout_meta_format,
+        val base = copy.metaTemplate.fillTemplate(
             nonSkipped.count { it.status == ExerciseStatusUiModel.DONE },
             nonSkipped.size,
             nonSkipped.sumOf { exercise -> exercise.visibleSets.count { it.isDone } },
             nonSkipped.sumOf { it.visibleSets.size },
         )
         return if (skippedCount > 0) {
-            resourceWrapper.getString(
-                R.string.feature_live_workout_meta_skipped_format,
-                base,
-                skippedCount,
-            )
+            copy.metaSkippedTemplate.fillTemplate(base, skippedCount)
         } else {
             base
         }
@@ -254,44 +246,39 @@ internal object LiveWorkoutMapper {
         )
     }
 
-    fun State.toFinishStats(resourceWrapper: ResourceWrapper): DialogState.FinishSession {
+    fun State.toFinishStats(): DialogState.FinishSession {
         val skippedCount = exercises.count { it.status == ExerciseStatusUiModel.SKIPPED }
         return DialogState.FinishSession(
             durationMillis = elapsedMillis,
             durationLabel = elapsedDurationLabel,
             exercisesSummaryLabel = formatExerciseSummary(
-                resourceWrapper = resourceWrapper,
+                copy = liveCopy,
                 doneCount = doneCount,
                 totalCount = totalCount,
                 skippedCount = skippedCount,
             ),
-            setsLoggedLabel = resourceWrapper.getString(
-                R.string.feature_live_workout_finish_stat_sets_count,
-                setsLogged,
-            ),
-            newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
+            setsLoggedLabel = liveCopy.finishSetsCountTemplate.fillTemplate(setsLogged),
+            newPersonalRecords = computeNewPersonalRecords(),
             unfilledSetCount = unfilledSetCount,
             requiresName = trainingName.isBlank(),
             nameDraft = trainingName,
-            nameLabel = resourceWrapper.getString(R.string.feature_live_workout_finish_name_label),
-            namePlaceholder = resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder),
+            nameLabel = liveCopy.finishNameLabel,
+            namePlaceholder = liveCopy.trainingNamePlaceholder,
             nameError = null,
             confirmEnabled = trainingName.isNotBlank(),
         )
     }
 
-    private fun State.computeNewPersonalRecords(
-        resourceWrapper: ResourceWrapper,
-    ): ImmutableList<DialogState.FinishSession.NewPrEntry> = exercises
+    private fun State.computeNewPersonalRecords(): ImmutableList<DialogState.FinishSession.NewPrEntry> = exercises
         .asSequence()
         .filter { it.status != ExerciseStatusUiModel.SKIPPED }
-        .mapNotNull { it.toNewPrEntry(preSessionPrSnapshot, resourceWrapper) }
+        .mapNotNull { it.toNewPrEntry(preSessionPrSnapshot, liveCopy) }
         .toList()
         .toImmutableList()
 
     private fun LiveExerciseUiModel.toNewPrEntry(
         snapshot: Map<String, State.PrSnapshotItem>,
-        resourceWrapper: ResourceWrapper,
+        copy: LiveWorkoutCopy,
     ): DialogState.FinishSession.NewPrEntry? {
         val performedAsPlanSets = performedSets
             .filter { it.isDone }
@@ -314,7 +301,7 @@ internal object LiveWorkoutMapper {
                 weight = best.weight,
                 reps = best.reps,
                 type = exerciseType,
-                resourceWrapper = resourceWrapper,
+                copy = copy,
             ),
         )
     }
@@ -385,21 +372,14 @@ internal object LiveWorkoutMapper {
         weight: Double?,
         reps: Int,
         type: ExerciseTypeUiModel,
-        resourceWrapper: ResourceWrapper,
+        copy: LiveWorkoutCopy,
     ): String = when (type) {
         ExerciseTypeUiModel.WEIGHTED -> {
             val weightLabel = (weight ?: 0.0).formatPrWeight()
-            resourceWrapper.getString(
-                R.string.feature_live_workout_finish_pr_weighted_format,
-                weightLabel,
-                reps,
-            )
+            copy.finishPrWeightedTemplate.fillTemplate(weightLabel, reps)
         }
 
-        ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getString(
-            R.string.feature_live_workout_finish_pr_weightless_format,
-            reps,
-        )
+        ExerciseTypeUiModel.WEIGHTLESS -> copy.finishPrWeightlessTemplate.fillTemplate(reps)
     }
 
     private fun Double.formatPrWeight(): String = if (this % 1.0 == 0.0) {
@@ -413,17 +393,14 @@ internal object LiveWorkoutMapper {
      * stays stable; only a skipped card substitutes `пропущено`. See extraction §1.5.
      */
     private fun LiveExerciseUiModel.toStatusLabel(
-        resourceWrapper: ResourceWrapper,
-        repsUnitLabel: String,
+        copy: LiveWorkoutCopy,
     ): String =
         when {
-            status == ExerciseStatusUiModel.SKIPPED ->
-                resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
+            status == ExerciseStatusUiModel.SKIPPED -> copy.statusSkipped
 
-            planSets.isEmpty() ->
-                resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
+            planSets.isEmpty() -> copy.statusNoPlan
 
-            else -> planSets.toPlanSubLabel(exerciseType, repsUnitLabel)
+            else -> planSets.toPlanSubLabel(exerciseType, copy.repsUnit)
         }
 
     private fun List<PlanSetUiModel>.toPlanSubLabel(
@@ -443,22 +420,13 @@ internal object LiveWorkoutMapper {
     }
 
     private fun formatExerciseSummary(
-        resourceWrapper: ResourceWrapper,
+        copy: LiveWorkoutCopy,
         doneCount: Int,
         totalCount: Int,
         skippedCount: Int,
     ): String = if (skippedCount > 0) {
-        resourceWrapper.getString(
-            R.string.feature_live_workout_finish_stat_exercises_with_skipped_format,
-            doneCount,
-            totalCount,
-            skippedCount,
-        )
+        copy.finishExercisesWithSkippedTemplate.fillTemplate(doneCount, totalCount, skippedCount)
     } else {
-        resourceWrapper.getString(
-            R.string.feature_live_workout_finish_stat_exercises_format,
-            doneCount,
-            totalCount,
-        )
+        copy.finishExercisesTemplate.fillTemplate(doneCount, totalCount)
     }
 }

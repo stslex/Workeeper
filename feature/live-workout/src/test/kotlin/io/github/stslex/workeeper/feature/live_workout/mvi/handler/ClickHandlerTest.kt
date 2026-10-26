@@ -5,7 +5,6 @@ import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
@@ -14,6 +13,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusU
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalSkipUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.NAMED_COPY
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
@@ -40,8 +41,8 @@ internal class ClickHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
-    private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val pickerHandler = FakeExercisePicker()
+    private val statusMapper = StateStatusMapper()
     private val setMutator = LiveSetMutator(statusMapper)
 
     @Test
@@ -328,13 +329,11 @@ internal class ClickHandlerTest {
 
     @Test
     fun `undo of a deleted exercise restores it without any DB delete`() = runTest {
-        every {
-            resourceWrapper.getString(
-                R.string.feature_live_workout_toast_exercise_removed,
-                "Bench Press",
-            )
-        } returns "Removed from plan"
-        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(
+                liveCopy = LiveWorkoutCopy.EMPTY.copy(toastExerciseRemovedTemplate = "Removed from plan"),
+            ),
+        )
         val dialogHandler = DialogClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
@@ -371,14 +370,13 @@ internal class ClickHandlerTest {
     @Test
     fun `an adhoc session still removes the plan row on delete`() = runTest {
         // Ad-hoc trainings carry real plan rows; leaving one behind trips the FK RESTRICT.
-        every {
-            resourceWrapper.getString(
-                R.string.feature_live_workout_toast_exercise_removed_from_workout,
-                "Bench Press",
-            )
-        } returns "Removed from workout"
         val store = FakeLiveWorkoutHandlerStore(
-            baseState(loggedExercise()).copy(isAdhoc = true),
+            baseState(loggedExercise()).copy(
+                isAdhoc = true,
+                liveCopy = LiveWorkoutCopy.EMPTY.copy(
+                    toastExerciseRemovedFromWorkoutTemplate = "Removed from workout",
+                ),
+            ),
         )
         val dialogHandler = DialogClickHandler(
             interactor = interactor,
@@ -519,6 +517,162 @@ internal class ClickHandlerTest {
         assertEquals("Old Name", store.state.value.trainingNameLabel)
     }
 
+    @Test
+    fun `OnAddExerciseClick opens the picker through the seam`() {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+
+        clickHandler(store).invoke(Action.Click.OnAddExerciseClick)
+
+        assertEquals(1, pickerHandler.opens)
+    }
+
+    @Test
+    fun `OnResetSets opens its confirm from the copy in one write`() {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()).copy(liveCopy = NAMED_COPY))
+
+        clickHandler(store).invoke(Action.Click.OnResetSets("pe-1"))
+
+        assertEquals(
+            DialogState.ConfirmDialog.ResetSets(
+                title = "resetTitle",
+                body = "resetBody",
+                confirmLabel = "resetConfirm",
+                dismissLabel = "resetDismiss",
+                exerciseUuid = "pe-1",
+            ),
+            store.state.value.dialogState,
+        )
+        assertEquals(1, store.updates)
+        assertEquals(0, store.launches)
+    }
+
+    @Test
+    fun `OnCancelSessionClick opens its confirm from the copy in one write`() {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()).copy(liveCopy = NAMED_COPY))
+
+        clickHandler(store).invoke(Action.Click.OnCancelSessionClick)
+
+        assertEquals(
+            DialogState.ConfirmDialog.CancelSession(
+                title = "cancelTitle",
+                body = "cancelBody",
+                confirmLabel = "cancelConfirm",
+                dismissLabel = "cancelDismiss",
+            ),
+            store.state.value.dialogState,
+        )
+        assertEquals(1, store.updates)
+        assertEquals(0, store.launches)
+    }
+
+    @Test
+    fun `OnFinishClick on an empty session opens the empty-finish dialog from the copy in one write`() {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)).copy(
+                isAdhoc = true,
+                liveCopy = NAMED_COPY,
+            ),
+        )
+
+        clickHandler(store).invoke(Action.Click.OnFinishClick)
+
+        assertEquals(
+            DialogState.EmptyFinish(
+                canDiscard = true,
+                confirmLabel = "emptyFinishDiscard",
+                dismissLabel = "emptyFinishContinue",
+            ),
+            store.state.value.dialogState,
+        )
+        assertEquals(1, store.updates)
+        assertEquals(0, store.launches)
+    }
+
+    @Test
+    fun `OnDeleteSessionMenuClick fills the progress template in one write`() {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(
+                trainingNameLabel = "",
+                doneCount = 1,
+                totalCount = 2,
+                setsLogged = 3,
+                liveCopy = NAMED_COPY,
+            ),
+        )
+
+        clickHandler(store).invoke(Action.Click.OnDeleteSessionMenuClick)
+
+        assertEquals(
+            DialogState.DeleteDialog(
+                sessionName = "deleteSessionUnnamed",
+                progressLabel = "deleteSessionProgressTemplate 1 2 3",
+            ),
+            store.state.value.dialogState,
+        )
+        assertEquals(1, store.updates)
+        assertEquals(0, store.launches)
+    }
+
+    @Test
+    fun `OnFinishClick builds the finish dialog from the copy in one write`() {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(
+                doneCount = 1,
+                totalCount = 2,
+                setsLogged = 3,
+                liveCopy = NAMED_COPY,
+            ),
+        )
+
+        clickHandler(store).invoke(Action.Click.OnFinishClick)
+
+        val finish = store.state.value.dialogState as DialogState.FinishSession
+        assertEquals("finishExercisesTemplate 1 2", finish.exercisesSummaryLabel)
+        assertEquals("finishSetsCountTemplate 3", finish.setsLoggedLabel)
+        assertEquals(listOf("finishPrWeightedTemplate 100 5"), finish.newPersonalRecords.map { it.displayLabel })
+        assertEquals("finishNameLabel", finish.nameLabel)
+        assertEquals("trainingNamePlaceholder", finish.namePlaceholder)
+        assertEquals(1, store.updates)
+        assertEquals(0, store.launches)
+    }
+
+    @Test
+    fun `the set toasts read their messages from the copy`() {
+        val store = FakeLiveWorkoutHandlerStore(
+            statusMapper.recomputeStatuses(baseState(loggedExercise()).copy(liveCopy = NAMED_COPY)),
+        )
+        val handler = clickHandler(store)
+
+        handler.invoke(Action.Click.OnAddSet("pe-1"))
+        assertEquals("toastSetAdded", store.state.value.pendingUndo?.message)
+
+        handler.invoke(Action.Click.OnRemoveLastSet("pe-1"))
+        assertEquals("toastSetRemoved", store.state.value.pendingUndo?.message)
+    }
+
+    @Test
+    fun `OnSetMarkDone without reps shows the copy's error without a launch`() {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)).copy(liveCopy = NAMED_COPY),
+        )
+
+        clickHandler(store).invoke(Action.Click.OnSetMarkDone("pe-1", position = 0))
+
+        assertEquals(
+            listOf("errorInvalidReps"),
+            store.events.filterIsInstance<Event.ShowError>().map { it.message },
+        )
+        assertEquals(0, store.launches)
+    }
+
+    private fun clickHandler(store: LiveWorkoutHandlerStore): ClickHandler = ClickHandler(
+        interactor = interactor,
+        resourceWrapper = resourceWrapper,
+        pickerHandler = pickerHandler,
+        setMutator = setMutator,
+        store = store,
+    )
+
     private fun handlerStore(stateFlow: MutableStateFlow<State>): LiveWorkoutHandlerStore =
         mockk(relaxed = true) {
             every { state } returns stateFlow
@@ -571,17 +725,29 @@ internal class ClickHandlerTest {
         private var latestLaunch: (suspend CoroutineScope.() -> Any?)? = null
         private var latestOnError: (suspend (Throwable) -> Unit)? = null
 
+        /** D6: what a click sent, how many State writes it made and how many launches it started. */
+        val events: MutableList<Event> = mutableListOf()
+
+        var updates: Int = 0
+            private set
+
+        var launches: Int = 0
+            private set
+
         override val state: StateFlow<State> = stateFlow
         override val lastAction: Action? = null
         override val logger: Logger = mockk(relaxed = true)
 
-        override fun sendEvent(event: Event) = Unit
+        override fun sendEvent(event: Event) {
+            events += event
+        }
 
         override fun consume(action: Action) = Unit
 
         override suspend fun consumeOnMain(action: Action) = Unit
 
         override fun updateState(update: (State) -> State) {
+            updates += 1
             stateFlow.value = update(stateFlow.value)
         }
 
@@ -601,6 +767,7 @@ internal class ClickHandlerTest {
             eachDispatcher: CoroutineDispatcher?,
             action: suspend CoroutineScope.() -> T,
         ): Job {
+            launches += 1
             latestLaunch = action as suspend CoroutineScope.() -> Any?
             latestOnError = onError
             return Job()
@@ -612,6 +779,7 @@ internal class ClickHandlerTest {
             onSuccess: suspend CoroutineScope.(T) -> Unit,
             action: suspend CoroutineScope.() -> T,
         ): Job {
+            launches += 1
             latestLaunch = action as suspend CoroutineScope.() -> Any?
             latestOnError = onError
             return Job()

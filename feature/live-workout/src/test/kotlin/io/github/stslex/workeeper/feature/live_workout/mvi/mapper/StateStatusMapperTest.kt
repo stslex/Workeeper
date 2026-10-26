@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
-import io.mockk.mockk
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.NAMED_COPY
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -20,8 +20,7 @@ import org.junit.jupiter.api.Test
  */
 internal class StateStatusMapperTest {
 
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val mapper = StateStatusMapper(resourceWrapper)
+    private val mapper = StateStatusMapper()
 
     @Test
     fun `recomputeOnly assigns CURRENT when plan is empty visible has three rows and only one is performed done`() {
@@ -150,6 +149,30 @@ internal class StateStatusMapperTest {
         val result = mapper.recomputeOnly(listOf(exercise), activeUuids = emptySet())
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, result.first().status)
+    }
+
+    @Test
+    fun `recomputeStatuses labels the cards and the header from the State's copy`() {
+        val state = State.create(sessionUuid = "session-1", trainingUuid = "training-1").copy(
+            isLoading = false,
+            liveCopy = NAMED_COPY,
+            exercises = persistentListOf(
+                exercise(
+                    plan = persistentListOf(PlanSetUiModel(weight = 60.0, reps = 8, type = SetTypeUiModel.WORK)),
+                    status = ExerciseStatusUiModel.SKIPPED,
+                ),
+                exercise(plan = persistentListOf()).copy(performedExerciseUuid = "pe-2", position = 1),
+                exercise(
+                    plan = persistentListOf(PlanSetUiModel(weight = null, reps = 12, type = SetTypeUiModel.WORK)),
+                ).copy(performedExerciseUuid = "pe-3", exerciseType = ExerciseTypeUiModel.WEIGHTLESS, position = 2),
+            ),
+        )
+
+        val result = mapper.recomputeStatuses(state)
+
+        assertEquals(listOf("statusSkipped", "statusNoPlan", "12 repsUnit"), result.exercises.map { it.statusLabel })
+        assertEquals("metaSkippedTemplate metaTemplate 0 2 0 1 1", result.headerMetaLabel)
+        assertEquals("trainingNamePlaceholder", result.trainingNameLabel)
     }
 
     private fun exercise(

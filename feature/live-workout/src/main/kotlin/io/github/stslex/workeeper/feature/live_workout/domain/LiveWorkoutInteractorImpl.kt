@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 
 @Suppress("TooManyFunctions", "LongParameterList")
 @Inject
@@ -321,7 +322,7 @@ class LiveWorkoutInteractorImpl internal constructor(
                 newPlan = nextPlan,
             )
         }
-        val finishedAt = System.currentTimeMillis()
+        val finishedAt = Clock.System.now().toEpochMilliseconds()
         val applied = sessionRepository.finishSessionAtomic(
             sessionUuid = sessionUuid,
             finishedAt = finishedAt,

@@ -88,7 +88,6 @@
     <string name="feature_live_workout_cancel_body">Весь прогресс будет удалён. Это нельзя отменить.</string>
     <string name="feature_live_workout_cancel_confirm">Отменить</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Продолжить</string>
-    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings,UnusedResources">Удалить</string>
     <string name="feature_live_workout_delete_session_unnamed">Тренировка</string>
     <string name="feature_live_workout_delete_session_progress_format">%1$d из %2$d упражнений · %3$d подходов записано</string>
 
@@ -110,7 +109,6 @@
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>
     <string name="feature_live_workout_description">Описание</string>
-    <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Удалить подход</string>
 
     <string name="feature_live_workout_error_invalid_reps">Повторения должны быть больше 0</string>
     <string name="feature_live_workout_error_set_save_failed">Не удалось сохранить подход</string>

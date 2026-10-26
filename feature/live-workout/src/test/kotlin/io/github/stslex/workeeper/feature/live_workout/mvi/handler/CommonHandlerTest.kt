@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -29,8 +29,9 @@ internal class CommonHandlerTest {
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true).apply {
         every { observeExternalWrites(any()) } returns emptyFlow()
     }
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val setMutator = LiveSetMutator(StateStatusMapper(resourceWrapper))
+    private val copyReader = mockk<LiveWorkoutCopyReader>(relaxed = true)
+    private val stringResolver = mockk<StringResolver>(relaxed = true)
+    private val setMutator = LiveSetMutator(StateStatusMapper())
     private val dispatchers = StoreDispatchers(Dispatchers.Unconfined, Dispatchers.Unconfined)
 
     /**
@@ -63,7 +64,8 @@ internal class CommonHandlerTest {
                 mockk<Job>(relaxed = true)
             }
         }
-        return Triple(stateFlow, CommonHandler(interactor, resourceWrapper, setMutator, dispatchers, store), store)
+        val handler = CommonHandler(interactor, copyReader, stringResolver, setMutator, dispatchers, store)
+        return Triple(stateFlow, handler, store)
     }
 
     /** The load-failure exit on both arms; both flags asserted, since either alone lies. */
@@ -109,7 +111,8 @@ internal class CommonHandlerTest {
         }
         val handler = CommonHandler(
             interactor = interactor,
-            resourceWrapper = resourceWrapper,
+            copyReader = copyReader,
+            stringResolver = stringResolver,
             setMutator = setMutator,
             storeDispatchers = dispatchers,
             store = store,

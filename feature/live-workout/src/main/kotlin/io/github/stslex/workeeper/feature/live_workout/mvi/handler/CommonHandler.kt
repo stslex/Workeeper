@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.kit.resources.Res
 import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -18,6 +19,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.coroutines.CompletableDeferred
@@ -33,7 +35,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.getString
+import kotlin.time.Clock
 
 /**
  * GUARD (D14, wear-live-sync.md §6.4): every state write here goes through `updateState`, a
@@ -47,7 +49,8 @@ import org.jetbrains.compose.resources.getString
 @SingleIn(LiveWorkoutScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
-    private val resourceWrapper: ResourceWrapper,
+    private val copyReader: LiveWorkoutCopyReader,
+    private val stringResolver: StringResolver,
     private val setMutator: LiveSetMutator,
     private val storeDispatchers: StoreDispatchers,
     store: LiveWorkoutHandlerStore,
@@ -118,11 +121,49 @@ internal class CommonHandler @Inject constructor(
     }
 
     private suspend fun SessionSnapshotDomain.toLoadedState(): State = toState(
-        nowMillis = System.currentTimeMillis(),
-        resourceWrapper = resourceWrapper,
-        // kit's unit is a suspend-only CMP read: resolved here, at the load
-        // boundary, so the mapper stays a pure synchronous transformation.
-        repsUnitLabel = getString(Res.string.core_ui_kit_plan_editor_unit_reps),
+        nowMillis = Clock.System.now().toEpochMilliseconds(),
+        // D5: the copy resolves here, at the load's suspend boundary, so the mapper and every
+        // State lambda after it stay pure synchronous transformations.
+        liveCopy = resolveCopy(),
+    )
+
+    /** D5: each field from its own key, read verbatim, so a template keeps its placeholders. */
+    private suspend fun resolveCopy(): LiveWorkoutCopy = LiveWorkoutCopy(
+        trainingNamePlaceholder = copyReader.read(R.string.feature_live_workout_training_name_placeholder),
+        statusSkipped = copyReader.read(R.string.feature_live_workout_status_skipped),
+        statusNoPlan = copyReader.read(R.string.feature_live_workout_status_no_plan),
+        repsUnit = stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps),
+        metaTemplate = copyReader.read(R.string.feature_live_workout_meta_format),
+        metaSkippedTemplate = copyReader.read(R.string.feature_live_workout_meta_skipped_format),
+        resetTitle = copyReader.read(R.string.feature_live_workout_reset_title),
+        resetBody = copyReader.read(R.string.feature_live_workout_reset_body),
+        resetConfirm = copyReader.read(R.string.feature_live_workout_reset_confirm),
+        resetDismiss = copyReader.read(R.string.feature_live_workout_reset_dismiss),
+        emptyFinishDiscard = copyReader.read(R.string.feature_live_workout_empty_finish_discard),
+        emptyFinishContinue = copyReader.read(R.string.feature_live_workout_empty_finish_continue),
+        cancelTitle = copyReader.read(R.string.feature_live_workout_cancel_title),
+        cancelBody = copyReader.read(R.string.feature_live_workout_cancel_body),
+        cancelConfirm = copyReader.read(R.string.feature_live_workout_cancel_confirm),
+        cancelDismiss = copyReader.read(R.string.feature_live_workout_cancel_dismiss),
+        deleteSessionUnnamed = copyReader.read(R.string.feature_live_workout_delete_session_unnamed),
+        deleteSessionProgressTemplate = copyReader.read(R.string.feature_live_workout_delete_session_progress_format),
+        finishNameLabel = copyReader.read(R.string.feature_live_workout_finish_name_label),
+        finishNameRequired = copyReader.read(R.string.feature_live_workout_finish_name_required),
+        finishSetsCountTemplate = copyReader.read(R.string.feature_live_workout_finish_stat_sets_count),
+        finishExercisesTemplate = copyReader.read(R.string.feature_live_workout_finish_stat_exercises_format),
+        finishExercisesWithSkippedTemplate = copyReader.read(
+            R.string.feature_live_workout_finish_stat_exercises_with_skipped_format,
+        ),
+        finishPrWeightedTemplate = copyReader.read(R.string.feature_live_workout_finish_pr_weighted_format),
+        finishPrWeightlessTemplate = copyReader.read(R.string.feature_live_workout_finish_pr_weightless_format),
+        toastSetAdded = copyReader.read(R.string.feature_live_workout_toast_set_added),
+        toastSetRemoved = copyReader.read(R.string.feature_live_workout_toast_set_removed),
+        toastExerciseRemovedTemplate = copyReader.read(R.string.feature_live_workout_toast_exercise_removed),
+        toastExerciseRemovedFromWorkoutTemplate = copyReader.read(
+            R.string.feature_live_workout_toast_exercise_removed_from_workout,
+        ),
+        errorInvalidReps = copyReader.read(R.string.feature_live_workout_error_invalid_reps),
+        errorFinishFailed = copyReader.read(R.string.feature_live_workout_error_finish_failed),
     )
 
     /**
@@ -186,7 +227,7 @@ internal class CommonHandler @Inject constructor(
         startTimerJob?.cancel()
         startTimerJob = launch {
             while (isActive) {
-                val now = System.currentTimeMillis()
+                val now = Clock.System.now().toEpochMilliseconds()
                 updateState { current ->
                     if (current.startedAt <= 0L) current
                     else {

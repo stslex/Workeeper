@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PerformedExerciseDomain
@@ -22,11 +20,10 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -37,7 +34,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class LiveWorkoutMapperTest {
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
     fun `mapper marks the lowest-position non-skipped non-done exercise as CURRENT`() {
@@ -55,8 +51,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 5000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
@@ -82,8 +77,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, state.exercises[0].status)
@@ -107,8 +101,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals(persistentSetOf("pe-1"), state.expandedExerciseUuids)
@@ -128,8 +121,7 @@ internal class LiveWorkoutMapperTest {
         )
         val reloaded = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
         val previous = reloaded.copy(
             expandedExerciseUuids = persistentSetOf("pe-2", "pe-deleted"),
@@ -153,8 +145,7 @@ internal class LiveWorkoutMapperTest {
         )
         val loaded = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
         val freshStore = State.create(sessionUuid = "s", trainingUuid = "t")
 
@@ -186,8 +177,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals("12 · 60×8", state.exercises.first().statusLabel)
@@ -214,13 +204,11 @@ internal class LiveWorkoutMapperTest {
 
         val enState = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
         val ruState = snapshot.toState(
             nowMillis = 1000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = "повт",
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = "повт"),
         )
 
         assertEquals("12 reps · 10 reps", enState.exercises.first().statusLabel)
@@ -239,8 +227,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 9_000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals(7_000L, state.startedAt)
@@ -274,8 +261,7 @@ internal class LiveWorkoutMapperTest {
 
         val state = snapshot.toState(
             nowMillis = 2000L,
-            resourceWrapper = resourceWrapper,
-            repsUnitLabel = REPS_UNIT,
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(repsUnit = REPS_UNIT),
         )
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
@@ -394,13 +380,6 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `toFinishStats emits one NewPrEntry per exercise that beats the snapshot`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
-        every {
-            res.getString(R.string.feature_live_workout_finish_pr_weighted_format, "110", 5)
-        } returns "110 × 5"
-        every {
-            res.getString(R.string.feature_live_workout_finish_pr_weightless_format, 18)
-        } returns "18 reps"
         val state = State(
             sessionUuid = "s",
             trainingUuid = "t",
@@ -417,6 +396,10 @@ internal class LiveWorkoutMapperTest {
             setsLogged = 4,
             progress = 1f,
             headerMetaLabel = "",
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(
+                finishPrWeightedTemplate = "%1\$s × %2\$d",
+                finishPrWeightlessTemplate = "%1\$d reps",
+            ),
             exercises = persistentListOf(
                 exerciseUi(
                     exerciseUuid = "ex-1",
@@ -457,7 +440,7 @@ internal class LiveWorkoutMapperTest {
             bottomSheetState = BottomSheetState.Hidden,
         )
 
-        val stats = state.toFinishStats(res)
+        val stats = state.toFinishStats()
 
         assertEquals(2, stats.newPersonalRecords.size)
         assertEquals("ex-1", stats.newPersonalRecords[0].exerciseUuid)
@@ -468,7 +451,6 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `toFinishStats emits no NewPrEntry when nothing beats the snapshot`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
         val state = baseState().copy(
             exercises = persistentListOf(
                 exerciseUi(
@@ -487,12 +469,11 @@ internal class LiveWorkoutMapperTest {
             ).toImmutableMap(),
         )
 
-        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+        assertTrue(state.toFinishStats().newPersonalRecords.isEmpty())
     }
 
     @Test
     fun `toFinishStats excludes a skipped exercise even if performed sets exist`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
         val state = baseState().copy(
             exercises = persistentListOf(
                 exerciseUi(
@@ -506,12 +487,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = persistentMapOf(),
         )
 
-        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+        assertTrue(state.toFinishStats().newPersonalRecords.isEmpty())
     }
 
     @Test
     fun `toFinishStats excludes an exercise with no done sets`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
         val state = baseState().copy(
             exercises = persistentListOf(
                 exerciseUi(
@@ -524,12 +504,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = persistentMapOf(),
         )
 
-        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+        assertTrue(state.toFinishStats().newPersonalRecords.isEmpty())
     }
 
     @Test
     fun `toFinishStats does not emit when the best set ties the snapshot exactly`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
         val state = baseState().copy(
             exercises = persistentListOf(
                 exerciseUi(
@@ -548,16 +527,13 @@ internal class LiveWorkoutMapperTest {
             ).toImmutableMap(),
         )
 
-        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+        assertTrue(state.toFinishStats().newPersonalRecords.isEmpty())
     }
 
     @Test
     fun `toFinishStats picks the heaviest set per exercise even with multiple PR sets`() {
-        val res = mockk<ResourceWrapper>(relaxed = true)
-        every {
-            res.getString(R.string.feature_live_workout_finish_pr_weighted_format, "115", 3)
-        } returns "115 × 3"
         val state = baseState().copy(
+            liveCopy = LiveWorkoutCopy.EMPTY.copy(finishPrWeightedTemplate = "%1\$s × %2\$d"),
             exercises = persistentListOf(
                 exerciseUi(
                     exerciseUuid = "ex-1",
@@ -579,7 +555,7 @@ internal class LiveWorkoutMapperTest {
             ).toImmutableMap(),
         )
 
-        val stats = state.toFinishStats(res)
+        val stats = state.toFinishStats()
 
         assertEquals(1, stats.newPersonalRecords.size)
         assertEquals("115 × 3", stats.newPersonalRecords.single().displayLabel)

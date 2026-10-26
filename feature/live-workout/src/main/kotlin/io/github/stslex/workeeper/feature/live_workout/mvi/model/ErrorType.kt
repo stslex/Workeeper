@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.model
 
-import io.github.stslex.workeeper.feature.live_workout.R
-
-internal enum class ErrorType(val msgRes: Int) {
-    InvalidReps(R.string.feature_live_workout_error_invalid_reps),
-    SetSaveFailed(R.string.feature_live_workout_error_set_save_failed),
-    SetDeleteFailed(R.string.feature_live_workout_error_set_delete_failed),
-    ResetFailed(R.string.feature_live_workout_error_reset_failed),
-    SkipFailed(R.string.feature_live_workout_error_skip_failed),
-    FinishMissingSession(R.string.feature_live_workout_error_finish_missing_session),
-    FinishFailed(R.string.feature_live_workout_error_finish_failed),
-    CancelFailed(R.string.feature_live_workout_error_cancel_failed),
-    PlanSaveFailed(R.string.feature_live_workout_error_plan_save_failed),
-    TrainingNameSaveFailed(R.string.feature_live_workout_error_training_name_save_failed),
-    AddExerciseFailed(R.string.feature_live_workout_error_add_exercise_failed),
-    CreateInlineExerciseFailed(R.string.feature_live_workout_error_create_inline_exercise_failed),
-    DiscardSessionFailed(R.string.feature_live_workout_error_discard_session_failed),
-    Unknown(R.string.feature_live_workout_error_unknown),
+/** SP4: what failed; `ErrorTypeMapper` maps each value to its catalog key. */
+internal enum class ErrorType {
+    SetSaveFailed,
+    SetDeleteFailed,
+    ResetFailed,
+    SkipFailed,
+    FinishMissingSession,
+    FinishFailed,
+    CancelFailed,
+    PlanSaveFailed,
+    TrainingNameSaveFailed,
+    AddExerciseFailed,
+    CreateInlineExerciseFailed,
+    DiscardSessionFailed,
+    Unknown,
 }

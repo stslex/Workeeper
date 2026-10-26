@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.ErrorTypeMapper.messageRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -32,17 +33,20 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
 
-/** Owns the picker sheet's transitions and the add-to-session + lazy PR-fetch flow. */
+/**
+ * Owns the picker sheet's transitions and the add-to-session + lazy PR-fetch flow. Public only
+ * because `LiveWorkoutGraph` binds it as [ExercisePicker] (SP5).
+ */
 @SingleIn(LiveWorkoutScope::class)
-internal class ExercisePickerHandler @Inject constructor(
+class ExercisePickerHandler @Inject internal constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
     private val statusMapper: StateStatusMapper,
     store: LiveWorkoutHandlerStore,
-) : LiveWorkoutHandlerStore by store {
+) : ExercisePicker, LiveWorkoutHandlerStore by store {
 
     /** Routed from `ClickHandler`; [ExercisePickerAction] is kit-local, not a `Store.Action`. */
-    operator fun invoke(action: ExercisePickerAction) {
+    override operator fun invoke(action: ExercisePickerAction) {
         when (action) {
             is ExercisePickerAction.OnQueryChange -> processQueryChange(action.query)
             is ExercisePickerAction.OnExerciseSelect -> processExerciseSelect(action.exerciseUuid)
@@ -52,7 +56,7 @@ internal class ExercisePickerHandler @Inject constructor(
     }
 
     /** Opens the picker with the library list, minus exercises already in the session. */
-    fun open() {
+    override fun open() {
         val current = state.value
         val excludedUuids = current.exerciseUuidsInSession()
         val excludedNames = current.exerciseNamesInSession()
@@ -350,7 +354,7 @@ internal class ExercisePickerHandler @Inject constructor(
     }
 
     private fun sendError(type: ErrorType) {
-        sendEvent(Event.ShowError(message = resourceWrapper.getString(type.msgRes)))
+        sendEvent(Event.ShowError(message = resourceWrapper.getString(type.messageRes())))
     }
 
     private data class PickedExercise(

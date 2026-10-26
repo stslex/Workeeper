@@ -5,9 +5,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.strings.fillTemplate
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
-import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.flushPendingUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.undoPending
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.ErrorTypeMapper.messageRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
@@ -34,7 +35,7 @@ import kotlinx.collections.immutable.toImmutableSet
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
-    private val pickerHandler: ExercisePickerHandler,
+    private val pickerHandler: ExercisePicker,
     private val setMutator: LiveSetMutator,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
@@ -167,7 +168,7 @@ internal class ClickHandler @Inject constructor(
         setMutator.findExercise(current, action.performedExerciseUuid) ?: return
         val seedDraft = setMutator.draftFor(current, action.performedExerciseUuid, action.position)
         if (seedDraft.reps <= 0) {
-            sendError(ErrorType.InvalidReps)
+            sendEvent(Event.ShowError(message = current.liveCopy.errorInvalidReps))
             return
         }
         val planSet = PlanSetDomain(
@@ -280,7 +281,7 @@ internal class ClickHandler @Inject constructor(
             interactor,
             PendingUndo(
                 id = PendingUndoOps.nextUndoId(),
-                message = resourceWrapper.getString(R.string.feature_live_workout_toast_set_added),
+                message = prior.liveCopy.toastSetAdded,
                 restoreExercises = prior.exercises,
                 restoreDrafts = prior.setDrafts,
                 restoreOverrides = prior.rowCountOverrides,
@@ -306,7 +307,7 @@ internal class ClickHandler @Inject constructor(
             interactor,
             PendingUndo(
                 id = PendingUndoOps.nextUndoId(),
-                message = resourceWrapper.getString(R.string.feature_live_workout_toast_set_removed),
+                message = prior.liveCopy.toastSetRemoved,
                 restoreExercises = prior.exercises,
                 restoreDrafts = prior.setDrafts,
                 restoreOverrides = prior.rowCountOverrides,
@@ -350,10 +351,10 @@ internal class ClickHandler @Inject constructor(
         updateState {
             it.copy(
                 dialogState = DialogState.ConfirmDialog.ResetSets(
-                    title = resourceWrapper.getString(R.string.feature_live_workout_reset_title),
-                    body = resourceWrapper.getString(R.string.feature_live_workout_reset_body),
-                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_confirm),
-                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_dismiss),
+                    title = it.liveCopy.resetTitle,
+                    body = it.liveCopy.resetBody,
+                    confirmLabel = it.liveCopy.resetConfirm,
+                    dismissLabel = it.liveCopy.resetDismiss,
                     exerciseUuid = action.performedExerciseUuid,
                 ),
             )
@@ -482,14 +483,14 @@ internal class ClickHandler @Inject constructor(
                 it.copy(
                     dialogState = DialogState.EmptyFinish(
                         canDiscard = it.isAdhoc,
-                        confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_discard),
-                        dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_continue),
+                        confirmLabel = it.liveCopy.emptyFinishDiscard,
+                        dismissLabel = it.liveCopy.emptyFinishContinue,
                     ),
                 )
             }
             return
         }
-        val stats = current.toFinishStats(resourceWrapper)
+        val stats = current.toFinishStats()
         updateState {
             it.copy(
                 dialogState = stats,
@@ -502,10 +503,10 @@ internal class ClickHandler @Inject constructor(
         updateState {
             it.copy(
                 dialogState = DialogState.ConfirmDialog.CancelSession(
-                    title = resourceWrapper.getString(R.string.feature_live_workout_cancel_title),
-                    body = resourceWrapper.getString(R.string.feature_live_workout_cancel_body),
-                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_confirm),
-                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_dismiss),
+                    title = it.liveCopy.cancelTitle,
+                    body = it.liveCopy.cancelBody,
+                    confirmLabel = it.liveCopy.cancelConfirm,
+                    dismissLabel = it.liveCopy.cancelDismiss,
                 ),
             )
         }
@@ -516,9 +517,8 @@ internal class ClickHandler @Inject constructor(
 
         updateState { state ->
             val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }
-                ?: resourceWrapper.getString(R.string.feature_live_workout_delete_session_unnamed)
-            val progressLabel = resourceWrapper.getString(
-                R.string.feature_live_workout_delete_session_progress_format,
+                ?: state.liveCopy.deleteSessionUnnamed
+            val progressLabel = state.liveCopy.deleteSessionProgressTemplate.fillTemplate(
                 state.doneCount,
                 state.totalCount,
                 state.setsLogged,
@@ -550,7 +550,7 @@ internal class ClickHandler @Inject constructor(
     private fun sendError(type: ErrorType) {
         sendEvent(
             Event.ShowError(
-                message = resourceWrapper.getString(type.msgRes),
+                message = resourceWrapper.getString(type.messageRes()),
             ),
         )
     }

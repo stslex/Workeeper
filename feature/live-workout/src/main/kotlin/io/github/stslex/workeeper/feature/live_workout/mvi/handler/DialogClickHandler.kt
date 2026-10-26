@@ -4,6 +4,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.strings.fillTemplate
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
@@ -12,6 +13,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.flushPendingUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.ErrorTypeMapper.messageRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
@@ -26,7 +28,7 @@ import kotlinx.collections.immutable.toImmutableMap
 internal class DialogClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
-    private val pickerHandler: ExercisePickerHandler,
+    private val pickerHandler: ExercisePicker,
     private val setMutator: LiveSetMutator,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.DialogClick>, LiveWorkoutHandlerStore by store {
@@ -85,10 +87,8 @@ internal class DialogClickHandler @Inject constructor(
             interactor,
             PendingUndo(
                 id = PendingUndoOps.nextUndoId(),
-                message = resourceWrapper.getString(
-                    copy.toastRes,
-                    exercise.exerciseName.truncateForToast(),
-                ),
+                message = DeleteExerciseCopyMapper.toastTemplate(copy, prior.liveCopy)
+                    .fillTemplate(exercise.exerciseName.truncateForToast()),
                 restoreExercises = prior.exercises,
                 restoreDrafts = prior.setDrafts,
                 restoreOverrides = prior.rowCountOverrides,
@@ -160,9 +160,7 @@ internal class DialogClickHandler @Inject constructor(
             ?.trim()
             ?.takeIf { stats.requiresName }
         if (stats?.requiresName == true && requiredName.isNullOrBlank()) {
-            val requiredError = resourceWrapper.getString(
-                R.string.feature_live_workout_finish_name_required,
-            )
+            val requiredError = current.liveCopy.finishNameRequired
             updateState { latest ->
                 latest.copy(
                     dialogState = stats.copy(
@@ -175,7 +173,7 @@ internal class DialogClickHandler @Inject constructor(
         }
         val trainingUuid = current.trainingUuid
         if (stats?.requiresName == true && trainingUuid.isNullOrBlank()) {
-            sendError(ErrorType.FinishFailed)
+            sendEvent(Event.ShowError(message = current.liveCopy.errorFinishFailed))
             return
         }
         launch(
@@ -208,16 +206,13 @@ internal class DialogClickHandler @Inject constructor(
 
     private fun processFinishNameChange(action: Action.DialogClick.OnFinishNameChange) {
         val trimmed = action.text.trim()
-        val requiredError = resourceWrapper
-            .getString(R.string.feature_live_workout_finish_name_required)
-            .takeIf { trimmed.isBlank() }
         updateState { latest ->
             val current = latest.dialogState as? DialogState.FinishSession
                 ?: return@updateState latest
             latest.copy(
                 dialogState = current.copy(
                     nameDraft = action.text,
-                    nameError = requiredError,
+                    nameError = latest.liveCopy.finishNameRequired.takeIf { trimmed.isBlank() },
                     confirmEnabled = trimmed.isNotBlank(),
                 ),
             )
@@ -262,7 +257,7 @@ internal class DialogClickHandler @Inject constructor(
     private fun sendError(type: ErrorType) {
         sendEvent(
             Event.ShowError(
-                message = resourceWrapper.getString(type.msgRes),
+                message = resourceWrapper.getString(type.messageRes()),
             ),
         )
     }

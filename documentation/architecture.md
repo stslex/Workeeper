@@ -396,6 +396,8 @@ older check for resource reads there.
 A synchronous gesture path cannot suspend, so the copy it needs is resolved earlier, with the load,
 and kept in State: exercise-chart's scrub assembles its readout from `readoutCopy` (decision D3 of
 [kmp-phase-7-13-exercise-chart-feature.md](feature-specs/kmp-phase-7-13-exercise-chart-feature.md)).
+live-workout keeps its templates in State too, and fills them inside the lambda with kit's pure
+`fillTemplate`, a string transform of State like the exempt transforms above (Phase 7.16 D5).
 
 A State lambda also calls no function of its own file that resolves copy: for the shared feature
 entries the topology gate follows same-file calls from each lambda, transitively (decision D5 of
@@ -2129,12 +2131,12 @@ in its build file.
 The reader is chosen by the catalog a string lives in, not by the module kind:
 
 - **An Android `R` string:** `stringResource(R.string.*)` in composition, `ResourceWrapper`
-  outside it.
+  outside it, except live-workout's verbatim copy read (below).
 - **A Compose-resource string** (`Res.string.*` / `Res.plurals.*`, in any module, including kit
   strings read by Android-only features): `org.jetbrains.compose.resources.stringResource` /
   `pluralStringResource` in composition, an injected `StringResolver` (`core/ui/kit`) outside
   it, never CMP's top-level `getString` / `getPluralString` (only `ComposeStringResolver`
-  itself calls those). The five production files that predate this rule are a debt row
+  itself calls those). The four production files that predate this rule are a debt row
   ([tech-debt.md → Shared (KMP) string resources](tech-debt.md#shared-kmp-string-resources)).
 
 Compose resources choose by the **primary** system locale only and format arguments with
@@ -2149,6 +2151,17 @@ state it was opened from (decision D2 of
 single-training's `TrainingEditCopy` and its permanent-delete confirm; exercise's
 `ExerciseClickCopy` and its confirm, [kmp-phase-7-15-exercise-feature.md](feature-specs/kmp-phase-7-15-exercise-feature.md)
 S2).
+
+live-workout takes another route (decisions D5 and D6 of
+[kmp-phase-7-16-live-workout-feature.md](feature-specs/kmp-phase-7-16-live-workout-feature.md), Part B). Its copy,
+templates included, is read verbatim at each load into `State.liveCopy`, and kit's `fillTemplate`,
+beside `StringResolver`, fills a template synchronously, exactly as Compose resources' `getString`
+fills it: each positional `%N$s` or `%N$d` becomes the argument's `toString()`. So its status
+pipeline runs inside its compare-and-set lambdas, and its dialogs, toasts and synchronous errors
+open in one write, with nothing to resolve. Until the feature moves (Part C), the verbatim read of
+its `R` strings goes through the temporary module-local `LiveWorkoutCopyReader` on the app
+`Context`, because `ResourceWrapper.getString` always formats and a template read through it
+throws `MissingFormatArgumentException`.
 
 #### Naming convention
 
