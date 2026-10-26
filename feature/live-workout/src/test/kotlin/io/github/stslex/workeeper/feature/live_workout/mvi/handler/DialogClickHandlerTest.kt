@@ -15,6 +15,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.NAMED_COPY
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -40,7 +42,7 @@ internal class DialogClickHandlerTest {
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = FakeExercisePicker()
-    private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val statusMapper = StateStatusMapper()
     private val setMutator = LiveSetMutator(statusMapper)
 
     // region Dismiss actions — every dismiss flips DialogState to Hidden
@@ -469,14 +471,12 @@ internal class DialogClickHandlerTest {
 
     @Test
     fun `OnFinishConfirm with blank required name sets nameError and skips finishSession`() = runTest {
-        every {
-            resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
-        } returns "Name is required"
         val store = FakeLiveWorkoutHandlerStore(
             baseState(loggedExercise()).copy(
                 trainingName = "",
                 trainingNameLabel = "Untitled",
                 dialogState = finishDialog(requiresName = true, nameDraft = ""),
+                liveCopy = LiveWorkoutCopy.EMPTY.copy(finishNameRequired = "Name is required"),
             ),
         )
         val handler = DialogClickHandler(
@@ -577,14 +577,12 @@ internal class DialogClickHandlerTest {
 
     @Test
     fun `OnFinishConfirm with required name and missing trainingUuid surfaces FinishFailed`() = runTest {
-        every {
-            resourceWrapper.getString(R.string.feature_live_workout_error_finish_failed)
-        } returns "Finish failed"
         val store = FakeLiveWorkoutHandlerStore(
             baseState(loggedExercise()).copy(
                 trainingUuid = null,
                 trainingName = "",
                 dialogState = finishDialog(requiresName = true, nameDraft = "Push Day"),
+                liveCopy = LiveWorkoutCopy.EMPTY.copy(errorFinishFailed = "Finish failed"),
             ),
         )
         val handler = DialogClickHandler(
@@ -692,9 +690,6 @@ internal class DialogClickHandlerTest {
 
     @Test
     fun `OnFinishNameChange with blank text sets the required error and disables confirm`() {
-        every {
-            resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
-        } returns "Name is required"
         val stateFlow = MutableStateFlow(
             baseState(loggedExercise()).copy(
                 dialogState = finishDialog(
@@ -703,6 +698,7 @@ internal class DialogClickHandlerTest {
                     nameError = null,
                     confirmEnabled = true,
                 ),
+                liveCopy = LiveWorkoutCopy.EMPTY.copy(finishNameRequired = "Name is required"),
             ),
         )
 
@@ -725,6 +721,25 @@ internal class DialogClickHandlerTest {
         handler(stateFlow).invoke(Action.DialogClick.OnFinishNameChange("Push Day"))
 
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    // endregion
+
+    // region OnDeleteExerciseConfirm
+
+    @Test
+    fun `OnDeleteExerciseConfirm fills its toast with the truncated name`() {
+        val stateFlow = MutableStateFlow(
+            baseState(loggedExercise().copy(exerciseName = "Romanian Deadlift With Pause"))
+                .copy(liveCopy = NAMED_COPY),
+        )
+
+        handler(stateFlow).invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+
+        assertEquals(
+            "toastExerciseRemovedTemplate Romanian Deadlift With P…",
+            stateFlow.value.pendingUndo?.message,
+        )
     }
 
     // endregion

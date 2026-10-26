@@ -17,6 +17,9 @@ import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.bodyRes
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.confirmRes
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper.titleRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.DeleteExerciseCopyUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -116,10 +119,10 @@ internal fun DeleteExerciseSheetContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SheetTitle(stringResource(copy.titleRes))
+        SheetTitle(stringResource(copy.titleRes()))
         Text(
             modifier = Modifier.padding(bottom = AppDimension.Space.lg),
-            text = stringResource(copy.bodyRes, exercise.exerciseName),
+            text = stringResource(copy.bodyRes(), exercise.exerciseName),
             style = AppUi.typography.text.body,
             color = AppUi.colors.textTertiary,
         )
@@ -135,7 +138,7 @@ internal fun DeleteExerciseSheetContent(
                 .fillMaxWidth()
                 .padding(top = AppDimension.Space.sm)
                 .testTag("DeleteExercise_Confirm"),
-            text = stringResource(copy.confirmRes),
+            text = stringResource(copy.confirmRes()),
             onClick = {
                 consume(
                     LiveWorkoutStore.Action.DialogClick.OnDeleteExerciseConfirm(

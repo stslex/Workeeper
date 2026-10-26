@@ -32,8 +32,8 @@ internal class LiveSetDraftBehaviorTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
-    private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val pickerHandler = FakeExercisePicker()
+    private val statusMapper = StateStatusMapper()
     private val setMutator = LiveSetMutator(statusMapper)
 
     @Test

@@ -37,7 +37,7 @@ internal class ExercisePickerHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val statusMapper = StateStatusMapper()
 
     @Test
     fun `OnDismiss flips picker to Hidden`() {

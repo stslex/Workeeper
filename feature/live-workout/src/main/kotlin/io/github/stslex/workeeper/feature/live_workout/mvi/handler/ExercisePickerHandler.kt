@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.ErrorTypeMapper.messageRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -353,7 +354,7 @@ class ExercisePickerHandler @Inject internal constructor(
     }
 
     private fun sendError(type: ErrorType) {
-        sendEvent(Event.ShowError(message = resourceWrapper.getString(type.msgRes)))
+        sendEvent(Event.ShowError(message = resourceWrapper.getString(type.messageRes())))
     }
 
     private data class PickedExercise(

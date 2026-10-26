@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -11,7 +10,6 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
-import io.mockk.mockk
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
@@ -24,12 +22,11 @@ import org.junit.jupiter.api.Test
 
 /**
  * Unit tests for the state mutator: every public method against a `State` snapshot, with no
- * handler or store. `ResourceWrapper` is relaxed-mocked since assertions key off structure.
+ * handler or store. The fixtures carry the empty copy, since assertions key off structure.
  */
 internal class LiveSetMutatorTest {
 
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val statusMapper = StateStatusMapper()
     private val mutator = LiveSetMutator(statusMapper)
 
     @Test

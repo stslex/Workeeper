@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.ImmutableSet
@@ -40,12 +41,11 @@ interface LiveWorkoutStore :
         /** The `.shead` meta line, built in the presentation mapper. Blank when no exercises. */
         val headerMetaLabel: String,
         /**
-         * kit's localized reps unit for WEIGHTLESS sublabels, resolved once per session load at
-         * the handler's suspend boundary — the same refresh boundary as every other
-         * State-carried presentation string. Blank only before the first load, which is also
-         * the only time no exercise sublabel can render.
+         * D5: the screen's copy outside composition, which the status pipeline, the dialogs, the
+         * toasts and the synchronous errors read, resolved at each load's suspend boundary. Empty
+         * before the first load, whose State replaces every label derived from it.
          */
-        val repsUnitLabel: String = "",
+        val liveCopy: LiveWorkoutCopy = LiveWorkoutCopy.EMPTY,
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         /**
