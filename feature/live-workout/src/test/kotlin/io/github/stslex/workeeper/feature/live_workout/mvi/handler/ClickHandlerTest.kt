@@ -40,7 +40,7 @@ internal class ClickHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
+    private val pickerHandler = FakeExercisePicker()
     private val statusMapper = StateStatusMapper(resourceWrapper)
     private val setMutator = LiveSetMutator(statusMapper)
 
@@ -518,6 +518,23 @@ internal class ClickHandlerTest {
         assertEquals("Old Name", store.state.value.trainingName)
         assertEquals("Old Name", store.state.value.trainingNameLabel)
     }
+
+    @Test
+    fun `OnAddExerciseClick opens the picker through the seam`() {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+
+        clickHandler(store).invoke(Action.Click.OnAddExerciseClick)
+
+        assertEquals(1, pickerHandler.opens)
+    }
+
+    private fun clickHandler(store: LiveWorkoutHandlerStore): ClickHandler = ClickHandler(
+        interactor = interactor,
+        resourceWrapper = resourceWrapper,
+        pickerHandler = pickerHandler,
+        setMutator = setMutator,
+        store = store,
+    )
 
     private fun handlerStore(stateFlow: MutableStateFlow<State>): LiveWorkoutHandlerStore =
         mockk(relaxed = true) {

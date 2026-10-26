@@ -97,7 +97,6 @@
     <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
     <string name="feature_live_workout_cancel_confirm" tools:ignore="DuplicateStrings">Cancel</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Keep going</string>
-    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings,UnusedResources">Delete</string>
     <string name="feature_live_workout_delete_session_unnamed">Workout</string>
     <string name="feature_live_workout_delete_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done · %3$d sets logged</string>
 
@@ -124,7 +123,6 @@
     <string name="feature_live_workout_back">Back</string>
     <string name="feature_live_workout_more">More</string>
     <string name="feature_live_workout_description">Description</string>
-    <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Remove set</string>
 
     <!-- Errors -->
     <string name="feature_live_workout_error_invalid_reps">Reps must be greater than 0</string>

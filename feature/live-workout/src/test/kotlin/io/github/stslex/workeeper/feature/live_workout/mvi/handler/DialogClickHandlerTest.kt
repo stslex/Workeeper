@@ -23,7 +23,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +39,7 @@ internal class DialogClickHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
+    private val pickerHandler = FakeExercisePicker()
     private val statusMapper = StateStatusMapper(resourceWrapper)
     private val setMutator = LiveSetMutator(statusMapper)
 
@@ -739,7 +738,7 @@ internal class DialogClickHandlerTest {
 
         handler(stateFlow).invoke(Action.DialogClick.PickerAction(picker))
 
-        verify(exactly = 1) { pickerHandler.invoke(picker) }
+        assertEquals(listOf(picker), pickerHandler.actions)
     }
 
     // endregion

@@ -34,6 +34,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
+import kotlin.time.Clock
 
 /**
  * GUARD (D14, wear-live-sync.md §6.4): every state write here goes through `updateState`, a
@@ -118,7 +119,7 @@ internal class CommonHandler @Inject constructor(
     }
 
     private suspend fun SessionSnapshotDomain.toLoadedState(): State = toState(
-        nowMillis = System.currentTimeMillis(),
+        nowMillis = Clock.System.now().toEpochMilliseconds(),
         resourceWrapper = resourceWrapper,
         // kit's unit is a suspend-only CMP read: resolved here, at the load
         // boundary, so the mapper stays a pure synchronous transformation.
@@ -186,7 +187,7 @@ internal class CommonHandler @Inject constructor(
         startTimerJob?.cancel()
         startTimerJob = launch {
             while (isActive) {
-                val now = System.currentTimeMillis()
+                val now = Clock.System.now().toEpochMilliseconds()
                 updateState { current ->
                     if (current.startedAt <= 0L) current
                     else {

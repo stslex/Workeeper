@@ -34,7 +34,7 @@ import kotlinx.collections.immutable.toImmutableSet
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
-    private val pickerHandler: ExercisePickerHandler,
+    private val pickerHandler: ExercisePicker,
     private val setMutator: LiveSetMutator,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
