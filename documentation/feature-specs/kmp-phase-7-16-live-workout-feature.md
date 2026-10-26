@@ -1,7 +1,7 @@
 # KMP Phase 7.16 — feature:live-workout. Part A: the launch failure seam (PR-L)
 
-**Status:** Part A COMPLETE — implemented by PR #344. Part B SPECIFIED — Sections B0–B12; the PR
-that implements it fills Section B13. Part C (PR-M) is specified by amendment after PR-P merges.
+**Status:** Part A COMPLETE — implemented by PR #344. Part B COMPLETE — implemented by the PR whose
+merge brought this line to dev. Part C (PR-M) is specified by amendment.
 
 **Discovery baseline:** dev @ 1b96184125d0bbb621b38a5485ba00fe558857db (2026-10-25, the merge of
 #343, the D-01 fix after Phase 7.15).
@@ -2211,9 +2211,227 @@ A difference from the build before PR-P, other than OD1–OD4, goes to the maint
 
 ## B13. Implementation evidence
 
-Recorded by commit 4, in Section 14's shape: the base and commit SHAs; the entry gate (the dev run,
-drift, the census with its methods, the exit census's base verdict, the baselines); the gates of
-Sections B6.2–B6.5 with their N/N lines and XML totals and the HOST_BASELINE and LINT_BASELINE
-comparisons by module; K1–K14 and G1–G3 (mutation → quoted RED → restoration); the exit census on
-commit 3; the device suites and the logcat sweep; the environment; deviations; and what this host
-could not verify.
+Recorded by commit 4. Every Gradle gate ran after `./gradlew --stop` with `--rerun-tasks
+--no-build-cache --no-configuration-cache --console=plain`, on a daemon registry private to this
+run, and every count below is parsed from JUnit XML written after the gate's recorded start.
+Repository-wide, Native and link gates added `-Dorg.gradle.jvmargs=-Xmx4g --max-workers=2`; device
+suites used testing.md's canonical `-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace
+--continue`. detekt never shared an invocation with tests.
+
+### B13.1 Base and commits
+
+- Base: `972537be30a250dac9a2c5f30e6f70a273a1209a`, this amendment's landing on dev (parent
+  `c3026c3ce`). It changed one Markdown file, so no unified run started for it.
+- Commit 1: `db875f5fdbb3f5ec8ea741ea39fd6d9d52a3ae6b`, the 3 kit paths; local `gpgsig` header
+  present.
+- Commit 2: `b285b13510d1d06e55b19e3b90df8c8084c68015`, the 12 paths of Section B10; local `gpgsig`
+  header present.
+- Commit 3: `01ddfa7577fd650a9857ffcfdcc4127b831fa7df`, 21 new paths and 6 re-touched; local `gpgsig`
+  header present.
+- Commit 4: this commit.
+
+Against the base: 3 paths after commit 1, 15 after commit 2, 36 after commit 3, and Section B8's 39
+after commit 4. No `.png`, `*.gradle.kts`, workflow, `.github/scripts/` or
+`gradle/libs.versions.toml` path; each catalog's numstat is `0 2`.
+
+### B13.2 Entry gate (Section B6.1)
+
+- The latest `Android CI/CD - Unified Build and Tests` push run on dev: `40217032970`, head
+  `c3026c3ce`, success.
+- Drift: since `c3026c3ce`, only this document's landing touched a Section B8 path.
+- Census: one script read the base's git objects (59 production Kotlin files of the module, its 27
+  test files, both catalogs, kit's catalogs, the topology gate and the other files Section B2
+  names). Comments and string literals were blanked first, and every call was read from its name to
+  its closing parenthesis, across lines. Section B2.2 imported the topology gate's own functions.
+  The output was byte-identical under all five Pythons (sha256 `8a835c452aadd54b…`).
+
+| Item (method) | Measured | Verdict |
+| --- | --- | --- |
+| `resourceWrapper.getString(` calls, by file | 36: `ClickHandler` 15, `DialogClickHandler` 5, `ExercisePickerHandler` 4, `LiveWorkoutMapper` 12 | equal |
+| Their key expressions (first argument, compacted, distinct) | 32: 30 direct keys, `type.msgRes` (3 calls, the three `sendError`s), `copy.toastRes` (1 call, `DialogClickHandler` line 88) | equal |
+| CMP's top-level `getString` (not after `.`, not a declaration) and its import | 1, `CommonHandler` line 125, kit's `core_ui_kit_plan_editor_unit_reps`; 1 import | equal |
+| Composition reads (every `stringResource(` and `pluralStringResource(`; CMP when the id is `Res.*`) | 50: 47 Android, 3 CMP in `LiveSetRow` | equal, see deviation 1 |
+| The 31-row table: each key in both catalogs (kit's in kit's) with the EN and RU values shown | 31 of 31 | equal |
+| No value carries an escape, an entity, a `%%` or a bare `%d` (raw XML) | 62 values, none | equal |
+| The ten templates (rows with a positional placeholder; fields ending `Template`) | rows 5, 6, 18, 21–25, 28, 29, both ways | equal |
+| 26 of the 30 direct keys move; four stay; the copy adds 2 toast keys, 2 error keys, kit's unit | 26; the four present; equal to the table | equal |
+| "Read at the base": rows 1–27 in the named file; 28–29 via `copy.toastRes`; 30–31 via `type.msgRes` | 26 direct rows in their files; the 4 enum entries present | equal |
+| Section B2.2's lambda census (the gate's `braced_call_bodies`, `compact`, side-effect tokens, resolver regex, same-file and module-wide `copy_resolving_functions`) | 61 lambdas, 11 without `.copy(`, 4 holding tokens (24), 0 resolver references, 0 same-file calls, 13 module reach | equal |
+| The 13 by file | `ClickHandler` 7, `CommonHandler` 2 (one by `::`), `DialogClickHandler` 2, `ExercisePickerHandler` 1, `PendingUndoOps` 1, with the functions Section B2.2 names | equal |
+| Catalogs: `<string>` and `<plurals>` per locale | 96 and 2, each | equal |
+| The dead keys at their lines, each `…UnusedResources`; references outside the catalogs and `documentation/` | EN 100 and 127, RU 91 and 113; none | equal |
+| `@Test` counts by innermost enclosing class | 24 suites, 227 cases, each equal to Section B2.4's table | equal |
+| The four golden classes (the gate's `GOLDEN_METHODS`) | 30 methods: header 4, screen 1, sheets 7, state 18 | equal |
+| `System.currentTimeMillis()` | `CommonHandler` 121 and 189, `LiveWorkoutInteractorImpl` 324 | equal |
+| The picker's injection; `@Binds` in `di/LiveWorkoutGraph.kt`; `AppGraph`'s `Context`; settings' injection | `ClickHandler`, `DialogClickHandler` only; 2; `@Provides applicationContext: Context`; `BackupClickHandler` | equal |
+| `ErrorType` producers; `sendError` calls, synchronous / in launch bodies | `InvalidReps` 1, `FinishFailed` 2, `Unknown` 0; 19: 2 synchronous (`ClickHandler` 170, `DialogClickHandler` 178), 17 in launch bodies (9, 6, 2) | equal |
+| The resolver's two paths; the wrapper always formats | both hold | equal |
+| References outside the module (every source set; `documentation/` and `graphify-out/` excluded) | none | equal |
+| detekt thresholds and lint settings | as Section B2.5; the lint baseline is empty | equal |
+| Inherited suppressions | production 12 in 10 files, tests 7 in 5, each as Section B2.6 lists | equal |
+| The PNG blob set | 60 PNGs, `53221eab…` | equal |
+
+The exit census (Section B5.3) on the base exited 1, and all eleven items equalled the base column
+(X7, whose base column is "—", measured 0 reads).
+
+Baselines on the base:
+
+| Gate | Executed | Fresh XML |
+| --- | --- | --- |
+| `assert_kmp_ui_source_topology.py`, five Pythons | — | 833 lines, exit 0, empty stderr, one sha256 `37315e70…` (BASE_GATE_OUTPUT) |
+| `assert_mvi_source_topology.py` | — | exit 0, 5 lines (BASE_MVI_TOPOLOGY) |
+| `:core:ui:kit:testAndroidHostTest` | 87/87 | 27 suites, 416 cases (KIT_BASELINE) |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2808/2808 | 34 module/task rows, 474 suites, 3,370 cases, 0 failures (HOST_BASELINE; live-workout 24 suites, 227 cases); lint 80 findings in each of app:app, app:dev and app:store, none in the other 36 reports (LINT_BASELINE); see deviation 2 |
+| `verifyPaparazziDebug` | 675/675 | 169 suites, 1,766 cases, 0 failures; porcelain empty |
+| fifteen-module `iosSimulatorArm64Test --continue` + oracle | 410/410 | 96 suites, 635 cases; oracle exit 0, kit 2 identities (NATIVE_BASELINE) |
+| fifteen-module `linkDebugTestIosArm64 --continue` | 395/395 | 15/15 fresh `test.kexe` |
+
+### B13.3 After commits 1, 2 and 3 (Sections B6.2–B6.4)
+
+| Commit | Gate | Executed | Result |
+| --- | --- | --- | --- |
+| 1 | `:core:ui:kit:testAndroidHostTest` | 87/87 | 30 suites, 423 cases: KIT_BASELINE plus exactly T1–T7 |
+| 1 | `:core:ui:kit:assembleDebug` | 128/128 | the Android AAR and both iOS klibs (`compileKotlinIosArm64`, `compileKotlinIosSimulatorArm64`) |
+| 1 | fifteen-module Native + oracle | 410/410 | 96 suites, 635 cases; every row's names and the oracle's output equal to NATIVE_BASELINE |
+| 1 | fifteen-module link | 395/395 | 15/15 fresh `test.kexe` |
+| 2 | `:feature:live-workout:testDebugUnitTest` | 212/212 | 24 suites, 228 cases: HOST_BASELINE's row plus exactly N9 |
+| 2 | `:app:dev:assembleDebug` | 688/688 | built; Metro accepted the `ExercisePicker` binding |
+| 2 | exit census X9, X10, X11 | — | pass: 94 and 2 per catalog with Section B3.4's diff only; no `currentTimeMillis`, `Clock` in `CommonHandler` 2 and `LiveWorkoutInteractorImpl` 1; the seam as Section B5.3 states, 3 `@Binds` |
+| 3 | `:feature:live-workout:testDebugUnitTest` | 212/212 | 26 suites, 241 cases: HOST_BASELINE's row plus exactly Section B4.4's 14 |
+| 3 | `:core:ui:kit:testAndroidHostTest` | 87/87 | equal to commit 1's run |
+| 3 | `:app:dev:assembleDebug` | 688/688 | built; Metro provides the reader its `Context` |
+| 3 | exit census X1–X11 | — | exit 0 (Section B13.5) |
+| each | detekt (alone, on the staged tree before the commit and on the commit after it) | 63/63 | 0 findings in 55 fresh reports (deviation 3 for commit 2's first staged run) |
+
+On commit 3 the module's 19 suppression lines are byte-identical to the base's, and the PNG blob
+set is still `53221eab…`.
+
+### B13.4 Known-negative controls (Section B5)
+
+The K controls ran through `mutation_harness.py` one-shot under `python3`, on commit 3's committed
+tree. Every RED is scored by identity from the fresh XML of every result directory the task writes,
+and every other case of the task passed. Each control restored its file to HEAD's sha256 and mode
+with an empty porcelain, and its fresh GREEN afterwards passed (TK 664 cases, TL 241, TR 4). K4–K13
+shared the GREEN between consecutive controls of task TL.
+
+| Id | Required | Measured RED, quoted |
+| --- | --- | --- |
+| K1 | only T1, T2, T4–T7, P1, P2, N4, N5, M1, the two PR identities | exactly those 13. T1: `expected: <2 of 3 exercises> but was: <2 of 2 exercises>`. T5: `Expected java.lang.IndexOutOfBoundsException to be thrown, but nothing was thrown.` P1: `feature_live_workout_meta_format ==> expected: <2 of 3 exercises · 5 of 9 sets> but was: <2 of 2 exercises · 2 of 2 sets>`. M1: `but was: <metaSkippedTemplate metaTemplate 0 0 0 0 metaTemplate 0 0 0 0>` |
+| K2 | all four of TR | the four. `init resolves the reps unit from the real catalog into state`: `expected: <reps> but was: <>` (the load was abandoned) |
+| K3 | only R1, R2 | R1, R2: the whole-copy comparison expected `resetTitle=Reset sets?` and got `resetTitle=Cancel session?` (RU: `Сбросить подходы?` and `Отменить сессию?`) |
+| K4 | only N1 | N1: `but was: <ResetSets(title=resetBody, …` |
+| K5 | only N4 | N4: `but was: <DeleteDialog(sessionName=deleteSessionUnnamed, progressLabel=deleteSessionProgressTemplate 2 2 3)>` |
+| K6 | only `an adhoc session still removes the plan row on delete` and `ad-hoc workout copy does not claim a plan changes after restoration` | those two: `expected: <Removed from workout> but was: <>`; `expected: <toastExerciseRemovedFromWorkoutTemplate %1$s> but was: <toastExerciseRemovedTemplate %1$s>` |
+| K7 | only N7 | N7: `expected: <toastExerciseRemovedTemplate Romanian Deadlift With P…> but was: <toastExerciseRemovedTemplate Romanian Deadlift With Pause>` |
+| K8 | only M1 | M1: `expected: <[statusSkipped, statusNoPlan, 12 repsUnit]> but was: <[statusNoPlan, statusNoPlan, 12 repsUnit]>` |
+| K9 | only N8 | N8: `expected: <[errorInvalidReps]> but was: <[errorFinishFailed]>` |
+| K10 | only N9 | N9: `expected: <1> but was: <0>` |
+| K11 | only N2 | N2: `but was: <CancelSession(title=cancelBody, …` |
+| K12 | only N3 | N3: `but was: <EmptyFinish(canDiscard=true, confirmLabel=emptyFinishContinue, …` |
+| K13 | only N6 | N6: `expected: <toastSetAdded> but was: <toastSetRemoved>` |
+| K14 | only T3 | T3: `java.lang.NumberFormatException: For input string: ""` |
+
+| Id | Mutation (scratchpad copy, restored with `cp`) | Measured |
+| --- | --- | --- |
+| G1 | `ClickHandler.kt`: the reset title read through `resourceWrapper` | exit 1, failing X1 and X4 only: X1 = 8 (`ClickHandler` 2); X4 `(61, 11, 1, 2, 0, 0, 0)`, one lambda holding `getString(` and `resourceWrapper.` |
+| G2 | `CommonHandler.kt`: `nowMillis = System.currentTimeMillis(),` | exit 1, failing X10 only: `currentTimeMillis` 1, `Clock` in `CommonHandler` 1 |
+| G3 | `LiveWorkoutMapper.kt`: the skipped label read through `resourceWrapper` | exit 1, failing X1, X2, X4 and X5 only: X1 = 8, X2 adds `LiveWorkoutMapper`, X4 module reach 13, X5 flags `LiveWorkoutMapper` |
+
+Each restored file's blob and mode equalled HEAD's, and the restored tree's census exited 0.
+
+### B13.5 Exit census (Section B5.3), on commit 3
+
+The census read commit 3's git objects and exited 0.
+
+| Id | Input | Measured |
+| --- | --- | --- |
+| X1 | 63 production files | 7: `ClickHandler` 1 (`sendError`), `DialogClickHandler` 2 (`sendError`, `finish_success`), `ExercisePickerHandler` 4 (`sendError`, `toast_exercise_added`, `picker_create_format`, `picker_no_match_format`) |
+| X2 | 63 | the three handlers |
+| X3 | 63 | 0 and 0; `StringResolver` in `CommonHandler` only |
+| X4 | 11 handler files, 69 module copy-resolving functions | 61, 11, 0 (0), 0, 0, 0 |
+| X5 | the 5 pipeline files | all clean |
+| X6 | 63 | 1, in `LiveWorkoutCopyReader`; that file alone imports `android.content.Context` |
+| X7 | `CommonHandler` | 30 `copyReader.read(` calls with 30 distinct keys, equal to Section B2.1's 30, and one `stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps)`; `copyReader` in no other file |
+| X8 | the 3 model files | no payload token (KDoc included), no feature `R` import |
+| X9 | 2 catalogs | 94 and 2 in each; the diff from the base is Section B3.4's lines only |
+| X10 | 94 module Kotlin files, every source set | no `currentTimeMillis`; `Clock.System.now().toEpochMilliseconds()` in `CommonHandler` 2 and `LiveWorkoutInteractorImpl` 1 |
+| X11 | 63 | `ExercisePickerHandler` 0 / 0 in the two handlers' code; `val … : ExercisePicker,` in those two; implementer `ExercisePickerHandler`; 3 `@Binds` |
+
+### B13.6 Repository, Native and device gates (Sections B6.5 and B6.6), on commit 3
+
+| Gate | Executed | Result |
+| --- | --- | --- |
+| `assembleDebug lintDebug testDebugUnitTest --continue` | 2808/2808 | 479 suites, 3,391 cases, 0 failures. 32 of 34 rows name-identical to HOST_BASELINE; core:ui:kit gains 3 suites and 7 cases (T1–T7) and live-workout 2 suites and 14 cases (Section B4.4's names); no name removed and no outcome changed |
+| lint, inside that gate | — | every report's findings (id, path, line text) equal to LINT_BASELINE: 80 each in app:app, app:dev and app:store, none in the other 36. No finding names a Section B8 path |
+| `detekt --continue` | 63/63 | 0 findings in 55 fresh reports |
+| `assembleDebugAndroidTest` | 2171/2171 | built |
+| `verifyPaparazziDebug` | 675/675 | 174 suites, 1,787 cases, 0 failures: the baseline's rows, with the same 21 unit identities added (the task runs each module's unit tests); the 60 live-workout golden cases name-identical and passing; porcelain empty; blob set `53221eab…` |
+| `:lint-rules:test` | 9/9 | 16 suites, 151 cases |
+| `:app:wear:testStoreReleaseUnitTest … --tests '*ReleaseRuntimeBoundaryTest*'` | 107/107 | 3 cases |
+| `assert_kmp_ui_source_topology.py`, five Pythons | — | byte-identical to BASE_GATE_OUTPUT (833 lines, sha256 `37315e70…`), exit 0, empty stderr |
+| `assert_mvi_source_topology.py` | — | equal to BASE_MVI_TOPOLOGY |
+| `personal_data_gate.py -v` | — | PASS |
+| fifteen-module Native + oracle | 410/410 | 96 suites, 635 cases; every row's names and the oracle's output equal to NATIVE_BASELINE |
+| fifteen-module link | 395/395 | 15/15 fresh `test.kexe` |
+
+On `emulator-5554` (API 34, animations off), each suite ran with `ANDROID_SERIAL` set and its XML
+read fresh. Around each suite a logcat writer (`adb -s emulator-5554 logcat -v threadtime`, after
+`logcat -c`) ran to a file and was stopped by its PID.
+
+| Suite | Executed | Result |
+| --- | --- | --- |
+| Smoke, then `assert_mvi_device_identities.py` | 2131/2131 | 44 cases, the 3 documented `pendingFeatureRewrite` skips, 0 failures; 2 device identities |
+| Regression | 2131/2131 | 88 cases, 0 failures |
+
+Smoke and Regression equal Part A's record (Section 14.6) name for name and outcome for outcome.
+The logcat sweep parsed 31,024 lines around Smoke and 24,104 around Regression and found no line of
+priority `E` whose tag starts with `SCREEN_`, so no `SCREEN_LiveWorkout` error line. The same files
+hold `SCREEN_` lines at other priorities (121 `I/SCREEN_LiveWorkout` in Regression) and 1,606 and
+601 `E` lines of other tags, so the sweep could see one. Before and after every suite the device
+state (the three animation scales, rotation, keyguard) and the pre-installed dev app's
+`lastUpdateTime` were unchanged, and no other instrumentation ran on the serial.
+
+### B13.7 Environment
+
+- Xcode 27.0 (27A266a) here, with iOS simulator runtimes 18.0, 18.2, 18.6 and 26.5; CI selects
+  Xcode 26.6. JDK 21.0.11 (JBR).
+- Pythons: 3.9.6 (`/usr/bin/python3`), 3.11.16, 3.13.16, 3.14.8 and 3.15.0 (`python3`). Controls
+  ran under `python3` only.
+- Gradle ran on a daemon registry private to this run, so another checkout's `--stop` could not
+  reach it, and its own `--stop` reached no other daemon. No other Gradle client ran on the host.
+- Emulator: `Pixel_6_API_34`, serial `emulator-5554` (API 34, `sdk_gphone64_arm64`), cold-booted
+  twice with animations off; no other device was attached.
+- Spotlight indexing was enabled on `/`; it was left as it was. Free disk stayed between 86 and
+  92 GiB.
+
+### B13.8 Deviations
+
+1. **Section B2.1's "47 Android `stringResource(R.string.…)`".** The counts hold (50 composition
+   reads: 47 Android, 3 CMP), but the 47 are 45 `stringResource(` and 2 `pluralStringResource(`
+   calls: 40 with a literal `R.string` id, 2 with a conditional `R.string` expression, 3 with
+   `DeleteExerciseCopyUiModel`'s ids and 2 with `R.plurals` ids. The census counts calls, as Section
+   B0.2 says, and reports this shape rather than a mismatch.
+2. **The base's repository gate, first run.** It executed 2808/2808 with every test passing, and
+   exited 1 on `:core:data:database:copyAndroidMainLintReports`: `FileAlreadyExistsException` on
+   `build/reports/lint-results.xml`, which `lintReportJvm` wrote concurrently (an untouched module).
+   A second run on the same base was green, with all 34 rows and every lint finding identical to
+   the first; HOST_BASELINE and LINT_BASELINE are that run's. The race did not recur on commit 3.
+3. **Commit 2's first staged detekt run.** It reported `NoConsecutiveBlankLines` in
+   `FakeExercisePicker.kt`: the script that transcribed Section B4.2's block kept a trailing blank
+   line from the Markdown fence. The line was removed before the commit and the run repeated with 0
+   findings; no commit carried it.
+4. **One extra run before commit 3.** Because a fix must be a new commit, the module's tests also
+   ran on commit 3's staged tree (26 suites, 241 cases, the same names); Section B6.4's gates then
+   ran on the committed tree.
+5. **tech-debt.md's first string-resources row** takes Section B8's quoted wording literally:
+   "These five production files" became "These four".
+
+### B13.9 Not verified on this host
+
+- Xcode 26.6, which CI's KMP iOS kit smoke job runs; this host has 27.0.
+- The iosArm64 test binaries run on a device: they are linked, never executed.
+- OD1–OD4 on a device, which are the owner's check (Section B11.2), and the release Crashlytics
+  effect of anything.
+
+GitHub's signature verification, the CI run ids and the review classification go in the PR body
+and the report, because they cannot exist before this commit does.
