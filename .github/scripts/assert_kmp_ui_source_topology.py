@@ -6919,6 +6919,834 @@ EXERCISE_ENTRY = FeatureEntry(
     screen_registration="navComponentScreenWithResults",
 )
 
+
+def live_workout_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D5, D6, SM0 (kmp-phase-7-16-live-workout-feature.md Sections B3.5–B3.9, C4.1 and C4.2): the
+    # copy outside composition resolves at each load into State through the injected StringResolver,
+    # each field from its own key; the seven launch reads resolve on use through the same resolver;
+    # the Part B reader is gone. Every count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    # 1. The copy model: 31 String fields in order, each blank in EMPTY.
+    copy_fields = (
+        "trainingNamePlaceholder",
+        "statusSkipped",
+        "statusNoPlan",
+        "repsUnit",
+        "metaTemplate",
+        "metaSkippedTemplate",
+        "resetTitle",
+        "resetBody",
+        "resetConfirm",
+        "resetDismiss",
+        "emptyFinishDiscard",
+        "emptyFinishContinue",
+        "cancelTitle",
+        "cancelBody",
+        "cancelConfirm",
+        "cancelDismiss",
+        "deleteSessionUnnamed",
+        "deleteSessionProgressTemplate",
+        "finishNameLabel",
+        "finishNameRequired",
+        "finishSetsCountTemplate",
+        "finishExercisesTemplate",
+        "finishExercisesWithSkippedTemplate",
+        "finishPrWeightedTemplate",
+        "finishPrWeightlessTemplate",
+        "toastSetAdded",
+        "toastSetRemoved",
+        "toastExerciseRemovedTemplate",
+        "toastExerciseRemovedFromWorkoutTemplate",
+        "errorInvalidReps",
+        "errorFinishFailed",
+    )
+    model_relative = "mvi/model/LiveWorkoutCopy.kt"
+    model_source = source_of(model_relative)
+    if model_source is not None:
+        parameters = data_class_parameters(model_source, "LiveWorkoutCopy")
+        expected_parameters = [f"{field_name}: String" for field_name in copy_fields]
+        if parameters != expected_parameters:
+            failures.append(
+                f"{module}: {shown(model_relative)} LiveWorkoutCopy parameters must be exactly "
+                f"{expected_parameters}; actual={parameters}"
+            )
+        require(model_relative, model_source, "val EMPTY: LiveWorkoutCopy = LiveWorkoutCopy(", 1)
+        for field_name in copy_fields:
+            require(model_relative, model_source, f'{field_name} = "",', 1)
+
+    # 2. CommonHandler: the load resolves the copy, 31 reads through the resolver, no reader.
+    common_relative = "mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    if common_source is not None:
+        for fragment in (
+            "private val stringResolver: StringResolver,",
+            "private suspend fun resolveCopy(): LiveWorkoutCopy = LiveWorkoutCopy(",
+            "liveCopy = resolveCopy(),",
+            "repsUnit = stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps),",
+        ):
+            require(common_relative, common_source, fragment, 1)
+        require(common_relative, common_source, "stringResolver.getString(", 31)
+        for fragment in ("copyReader", "LiveWorkoutCopyReader", "System.currentTimeMillis"):
+            require(common_relative, common_source, fragment, 0)
+
+    # 3. The launch bodies' seven reads: one, two and four, each through the resolver.
+    for relative, reads in (
+        ("mvi/handler/ClickHandler.kt", 1),
+        ("mvi/handler/DialogClickHandler.kt", 2),
+        ("mvi/handler/ExercisePickerHandler.kt", 4),
+    ):
+        source = source_of(relative)
+        if source is None:
+            continue
+        require(relative, source, "private val stringResolver: StringResolver,", 1)
+        require(relative, source, "stringResolver.getString(", reads)
+        require(relative, source, "private suspend fun sendError(type: ErrorType)", 1)
+    # CM3: the added toast resolves before the add's write, so no suspension separates the write
+    # from its undo push; `val nextExercises = (` opens that write's lambda.
+    picker_relative = "mvi/handler/ExercisePickerHandler.kt"
+    picker_source = source_of(picker_relative)
+    if picker_source is not None:
+        anchors = (
+            "val addedMessage = stringResolver.getString(",
+            "val nextExercises = (",
+            "message = addedMessage,",
+        )
+        for anchor in anchors:
+            require(picker_relative, picker_source, anchor, 1)
+        resolved_at, written_at, used_at = (picker_source.find(anchor) for anchor in anchors)
+        if not 0 <= resolved_at < written_at < used_at:
+            failures.append(
+                f"{module}: {shown(picker_relative)} must resolve the added toast before its write"
+            )
+
+    # 4. 7.11's rules 4–7 over this module's layout: no top-level CMP read; mvi/ reads only through
+    # the resolver; no ui/ file reads copy outside composition; the reader is gone everywhere.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        if "LiveWorkoutCopyReader" in source:
+            failures.append(f"{module}: {relative} still names the Part B reader (SM0)")
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        elif posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def live_workout_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # SM8 (kmp-phase-7-16-live-workout-feature.md Sections C8 and C10.1): core:data:database stays
+    # one production edge, read by the domain mapper alone. The domain suite's repository fakes
+    # spell its two set models, so that suite may import PlanSetDataModel and SetTypeDataModel and
+    # nothing else from it. core:data:database-test is ExerciseDoneRuleTest's host fixture (7.13
+    # D4-A): one androidHostTest edge, one import. Shared code names no java.*.
+    failures: list[str] = []
+    module = entry.module
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    fixture_edge = "\"androidHostTestImplementation\"(project(\":core:data:database-test\"))"
+    if build_source.count(":core:data:database-test") != 1 or fixture_edge not in build_source:
+        failures.append(
+            f"{module}: :core:data:database-test must be exactly one "
+            "androidHostTestImplementation edge"
+        )
+    mapper = entry.common_main / "domain/mapper/LiveWorkoutDomainMapper.kt"
+    domain_suite = (
+        entry.root / "src/commonTest/kotlin" / entry.package_dir
+        / "domain/LiveWorkoutInteractorImplTest.kt"
+    )
+    done_rule_suite = (
+        entry.root / "src/androidHostTest/kotlin" / entry.package_dir
+        / "mvi/mapper/ExerciseDoneRuleTest.kt"
+    )
+    readers = {
+        domain_suite: [
+            "core.data.database.sets.PlanSetDataModel",
+            "core.data.database.sets.SetTypeDataModel",
+        ],
+        done_rule_suite: ["core.data.database.testfixtures.WorkoutTargetParityFixture"],
+    }
+    if "core.data.database" not in strip_kotlin_comments(common_sources.get(mapper, "")):
+        failures.append(
+            f"{module}: {mapper.relative_to(entry.root)} "
+            "must be the module's one production reader of core:data:database"
+        )
+    java_reference = re.compile(r"(?<![\w.])java\.")
+    shared_sets = ("src/commonMain/", "src/commonTest/", "src/iosTest/")
+    for path in sorted((entry.root / "src").rglob("*.kt")):
+        source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(entry.root)
+        references = re.findall(r"core\.data\.database[\w.]*", source)
+        if path in readers:
+            if references != readers[path]:
+                failures.append(
+                    f"{module}: {relative} may name core:data:database only as "
+                    f"{readers[path]}; found {references}"
+                )
+        elif path != mapper and references:
+            failures.append(
+                f"{module}: {relative} must not read core:data:database;"
+                " only the domain mapper maps its data models"
+            )
+        if relative.as_posix().startswith(shared_sets) and java_reference.search(source):
+            failures.append(f"{module}: {relative} names java.* in shared code")
+    return failures
+
+
+LIVE_WORKOUT_ENTRY = FeatureEntry(
+    module="feature:live-workout",
+    short_name="live-workout",
+    root=Path("feature/live-workout"),
+    package_dir="io/github/stslex/workeeper/feature/live_workout",
+    # Every plugin, resource-package, interop, dependency and apply line of Section C8, each
+    # exactly once; kotlin("test") is counted by kotlin_test_count. The one production
+    # core:data:database edge is here; live_workout_dependency_contract keeps every other reader out.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "alias(libs.plugins.paparazzi)",
+        "packageOfResClass = \"io.github.stslex.workeeper.feature.live_workout.resources\"",
+        "includeJavax()",
+        "implementation(project(\":core:core\"))",
+        "implementation(project(\":core:ui:kit\"))",
+        "api(project(\":core:ui:mvi\"))",
+        "api(project(\":core:ui:navigation\"))",
+        "api(project(\":core:ui:plan-editor\"))",
+        "implementation(project(\":core:data:database\"))",
+        "api(project(\":core:data:exercise\"))",
+        "api(libs.cmp.ui)",
+        "api(libs.coroutines.core)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        "\"androidHostTestImplementation\"(project(\":core:data:database-test\"))",
+        "\"androidHostTestImplementation\"(project(\":core:ui:golden-harness\"))",
+        "\"androidDeviceTestImplementation\"(libs.bundles.android.test)",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.junit4)",
+        "\"androidDeviceTestImplementation\"(platform(libs.androidx.compose.bom))",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.manifest)",
+        "\"androidDeviceTestImplementation\"(project(\":core:ui:test-utils\"))",
+        "apply(from = \"$rootDir/gradle/golden-gate.gradle.kts\")",
+    ),
+    kotlin_test_count=2,
+    # Exact private EN/RU catalog, in file order: (tag, name, EN value, RU value), as Section C2.4
+    # prints it at exit — P1's twelve positional plural items.
+    catalog=(
+        ("string", "feature_live_workout_meta_format", "%1$d of %2$d exercises · %3$d of %4$d sets", "%1$d из %2$d упражнений · %3$d из %4$d подходов"),
+        ("string", "feature_live_workout_meta_skipped_format", "%1$s · %2$d skipped", "%1$s · пропущено %2$d"),
+        ("string", "feature_live_workout_railmeta_detail_sets", "detail: sets", "детализация: подходы"),
+        ("string", "feature_live_workout_railmeta_detail_exercises", "detail: exercises", "детализация: упражнения"),
+        ("string", "feature_live_workout_railmeta_detail_overall", "detail: overall", "детализация: общая"),
+        ("string", "feature_live_workout_railmeta_counts", "%1$d exercises · %2$d sets", "%1$d упражнений · %2$d подходов"),
+        ("string", "feature_live_workout_railmeta_one_off_suffix", "%1$s · one-off: %2$d", "%1$s · разовых: %2$d"),
+        ("string", "feature_live_workout_status_skipped", "skipped", "пропущено"),
+        ("string", "feature_live_workout_status_no_plan", "no plan", "плана нет"),
+        ("string", "feature_live_workout_one_off_badge", "one-off", "разовое"),
+        ("string", "feature_live_workout_expand", "Expand", "Развернуть"),
+        ("string", "feature_live_workout_collapse", "Collapse", "Свернуть"),
+        ("string", "feature_live_workout_action_edit_plan", "Edit plan", "Изменить план"),
+        ("string", "feature_live_workout_action_reset_sets", "Reset sets", "Сбросить подходы"),
+        ("string", "feature_live_workout_action_skip", "Skip exercise", "Пропустить упражнение"),
+        ("string", "feature_live_workout_action_unskip", "Return to session", "Вернуть в сессию"),
+        ("string", "feature_live_workout_action_delete_exercise", "Delete exercise", "Удалить упражнение"),
+        ("string", "feature_live_workout_one_off_row_title", "Only for today", "Только на сегодня"),
+        ("string", "feature_live_workout_one_off_row_sub", "stays in this session, but won’t be added to the training plan", "останется в этой сессии, но не попадёт в план тренировки"),
+        ("string", "feature_live_workout_delete_workout_title", "Remove from this workout?", "Удалить из этой тренировки?"),
+        ("string", "feature_live_workout_delete_workout_body", "“%1$s” will be removed from this workout. Its logged sets will be lost.", "«%1$s» будет удалено из текущей тренировки. Записанные подходы пропадут."),
+        ("string", "feature_live_workout_delete_workout_confirm", "Remove from workout", "Удалить из тренировки"),
+        ("string", "feature_live_workout_delete_plan_title", "Remove from the training plan?", "Удалить из плана тренировки?"),
+        ("string", "feature_live_workout_delete_plan_body_added", "“%1$s” was added in this session. Its logged sets will be lost.", "«%1$s» было добавлено в этой сессии. Записанные подходы пропадут."),
+        ("string", "feature_live_workout_delete_plan_body_planned", "“%1$s” will disappear from the training plan and future sessions. If you just don’t want it today — skipping is the better move.", "«%1$s» исчезнет из плана тренировки и не появится в следующих сессиях. Если не хочешь делать его только сегодня — лучше пропустить."),
+        ("string", "feature_live_workout_delete_plan_keep", "Keep", "Оставить"),
+        ("string", "feature_live_workout_delete_plan_confirm", "Remove from plan", "Удалить из плана"),
+        ("string", "feature_live_workout_sheet_close", "Close", "Закрыть"),
+        ("string", "feature_live_workout_toast_set_added", "Set added", "Подход добавлен"),
+        ("string", "feature_live_workout_toast_set_removed", "Set removed", "Подход удалён"),
+        ("string", "feature_live_workout_toast_exercise_added", "“%1$s” added", "«%1$s» добавлено"),
+        ("string", "feature_live_workout_toast_exercise_removed", "“%1$s” removed from plan", "«%1$s» удалено из плана"),
+        ("string", "feature_live_workout_toast_exercise_removed_from_workout", "“%1$s” removed from workout", "«%1$s» удалено из тренировки"),
+        ("string", "feature_live_workout_toast_undo", "Undo", "Отменить"),
+        ("string", "feature_live_workout_setbar_add", "+ set", "+ подход"),
+        ("string", "feature_live_workout_setbar_remove", "− set", "− подход"),
+        ("string", "feature_live_workout_set_type_tooltip", "Tap to cycle: warmup → work → failure → drop", "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп"),
+        ("string", "feature_live_workout_reset_title", "Reset sets?", "Сбросить подходы?"),
+        ("string", "feature_live_workout_reset_body", "All logged sets for this exercise will be deleted. This cannot be undone.", "Все записанные подходы этого упражнения будут удалены. Это нельзя отменить."),
+        ("string", "feature_live_workout_reset_confirm", "Reset", "Сбросить"),
+        ("string", "feature_live_workout_reset_dismiss", "Cancel", "Отмена"),
+        ("string", "feature_live_workout_finish", "Finish session", "Завершить сессию"),
+        ("string", "feature_live_workout_finish_title", "Finish session?", "Завершить сессию?"),
+        ("string", "feature_live_workout_finish_body", "Your sets will be logged and plans will update with what you actually performed.", "Подходы будут записаны, планы обновятся под фактически выполненные значения."),
+        ("string", "feature_live_workout_finish_name_label", "Workout name", "Название тренировки"),
+        ("string", "feature_live_workout_finish_name_required", "Name is required", "Введите название"),
+        ("string", "feature_live_workout_finish_stat_duration", "Duration", "Длительность"),
+        ("string", "feature_live_workout_finish_stat_exercises", "Exercises", "Упражнения"),
+        ("string", "feature_live_workout_finish_stat_sets", "Sets logged", "Подходы"),
+        ("string", "feature_live_workout_finish_stat_sets_count", "%1$d", "%1$d"),
+        ("string", "feature_live_workout_finish_stat_exercises_format", "%1$d of %2$d done", "%1$d из %2$d"),
+        ("string", "feature_live_workout_finish_stat_exercises_with_skipped_format", "%1$d of %2$d done · %3$d skipped", "%1$d из %2$d · %3$d пропущено"),
+        ("string", "feature_live_workout_finish_keep_going", "Keep going", "Продолжить"),
+        ("string", "feature_live_workout_finish_confirm", "Finish", "Завершить"),
+        ("string", "feature_live_workout_finish_success", "Session saved", "Сессия сохранена"),
+        (
+            "plurals",
+            "feature_live_workout_finish_new_pr_title",
+            (("one", "%1$d new personal record"), ("other", "%1$d new personal records")),
+            (
+                ("one", "%1$d новый рекорд"),
+                ("few", "%1$d новых рекорда"),
+                ("many", "%1$d новых рекордов"),
+                ("other", "%1$d новых рекордов"),
+            ),
+        ),
+        ("string", "feature_live_workout_finish_new_pr_row_format", "%1$s — %2$s", "%1$s — %2$s"),
+        (
+            "plurals",
+            "feature_live_workout_finish_unfilled_discarded",
+            (("one", "%1$d empty set will not be saved"), ("other", "%1$d empty sets will not be saved")),
+            (
+                ("one", "%1$d пустой подход не будет сохранён"),
+                ("few", "%1$d пустых подхода не будут сохранены"),
+                ("many", "%1$d пустых подходов не будут сохранены"),
+                ("other", "%1$d пустых подходов не будут сохранены"),
+            ),
+        ),
+        ("string", "feature_live_workout_finish_pr_weighted_format", "%1$s × %2$d", "%1$s × %2$d"),
+        ("string", "feature_live_workout_finish_pr_weightless_format", "%1$d reps", "%1$d повт"),
+        ("string", "feature_live_workout_session_overflow_cancel", "Cancel session", "Отменить сессию"),
+        ("string", "feature_live_workout_cancel_title", "Cancel session?", "Отменить сессию?"),
+        ("string", "feature_live_workout_cancel_body", "All progress will be deleted. This cannot be undone.", "Весь прогресс будет удалён. Это нельзя отменить."),
+        ("string", "feature_live_workout_cancel_confirm", "Cancel", "Отменить"),
+        ("string", "feature_live_workout_cancel_dismiss", "Keep going", "Продолжить"),
+        ("string", "feature_live_workout_delete_session_unnamed", "Workout", "Тренировка"),
+        ("string", "feature_live_workout_delete_session_progress_format", "%1$d of %2$d exercises done · %3$d sets logged", "%1$d из %2$d упражнений · %3$d подходов записано"),
+        ("string", "feature_live_workout_empty_headline", "No exercises yet", "Нет упражнений"),
+        ("string", "feature_live_workout_empty_supporting", "Add your first exercise to begin logging sets.", "Добавьте первое упражнение, чтобы начать запись подходов."),
+        ("string", "feature_live_workout_training_name_placeholder", "Untitled", "Без названия"),
+        ("string", "feature_live_workout_picker_search_hint", "Type to filter or create new", "Введите чтобы найти или создать"),
+        ("string", "feature_live_workout_picker_no_match_format", "No exercises match “%1$s”", "Нет упражнений по запросу «%1$s»"),
+        ("string", "feature_live_workout_picker_create_format", "Create “%1$s”", "Создать «%1$s»"),
+        ("string", "feature_live_workout_add_exercise_cta", "Add exercise", "Добавить упражнение"),
+        ("string", "feature_live_workout_empty_finish_title", "Discard empty workout?", "Удалить пустую тренировку?"),
+        ("string", "feature_live_workout_empty_finish_body", "This workout has no logged sets. It looks like you haven’t started yet.", "В этой тренировке нет ни одного выполненного подхода. Похоже, она ещё не начата."),
+        ("string", "feature_live_workout_empty_finish_continue", "Continue edit", "Продолжить"),
+        ("string", "feature_live_workout_empty_finish_discard", "Discard", "Удалить"),
+        ("string", "feature_live_workout_back", "Back", "Назад"),
+        ("string", "feature_live_workout_more", "More", "Меню"),
+        ("string", "feature_live_workout_description", "Description", "Описание"),
+        ("string", "feature_live_workout_error_invalid_reps", "Reps must be greater than 0", "Повторения должны быть больше 0"),
+        ("string", "feature_live_workout_error_set_save_failed", "Could not save set", "Не удалось сохранить подход"),
+        ("string", "feature_live_workout_error_set_delete_failed", "Could not remove set", "Не удалось удалить подход"),
+        ("string", "feature_live_workout_error_reset_failed", "Could not reset sets", "Не удалось сбросить подходы"),
+        ("string", "feature_live_workout_error_skip_failed", "Could not skip exercise", "Не удалось пропустить упражнение"),
+        ("string", "feature_live_workout_error_finish_missing_session", "Session is no longer available", "Сессия больше недоступна"),
+        ("string", "feature_live_workout_error_finish_failed", "Could not finish session", "Не удалось завершить сессию"),
+        ("string", "feature_live_workout_error_cancel_failed", "Could not cancel session", "Не удалось отменить сессию"),
+        ("string", "feature_live_workout_error_plan_save_failed", "Could not save plan", "Не удалось сохранить план"),
+        ("string", "feature_live_workout_error_training_name_save_failed", "Could not save workout name", "Не удалось сохранить название тренировки"),
+        ("string", "feature_live_workout_error_add_exercise_failed", "Could not add exercise", "Не удалось добавить упражнение"),
+        ("string", "feature_live_workout_error_create_inline_exercise_failed", "Could not create exercise", "Не удалось создать упражнение"),
+        ("string", "feature_live_workout_error_discard_session_failed", "Could not discard workout", "Не удалось отменить тренировку"),
+        ("string", "feature_live_workout_error_unknown", "Something went wrong", "Что-то пошло не так"),
+        ("string", "feature_live_workout_error_session_load_failed", "Could not open the workout", "Не удалось открыть тренировку"),
+    ),
+    resource_prefix="feature_live_workout_",
+    # CM10's twelve: the Store, its State's models and the copy model.
+    payload_files=frozenset({
+        "BottomSheetState.kt",
+        "DeleteExerciseCopyUiModel.kt",
+        "DialogState.kt",
+        "ErrorType.kt",
+        "ExerciseStatusUiModel.kt",
+        "ExternalWriteUiModel.kt",
+        "LiveExerciseUiModel.kt",
+        "LiveSessionStateUiModel.kt",
+        "LiveSetUiModel.kt",
+        "LiveWorkoutCopy.kt",
+        "LiveWorkoutStore.kt",
+        "PendingUndo.kt",
+    }),
+    store_file="mvi/store/LiveWorkoutStore.kt",
+    # The gate's State reading: a default or a generic's comma ends the type text.
+    state_fields=(
+        ("sessionUuid", "String?"),
+        ("trainingUuid", "String?"),
+        ("trainingName", "String"),
+        ("trainingNameLabel", "String"),
+        ("trainingNameDraft", "String"),
+        ("isTrainingNameEditing", "Boolean"),
+        ("isAdhoc", "Boolean"),
+        ("startedAt", "Long"),
+        ("nowMillis", "Long"),
+        ("elapsedDurationLabel", "String"),
+        ("doneCount", "Int"),
+        ("totalCount", "Int"),
+        ("setsLogged", "Int"),
+        ("progress", "Float"),
+        ("headerMetaLabel", "String"),
+        ("liveCopy", "LiveWorkoutCopy = LiveWorkoutCopy.EMPTY"),
+        ("exercises", "ImmutableList<LiveExerciseUiModel>"),
+        ("setDrafts", "ImmutableMap<DraftKey"),
+        ("rowCountOverrides", "ImmutableMap<String"),
+        ("midSessionAddedUuids", "ImmutableSet<String> = persistentSetOf()"),
+        ("pendingUndo", "PendingUndo? = null"),
+        ("activeExerciseUuids", "ImmutableSet<String>"),
+        ("expandedExerciseUuids", "ImmutableSet<String>"),
+        ("preSessionPrSnapshot", "ImmutableMap<String"),
+        ("isAddExerciseInFlight", "Boolean"),
+        ("isFinishInFlight", "Boolean"),
+        ("isLoading", "Boolean"),
+        ("loadFailed", "Boolean"),
+        ("dialogState", "DialogState"),
+        ("bottomSheetState", "BottomSheetState"),
+    ),
+    # D5, D6: no ResourceWrapper reader is left; the copy resolves through StringResolver.
+    resource_wrapper_readers=frozenset(),
+    preview_subjects={},
+    # The eleven inherited production suppressions of Section C2.7, in nine files, and
+    # SessionScreenGoldenTest's one (CM13); nothing under commonTest or iosTest.
+    suppressions={
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/live_workout/golden/SessionScreenGoldenTest.kt": [
+            "\"LongMethod\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt": [
+            "\"UNCHECKED_CAST\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractor.kt": [
+            "\"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractorImpl.kt": [
+            "\"TooManyFunctions\", \"LongParameterList\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/mapper/LiveWorkoutDomainMapper.kt": [
+            "\"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ClickHandler.kt": [
+            "\"TooManyFunctions\", \"LongMethod\", \"LargeClass\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveWorkoutMapper.kt": [
+            "\"TooManyFunctions\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/store/LiveWorkoutStore.kt": [
+            "\"ComplexInterface\"",
+            "\"ComplexInterface\"",
+            "\"MviActionNamingRule\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/ui/LiveWorkoutGraph.kt": [
+            "\"LongMethod\", \"CyclomaticComplexMethod\"",
+        ],
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/live_workout/ui/components/LiveSetRow.kt": [
+            "\"LongParameterList\"",
+        ],
+    },
+    # Section C2.2's 226 portable identities (D8's among them) and the scene of Section C9.5.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractorImplTest.kt": [
+            "startSession reuses an in-progress session for the same training",
+            "startSession seeds performed exercises ordered by position",
+            "finishSession sends PlanUpdate per non-skipped exercise and finishes atomically",
+            "finishSession marks PlanUpdate as adhoc when training is adhoc",
+            "finishSession returns null when session is gone after preload",
+            "cancelSession deletes the session row",
+            "setSkipped never touches set rows in either direction",
+            "loadSession with non-adhoc training and null trainingExercise plan falls back to batch adhocPlans",
+            "loadSession reads isPlanAttached from key presence not from plan nullability",
+            "loadSession on an adhoc training treats every exercise as plan-attached",
+            "finishSession routes a one-off plan to the exercise instead of the training",
+            "finishSession discards a persisted zero-rep set and leaves it out of the plan",
+            "loadSession with non-adhoc training and empty plan returns empty without adhocPlans fallback",
+            "loadSession with non-adhoc training and non-empty trainingExercise plan returns it as-is",
+            "loadSession with adhoc training uses getAdhocPlans directly without trainingExercise lookup",
+            "loadSession PR snapshot uses observePersonalRecordsBatch",
+            "loadSession reads performed sets via batch getByPerformedExercises",
+            "createAdhocSession delegates to repository and surfaces both UUIDs",
+            "createAdhocSession with empty exercise list still produces a session",
+            "addExerciseToActiveSession forwards all three UUIDs verbatim",
+            "discardAdhocSession delegates to repository",
+            "cancelSession on adhoc training cascades through discardAdhocSession",
+            "cancelSession on library training only deletes the session",
+            "createInlineAdhocExercise unwraps the repository envelope",
+            "updateTrainingName forwards uuid and name to repository",
+            "searchExercisesForPicker maps repo entries to picker-local DTOs",
+            "external set writes reach only the screen of their own session mapped as written",
+            "external skips reach only the screen of their own session in arrival order with the sets",
+            "a watch set write and its domain model print their type only",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ClickHandlerTest.kt": [
+            "OnExerciseHeaderClick toggles expansion for DONE exercises",
+            "OnExerciseHeaderClick toggles SKIPPED cards like any other",
+            "OnExerciseHeaderClick expands exactly the tapped card and touches nothing else",
+            "OnExerciseHeaderClick collapse is pure — sets statuses and siblings untouched",
+            "OnDeleteSessionMenuClick shows DeleteDialog",
+            "OnFinishClick on logged session shows FinishSession dialog with requiresName when name is blank",
+            "OnFinishClick on empty session shows EmptyFinish dialog",
+            "OnSkipExercise toggles to SKIPPED preserving sets and persists the flag",
+            "OnSkipExercise on a skipped exercise returns it to the session",
+            "P14 - a watch skip that lands while the menu shows Skip exercise survives the tap and nothing is written",
+            "the phone's own skip and return give the state the same skip and return from the watch give",
+            "OnToggleOneOff detaches an attached exercise and persists the flip",
+            "undo of a deleted exercise restores it without any DB delete",
+            "an adhoc session still removes the plan row on delete",
+            "undo timeout commits the deferred exercise delete",
+            "onTrainingNameSubmit_persistsViaRepository",
+            "processTrainingNameSubmit_blankInput_doesNotPersist",
+            "processTrainingNameSubmit_dbFailure_revertsState",
+            "OnAddExerciseClick opens the picker through the seam",
+            "OnResetSets opens its confirm from the copy in one write",
+            "OnCancelSessionClick opens its confirm from the copy in one write",
+            "OnFinishClick on an empty session opens the empty-finish dialog from the copy in one write",
+            "OnDeleteSessionMenuClick fills the progress template in one write",
+            "OnFinishClick builds the finish dialog from the copy in one write",
+            "the set toasts read their messages from the copy",
+            "OnSetMarkDone without reps shows the copy's error without a launch",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/CommonHandlerExternalWritesTest.kt": [
+            "A - a write for a shown exercise marks that set with the watch's values",
+            "A - an open undo window that holds the exercise gets the same patch so undo keeps the set",
+            "B - a write for a soft-deleted exercise patches only the undo window",
+            "C - a write for an exercise in neither is ignored",
+            "a patch replaces only that set's draft and leaves every other screen state as it was",
+            "A - a skip for a shown exercise sets its status and keeps its sets and drafts",
+            "A - an open undo window that holds the exercise gets the same skip so undo keeps it",
+            "B - a skip for a soft-deleted exercise patches only the undo window",
+            "C - a skip for an exercise in neither is ignored",
+            "a skip applied twice gives the state of the skip applied once",
+            "a skip changes the exercise status and leaves every other screen state as it was",
+            "Init - a skip delivered between the load's read and its apply is shown after the load",
+            "processReload - a skip delivered between the load's read and its apply is shown after the load",
+            "Init starts its load only once the subscription is active and a write between them is applied",
+            "Init - a write delivered between the load's read and its apply is shown after the load",
+            "processReload - a write delivered between the load's read and its apply is shown after the load",
+            "a return to the screen without a save then a write shows the write",
+            "a return with a save keeps a write delivered during both loads the Init load applied last",
+            "a return with a save keeps a write delivered during both loads the reload applied last",
+            "a repeated Init without a dispose leaves one active subscription",
+            "a reload scheduled ahead of the return's Init still reads only with the subscription active",
+            "Init with a plan's training starts the session subscribes before its load and shows a later write",
+            "Init from Quick start creates the ad-hoc session subscribes before its load and shows a later write",
+            "no store write reads then writes across Init a load a watch write timer ticks and a failed load",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/CommonHandlerTest.kt": [
+            "a load that throws clears isLoading and records the failure",
+            "a session that is not there is abandoned the same way not shown as empty",
+            "Init launches a load coroutine",
+            "a load resolves every copy field from its own catalog key",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/DialogClickHandlerTest.kt": [
+            "OnDeleteSessionDismiss hides the dialog",
+            "OnCancelSessionDismiss hides the dialog",
+            "OnResetSetsDismiss hides the dialog",
+            "OnFinishDismiss hides the dialog",
+            "OnDeleteSessionConfirm without sessionUuid hides the dialog",
+            "OnDeleteSessionConfirm with sessionUuid hides dialog and calls cancelSession",
+            "OnDeleteSessionConfirm failure surfaces CancelFailed error",
+            "OnCancelSessionConfirm without sessionUuid only navigates back",
+            "OnCancelSessionConfirm calls cancelSession and navigates back",
+            "OnCancelSessionConfirm failure surfaces CancelFailed error",
+            "OnEmptyFinishContinue hides the dialog",
+            "OnEmptyFinishDiscard for library training only hides the dialog",
+            "OnEmptyFinishDiscard with adhoc training discards and navigates back",
+            "OnEmptyFinishDiscard with blank sessionUuid only hides the dialog",
+            "OnEmptyFinishDiscard failure clears the in-flight flag and surfaces error",
+            "OnResetSetsConfirm clears performed sets and calls resetExerciseSets",
+            "OnResetSetsConfirm failure surfaces ResetFailed error",
+            "OnFinishConfirm without sessionUuid is a no-op",
+            "OnFinishConfirm with blank required name sets nameError and skips finishSession",
+            "OnFinishConfirm with valid name calls finishSession atomically",
+            "OnFinishConfirm without required name reuses existing trainingName",
+            "OnFinishConfirm with required name and missing trainingUuid surfaces FinishFailed",
+            "OnFinishConfirm null result surfaces FinishMissingSession",
+            "OnFinishConfirm failure clears the in-flight flag and surfaces FinishFailed",
+            "OnFinishNameChange with non-blank text updates draft and clears error",
+            "OnFinishNameChange with blank text sets the required error and disables confirm",
+            "OnFinishNameChange is a no-op when dialog is not FinishSession",
+            "OnDeleteExerciseConfirm fills its toast with the truncated name",
+            "PickerAction delegates to the picker sub-handler",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ExercisePickerHandlerTest.kt": [
+            "OnDismiss flips picker to Hidden",
+            "OnQueryChange surfaces query immediately and dispatches a load coroutine",
+            "OnExerciseSelect is no-op when add is already in flight",
+            "OnExerciseSelect with finish-in-flight is also blocked",
+            "OnCreateNewExercise with blank name is no-op",
+            "onCreateNewExercise_freshAdhoc_skipsPrBaseline",
+            "onCreateNewExercise_collisionWithLibrary_fetchesPrBaseline",
+            "loadResults_partialMatch_showsCreateCta",
+            "loadResults_exactMatchCaseInsensitive_hidesCreateCta",
+            "loadResults_emptyResults_showsHeadlineAndCta",
+            "loadResults_blankQuery_hidesBothLabels",
+            "OnExerciseSelect for an unknown uuid does nothing",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ExternalWriteCoverageTest.kt": [
+            "a load applies again exactly the writes received after it began in order",
+            "each of two overlapping loads applies again its own writes",
+            "the end of a load that never began changes nothing for a load in flight",
+            "when no load is in flight the kept writes are cleared and new ones are not kept",
+            "a load applies again the sets and the skips received after it began in arrival order",
+            "a watch set prints its type only",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/InputHandlerTest.kt": [
+            "OnSetRepsChange updates draft map for the targeted set",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/LiveSetDraftBehaviorTest.kt": [
+            "OnSetTypeSelect with no draft seeds from plan and preserves weight and reps",
+            "OnSetWeightChange with no draft seeds from plan and preserves type and reps",
+            "OnSetRepsChange after OnSetTypeSelect preserves the type set by the previous draft",
+            "OnSetTypeSelect after OnSetWeightChange preserves the edited weight",
+            "OnSetRepsChange after OnSetWeightChange preserves the edited weight and plan type",
+            "OnSetTypeSelect with existing draft preserves draft weight and reps when chip cycles",
+            "OnAddSet creates a draft at next position seeded from last known set",
+            "OnAddSet on an exercise with no plan or performed seeds an empty fallback row",
+            "OnSetMarkDone clears the draft and adds a performed set with draft fields",
+            "OnSetUncheck removes the performed set so the row falls back to plan or draft",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/NavigationHandlerTest.kt": [
+            "Back triggers popBack",
+            "OpenPastSession triggers replaceTo with PastSession route",
+            "OpenPlanEditor navigates to Screen PlanEditor Existing with the live-workout scope",
+            "OpenPlanEditor for an adhoc session uses null trainingUuid",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/DeleteExerciseCopyMapperTest.kt": [
+            "ad-hoc workout copy does not claim a plan changes after restoration",
+            "ad-hoc workout context wins while the added marker is present",
+            "template planned exercise retains plan removal copy",
+            "template mid-session addition retains its concise loss body",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveSetMutatorTest.kt": [
+            "findExercise returns the matching exercise or null",
+            "draftFor returns existing draft when present",
+            "draftFor falls back to performed set when no draft exists",
+            "draftFor falls back to plan when no draft or performed exists",
+            "draftFor returns fallback empty row when no source covers the position",
+            "applySetMarked clears the draft and writes a performed set with draft fields",
+            "applySetUnchecked drops the performed set at the given position",
+            "applySetUnchecked restores draft from user values when the row was a modified plan set",
+            "applySetUnchecked restores draft from user values for a set added beyond plan via Add Set",
+            "applySetUnchecked returns the state unchanged when no performed set exists at the position",
+            "applySetUnchecked recomputes status from DONE to CURRENT after dropping the only done set",
+            "applySetTypeChange rewrites the type of the targeted performed set only",
+            "applyResetSets clears performed sets and drafts only for the targeted exercise",
+            "applySkipToggle flips status to SKIPPED and preserves sets and drafts",
+            "applyAddSet seeds the next position from the last plan row",
+            "applyAddSet returns the state unchanged for an unknown exercise uuid",
+            "nextSetPosition is one past the highest of plan performed and draft positions",
+            "lastKnownSetSeed prefers the latest draft over plan and performed",
+            "lastKnownSetSeed returns null when no source has any rows",
+            "recomputeStatuses delegates to the status mapper and recomputes presentation",
+            "completing the last set never collapses the card",
+            "applyAddSet appends a copy of the last visible row and raises the override",
+            "applyAddSet returns a completed exercise to incomplete",
+            "applyRemoveLastSet truncates below the plan without touching it",
+            "applyRemoveLastSet removes a performed row and reports its position",
+            "applyRemoveLastSet refuses to go below one row",
+            "addSet after truncation grows one row at a time seeded from the visible last",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveSetVisibleRowsResolverTest.kt": [
+            "performed row wins over draft and plan at the same position",
+            "draft wins over plan when no performed row exists",
+            "plan is used when no performed or draft exists at the position",
+            "fallback empty row is used when no source covers the requested position",
+            "fallback used when neither plan nor performed nor draft covers a position",
+            "drafts beyond plan and performed sizes are included as additional rows",
+            "drafts for other exercises do not leak into the resolved row list",
+            "performed row beyond performed list size is included by position",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveWorkoutMapperReloadTest.kt": [
+            "sparse position 4 only - UI keeps position 4",
+            "sparse positions 1 and 3 - UI keeps both positions",
+            "all-done dense plan size 5 - every position matches and status is DONE",
+            "adhoc partial - empty plan single done at position 0 status is DONE",
+            "adhoc full sparse - empty plan performed positions 2 and 4 status is DONE",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveWorkoutMapperTest.kt": [
+            "mapper marks the lowest-position non-skipped non-done exercise as CURRENT",
+            "mapper marks skipped rows as SKIPPED and walks past them for CURRENT",
+            "first entry expands exactly the first card — even a completed one",
+            "withExpansionCarriedFrom keeps the previous open set pruned to live cards",
+            "withExpansionCarriedFrom keeps the first-card init when nothing was loaded before",
+            "REPRO a weighted plan set with no weight renders reps-only never a fake zero",
+            "WEIGHTLESS sublabel joins reps with the resolved localized unit",
+            "mapper preserves session start time on the resulting state",
+            "mapper treats no-plan exercise with logged sets as DONE",
+            "toUiList without active uuids and no done exercises marks the first non-skipped as CURRENT",
+            "toUiList without active uuids skips done exercises and marks the next non-done as CURRENT",
+            "toUiList with two uuids in active set marks both as CURRENT",
+            "toUiList with one active uuid does not auto-promote any other PENDING exercise",
+            "toUiList preserves SKIPPED and DONE regardless of active set",
+            "toFinishStats emits one NewPrEntry per exercise that beats the snapshot",
+            "toFinishStats emits no NewPrEntry when nothing beats the snapshot",
+            "toFinishStats excludes a skipped exercise even if performed sets exist",
+            "toFinishStats excludes an exercise with no done sets",
+            "toFinishStats does not emit when the best set ties the snapshot exactly",
+            "toFinishStats picks the heaviest set per exercise even with multiple PR sets",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/StateStatusMapperTest.kt": [
+            "recomputeOnly assigns CURRENT when plan is empty visible has three rows and only one is performed done",
+            "recomputeOnly assigns DONE when plan is empty visible has three rows and all three performed are done",
+            "recomputeOnly assigns DONE when plan has two rows visible has three rows and all three performed are done",
+            "recomputeOnly assigns CURRENT when plan has three rows but only positions zero and one are performed done",
+            "recomputeOnly assigns CURRENT when plan performed and visible sets are all empty",
+            "recomputeOnly preserves SKIPPED status even when every visible row is performed done",
+            "recomputeStatuses labels the cards and the header from the State's copy",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/model/UnfilledSetTest.kt": [
+            "a zero-rep row that was never marked done is unfilled",
+            "a row with reps is not unfilled",
+            "a done row is never unfilled even at zero reps",
+            "a negative rep count is treated as unfilled not as work",
+            "unfilledSetCount sums visible rows across exercises and skips SKIPPED ones",
+            "unfilledSetCount is zero for a fully logged session",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/store/LiveWorkoutStateRouteArgTest.kt": [
+            "resume entry preserves the session uuid and clears training uuid",
+            "fresh-from-training entry preserves the training uuid and clears session uuid",
+            "blank-init adhoc entry leaves both uuids null for downstream session creation",
+            "both uuids non-null are forwarded to state verbatim",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/live_workout/LiveWorkoutFeatureSceneIosTest.kt": [
+            "resourcesScreenSheetsDialogsAndActionsRenderAndDispatch",
+        ],
+    },
+    golden_test=(
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/live_workout/golden/SessionStateGoldenTest.kt"
+    ),
+    # SessionStateGoldenTest's 18 methods of Section C2.3, in source order; each renders light and dark.
+    golden_methods=["setPlain", "setDone", "setPersonalRecord", "setUnfilled", "setPersonalRecordDone", "setTwoDigitReps", "setBodyweight", "setFlashPeak", "exercisePending", "exerciseActive", "exerciseSingleRow", "exerciseFinished", "exerciseFinishedReopened", "exerciseSkipped", "exerciseOneOff", "exerciseOneOffFinished", "exerciseTenSets", "exerciseBodyweightRu"],
+    device_test="src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/live_workout/LiveWorkoutScreenTest.kt",
+    device_fragments=(
+        "@Smoke",
+        "fun screen_renders_with_expected_root_test_tag()",
+        "fun finish_button_dispatches_OnFinishClick()",
+        "fun add_set_button_dispatches_OnAddSet_with_exercise_uuid()",
+        "fun type_chip_click_dispatches_OnSetTypeSelect_with_current_chip_type()",
+        "fun checkbox_click_on_undone_row_dispatches_OnSetMarkDone()",
+        "fun checkbox_click_on_done_row_dispatches_OnSetUncheck()",
+    ),
+    feature_class="LiveWorkoutFeature",
+    graph_interface="LiveWorkoutGraph",
+    graph_function="liveWorkoutGraph",
+    factory_accessor="liveWorkoutGraphFactory",
+    create_method="createLiveWorkoutGraph",
+    store_impl="LiveWorkoutStoreImpl",
+    store_accessor="liveWorkoutStore",
+    feature_file="di/LiveWorkoutFeature.kt",
+    graph_file="ui/LiveWorkoutGraph.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/LiveWorkoutExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.liveWorkout(sessionUuid: String? = null, trainingUuid: String? = null,): LiveWorkoutGraph = liveWorkoutGraphFactory.createLiveWorkoutGraph(Screen.LiveWorkout(sessionUuid = sessionUuid, trainingUuid = trainingUuid),)",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the session write path is inherited from the parent, not rebuilt",
+        "the watch write signal is the parent's instance, the one the bridge publishes into",
+        "the qualified dispatcher is inherited and is not the IO key",
+        "each extension carries its own route arg into the store state",
+        "both arms of the two-nullable-uuid route arg survive the binding",
+    ],
+    # Each identity reaches the graph once through the accessor; the sixth identity's "s-2" call,
+    # the seventh's training-arm call and the helper itself are deliberately not counted.
+    identity_accessor=r'(?<!AppGraph)\.liveWorkout\(sessionUuid = "s-[19]"\)',
+    extra_checks=(live_workout_copy_contract, live_workout_dependency_contract),
+    create_args="screen",
+    # Section C4.5: LiveSetRow's uiMode pairs, as six named ThemeMode previews.
+    preview_inventory={
+        "ui/components/LiveSetRow.kt": [
+            'name = "Pending Light", showBackground = true',
+            'name = "Pending Dark", showBackground = true',
+            'name = "Done Light", showBackground = true',
+            'name = "Done Dark", showBackground = true',
+            'name = "Weightless Light", showBackground = true',
+            'name = "Weightless Dark", showBackground = true',
+        ],
+    },
+    resource_wrapper_dates={},
+    # 7.13's D5: the 16 bare previews, pinned per file; every other commonMain file holds none.
+    bare_previews={
+        "ui/LiveWorkoutScreen.kt": 5,
+        "ui/components/FinishConfirmDialog.kt": 3,
+        "ui/components/LiveExerciseCard.kt": 5,
+        "ui/components/LiveWorkoutHeader.kt": 3,
+    },
+    # 7.14's D4: the header, screen and sheet golden classes, pinned like golden_test.
+    extra_golden_tests={
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/live_workout/golden/SessionHeaderGoldenTest.kt": ["topbar", "sheadDefault", "sheadSkippedMeta", "sheadEditing"],
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/live_workout/golden/SessionScreenGoldenTest.kt": ["sessionScreen"],
+        "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/live_workout/golden/SessionSheetsGoldenTest.kt": ["sessionMenuSheet", "exerciseMenuSheet", "exerciseMenuSheetSkipped", "deleteExerciseSheetPlanned", "deleteExerciseSheetAdhoc", "descriptionSheet", "undoToast"],
+    },
+    # G1: live-workout reads the plan editor's result back, so it registers through this overload.
+    screen_registration="navComponentScreenWithResults",
+    # D7: the pure same-module classes a State lambda returns through (CM12).
+    state_mutators=(
+        "LiveSetMutator",
+        "StateStatusMapper",
+        "LiveWorkoutMapper",
+        "LiveSetRowsResolver",
+        "LiveWorkoutDomainMapper",
+        "ExerciseDoneRule",
+    ),
+)
+
 # Every shared feature entry the gate holds to its exact contract.
 FEATURE_ENTRIES = (
     ARCHIVE_ENTRY,
@@ -6929,6 +7757,7 @@ FEATURE_ENTRIES = (
     EXERCISE_CHART_ENTRY,
     SINGLE_TRAINING_ENTRY,
     EXERCISE_ENTRY,
+    LIVE_WORKOUT_ENTRY,
 )
 
 
