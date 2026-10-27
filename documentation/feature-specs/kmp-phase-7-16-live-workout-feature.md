@@ -1,7 +1,7 @@
 # KMP Phase 7.16 — feature:live-workout. Part A: the launch failure seam (PR-L)
 
-**Status:** Part A COMPLETE — implemented by PR #344. Part B COMPLETE — implemented by the PR whose
-merge brought this line to dev. Part C (PR-M) is specified by amendment.
+**Status:** Part A COMPLETE — implemented by PR #344. Part B COMPLETE — implemented by PR #345.
+Part C SPECIFIED — Sections C0–C16; the PR that implements it fills Section C17.
 
 **Discovery baseline:** dev @ 1b96184125d0bbb621b38a5485ba00fe558857db (2026-10-25, the merge of
 #343, the D-01 fix after Phase 7.15).
@@ -2435,3 +2435,1921 @@ state (the three animation scales, rotation, keyguard) and the pre-installed dev
 
 GitHub's signature verification, the CI run ids and the review classification go in the PR body
 and the report, because they cannot exist before this commit does.
+
+---
+
+# Part C — the move: feature:live-workout becomes a shared feature entry (PR-M)
+
+**Amendment of 2026-10-26.** Sections C0–C16 are Part C's contract, and Section C17 is filled by its
+implementation. Sections 0–14 (Part A) and B0–B13 (Part B) above are records and are not rewritten;
+Section C0.5 corrects three of their statements.
+
+**Measured on:** dev @ `39be1b4ea2ed9954d332bee5ea8893f9e59dfeac` (2026-10-26, the merge of #345,
+PR-P), statically: git data, greps and scripts. Nothing was compiled or run. The implementation
+base is dev after this amendment lands, and Section C10.4 proves it carries this tree on every path
+Part C reads.
+
+**Prototype.** Every production, test, app, lint-rules, CI and document change of Sections C3–C10
+was written against the measured tree in a scratch copy. Sections C2, C10.1, C11 and C12 ran on
+that copy and on the measured tree: the topology gate and its controls under Python 3.9, 3.10,
+3.11, 3.12, 3.13 and 3.14, byte-identical across them, and the Native oracle on synthetic XML. The
+prototype is not evidence, because nothing in it was compiled. The implementation's fresh runs are.
+
+## C0. Authority, decisions, choices, corrections
+
+### C0.1 Authority order
+
+1. The maintainer's decisions: D1–D8 of the Phase 7.16 discovery (GO, 2026-10-25), as Sections 2
+   and B0.3 record them, and the rulings of Section C0.3.
+2. This Part C: Sections C0–C16.
+3. Part B's and Part A's contracts, where Part C does not replace them.
+4. The Phase 7.15 specification (`kmp-phase-7-15-exercise-feature.md`), Part B, for every procedure
+   this part names as inherited, read with the substitutions of Section C0.3.
+5. testing.md, ci-cd.md, architecture.md and AGENTS.md.
+
+A conflict between this part and a lower source is resolved here. A conflict this part does not
+resolve is a STOP (Section C13).
+
+### C0.2 Stable rules
+
+Sections 0.2 and B0.2 apply, with these changes and additions:
+
+- **The move is the change.** `feature/live-workout` becomes a KMP module on the shared convention:
+  every source set moves, the catalogs become private Compose resources, and the code that cannot
+  compile in common changes as Sections C3–C5 say. No behaviour changes beyond Section C0.6.
+- **Build files, workflow, CI scripts.** Exactly `feature/live-workout/build.gradle.kts`,
+  `app/common/build.gradle.kts`, `.github/workflows/android_build_unified.yml`,
+  `.github/scripts/assert_kmp_ui_source_topology.py` and `.github/scripts/assert_kmp_ios_smoke.py`
+  change, as Sections C5, C8 and C10 say. `gradle/libs.versions.toml` does not change.
+- **Catalogs.** The two catalogs move with `git mv`; P1's twelve plural items (Section C2.4) are the
+  only lines that change.
+- **Suppressions.** No new suppression of any kind. The eleven production `@Suppress` annotations
+  move byte-identical; `@SuppressLint("ModifierParameter")` leaves (CM4); the six test
+  suppressions leave with the casts and the long lines the port removes; the host golden's
+  `@Suppress("LongMethod")` stays (Section C2.7).
+- **Goldens.** None is recorded. The 60 PNGs move with `git mv`, byte-identical, and
+  `verifyPaparazziDebug` executes all 60. Any pixel change is a STOP (Section C13).
+- **Census method.** Section B0.2's: a call is read from its name to its closing parenthesis, across
+  lines, with comments and string literals blanked.
+- **Test helpers.** A test class's helper types are nested in it. A top-level test declaration's
+  name is unique across the module's whole host compilation (Part A's deviation 2), because
+  commonTest and androidHostTest compile into one package set.
+- **Controls.** Every identity this part adds has a known-negative control that turns it RED, and
+  every new gate rule has one (Section C11).
+- **Lint.** Android Lint is compared with LINT_BASELINE: a finding the baseline lacks, or one on a
+  Section C7 path, is a STOP.
+- **Copying from this document.** A block copied from a fence ends at its last code line: the
+  fence's trailing blank line is not part of it (Part B's deviation 3).
+- **One more test run before each commit.** Because a fix must be a new commit, the module's tests
+  run on the staged tree before each commit, and the commit's gates then run on the committed tree
+  (Part B's deviation 4).
+
+### C0.3 Decisions
+
+| Id | Decision, as it binds Part C |
+| --- | --- |
+| D1 | Part C moves the module to the shared convention. PR-M's move commit swaps Part B's reader for `StringResolver`'s no-argument path and deletes it (SM0). |
+| D5, D6 | Part B's copy model, resolution at each load and synchronous filling stay as they are. Every read outside composition goes through the injected `StringResolver`. |
+| D7 | The topology gate gains an additive field, `state_mutators`: the pure same-module classes a State lambda may return through in place of a `.copy(`. Its default `()` leaves every earlier entry's output byte-identical (Section C10.0). |
+| D8 | The suites move to commonTest: `CommonHandlerExternalWritesTest` among them, ported off Robolectric. `CommonHandlerComposeResourceTest`, `CommonHandlerComposeResourceRuTest`, `LiveWorkoutTemplateParityTest` and `LiveWorkoutTemplateParityRuTest` retire; one commonTest identity pins the copy's resolution at the load through a recording resolver. `LiveSetRowSemanticsTest`'s check goes into the iOS scene. Kit's T6 and T7 keep the filler's parity on CMP. |
+| SM0 | `LiveWorkoutCopyReader` is deleted. `resolveCopy` reads each of its 30 feature keys through `stringResolver.getString(LiveWorkoutRes.string.…)` with no format argument, which returns the stored template unfilled. The seven launch reads move from `ResourceWrapper` to `StringResolver`. |
+| XB4 | `state_mutators` covers `LiveSetMutator`, `StateStatusMapper` and `LiveWorkoutMapper` at least. Measured, the closure is six classes (CM12). |
+| Locale | Whether the copy should re-resolve on a locale change is the maintainer's question (Section C0.5, XC1). Until the maintainer rules otherwise, Part C adds no mechanism and records the property in tech-debt.md (CM16). A ruling before the run that asks for a mechanism is a STOP-and-amend. |
+
+The 7.15 procedures this part inherits read with: exercise → live-workout; `ExerciseFeature` /
+`ExerciseGraph` / `createExerciseGraph` / `exerciseGraphFactory` / `exerciseGraph` →
+`LiveWorkoutFeature` / `LiveWorkoutGraph` / `createLiveWorkoutGraph` / `liveWorkoutGraphFactory` /
+`liveWorkoutGraph`; the fifteen modules → the sixteen of Section C10.3; four Context readers → three
+before and two after.
+
+### C0.4 Choices this part makes (CM1–CM17)
+
+| Id | Choice | Why |
+| --- | --- | --- |
+| CM1 | The generated `Res` stays internal (CMP's default) in `io.github.stslex.workeeper.feature.live_workout.resources`. A file that also reads kit's `Res` imports the feature's as `LiveWorkoutRes`. | 7.10–7.15's private resource owner. Kit's `Res` keeps its name where both are read (`CommonHandler`, `LiveSetRow`, the scene, `CommonHandlerTest`). |
+| CM2 | `sendError` in the three launch-reading handlers and `ExercisePickerHandler.derivePickerLabels` become `suspend`. | `StringResolver.getString` suspends. Every caller already runs inside a launch body, an `onError` or an `onSuccess`, or `PendingUndoOps.undoPending`'s `onError`, all of them suspend. |
+| CM3 | The added toast resolves into `val addedMessage` before the add's write, not inside `PendingUndo(…)`. | A suspend read inside the undo's construction would put a suspension between the write and its undo push. The gate pins the order (Section C10.1). |
+| CM4 | The screen's private `Body` takes `modifier: Modifier = Modifier` as its first optional parameter, applied to its `Box`, and `activeSessionBannerModifier` loses `@SuppressLint("ModifierParameter")`. | `android.annotation.SuppressLint` is Android-only. With the default the tree is unchanged, and the parameter order is what Compose's rule asks for. |
+| CM5 | `LiveWorkoutStoreImpl`'s private `NAME` loses `@VisibleForTesting`. | AndroidX annotations are forbidden in common code, and `NAME` is private. |
+| CM6 | The click-path suites port their relaxed mocks as relaxed fakes (`RelaxedHandlerStore`, `RecordingInteractor`, `RelaxedStringResolver`, `SilentLogger`); suites that were strict stay strict. | Their identities rely on the relaxed mocks' defaults (an unstubbed read answering `""`, a launch running nothing). A strict fake would change what they observe. |
+| CM7 | D8's identity lives in `CommonHandlerTest`, on a strict `CatalogStringResolver` keyed by `NAMED_COPY`. | The fixture already maps each field to a distinct value, so a read of the wrong key shows in the copy. |
+| CM8 | The interactor port states what the mock left implicit: three finish identities assert the empty discard list, `cancelSession deletes the session row` seeds the session, and the add-exercise identity asserts the whole call. | A recording fake reads back every argument; the stub matched only those values. No identity's outcome changes. |
+| CM9 | `CommonHandlerExternalWritesTest` turns `Log.isLogging` off for each identity and restores it, uses a lock-free deque on `kotlin.concurrent.atomics.AtomicReference`, a 2 ms wall-clock busy-wait where it slept, a blank resolver, and its own `FakeLifecycleOwner` nested in the class. | The plain Android host has no Robolectric, so `android.util.Log` throws; `java.util.concurrent` and `Thread.sleep` are JVM-only; the identities pin structure, not copy (core:ui:mvi's `StoreEventPressureTest` is the precedent for the logging switch). |
+| CM10 | `payload_files` holds twelve files: F5's seven and the other five models. | 7.15's precedent: every Store-side payload and UI model. |
+| CM11 | Each fake's unreached members fail fast with `Nothing`; the `@Deprecated` member that mirrors a deprecated repository API carries its own message. | 7.10–7.15's fake rules. |
+| CM12 | `state_mutators` is the six-class closure `LiveSetMutator`, `StateStatusMapper`, `LiveWorkoutMapper`, `LiveSetRowsResolver`, `LiveWorkoutDomainMapper`, `ExerciseDoneRule`, and D7's contract checks the closure. | A lambda that returns through a listed class is only as pure as everything that class reaches. |
+| CM13 | The host golden's inherited `@Suppress("LongMethod")` stays. | It is inherited; the rule forbids new suppressions, not old ones. |
+| CM14 | `NavigationResultTest`'s KDoc names the moved key. | It cites `R.string.feature_live_workout_status_no_plan`, which no longer exists. Comment only. |
+| CM15 | The iOS scene renders all five sheets and all five dialogs the screen routes, plan-editor's shared picker and kit's delete dialog among them, but not the undo toast. | No Native scene renders those two shared composables today. The toast's five-second `delay` would put a timing-dependent action in the scene's exact list. |
+| CM16 | No locale re-resolution mechanism; a tech-debt row records the property (Section C0.3). | The maintainer's open question; the property matches the shared features' `Init`-resolved copy. |
+| CM17 | The dead delete-session surface (Section C16) is recorded, not removed. | Removing it changes the Store contract, two handlers, the copy and kit's dialog: out of scope. |
+
+### C0.5 Corrections to Parts A and B
+
+- **XC1. Section B0.5's OD1 names the wrong mechanism.** Android does not recreate the Activity on a
+  locale change: `app/app/src/main/AndroidManifest.xml` gives `MainActivity` `configChanges` with
+  `locale` and `layoutDirection`, `MainActivity` neither overrides `onConfigurationChanged` nor
+  calls `recreate()`, and `Init` re-fires only when the screen re-enters composition
+  (`StoreProcessor`'s `DisposableEffect`). So the composition reads relabel at once (by the library
+  sources: Android's `stringResource` reads `LocalResources`, and CMP's environment is remembered on
+  `Locale.current` under `LocalConfiguration`; not measured on a device), while the copy in State
+  keeps the old locale until the next load: re-entry to the screen, or a plan-editor save. PR #345's
+  body carries the corrected text.
+- **XC2. Section B8's tech-debt wording.** It quoted "These five production files" → "These four",
+  and the row now reads "These four call CMP's top-level `getString`…". Part C's docs commit
+  restores "These four production files" and splits the row's last sentence (Section C7).
+- **XC3. Section B2.1's "47 Android `stringResource(R.string.…)`".** The count holds, but the shape
+  is 45 `stringResource(` and 2 `pluralStringResource(` calls (Part B's deviation 1).
+
+### C0.6 Observable differences
+
+- **OC1.** live-workout's strings now resolve through Compose resources, which choose by the primary
+  system locale only (Phase 7.9 Section 5.7). On a device whose first locale has no catalog, the
+  screen falls back to the default (EN) catalog, where Android resources walked the locale list
+  first. EN and RU devices see what they saw.
+- **OC2.** None in rendering: the 60 goldens stay byte-identical (Section C9.3).
+
+## C1. Bounded exit claim
+
+At exit:
+
+- `feature:live-workout` is a shared feature entry: production in `commonMain`, compiled for
+  Android, `iosArm64` and `iosSimulatorArm64`; private Compose resources; the factory flow of
+  Section C5; no `Context`, no `ResourceWrapper`, no reader (Section C12, X1–X3).
+- Its 18 portable suites, 226 exact identities, execute in `commonTest` on the Android host and on
+  the iOS simulator; the production scene adds one Native identity (Section C9).
+- The 30 golden methods render their 60 byte-identical PNGs from `androidHostTest`; the 6 device
+  identities run from `androidDeviceTest`; the 7 extension identities reach the graph through
+  `AppRootDeps`.
+- The topology gate holds the module to `LIVE_WORKOUT_ENTRY` (Section C10.1); D7's field lets its
+  eleven delegating State lambdas pass; the Native oracle requires 227 exact tuples among sixteen
+  modules; the KMP iOS kit smoke job runs and links sixteen modules.
+- The Context readers outside shared entries drop from 3 to 2 (app-dialogs and settings).
+
+Not claimed: anything Section C9.6 lists, the iOS host's own wiring, or a device run of the Native
+code.
+
+## C2. Measured baseline (at `39be1b4ea`)
+
+Paths below are relative to `feature/live-workout/src/<set>/kotlin/io/github/stslex/workeeper/feature/live_workout/`
+unless they start with `src/`, `app/`, `lint-rules/`, `feature/`, `core/`, `.github/` or
+`documentation/`.
+
+### C2.1 Production manifest
+
+`src/main` holds 63 Kotlin files and the two catalogs; at exit `src/commonMain` holds 62 and the
+two catalogs. The module's 157 tracked paths become 154 (Section C7).
+
+| Kind | Files |
+| --- | --- |
+| deleted | `mvi/handler/LiveWorkoutCopyReader.kt` |
+| moved, content changed (14) | `di/LiveWorkoutFeature.kt`, `mvi/handler/ClickHandler.kt`, `mvi/handler/CommonHandler.kt`, `mvi/handler/DialogClickHandler.kt`, `mvi/handler/ExercisePickerHandler.kt`, `mvi/mapper/DeleteExerciseCopyMapper.kt`, `mvi/mapper/ErrorTypeMapper.kt`, `mvi/store/LiveWorkoutStoreImpl.kt`, `ui/LiveWorkoutGraph.kt`, `ui/LiveWorkoutScreen.kt`, `ui/components/FinishConfirmDialog.kt`, `ui/components/LiveExerciseCard.kt`, `ui/components/LiveSetRow.kt`, `ui/components/SessionSheets.kt` |
+| moved byte-identical (48) | every other Kotlin file |
+| moved, P1 only | `res/values/strings.xml` → `composeResources/values/strings.xml`, and `values-ru` likewise |
+
+What the measured tree holds that common code cannot:
+
+| Item | At the base | At exit |
+| --- | --- | --- |
+| the feature's Android `R` | 11 files import it; 101 `R.string.` / `R.plurals.` references | 0; the same 101 as `Res.` / `LiveWorkoutRes.` in 11 files |
+| `android.*` imports | `LiveWorkoutCopyReader.kt` (`android.content.Context`), `ui/LiveWorkoutScreen.kt` (`android.annotation.SuppressLint`) | none |
+| `androidx.annotation` | `@StringRes` in `DeleteExerciseCopyMapper.kt` and `ErrorTypeMapper.kt`; the reader; `@VisibleForTesting` in `LiveWorkoutStoreImpl.kt` | none (the mappers return `StringResource`) |
+| `androidx.activity` | `ui/LiveWorkoutGraph.kt`'s `BackHandler` | CMP's `androidx.compose.ui.backhandler.BackHandler`, under `@OptIn(ExperimentalComposeUiApi::class)` |
+| the app `Context` | `LiveWorkoutFeature`'s `LocalContext.current.appDeps<LiveWorkoutGraph.Factory>()`; the reader's `context.getString(id)` | none (Section C5; SM0) |
+
+Copy reads, with Section C0.2's census method:
+
+| Read | At the base | At exit |
+| --- | --- | --- |
+| `copyReader.read(` | 30, `CommonHandler` | 0 |
+| `resourceWrapper.getString(` | 7: `ClickHandler` 1, `DialogClickHandler` 2, `ExercisePickerHandler` 4 | 0 |
+| `stringResolver.getString(` | 1, `CommonHandler` (kit's reps unit) | 38: `CommonHandler` 31, `ClickHandler` 1, `DialogClickHandler` 2, `ExercisePickerHandler` 4 |
+| `context.getString(` | 1, the reader | 0 |
+| composition reads | 50 in 6 files: 45 `stringResource(` and 2 `pluralStringResource(` on Android resources, and `LiveSetRow`'s 3 CMP `stringResource(` on kit's | the same 50, all CMP |
+
+The State lambdas, with Section B2.2's method, are unchanged by the move: 61 lambdas, 11 without
+`.copy(`, no token, no resolver reference, no same-file helper call, no module reach. The eleven
+return `LiveSetMutator`'s State through the file's `setMutator` property: `ClickHandler` 8,
+`CommonHandler` 2 (one call and one `setMutator::applyExternalWrite` reference) and
+`DialogClickHandler` 1.
+
+### C2.2 Portable manifest — 18 suites, 225 identities at the base, 226 at exit
+
+Every suite moves from `src/test` to `src/commonTest` under its path, keeps its class name, and
+keeps every identity's name and assertions (Section C9.1 says what the port changes around them).
+
+| Suite | Identities | Port |
+| --- | ---: | --- |
+| `domain/LiveWorkoutInteractorImplTest` | 29 | MockK → recording repository fakes |
+| `mvi/handler/ClickHandlerTest` | 26 | MockK → relaxed fakes |
+| `mvi/handler/CommonHandlerExternalWritesTest` | 24 | Robolectric and MockK → in-file fakes, a real `BaseStore` |
+| `mvi/handler/CommonHandlerTest` | 3 → 4 | MockK → strict fakes; + D8's identity |
+| `mvi/handler/DialogClickHandlerTest` | 29 | MockK → relaxed fakes |
+| `mvi/handler/ExercisePickerHandlerTest` | 12 | MockK → relaxed fakes |
+| `mvi/handler/ExternalWriteCoverageTest` | 6 | `kotlin.test` |
+| `mvi/handler/InputHandlerTest` | 1 | MockK → a strict store fake |
+| `mvi/handler/LiveSetDraftBehaviorTest` | 10 | MockK → relaxed fakes |
+| `mvi/handler/NavigationHandlerTest` | 4 | MockK → a recording navigator |
+| `mvi/mapper/DeleteExerciseCopyMapperTest` | 4 | `kotlin.test`; `R.string` → `Res.string` |
+| `mvi/mapper/LiveSetMutatorTest` | 27 | `kotlin.test` |
+| `mvi/mapper/LiveSetVisibleRowsResolverTest` | 8 | `kotlin.test` |
+| `mvi/mapper/LiveWorkoutMapperReloadTest` | 5 | `kotlin.test` |
+| `mvi/mapper/LiveWorkoutMapperTest` | 20 | `kotlin.test` |
+| `mvi/mapper/StateStatusMapperTest` | 7 | `kotlin.test` |
+| `mvi/model/UnfilledSetTest` | 6 | `kotlin.test` |
+| `mvi/store/LiveWorkoutStateRouteArgTest` | 4 | `kotlin.test` |
+
+Part B's two shared test files, `mvi/handler/FakeExercisePicker.kt` and
+`mvi/model/LiveWorkoutCopyFixtures.kt` (`NAMED_COPY`), move byte-identical.
+
+Retired, with their files (D8): `CommonHandlerComposeResourceTest` and
+`CommonHandlerComposeResourceRuTest` (one file, 4 identities), `LiveWorkoutTemplateParityTest` and
+`LiveWorkoutTemplateParityRuTest` (one file, 2), `ui/components/LiveSetRowSemanticsTest` (1). Added:
+`CommonHandlerTest`'s `a load resolves every copy field from its own catalog key` (D8, Section
+C9.2) and the scene's `resourcesScreenSheetsDialogsAndActionsRenderAndDispatch` (Section C9.5).
+
+Across all of the module's test sources the `@Test` and golden-method names go from 277 (271 in
+`src/test`, 6 in `src/androidTest`) to 272: commonTest 226, iosTest 1, androidHostTest 39
+(`ExerciseDoneRuleTest` 7, the two gates 2, the golden methods 30) and androidDeviceTest 6. No other
+name changes. The 227 names of commonTest and iosTest serialize, as
+`"".join(f"{path}\t{name}\n")` over the files sorted by module-relative path (`src/…`) and each
+file's names in source order, to sha256
+`2d7f45ff65deef68bd5517e737ec33f4f049cdcf5e81fc9d41fb8e6d03e8b1fc`.
+
+### C2.3 Golden and device ownership
+
+| Class | Methods (source order) |
+| --- | --- |
+| `golden/SessionStateGoldenTest` | `setPlain`, `setDone`, `setPersonalRecord`, `setUnfilled`, `setPersonalRecordDone`, `setTwoDigitReps`, `setBodyweight`, `setFlashPeak`, `exercisePending`, `exerciseActive`, `exerciseSingleRow`, `exerciseFinished`, `exerciseFinishedReopened`, `exerciseSkipped`, `exerciseOneOff`, `exerciseOneOffFinished`, `exerciseTenSets`, `exerciseBodyweightRu` |
+| `golden/SessionHeaderGoldenTest` | `topbar`, `sheadDefault`, `sheadSkippedMeta`, `sheadEditing` |
+| `golden/SessionScreenGoldenTest` | `sessionScreen` |
+| `golden/SessionSheetsGoldenTest` | `sessionMenuSheet`, `exerciseMenuSheet`, `exerciseMenuSheetSkipped`, `deleteExerciseSheetPlanned`, `deleteExerciseSheetAdhoc`, `descriptionSheet`, `undoToast` |
+
+30 methods, each light and dark: 60 PNGs under `src/test/snapshots/images/`, blob set
+`53221eab422589d95e416c6de0b32e3b2d4d0112a8e70a1b2344cf171f17bb67` (Section B2.6's definition).
+`exerciseBodyweightRu` is the one golden that renders a Russian catalog (`locale = LOCALE_RU`).
+Beside them in `src/test`: `gate/LiveSetRowOverflowGateTest` (1), `gate/SetColumnAlignmentGateTest`
+(1) and `mvi/mapper/ExerciseDoneRuleTest` (7, on `core:data:database-test`'s
+`WorkoutTargetParityFixture`, 7.13 D4-A). The golden gate's plain-run filter excludes only
+`*.golden.*`, so these three run in every host test task.
+
+`src/androidTest/…/LiveWorkoutScreenTest.kt` holds 6 `@Smoke` identities:
+`screen_renders_with_expected_root_test_tag`, `finish_button_dispatches_OnFinishClick`,
+`add_set_button_dispatches_OnAddSet_with_exercise_uuid`,
+`type_chip_click_dispatches_OnSetTypeSelect_with_current_chip_type`,
+`checkbox_click_on_undone_row_dispatches_OnSetMarkDone` and
+`checkbox_click_on_done_row_dispatches_OnSetUncheck`.
+
+### C2.4 Catalog
+
+Each locale holds 94 strings and 2 plurals (143 EN lines, 128 RU lines); the keys and their order
+are equal in both. P1: CMP fills only positional placeholders (`%N$d`, `%N$s`; Section B0.4's CB4),
+and the gate requires them in every commonMain catalog, so the plurals' bare `%d` become `%1$d`:
+
+| Catalog | Lines | Base → exit |
+| --- | --- | --- |
+| EN | 83–84, 88–89 | `feature_live_workout_finish_new_pr_title` `one` and `other`, `feature_live_workout_finish_unfilled_discarded` `one` and `other`: `%d` → `%1$d` |
+| RU | 71–74, 78–81 | the same two plurals' `one`, `few`, `many` and `other`: `%d` → `%1$d` |
+
+Nothing else changes, `tools:ignore` attributes included (kit, exercise, home and single-training
+keep theirs in Compose resources). At exit the EN catalog's sha256 is
+`1f4f87cb70965c45434ae197c5f4523192c58d4df973907a301445aa6b4eecee` and the RU catalog's
+`4e83b59effd14bd0934c3c03eff832a4381a4b4442acf6fa35a12aab9c97edd4` (the base files are `e201fa09…`
+and `f4b9ad01…`).
+
+### C2.5 Declared dependencies
+
+The base build file applies `convention.composeLibrary`, Metro with `includeJavax()` and Paparazzi;
+`implementation` on `core:core`, `core:ui:kit`, `core:ui:mvi`, `core:ui:navigation`,
+`core:ui:plan-editor`, `core:data:database` and `core:data:exercise`; `testImplementation` on
+`kotlin("test")`, `core:data:database-test`, `core:ui:golden-harness` and
+`androidx.compose.ui.test.junit4` (for `LiveSetRowSemanticsTest`); `androidTestImplementation` on
+`libs.bundles.android.test`, `androidx.compose.ui.test.junit4` and `core:ui:test-utils`, and
+`debugImplementation` on `ui-test-manifest`. Section C8 is the exit file.
+
+### C2.6 External consumers and the root flow
+
+- `app/common/build.gradle.kts`: `implementation(project(":feature:live-workout"))`, the only
+  feature edge besides settings' that is not `api`.
+- `app/common/…/host/AppNavigationHost.kt` calls `liveWorkoutGraph(modifier = …)`; `App.kt` and
+  `AppRootDeps.kt` carry no live-workout factory; `app/app/…/di/AppGraph.kt` exposes none.
+- `app/app/src/test/…/di/LiveWorkoutExtensionIdentityTest.kt` (7 identities) reaches the graph
+  through `asContribution<LiveWorkoutGraph.Factory>()`.
+- `app/app/src/androidTest/…/app/NavigationResultTest.kt` inlines `"no plan"` with a KDoc that names
+  `R.string.feature_live_workout_status_no_plan`.
+- `lint-rules`' `ActiveSurfaceSingleReaderRule.PERMITTED_READERS` and its test name
+  `feature/live-workout/src/main/…/ui/components/LiveExerciseCard.kt`.
+- The topology gate's `EXPECTED_APP_DEPS_READERS` holds three readers: app-dialogs, live-workout and
+  settings.
+- The device journeys that reach the screen: `RouteReachabilityTest`'s
+  `liveWorkoutOpensBlankFromHomeAndHomeReturns`,
+  `liveWorkoutIsReEnteredThroughTheActiveSessionBanner` and
+  `planEditorOpensFromALiveSessionExerciseAndTheSessionReturns`,
+  `NavigationResultTest.planEditorSaveReachesTheLiveSessionThatOpenedIt` and
+  `StoreRetentionTest.liveWorkoutStoreSurvivesThePlanEditorRoundTrip`.
+- No other path in the repository composes the graph or names its source sets, except
+  `graphify-out/graph.json`, a generated snapshot last regenerated on 2026-09-03 that still names
+  exercise's `src/main` paths too; it stays as it is.
+
+### C2.7 Suppressions
+
+- Production, 12 in 10 files (Section B2.6): the eleven `@Suppress` annotations move byte-identical
+  under their `src/commonMain/…` paths; `@SuppressLint("ModifierParameter")` in
+  `ui/LiveWorkoutScreen.kt` leaves (CM4). At exit: 11 in 9 files.
+- Tests, 7 in 5 files: `@Suppress("MaximumLineLength")` (`LiveWorkoutInteractorImplTest`) and
+  the five `@Suppress("UNCHECKED_CAST")` casts (`ClickHandlerTest` 2, `DialogClickHandlerTest` 2,
+  `CommonHandlerExternalWritesTest` 1) leave with the port; `SessionScreenGoldenTest`'s
+  `@Suppress("LongMethod")` stays (CM13). At exit: 1.
+
+### C2.8 Other facts this part relies on
+
+- origin/dev is `39be1b4ea`; its push run of `Android CI/CD - Unified Build and Tests` is
+  `40350332440`, which concluded success. The merge's tree equals the PR head's and
+  `git merge-tree` of its parents; GitHub verified it; the first-parent diff is Section B8's 39
+  paths.
+- The topology gate on dev: exit 0, 833 lines, sha256
+  `37315e70b6606acdc9cffaa68b5c82bba7cbbf1006f6a2f1e28f7071e3eca235`, byte-identical under
+  Python 3.9 through 3.14 (BASE_GATE_OUTPUT). The script's sha256 is
+  `679d6e9f1a6bdd2c2e82835acc1818595884984497f6f525a109f70fbe506746`.
+- The Native oracle requires fifteen modules; the workflow runs and links fifteen.
+- CMP 1.11.1's `getString(resource)` with no format argument returns the stored template unfilled;
+  with arguments it applies `%(\d+)\$[ds]` (Section B0.4's CB4). `StringResolver.getString`
+  delegates to it.
+- Native test names: no live-workout identity holds a character Kotlin/Native rejects (`.` `;` `,`
+  `(` `)` `[` `]` `{` `}` `/` `<` `>` `:` `\` `$` `&` `~` `*` `?` `#` `|` `§` `%` `@`), so no
+  `INVALID_CHARACTERS_NATIVE_ERROR` suppression is needed. Two names hold `—`: `ClickHandlerTest`'s
+  `OnExerciseHeaderClick collapse is pure — sets statuses and siblings untouched` and
+  `LiveWorkoutMapperTest`'s `first entry expands exactly the first card — even a completed one`; the
+  oracle compares them from the UTF-8 XML.
+- On the plain Android host (no Robolectric; `isReturnDefaultValues` unset) `android.util.Log`
+  throws, and the real `BaseStore` logs every consumed action.
+
+## C3. Platform and API blockers — settled
+
+### C3.1 Android resources become private Compose resources
+
+- `compose.resources { packageOfResClass = "io.github.stslex.workeeper.feature.live_workout.resources" }`
+  (Section C8). The generated `Res` stays internal (CM1), so no other module reads the catalog; an
+  app test that needs a string inlines it (CM14).
+- `git mv` moves `src/main/res/values/strings.xml` and `src/main/res/values-ru/strings.xml` to
+  `src/commonMain/composeResources/values/` and `…/values-ru/`, then P1 (Section C2.4).
+- Each read imports the `Res` object and its generated accessor
+  (`import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_…`). Where
+  a file reads kit's `Res` too, the feature's is imported `… .resources.Res as LiveWorkoutRes`, last
+  among the imports, where ktlint's import order puts aliases (exercise's precedent; CM1).
+
+### C3.2 Android and JVM APIs leave common code
+
+| Base | Exit | Where |
+| --- | --- | --- |
+| `androidx.compose.ui.res.stringResource` / `pluralStringResource` with `R.string.…` / `R.plurals.…` | `org.jetbrains.compose.resources.stringResource` / `pluralStringResource` with `Res.string.…` / `Res.plurals.…`, the same arguments | the 47 Android composition reads (Section C2.1) |
+| `@StringRes fun …(): Int` returning `R.string.…` | `fun …(): StringResource` returning `Res.string.…` | `DeleteExerciseCopyMapper`'s `titleRes()`, `bodyRes()`, `confirmRes()`; `ErrorTypeMapper.messageRes()` |
+| `androidx.activity.compose.BackHandler` | `androidx.compose.ui.backhandler.BackHandler`, with `@OptIn(ExperimentalComposeUiApi::class)` on `liveWorkoutGraph` | `ui/LiveWorkoutGraph.kt` (7.15's precedent) |
+| `context.appDeps<LiveWorkoutGraph.Factory>()` on `LocalContext.current` | the constructor-held factory (Section C5) | `di/LiveWorkoutFeature.kt` |
+| `LiveWorkoutCopyReader(context)` | `StringResolver`'s no-argument path (SM0) | `mvi/handler/CommonHandler.kt` |
+| `@SuppressLint("ModifierParameter")` | `Body`'s own `modifier` (CM4) | `ui/LiveWorkoutScreen.kt` |
+| `@VisibleForTesting` | nothing (CM5) | `mvi/store/LiveWorkoutStoreImpl.kt` |
+| `@Preview(uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES / _NO)` pairs | named `ThemeMode` previews (SM2, Section C4.5) | `ui/components/LiveSetRow.kt` |
+
+In the tests: JUnit 5 → `kotlin.test`; MockK → in-file fakes; Robolectric → nothing (Section C9.1);
+`java.util.concurrent` and `java.util.Collections` → `kotlin.concurrent.atomics`; `Thread.sleep` →
+a `kotlin.time.Clock` busy-wait (CM9). No commonTest file uses `runBlocking`; the iOS scene does, as
+every earlier scene does.
+
+### C3.3 Native test names
+
+None of the 227 names holds a character Kotlin/Native rejects (Section C2.8). No
+`@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")` is added; the gate's suppressions field pins
+zero of them.
+
+## C4. Copy, resources and previews
+
+### C4.1 SM0 — the load's copy through `StringResolver`
+
+`CommonHandler` loses its `copyReader: LiveWorkoutCopyReader` parameter; its constructor is
+`(interactor, stringResolver, setMutator, storeDispatchers, store)`. `resolveCopy` keeps Part B's
+shape and order (Section B3.7) and reads each field through the resolver with no format argument:
+
+~~~kotlin
+    /** D5: each field from its own key, read verbatim, so a template keeps its placeholders. */
+    private suspend fun resolveCopy(): LiveWorkoutCopy = LiveWorkoutCopy(
+        trainingNamePlaceholder = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_training_name_placeholder,
+        ),
+        statusSkipped = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_status_skipped),
+        statusNoPlan = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_status_no_plan),
+        repsUnit = stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps),
+        metaTemplate = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_meta_format),
+        // … each remaining field of Section B2.1's table, in its order, as
+        // `<field> = stringResolver.getString(LiveWorkoutRes.string.<its key>),`, wrapped at 120 columns
+        errorFinishFailed = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_error_finish_failed),
+    )
+~~~
+
+That is 31 `stringResolver.getString(` calls, 30 on the feature's keys and one on kit's reps unit,
+each key once, none with an argument. `mvi/handler/LiveWorkoutCopyReader.kt` is deleted; it had no
+`@Binds`, so the graph loses nothing else. Nothing else in `CommonHandler` changes: the load, the
+reload, the timer, `coveredLoad`'s compare-and-set and the watch writes stay byte-identical apart
+from imports.
+
+### C4.2 The seven launch reads
+
+Each launch-reading handler swaps `private val resourceWrapper: ResourceWrapper,` for
+`private val stringResolver: StringResolver,` in the same position, and reads on use:
+
+| Handler | Reads at exit |
+| --- | --- |
+| `ClickHandler` | `sendError`: `stringResolver.getString(type.messageRes())` |
+| `DialogClickHandler` | `sendError`, and `onSuccess`'s `stringResolver.getString(Res.string.feature_live_workout_finish_success)` |
+| `ExercisePickerHandler` | `sendError`; the added toast (CM3); `derivePickerLabels`' create label and no-match headline, each with the trimmed query |
+
+`private suspend fun sendError(type: ErrorType)` in all three, and
+`private suspend fun derivePickerLabels(` (CM2). The added toast:
+
+~~~kotlin
+            // «{name}» добавлено — resolved before the write, so no suspension separates the write
+            // from its undo window.
+            val addedMessage = stringResolver.getString(
+                Res.string.feature_live_workout_toast_exercise_added,
+                picked.name.truncateForToast(),
+            )
+            updateState { latest ->
+                val nextExercises = (
+~~~
+
+and the undo's `message = addedMessage,` replaces the read the base made inside `PendingUndo(…)`;
+the comment above `pushUndo(` becomes `// Undo removes the rows the add just wrote.`. Every click
+path that reads the copy keeps reading `State.liveCopy` (D6); no click path gains a launch.
+
+### C4.3 Composition reads
+
+The 47 Android composition reads keep their call sites and arguments; only the function's package
+and the resource handle change (Section C3.2). `RailMetaRow`'s `when` maps `RailDetail` to
+`Res.string.…` handles; `FinishConfirmDialog`'s two plurals read
+`pluralStringResource(Res.plurals.…, count, count)`; `LiveExerciseCard` keeps `.uppercase()` on the
+one-off badge; `LiveSetRow`'s three reads of kit's catalog are CMP already and stay as they are.
+
+### C4.4 The resource-id mappers
+
+`mvi/mapper/DeleteExerciseCopyMapper.kt` and `mvi/mapper/ErrorTypeMapper.kt` keep every branch and
+return `org.jetbrains.compose.resources.StringResource`: `Res.string.<same key>` for each
+`R.string.<key>`. `DeleteExerciseCopyUiModel` and `ErrorType` stay semantic payloads (Part B's SP4);
+the mappers are UI-side and are not payload files.
+
+### C4.5 Previews
+
+- **SM2.** `LiveSetRow`'s three `uiMode` pairs become six named previews, each a two-line wrapper
+  over a private function that takes the theme:
+
+  ~~~kotlin
+  @Preview(name = "Pending Light", showBackground = true)
+  @Composable
+  private fun LiveSetRowPendingLightPreview() {
+      LiveSetRowPendingPreview(themeMode = ThemeMode.LIGHT)
+  }
+
+  @Preview(name = "Pending Dark", showBackground = true)
+  @Composable
+  private fun LiveSetRowPendingDarkPreview() {
+      LiveSetRowPendingPreview(themeMode = ThemeMode.DARK)
+  }
+
+  @Composable
+  private fun LiveSetRowPendingPreview(themeMode: ThemeMode) {
+      AppTheme(themeMode = themeMode) {
+          // the base preview's body, unchanged
+      }
+  }
+  ~~~
+
+  and the same for `Done` and `Weightless`. The six argument lists are the gate's
+  `preview_inventory`.
+- The 16 bare `@Preview` annotations stay: `ui/LiveWorkoutScreen.kt` 5,
+  `ui/components/FinishConfirmDialog.kt` 3, `ui/components/LiveExerciseCard.kt` 5 and
+  `ui/components/LiveWorkoutHeader.kt` 3 (7.13's D5). No other commonMain file holds one.
+
+### C4.6 What does not change
+
+The copy model, the filler, the State and its 30 fields, the 61 State lambdas, the Store and its
+actions and events, the handlers' click paths, the pipeline, the watch-write path, the layout and
+every test tag. Beyond the resolver swap, the only signature and control-flow changes inside the
+module are CM2's `suspend` modifiers, CM3's order, CM4's `Body` parameter, the mappers' return type
+(Section C4.4), the previews (Section C4.5) and the factory flow (Section C5).
+
+## C5. The generation-owned shape-B factory flow
+
+As 7.15 Section B6, for live-workout:
+
+- `di/LiveWorkoutFeature.kt`:
+
+  ~~~kotlin
+  internal class LiveWorkoutFeature(
+      private val factory: LiveWorkoutGraph.Factory,
+  ) : FeatureAssisted<
+      LiveWorkoutStoreProcessor,
+      Screen.LiveWorkout,
+      >() {
+
+      @Suppress("UNCHECKED_CAST")
+      @Composable
+      override fun processor(screen: Screen.LiveWorkout): LiveWorkoutStoreProcessor =
+          rememberMetroStoreProcessor<LiveWorkoutStoreImpl> {
+              factory.createLiveWorkoutGraph(screen).liveWorkoutStore
+          } as LiveWorkoutStoreProcessor
+  }
+  ~~~
+
+  The KDoc gains "The generation-owned [LiveWorkoutGraph.Factory] arrives by constructor from
+  `AppRootDeps`." The `LocalContext` and `appDeps` imports leave.
+- `ui/LiveWorkoutGraph.kt`: `fun NavGraphScope.liveWorkoutGraph(factory: LiveWorkoutGraph.Factory,
+  modifier: Modifier = Modifier)` registers through
+  `navComponentScreenWithResults(LiveWorkoutFeature(factory))`; the rest of the body is unchanged.
+- `app/common/…/di/AppRootDeps.kt`: after `exerciseGraphFactory`,
+
+  ~~~kotlin
+      /** Generation-owned factory for the live-workout graph extension. */
+      val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory
+  ~~~
+
+- `app/app/…/di/AppGraph.kt`: `override val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory` after
+  `exerciseGraphFactory`'s override, and its import.
+- `app/common/…/App.kt`: `liveWorkoutGraphFactory = deps.liveWorkoutGraphFactory,` after
+  `exerciseGraphFactory = deps.exerciseGraphFactory,`, inside the admitted
+  `remember(currentPhase.id) { … }` that reads `AppRootDeps` once (7.10's admission).
+- `app/common/…/host/AppNavigationHost.kt`: the parameter
+  `liveWorkoutGraphFactory: LiveWorkoutGraph.Factory,` after `exerciseGraphFactory`'s, and
+  `factory = liveWorkoutGraphFactory,` as the first argument of `liveWorkoutGraph(`.
+- `app/common/build.gradle.kts`: `implementation(project(":feature:live-workout"))` leaves its
+  place and `api(project(":feature:live-workout"))` follows `api(project(":feature:exercise"))`.
+  `app/app` keeps its direct `implementation` edge.
+- `app/app/src/test/…/di/LiveWorkoutExtensionIdentityTest.kt`: the helper becomes
+
+  ~~~kotlin
+      private fun AppGraph.liveWorkout(
+          sessionUuid: String? = null,
+          trainingUuid: String? = null,
+      ): LiveWorkoutGraph = liveWorkoutGraphFactory.createLiveWorkoutGraph(
+          Screen.LiveWorkout(sessionUuid = sessionUuid, trainingUuid = trainingUuid),
+      )
+  ~~~
+
+  and the `asContribution` import leaves. The seven identities keep their names and bodies.
+- `lint-rules`: `ActiveSurfaceSingleReaderRule.PERMITTED_READERS` names
+  `feature/live-workout/src/commonMain/kotlin/io/github/stslex/workeeper/feature/` +
+  `live_workout/ui/components/LiveExerciseCard.kt`; its test's `PERMITTED_READER` constant
+  likewise, and the feature-test fixture path `src/test` → `src/commonTest`.
+
+`createLiveWorkoutGraph(` then occurs exactly twice in commonMain: the factory's declaration and the
+one call inside the retained creation lambda.
+
+## C6. In scope and non-goals
+
+In scope: Sections C3–C5 and C8–C10, the tests of Section C9, and the documents of Section C7.
+
+Not in scope:
+
+- any behaviour change beyond Section C0.6, and any change to the copy model, the filler, the State
+  lambdas or the click paths beyond CM2–CM4;
+- the locale mechanism (CM16) and the dead delete-session surface (CM17);
+- the iOS host's wiring of the screen (no iOS app composes it yet);
+- a portable `core:data:database-test` fixture (ExerciseDoneRuleTest stays on the Android host);
+- `feature/settings` and `feature/app-dialogs`, the two remaining Context readers;
+- recording any golden, or adding a suppression;
+- `graphify-out/`, the older feature specs and the research notes, which keep the paths they cite.
+
+## C7. Exact change boundary — 157 module paths become 154, and 17 others
+
+### C7.1 The module, `feature/live-workout/`
+
+| Base path | Exit path |
+| --- | --- |
+| `build.gradle.kts` | the same, Section C8 |
+| `src/main/kotlin/<pkg>/…` | `src/commonMain/kotlin/<pkg>/…` |
+| `src/main/res/values/strings.xml`, `src/main/res/values-ru/strings.xml` | `src/commonMain/composeResources/values/strings.xml`, `…/values-ru/strings.xml` |
+| `src/test/kotlin/<pkg>/golden/…`, `…/gate/…`, `…/mvi/mapper/ExerciseDoneRuleTest.kt` | `src/androidHostTest/kotlin/<pkg>/…` |
+| `src/test/snapshots/images/*.png` | `src/androidHostTest/snapshots/images/*.png` |
+| every other `src/test/kotlin/<pkg>/…` file | `src/commonTest/kotlin/<pkg>/…` |
+| `src/androidTest/kotlin/<pkg>/LiveWorkoutScreenTest.kt` | `src/androidDeviceTest/kotlin/<pkg>/LiveWorkoutScreenTest.kt` |
+
+`<pkg>` is `io/github/stslex/workeeper/feature/live_workout`. Every move keeps the file's path below
+`<pkg>` and its name.
+
+- **118 move byte-identical:** 48 production files (Section C2.1), the 60 PNGs, the seven
+  `androidHostTest` Kotlin files, the device class, and Part B's two shared test files.
+- **34 move with content changes:** the 14 production files of Section C2.1, the two catalogs (P1's
+  twelve lines only) and the 18 suites (Section C9.1).
+- **4 are deleted:** `src/main/kotlin/<pkg>/mvi/handler/LiveWorkoutCopyReader.kt`,
+  `src/test/kotlin/<pkg>/mvi/handler/CommonHandlerComposeResourceTest.kt`,
+  `src/test/kotlin/<pkg>/mvi/mapper/LiveWorkoutTemplateParityTest.kt` and
+  `src/test/kotlin/<pkg>/ui/components/LiveSetRowSemanticsTest.kt`.
+- **1 is new:** `src/iosTest/kotlin/<pkg>/LiveWorkoutFeatureSceneIosTest.kt` (Section C9.5).
+
+That is 1 + 118 + 34 + 4 = 157 base paths and 1 + 118 + 34 + 1 = 154 exit paths: 62 production
+files and two catalogs in `commonMain`, 20 files in `commonTest`, 67 in `androidHostTest` (7 Kotlin,
+60 PNGs), one each in `androidDeviceTest` and `iosTest`. No `src/main`, `src/test` or
+`src/androidTest` directory remains, and nothing else is added beside the build file.
+
+### C7.2 Outside the module — 17 paths
+
+    .github/scripts/assert_kmp_ui_source_topology.py                                         (commits 1, 2, 3)
+    .github/scripts/assert_kmp_ios_smoke.py                                                  (commit 3)
+    .github/workflows/android_build_unified.yml                                              (commit 3)
+    app/common/build.gradle.kts                                                              (commit 2)
+    app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt                             (commit 2)
+    app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt       (commit 2)
+    app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt          (commit 2)
+    app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt                          (commit 2)
+    app/app/src/test/kotlin/io/github/stslex/workeeper/di/LiveWorkoutExtensionIdentityTest.kt   (commit 2)
+    app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/NavigationResultTest.kt    (commit 2, KDoc only)
+    lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ActiveSurfaceSingleReaderRule.kt         (commit 2)
+    lint-rules/src/test/kotlin/io/github/stslex/workeeper/lint_rules/ActiveSurfaceSingleReaderRuleTest.kt     (commit 2)
+    documentation/architecture.md                                                            (commit 4)
+    documentation/ci-cd.md                                                                   (commit 4)
+    documentation/tech-debt.md                                                               (commit 4)
+    documentation/testing.md                                                                 (commit 4)
+    documentation/feature-specs/kmp-phase-7-16-live-workout-feature.md                       (commit 4: Status and C17 only)
+
+The app, lint-rules and CI changes are Sections C5 and C10. `gradle/libs.versions.toml`,
+`settings.gradle.kts`, every other build file, `core/`, every other feature and every other
+document stay as they are.
+
+### C7.3 Per commit
+
+| Commit | Paths |
+| --- | --- |
+| 1 | the topology script: Section C10.0's 71 insertions and 1 deletion |
+| 2 | the 157 module paths and the new scene (as 156 deletions under `src/`, 153 additions and the build file in `git diff --no-renames`), the 7 app paths, the 2 lint-rules paths, and the topology script's commit-2 delta (Section C10.1, 169 insertions and 1 deletion) |
+| 3 | the topology script's entry (833 insertions), the oracle (327 insertions), the workflow (10 insertions, 6 deletions) |
+| 4 | the five documents |
+
+### C7.4 What each document gains (commit 4)
+
+- **testing.md.**
+  - The `StringResolver` consumer list names live-workout's `CommonHandler`, `ClickHandler`,
+    `DialogClickHandler` and `ExercisePickerHandler`.
+  - A new section, `#### Shared live-workout feature`, before `#### Shared string resolver`, in
+    the shared features' form: the 18 suites and their 226 identities by suite; D8's identity; the
+    port's fakes (CM6, CM9, CM11); the dependency facts (Section C10.1's dependency contract); the
+    scene and its 42 actions (Section C9.5); what it does not cover (Section C9.6), linking
+    tech-debt.md's new section; and the goldens, the device class, the seven extension identities
+    and the five app journeys.
+  - The `NO_PLAN_LABEL` bullet reads live-workout's internal Compose `Res`.
+  - The golden module lists name `:feature:live-workout` among the KMP modules.
+  - The iOS commands add `:feature:live-workout:iosSimulatorArm64Test` and
+    `:feature:live-workout:linkDebugTestIosArm64`, and say 16 modules.
+- **ci-cd.md.** The KMP iOS kit smoke job's table row, the repo-wide spelling list, the job's
+  description (live-workout's 226 portable cases plus the scene: its catalog, the load's copy and
+  the launch reads through the real `StringResolver`, the production mapper, the screen with its
+  five sheets and five dialogs, the set rows' field labels, and dispatch), the verdict list and
+  the validator paragraph (226 portable tuples and the scene's, 227 in all) name live-workout;
+  "All fifteen result directories" becomes "All sixteen …", "The same fifteen modules'" "The same
+  sixteen modules'", and `N/15 linked` `N/16 linked`.
+- **architecture.md.**
+  - The shape-B factory-resolution paragraph adds live-workout to its lists
+    (`LiveWorkoutGraph.Factory`, `liveWorkoutGraph`, `LiveWorkoutFeature`), and "Exercise
+    registers through `navComponentScreenWithResults`" becomes "Exercise and live-workout register
+    through …".
+  - The Context-seam paragraph adds live-workout and `AppGraph.liveWorkoutGraphFactory`, and
+    "Exactly 3 feature/dialog Context readers remain." becomes "Exactly 2 …".
+  - The results-overload example reads `navComponentScreenWithResults(LiveWorkoutFeature(factory))`.
+  - Localization: the `R`-string bullet loses the live-workout exception ("outside it."), and the
+    paragraph Part B added keeps the copy model, the load-time resolution and kit's filler, and says
+    the verbatim read goes through `StringResolver`'s no-argument path, which returns the stored
+    template unfilled; the temporary reader becomes history ("Until the feature moved (Part C), …").
+- **tech-debt.md.**
+  - "Shared (KMP) string resources": the first row reads "These four production files call CMP's
+    top-level …" and ends "live-workout's `CommonHandler` left the row in Phase 7.16 PR-P; it reads
+    kit's reps unit through `StringResolver`." (XC2); a new 🟢 row on `CommonHandler`'s
+    `resolveCopy`, the locale property (CM16, XC1); the RU-coverage row adds
+    `SessionStateGoldenTest.exerciseBodyweightRu`; the `MetroStoreProcessor` row says "eleven
+    shared features'" and names live-workout.
+  - Every live-workout link to `src/main` points at `src/commonMain`, and the
+    `feature/live-workout/src/androidTest/` row at `src/androidDeviceTest/`.
+  - A new section before "Dead restart surface in `feature/settings`":
+    `` ## Dead delete-session surface in `feature/live-workout` — `Action.Click.OnDeleteSessionMenuClick` has no emitter (Phase 7.16 Part C, 2026-10-26) ``,
+    with one 🟢 row (Section C16), and a `---` separator after it.
+- **This document.** The Status line and Section C17 only (Section C14).
+
+## C8. The exit build file (normative)
+
+~~~kotlin
+plugins {
+    alias(libs.plugins.convention.kmpComposeLibrary)
+    // Largest feature. Route-arg feature (shape B), single @DefaultDispatcher.
+    alias(libs.plugins.metro)
+    // Goldens for the session's set and exercise states; harness from core:ui:golden-harness.
+    alias(libs.plugins.paparazzi)
+}
+
+compose.resources {
+    packageOfResClass = "io.github.stslex.workeeper.feature.live_workout.resources"
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            // No public signature names its types; the graph's AppScope and DefaultDispatcher
+            // annotations reach the app through the app's own core:core edge.
+            implementation(project(":core:core"))
+
+            // No public signature names a kit type either: StringResolver arrives only through
+            // internal constructors.
+            implementation(project(":core:ui:kit"))
+            // `api`: LiveWorkoutStore, its handler store and Store impl and the public picker
+            // handler extend the MVI contracts; liveWorkoutGraph extends NavGraphScope and the
+            // graph's Factory takes a Screen.LiveWorkout; the State, the UI models, the picker seam
+            // and PendingUndo carry the plan editor's models.
+            api(project(":core:ui:mvi"))
+            api(project(":core:ui:navigation"))
+            api(project(":core:ui:plan-editor"))
+            // Production, not a fixture: the domain mapper maps its data models, which no public
+            // declaration names (plan-editor's precedent).
+            implementation(project(":core:data:database"))
+            // `api`: the graph exposes the inherited SessionRepository and ExternalSessionWrites.
+            api(project(":core:data:exercise"))
+
+            // `api`: liveWorkoutGraph takes a Modifier and the haptic events carry a
+            // HapticFeedbackType; the interactor returns Flows and the graph exposes a
+            // CoroutineDispatcher; State and the UI models carry ImmutableList, ImmutableSet and
+            // ImmutableMap.
+            api(libs.cmp.ui)
+            api(libs.coroutines.core)
+            api(libs.kotlinx.collections.immutable)
+            // The card's animateContentSize and animateColorAsState, and their animation specs.
+            implementation(libs.cmp.animation)
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.coroutine.test)
+        }
+
+        iosTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.cmp.ui.test)
+        }
+    }
+}
+
+dependencies {
+    // ExerciseDoneRuleTest's WorkoutTargetParityFixture (Phase 7.13 D4-A): host only.
+    "androidHostTestImplementation"(project(":core:data:database-test"))
+    "androidHostTestImplementation"(project(":core:ui:golden-harness"))
+
+    "androidDeviceTestImplementation"(libs.bundles.android.test)
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)
+    // GUARD: ui-test-manifest is versionless in the catalog; classic modules resolve it through
+    // the convention's compose BOM, which the KMP convention does not add — so add it here.
+    "androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)
+    // GUARD: carries the @Smoke / @Regression annotations — without this edge androidx.test
+    // silently drops ui_tests.yml's filter. Enforced by `verifyInstrumentedSuiteClasspath`.
+    "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
+}
+
+apply(from = "$rootDir/gradle/golden-gate.gradle.kts")
+~~~
+
+Why each visibility (an edge is `api` when a public declaration of this module names one of its
+types; annotations do not count, as in every earlier shared feature):
+
+- `core:core`: `AppScopeLifetime` is in the Store's internal constructor, `formatElapsedDuration`
+  in internal code, and `AppScope` / `@DefaultDispatcher` are annotations on the graph; app:app and
+  app:common declare core:core themselves.
+- `core:ui:kit`: kit composables are called inside bodies, and `StringResolver` arrives through
+  internal constructors (`ExercisePickerHandler`'s is internal).
+- `core:ui:mvi`, `core:ui:navigation`, `core:ui:plan-editor`, `core:data:exercise`, `cmp.ui`,
+  `coroutines.core`, `kotlinx.collections.immutable`: the comments above.
+- `core:data:database`: `LiveWorkoutDomainMapper` alone reads it, for `PlanSetDataModel` and
+  `SetTypeDataModel`.
+- `cmp.animation`: `LiveExerciseCard`'s `animateContentSize` and `animateColorAsState`.
+- `core:data:database-test`: `ExerciseDoneRuleTest` alone (Section C10.1's dependency contract);
+  exercise-chart's build file is the precedent for the host-only edge.
+
+`kotlin("test")` appears exactly twice. Removed relative to the base: `convention.composeLibrary`,
+every `testImplementation`, `androidTestImplementation` and `debugImplementation` line, and
+`androidx.compose.ui.test.junit4` on the host, which only `LiveSetRowSemanticsTest` used (D8). No
+comment may hold a dependency fragment or a forbidden build token (`mockk`, `robolectric`,
+`androidMain`, `iosMain`, `paging.testing`, `testImplementation(`, …).
+
+Verify Gradle metadata rather than copying it blindly (7.8 Section 10). A dependency the measured
+source does not need is removed; one it needs that this file lacks is a STOP-and-amend, never a
+silent addition.
+
+## C9. Tests and the Native scene
+
+### C9.1 The port — 18 suites into commonTest
+
+Every suite of Section C2.2 moves under its path and keeps its class name, every identity's name and
+every assertion; Part B's two shared test files move byte-identical. Around the identities the
+port changes only this:
+
+- **APIs.** JUnit 5 → `kotlin.test` (`@Test`, `assertEquals`, `assertTrue`, `assertFalse`,
+  `assertFailsWith`, …); `kotlinx-coroutines-test` (`runTest`, `StandardTestDispatcher`,
+  `runCurrent`, `advanceUntilIdle`) stays; MockK and Robolectric leave; no commonTest file names
+  `java.`, `Thread.`, `org.junit`, `io.mockk`, `org.robolectric`, `@Config` or `runBlocking`
+  (Section C12, X7).
+- **Fakes.** Each suite's fakes are private classes nested in it (Section C0.2). A member no
+  identity reaches fails fast with `Nothing` (CM11). The relaxed MockK store of the four click-path
+  suites becomes a relaxed fake (CM6); every strict mock becomes a strict fake.
+
+| Suite | Fakes |
+| --- | --- |
+| `LiveWorkoutInteractorImplTest` (29) | `LiveWorkoutInteractorImpl` on recording fakes of its seven repositories (`RecordingSessionRepository`, `RecordingPerformedExerciseRepository`, `RecordingSetRepository`, `RecordingExerciseRepository`, `RecordingTrainingRepository`, `RecordingTrainingExerciseRepository`, `RecordingPersonalRecordRepository`) and the real `ExternalSessionWrites`. Each answers what the identity seeds, or what the relaxed mock answered where an identity depends on it, and fails fast through the file's `unreached` / `unanswered` on any other member. CM8's three explicit statements. The fakes spell `PlanSetDataModel` and `SetTypeDataModel`, the suite's only `core:data:database` names |
+| `ClickHandlerTest` (26), `DialogClickHandlerTest` (29) | `RelaxedHandlerStore` (`state` is the identity's flow and `updateState` applies to it; `launch` is counted and runs nothing; every other member does what the relaxed mock did), `FakeLiveWorkoutHandlerStore` (captures the latest launch for the identity to run, a throw routed to `onError`), `RecordingInteractor` (every call in order as `Call(member, args)`, so a `coVerify` becomes a count over the log; a set-up failure throws from `onCall`), `RelaxedStringResolver` (answers what the identity sets up and `""` otherwise; fails fast on a plural), `SilentLogger`, and Part B's `FakeExercisePicker` |
+| `ExercisePickerHandlerTest` (12) | `RelaxedHandlerStore`, `ExecutingLiveWorkoutHandlerStore` (runs every launch on the identity's `runTest` scope, a throw to `onError`), `RecordingInteractor`, `RelaxedStringResolver`, `SilentLogger` |
+| `LiveSetDraftBehaviorTest` (10) | `RelaxedHandlerStore`, `RecordingInteractor`, `RelaxedStringResolver`, `SilentLogger`, `FakeExercisePicker` |
+| `CommonHandlerTest` (3 → 4) | `FakeCommonHandlerStore` (launches on the identity's scheduler inside `supervisorScope`, then `onSuccess`, a throw to `onError`; `CommonHandler` writes only through `updateState`, so every other member fails fast), `LoadingInteractor` (answers `load` and an empty write flow), `CatalogStringResolver` (CM7, Section C9.2) |
+| `CommonHandlerExternalWritesTest` (24) | CM9: a real `BaseStore` with no Robolectric and no MockK; an in-file interactor answering the queued loads and the identity's write flow; `BlankStringResolver` (`""`; the identities pin structure, not copy); `Log.isLogging` off for each identity and restored after it; `ManualDispatcher`, whose queue and the immediate-write log are `ConcurrentDeque`, a lock-free deque on `kotlin.concurrent.atomics.AtomicReference`; a 2 ms `kotlin.time.Clock` busy-wait where the timer identity slept; `FakeLifecycleOwner` nested in the class |
+| `InputHandlerTest` (1) | `FakeInputHandlerStore`, strict |
+| `NavigationHandlerTest` (4) | `RecordingNavigator` |
+| `DeleteExerciseCopyMapperTest` (4) | none; `R.string` → `Res.string` |
+| the other seven | none: `kotlin.test` alone |
+
+The six test `@Suppress` annotations of Section C2.7 leave with the casts and the long lines the
+fakes remove. A compile error in a moved identity is fixed in its fake, never in its assertions.
+
+### C9.2 D8's identity
+
+`CommonHandlerTest` gains, after `Init launches a load coroutine`:
+
+~~~kotlin
+    /** D8: the copy resolves at the load, each field from its own key, and nothing else is read. */
+    @Test
+    fun `a load resolves every copy field from its own catalog key`() = runTest {
+        interactor.load = { snapshot() }
+        val resolver = CatalogStringResolver()
+        val (stateFlow, handler) = setup(
+            State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
+            stringResolver = resolver,
+        )
+
+        handler.invoke(Action.Common.Init)
+        runCurrent()
+
+        assertFalse(stateFlow.value.loadFailed)
+        assertEquals(NAMED_COPY, stateFlow.value.liveCopy)
+        assertEquals(CATALOG.size, resolver.reads.size, "each key is read once: ${resolver.reads}")
+        assertEquals(CATALOG.keys, resolver.reads.toSet())
+    }
+~~~
+
+with `snapshot()` an in-progress session of training `training-1` named `Push Day` with no
+exercises, and:
+
+~~~kotlin
+    /**
+     * Answers exactly the copy's 31 keys, each with [NAMED_COPY]'s value for the field that key
+     * belongs to, verbatim, and records every read; any other read, or a read with arguments, throws.
+     */
+    private class CatalogStringResolver : StringResolver {
+
+        val reads = mutableListOf<StringResource>()
+
+        override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String {
+            check(formatArgs.isEmpty()) { "$resource is read verbatim; got ${formatArgs.toList()}" }
+            reads += resource
+            return CATALOG[resource] ?: error("$resource is not part of the copy")
+        }
+
+        override suspend fun getPluralString(
+            resource: PluralStringResource,
+            quantity: Int,
+            vararg formatArgs: Any,
+        ): Nothing = error("the copy reads no plural; got $resource")
+    }
+~~~
+
+`CATALOG` is a `Map<StringResource, String>` in the class's companion: the 31 keys of Section
+C4.1, each to its field's `NAMED_COPY` value (kit's `Res.string.core_ui_kit_plan_editor_unit_reps`
+to `repsUnit`). The three existing identities take `CatalogStringResolver()` by default and none
+reaches the copy: `resolveCopy` runs only on a found session, and their loads throw, find no session
+or never run.
+
+### C9.3 The Android host — androidHostTest
+
+- The four golden classes, `gate/LiveSetRowOverflowGateTest`, `gate/SetColumnAlignmentGateTest` and
+  `mvi/mapper/ExerciseDoneRuleTest` move byte-identical (Section C2.3), and the 60 PNGs with them.
+- `:feature:live-workout:testAndroidHostTest` runs 21 suites and 235 cases: the 18 portable suites
+  (226), `ExerciseDoneRuleTest` (7) and the two gates (2). The golden gate's plain-run filter
+  excludes `*.golden.*` only (7.14's D4).
+- `:feature:live-workout:verifyPaparazziDebug` runs 25 suites and 295 cases and prints
+  `Visual gate live: 60 golden test case(s) executed for 60 golden image(s).`. The goldens now
+  render the catalogs through CMP's `stringResource` and `pluralStringResource`; the blob set stays
+  `53221eab…` (OC2). Any changed PNG is a STOP (Section C13): record the method, the theme and the
+  differing region; never re-record.
+
+### C9.4 The device and the app
+
+- `LiveWorkoutScreenTest` moves byte-identical to `androidDeviceTest`: its 6 `@Smoke` identities
+  run through `:feature:live-workout:connectedDebugAndroidTest` (the KMP convention's alias onto
+  `connectedAndroidDeviceTest`), and the device placeholder contract pins its seven fragments.
+- `LiveWorkoutExtensionIdentityTest`'s 7 identities reach the graph through
+  `AppGraph.liveWorkoutGraphFactory` (Section C5); names and bodies unchanged.
+- `NavigationResultTest` changes its KDoc only (CM14).
+- The factory flow and the result read-back are proven on a device by the app journeys:
+  `RouteReachabilityTest`, `NavigationResultTest`, `StoreRetentionTest` and
+  `BackStackStateRestorationTest`, 25 cases (15 + 3 + 3 + 4), among them the five of Section C2.6.
+
+### C9.5 The Native scene
+
+`src/iosTest/kotlin/<pkg>/LiveWorkoutFeatureSceneIosTest.kt`: class
+`LiveWorkoutFeatureSceneIosTest`, one identity,
+`resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`, in `runComposeUiTest`. Every read outside
+composition goes through one real `ComposeStringResolver` (kit's); the file declares no fake
+resolver and names no `ResourceWrapper`. Kit's `Res` keeps its name as `KitRes`, the feature's is
+`LiveWorkoutRes` (CM1). `runBlocking` wraps each suspend read, as in every earlier scene.
+
+| Step | What it proves |
+| --- | --- |
+| 1 | The private EN catalog in file order, each entry read with no format argument: its 94 strings and each plural's `one` and `other` as stored (98 values, equal to the EN column of Section C10.1's catalog). Then both plurals filled with their count as the one argument: `1 new personal record`, `2 new personal records`, `1 empty set will not be saved`, `2 empty sets will not be saved` |
+| 2 | `CommonHandler.resolveCopy`'s 31 reads, repeated in the scene in its order, give a `LiveWorkoutCopy` whose every field is its EN value verbatim (`repsUnit = "reps"`, kit's) |
+| 3 | The launch reads with production's arguments: `“Bench press” added`, `Create “Curl”`, `No exercises match “Curl”`, `Session saved`; and the 13 `ErrorType` messages through `messageRes()`, in declaration order |
+| 4 | The production mapper on Native: a snapshot of `Push Day` (Bench press weighted with a two-set plan and its first set logged, Pull-up weightless with a two-set plan, Plank skipped and one-off) at 12:34 gives `Push Day`, `12:34`, `0 of 2 exercises · 1 of 4 sets · 1 skipped`, statuses CURRENT / PENDING / SKIPPED and labels `100×5 · 100×5`, `8 reps · 8 reps`, `skipped`; `toFinishStats` gives the exact `DialogState.FinishSession` (`0 of 3 done · 1 skipped`, one record `100 × 5`, one unfilled set); kit's two field labels read `weight, kilograms` and `repetitions` |
+| 5 | One content slot, from test-held state, switches between the production `LiveWorkoutScreen` and two `LiveSetRow`s, under `AppTheme`. The loaded screen: the top bar's descriptions, the header, the rail meta `3 EXERCISES · 4 SETS`, the three cards, their sub-labels, the `ONE-OFF` badge, the set rows' fields by their unit labels, the record tag, the type chip, `+ SET` / `− SET`, the add-exercise CTA and `Finish session`; then the screen's 16 dispatching gestures, text entered through the `SetText` semantics action (7.11's S5), the test-held State taking each typed value as the Store would |
+| 6 | The empty unnamed session: `Untitled`, no meta line, the empty state and its add action |
+| 7 | All five sheets through the screen's own routing: the session menu; the exercise menu planned (no one-off row) and skipped one-off; the delete sheet in its three copies (planned, added this session, ad hoc); the description sheet; and plan-editor's shared picker, under an empty query (one library row, the search hint, no create CTA) and under `Curl` (the no-match headline and the create CTA, then a typed `Curls`) |
+| 8 | All five dialogs through the screen's own routing: kit's shared delete dialog (`Delete Push Day?`, its progress line filled from the copy as the click path fills it, `0 of 2 exercises done · 1 sets logged`); the finish dialog named, then unnamed (the name field, its error, the disabled confirm, a typed `Leg Day`); reset sets; cancel session; the empty-finish dialog |
+| 9 | The retired `LiveSetRowSemanticsTest`'s two rows: each field announces its unit |
+| 10 | Dispatch: production's 42 actions, as one exact ordered list (below) |
+
+    Action.Click.OnBackClick
+    Action.Click.OnSessionMenuClick
+    Action.Click.OnTrainingNameTap
+    Action.Click.OnExerciseMenuClick(PE_BENCH)
+    Action.Click.OnShowDescription(PE_BENCH)
+    Action.Click.OnExerciseHeaderClick(PE_BENCH)
+    Action.Click.OnExerciseHeaderClick(PE_PULL)
+    Action.Click.OnSetUncheck(PE_BENCH, 0)
+    Action.Click.OnSetMarkDone(PE_BENCH, 1)
+    Action.Click.OnSetTypeSelect(PE_BENCH, 1, SetTypeUiModel.WORK)
+    Action.Input.OnSetWeightChange(PE_BENCH, 1, 102.5)
+    Action.Input.OnSetRepsChange(PE_BENCH, 1, 6)
+    Action.Click.OnAddSet(PE_BENCH)
+    Action.Click.OnRemoveLastSet(PE_BENCH)
+    Action.Click.OnAddExerciseClick
+    Action.Click.OnFinishClick
+    Action.Click.OnAddExerciseClick
+    Action.Click.OnAddExerciseClick
+    Action.Click.OnCancelSessionClick
+    Action.Click.OnEditPlan(PE_BENCH)
+    Action.Click.OnResetSets(PE_BENCH)
+    Action.Click.OnSkipExercise(PE_BENCH, skipped = true)
+    Action.Click.OnDeleteExerciseClick(PE_BENCH)
+    Action.Click.OnToggleOneOff(PE_PLANK)
+    Action.Click.OnSkipExercise(PE_PLANK, skipped = false)
+    Action.DialogClick.OnDeleteExerciseKeep
+    Action.DialogClick.OnDeleteExerciseConfirm(PE_BENCH)
+    Action.Click.OnSheetDismiss
+    Action.DialogClick.PickerAction(ExercisePickerAction.OnExerciseSelect("ex-9"))
+    Action.DialogClick.PickerAction(ExercisePickerAction.OnCreateNewExercise("Curl"))
+    Action.DialogClick.PickerAction(ExercisePickerAction.OnQueryChange("Curls"))
+    Action.DialogClick.OnDeleteSessionDismiss
+    Action.DialogClick.OnDeleteSessionConfirm
+    Action.DialogClick.OnFinishDismiss
+    Action.DialogClick.OnFinishConfirm
+    Action.DialogClick.OnFinishNameChange("Leg Day")
+    Action.DialogClick.OnResetSetsConfirm(PE_BENCH)
+    Action.DialogClick.OnResetSetsDismiss
+    Action.DialogClick.OnCancelSessionConfirm
+    Action.DialogClick.OnCancelSessionDismiss
+    Action.DialogClick.OnEmptyFinishDiscard
+    Action.DialogClick.OnEmptyFinishContinue
+
+`PE_BENCH`, `PE_PULL` and `PE_PLANK` are `pe-1`, `pe-2` and `pe-3`. Settling is bounded: ten steps
+of one virtual second each, with `mainClock.autoAdvance` off inside a step. Together with the 226
+portable cases, the live-workout Native XML holds exactly 227 passing cases with no skip, failure or
+error (19 suites).
+
+### C9.6 What this does not cover
+
+- RU catalog values render only in `SessionStateGoldenTest.exerciseBodyweightRu`; the gate pins the
+  RU catalog statically.
+- The undo toast's five-second window has no scene path (CM15); the toast itself is
+  `SessionSheetsGoldenTest.undoToast`.
+- The graph's wiring — the plan editor's result read-back, haptics, snackbars, `BackHandler`, the
+  load-failure exit and `AppLoadedContent` — has no scene path; the app journeys of Section C9.4
+  cover it on a device.
+- No UI dispatches `OnDeleteSessionMenuClick`, so the delete dialog renders from test-held state
+  only (Section C16).
+- The iosArm64 test binaries are linked, never run.
+
+### C9.7 Counts
+
+| Source set | Names |
+| --- | ---: |
+| commonTest | 226 (18 suites) |
+| iosTest | 1 |
+| androidHostTest | 39: `ExerciseDoneRuleTest` 7, the two gates 2, the golden methods 30 |
+| androidDeviceTest | 6 |
+
+272 names, from 277 at the base (Section C2.2): −7 retired, +1 D8, +1 scene.
+
+## C10. CI ownership and positive verification
+
+### C10.0 D7 — `state_mutators` (commit 1)
+
+Commit 1 changes only `.github/scripts/assert_kmp_ui_source_topology.py`, in four places: the
+field, two patterns and a contract function, the delegation condition of the State-lambda walk, and
+the contract's call. No entry, contract, `MODULES` or `FEATURE_ENTRIES` line changes.
+
+Reference implementation, normative for the field and its default, both patterns, every check and
+message of the contract, the condition and the call site; formatting may differ:
+
+~~~python
+# FeatureEntry, after foreign_resource_prefixes:
+    # D7 (kmp-phase-7-16-live-workout-feature.md Section C10.0): the pure same-module classes a
+    # State lambda may return through in place of a `.copy(`. Empty by default, so every earlier
+    # entry stays byte-identical.
+    state_mutators: tuple = ()
+
+# After KOTLIN_TEST_NAME:
+# D7 (kmp-phase-7-16-live-workout-feature.md Section C10.0): a `val`/`var` and its declared type.
+STATE_MUTATOR_PROPERTY = re.compile(r"\b(?:val|var)\s+(\w+)\s*:\s*(\w+)\b")
+# A top-level class or object; a nested one belongs to its file's mutator.
+STATE_MUTATOR_DECLARATION = re.compile(
+    r"^(?:(?:internal|private|public|data|open)\s+)*(?:class|object)\s+(\w+)", re.MULTILINE
+)
+
+
+def state_mutator_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    """D7: each listed mutator is declared once in commonMain, its file is pure (no State lambda
+    side effect, no resolver or wrapper), and every mapper class it names is listed too."""
+    failures: list[str] = []
+    if not entry.state_mutators:
+        return failures
+    declared: dict[str, list[Path]] = {}
+    for path, raw in common_sources.items():
+        for name in STATE_MUTATOR_DECLARATION.findall(strip_kotlin_comments(raw)):
+            declared.setdefault(name, []).append(path)
+    mappers = {
+        name
+        for name, paths in declared.items()
+        if any("/mapper/" in path.as_posix() for path in paths)
+    }
+    for mutator in entry.state_mutators:
+        paths = declared.get(mutator, [])
+        if len(paths) != 1:
+            failures.append(
+                f"{entry.module}: state mutator {mutator} must be declared once in commonMain; "
+                f"found {len(paths)}"
+            )
+            continue
+        relative = paths[0].relative_to(entry.root)
+        source = strip_kotlin_comments(common_sources[paths[0]])
+        for token in FEATURE_STATE_LAMBDA_SIDE_EFFECTS:
+            if token in source:
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} holds {token!r}; "
+                    "a State lambda returns only through pure code"
+                )
+        for name in sorted(set(FEATURE_COPY_HELPER_REFERENCES.findall(source))):
+            failures.append(f"{entry.module}: state mutator {mutator} in {relative} names {name!r}")
+        for type_name in ("ResourceWrapper", "StringResolver"):
+            if type_name in source:
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} takes {type_name}"
+                )
+        for name in sorted(mappers - set(entry.state_mutators)):
+            if re.search(rf"\b{re.escape(name)}\b", source):
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} reaches {name}, "
+                    "which state_mutators does not list"
+                )
+    return failures
+
+# check_feature_entry, the State-lambda walk, after `helpers = copy_resolving_functions(…)`:
+        # D7: a property of this file whose declared type is a listed mutator, reached with `.`
+        # or `::`, stands in for the `.copy(`.
+        mutators = {
+            name
+            for name, declared in STATE_MUTATOR_PROPERTY.findall(strip_kotlin_comments(source))
+            if declared in entry.state_mutators
+        }
+# … and the copy check of each lambda body:
+                delegates = any(
+                    re.search(rf"(?<![\w.]){re.escape(name)}(?:\.|::)", compact(body))
+                    for name in mutators
+                )
+                if ".copy(" not in compact(body) and not delegates:
+
+# check_feature_entry, directly after the walk's `no updateState lambdas were inspected` check:
+    failures.extend(state_mutator_contract(entry, common_sources))
+~~~
+
+The diff is 71 insertions and 1 deletion, every added line within 100 columns. With the default
+`()`, `mutators` is empty, so `delegates` is `False` and the condition reduces to today's; the
+contract returns at once. Every message stays byte-identical. D7 changes only which lambdas pass:
+the side-effect, resolver and same-file checks still read every lambda body as before.
+
+**Proof that commit 1 changes no existing behaviour.** 7.15 Section B12.0's procedure: on the
+committed tree, with the base's script saved aside as `old_gate.py` (sha256
+`679d6e9f1a6bdd2c2e82835acc1818595884984497f6f525a109f70fbe506746` at the measured tree), under
+every Python the host has:
+
+1. GREEN: old and new outputs on the unmodified tree are byte-identical, exit code and stderr
+   included, and equal to BASE_GATE_OUTPUT (833 lines; sha256
+   `37315e70b6606acdc9cffaa68b5c82bba7cbbf1006f6a2f1e28f7071e3eca235` at the measured tree).
+2. Differential, one exact occurrence per mutation, scored by both scripts and restored byte-exactly
+   (sha256 and mode) before the next, with a fresh GREEN after the last. **M** rows: old and new are
+   byte-identical and RED with exactly the named line. **Q** rows: both GREEN.
+
+   `EX` is `feature/exercise/src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/ClickHandler.kt`;
+   `ST` is `feature/single-training/src/commonMain/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/ClickHandler.kt`;
+   `EXM` is `feature/exercise/src/commonMain/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/mapper/ExerciseUiMapper.kt`.
+
+   | # | Mutation | Result |
+   | --- | --- | --- |
+   | M1 | `EX`: `updateState { it.copy(type = target) }` → `updateState { interactor.run { it } }` | both RED, identical: `feature:exercise: updateState in <EX> must return a State copy` |
+   | M2 | `ST`: `updateState { it.copy(dialogState = DialogState.DetailMenu) }` → `updateState { it.also(interactor::equals) }` | both RED, identical: `feature:single-training: updateState in <ST> must return a State copy` |
+   | Q1 | `EXM`: append the line `internal object StateStatusMapper` | both GREEN |
+
+   M1 and M2 pin that an entry with the default lets neither a `.` nor a `::` reference stand in
+   for the `.copy(`; Q1 that the contract walks nothing for such an entry, even when a class with a
+   listed name exists in it.
+3. The diff of commit 1 touches only the topology script, and in it only the four places above.
+
+A differing byte in step 1 or an M row, or a Q row that is not GREEN, is a STOP. The prototype ran
+this proof under Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14, and every row gave exactly its
+result; that run is not evidence.
+
+### C10.1 The topology gate data (normative)
+
+**Commit 2** carries the minimal delta that keeps its tree green (7.8's G1 precedent):
+
+- `MODULES["feature:live-workout"]` after exercise's entry and in its format: `root`
+  `Path("feature/live-workout")`; `files`, the 153 exit paths under `src/` of Section C7.1, sorted;
+  `kotlin_source_sets` `commonMain`, `commonTest`, `androidHostTest`, `androidDeviceTest`,
+  `iosTest`; `resource_dirs` `src/commonMain/composeResources/values` and
+  `src/commonMain/composeResources/values-ru`;
+- `EXPECTED_APP_DEPS_READERS` loses live-workout's line (3 → 2).
+
+live-workout has no `FEATURE_RESOURCE_OWNERS` row, so nothing else changes: 169 insertions and 1
+deletion.
+
+**Commit 3** appends `live_workout_copy_contract`, `live_workout_dependency_contract` and
+`LIVE_WORKOUT_ENTRY` after `EXERCISE_ENTRY`, and the line `    LIVE_WORKOUT_ENTRY,` after
+`    EXERCISE_ENTRY,` in `FEATURE_ENTRIES`. Nothing else in the script changes: commit 3's topology
+diff is purely additive (833 insertions in the prototype).
+
+| Field | Value |
+| --- | --- |
+| module / short_name | `feature:live-workout` / `live-workout` |
+| root / package_dir | `feature/live-workout` / `io/github/stslex/workeeper/feature/live_workout` |
+| build_fragments | every plugin, `packageOfResClass`, `includeJavax()`, dependency and `apply(from = …)` line of Section C8, each exactly once (26), except `implementation(kotlin("test"))`, which kotlin_test_count covers |
+| kotlin_test_count | 2 |
+| catalog | the 96 rows of the exit catalogs (Section C2.4), in file order: `(tag, name, EN, RU)`, decoded text, the typographic characters (`· ’ “ ” « » — − → ×`) as themselves (the catalogs hold no escape sequence); each plural as its items, EN `(one, other)` and RU `(one, few, many, other)`, with P1's `%1$d` |
+| resource_prefix | `feature_live_workout_` |
+| payload_files | CM10's twelve: `BottomSheetState.kt`, `DeleteExerciseCopyUiModel.kt`, `DialogState.kt`, `ErrorType.kt`, `ExerciseStatusUiModel.kt`, `ExternalWriteUiModel.kt`, `LiveExerciseUiModel.kt`, `LiveSessionStateUiModel.kt`, `LiveSetUiModel.kt`, `LiveWorkoutCopy.kt`, `LiveWorkoutStore.kt`, `PendingUndo.kt` |
+| store_file / state_fields | `mvi/store/LiveWorkoutStore.kt` / the 30 fields as the gate's State reading prints them (a default or a generic's comma ends the type text), in order: `sessionUuid` `String?`, `trainingUuid` `String?`, `trainingName` `String`, `trainingNameLabel` `String`, `trainingNameDraft` `String`, `isTrainingNameEditing` `Boolean`, `isAdhoc` `Boolean`, `startedAt` `Long`, `nowMillis` `Long`, `elapsedDurationLabel` `String`, `doneCount` `Int`, `totalCount` `Int`, `setsLogged` `Int`, `progress` `Float`, `headerMetaLabel` `String`, `liveCopy` `LiveWorkoutCopy = LiveWorkoutCopy.EMPTY`, `exercises` `ImmutableList<LiveExerciseUiModel>`, `setDrafts` `ImmutableMap<DraftKey`, `rowCountOverrides` `ImmutableMap<String`, `midSessionAddedUuids` `ImmutableSet<String> = persistentSetOf()`, `pendingUndo` `PendingUndo? = null`, `activeExerciseUuids` `ImmutableSet<String>`, `expandedExerciseUuids` `ImmutableSet<String>`, `preSessionPrSnapshot` `ImmutableMap<String`, `isAddExerciseInFlight` `Boolean`, `isFinishInFlight` `Boolean`, `isLoading` `Boolean`, `loadFailed` `Boolean`, `dialogState` `DialogState`, `bottomSheetState` `BottomSheetState` |
+| resource_wrapper_readers / resource_wrapper_dates | empty / `{}` (D5, D6: no `ResourceWrapper` reader is left) |
+| preview_subjects / preview_inventory | `{}` / `ui/components/LiveSetRow.kt`: the six argument lists of Section C4.5, `name = "Pending Light", showBackground = true` through `name = "Weightless Dark", showBackground = true` |
+| bare_previews | `ui/LiveWorkoutScreen.kt` 5, `ui/components/FinishConfirmDialog.kt` 3, `ui/components/LiveExerciseCard.kt` 5, `ui/components/LiveWorkoutHeader.kt` 3 |
+| suppressions | the eleven production annotations of Section C2.7 under their nine `src/commonMain/…` paths, each file's arguments as strings in source order (`mvi/store/LiveWorkoutStore.kt`: `['"ComplexInterface"', '"ComplexInterface"', '"MviActionNamingRule"']`), and `src/androidHostTest/…/golden/SessionScreenGoldenTest.kt`: `['"LongMethod"']`; nothing under commonTest or iosTest. The gate's message counts files: "the nine inherited production" |
+| test_names | the 226 names of Section C2.2 under their 18 commonTest paths, and the scene's under its iosTest path: 227, whose serialization is Section C2.2's hash |
+| golden_test / golden_methods | `src/androidHostTest/…/golden/SessionStateGoldenTest.kt` / its 18 methods of Section C2.3, in source order |
+| extra_golden_tests (7.14's D4) | `…/golden/SessionHeaderGoldenTest.kt`, `…/golden/SessionScreenGoldenTest.kt`, `…/golden/SessionSheetsGoldenTest.kt`, each with its methods of Section C2.3 |
+| device_test / device_fragments | `src/androidDeviceTest/…/LiveWorkoutScreenTest.kt` / `@Smoke` and its six `fun <name>()` declarations of Section C2.3, each exactly once |
+| factory names | Section C0.3's substitutions; `create_args = "screen"`; feature_file `di/LiveWorkoutFeature.kt`, graph_file `ui/LiveWorkoutGraph.kt`, store_impl `LiveWorkoutStoreImpl`, store_accessor `liveWorkoutStore` |
+| screen_registration (7.15's G1) | `navComponentScreenWithResults` |
+| identity_test / identity_fragments | `app/app/src/test/…/di/LiveWorkoutExtensionIdentityTest.kt` / the `liveWorkout(…)` helper of Section C5, on one line (the gate compares whitespace-compacted text) |
+| identity_names / identity_accessor | `LiveWorkoutExtensionIdentityTest`'s seven names, in source order (unchanged) / below |
+| state_mutators (D7) | CM12's six, in this order: `LiveSetMutator`, `StateStatusMapper`, `LiveWorkoutMapper`, `LiveSetRowsResolver`, `LiveWorkoutDomainMapper`, `ExerciseDoneRule` |
+| extra_root_fragments / foreign_resource_prefixes | none / `()` |
+| extra_checks | `live_workout_copy_contract`, `live_workout_dependency_contract`, below |
+
+`identity_accessor` is the pattern `(?<!AppGraph)\.liveWorkout\(sessionUuid = "s-[19]"\)`. It
+matches seven times, once per identity; the sixth identity's `"s-2"` call, the seventh's
+training-arm call and the helper's declaration are deliberately not counted.
+
+The two contracts, normative for every fragment, count, order check and message; formatting may
+differ. Every count is over comment-stripped source:
+
+~~~python
+def live_workout_copy_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    # D5, D6, SM0 (kmp-phase-7-16-live-workout-feature.md Sections B3.5–B3.9, C4.1 and C4.2): the
+    # copy outside composition resolves at each load into State through the injected StringResolver,
+    # each field from its own key; the seven launch reads resolve on use through the same resolver;
+    # the Part B reader is gone. Every count is over comment-stripped source.
+    failures: list[str] = []
+    module = entry.module
+
+    def source_of(relative: str):
+        # None only for an absent file: an existing empty file is still checked, and fails.
+        path = entry.common_main / relative
+        if path not in common_sources:
+            failures.append(f"{module}: copy contract cannot read {path.relative_to(entry.root)}")
+            return None
+        return strip_kotlin_comments(common_sources[path])
+
+    def shown(relative: str) -> Path:
+        return (entry.common_main / relative).relative_to(entry.root)
+
+    def require(relative: str, source: str, fragment: str, expected: int) -> None:
+        count = source.count(fragment)
+        if count != expected:
+            times = "once" if expected == 1 else f"{number_word(expected)} times"
+            failures.append(
+                f"{module}: {shown(relative)} copy contract requires {fragment!r} "
+                f"exactly {times}; found {count}"
+            )
+
+    # 1. The copy model: 31 String fields in order, each blank in EMPTY.
+    copy_fields = (
+        "trainingNamePlaceholder",
+        "statusSkipped",
+        "statusNoPlan",
+        "repsUnit",
+        "metaTemplate",
+        "metaSkippedTemplate",
+        "resetTitle",
+        "resetBody",
+        "resetConfirm",
+        "resetDismiss",
+        "emptyFinishDiscard",
+        "emptyFinishContinue",
+        "cancelTitle",
+        "cancelBody",
+        "cancelConfirm",
+        "cancelDismiss",
+        "deleteSessionUnnamed",
+        "deleteSessionProgressTemplate",
+        "finishNameLabel",
+        "finishNameRequired",
+        "finishSetsCountTemplate",
+        "finishExercisesTemplate",
+        "finishExercisesWithSkippedTemplate",
+        "finishPrWeightedTemplate",
+        "finishPrWeightlessTemplate",
+        "toastSetAdded",
+        "toastSetRemoved",
+        "toastExerciseRemovedTemplate",
+        "toastExerciseRemovedFromWorkoutTemplate",
+        "errorInvalidReps",
+        "errorFinishFailed",
+    )
+    model_relative = "mvi/model/LiveWorkoutCopy.kt"
+    model_source = source_of(model_relative)
+    if model_source is not None:
+        parameters = data_class_parameters(model_source, "LiveWorkoutCopy")
+        expected_parameters = [f"{field_name}: String" for field_name in copy_fields]
+        if parameters != expected_parameters:
+            failures.append(
+                f"{module}: {shown(model_relative)} LiveWorkoutCopy parameters must be exactly "
+                f"{expected_parameters}; actual={parameters}"
+            )
+        require(model_relative, model_source, "val EMPTY: LiveWorkoutCopy = LiveWorkoutCopy(", 1)
+        for field_name in copy_fields:
+            require(model_relative, model_source, f'{field_name} = "",', 1)
+
+    # 2. CommonHandler: the load resolves the copy, 31 reads through the resolver, no reader.
+    common_relative = "mvi/handler/CommonHandler.kt"
+    common_source = source_of(common_relative)
+    if common_source is not None:
+        for fragment in (
+            "private val stringResolver: StringResolver,",
+            "private suspend fun resolveCopy(): LiveWorkoutCopy = LiveWorkoutCopy(",
+            "liveCopy = resolveCopy(),",
+            "repsUnit = stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps),",
+        ):
+            require(common_relative, common_source, fragment, 1)
+        require(common_relative, common_source, "stringResolver.getString(", 31)
+        for fragment in ("copyReader", "LiveWorkoutCopyReader", "System.currentTimeMillis"):
+            require(common_relative, common_source, fragment, 0)
+
+    # 3. The launch bodies' seven reads: one, two and four, each through the resolver.
+    for relative, reads in (
+        ("mvi/handler/ClickHandler.kt", 1),
+        ("mvi/handler/DialogClickHandler.kt", 2),
+        ("mvi/handler/ExercisePickerHandler.kt", 4),
+    ):
+        source = source_of(relative)
+        if source is None:
+            continue
+        require(relative, source, "private val stringResolver: StringResolver,", 1)
+        require(relative, source, "stringResolver.getString(", reads)
+        require(relative, source, "private suspend fun sendError(type: ErrorType)", 1)
+    # CM3: the added toast resolves before the add's write, so no suspension separates the write
+    # from its undo push; `val nextExercises = (` opens that write's lambda.
+    picker_relative = "mvi/handler/ExercisePickerHandler.kt"
+    picker_source = source_of(picker_relative)
+    if picker_source is not None:
+        anchors = (
+            "val addedMessage = stringResolver.getString(",
+            "val nextExercises = (",
+            "message = addedMessage,",
+        )
+        for anchor in anchors:
+            require(picker_relative, picker_source, anchor, 1)
+        resolved_at, written_at, used_at = (picker_source.find(anchor) for anchor in anchors)
+        if not 0 <= resolved_at < written_at < used_at:
+            failures.append(
+                f"{module}: {shown(picker_relative)} must resolve the added toast before its write"
+            )
+
+    # 4. 7.11's rules 4–7 over this module's layout: no top-level CMP read; mvi/ reads only through
+    # the resolver; no ui/ file reads copy outside composition; the reader is gone everywhere.
+    top_level_import = re.compile(
+        r"^import org\.jetbrains\.compose\.resources\.(getString|getPluralString)\b", re.MULTILINE
+    )
+    mvi_prefix = (entry.common_main / "mvi").as_posix() + "/"
+    ui_prefix = (entry.common_main / "ui").as_posix() + "/"
+    mvi_files = ui_files = 0
+    for path, raw in common_sources.items():
+        source = strip_kotlin_comments(raw)
+        relative = path.relative_to(entry.root)
+        for match in top_level_import.finditer(source):
+            failures.append(
+                f"{module}: {relative} imports CMP's top-level {match.group(1)}; read copy "
+                "outside composition through the injected StringResolver"
+            )
+        if "LiveWorkoutCopyReader" in source:
+            failures.append(f"{module}: {relative} still names the Part B reader (SM0)")
+        posix = path.as_posix()
+        if posix.startswith(mvi_prefix):
+            mvi_files += 1
+            for call in ("getString(", "getPluralString("):
+                total = source.count(call)
+                through_resolver = source.count(f"stringResolver.{call}")
+                if total != through_resolver:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside the StringResolver: {call!r} "
+                        f"{total} time(s), {through_resolver} through stringResolver"
+                    )
+            for token in ("stringResource(", "pluralStringResource("):
+                if token in source:
+                    failures.append(
+                        f"{module}: {relative} resolves composable copy under mvi/: {token!r}"
+                    )
+        elif posix.startswith(ui_prefix):
+            ui_files += 1
+            for call in ("getString(", "getPluralString("):
+                if call in source:
+                    failures.append(
+                        f"{module}: {relative} reads copy outside composition under ui/: {call!r}"
+                    )
+    if mvi_files == 0 or ui_files == 0:
+        failures.append(
+            f"{module}: copy contract walked {mvi_files} mvi/ and {ui_files} ui/ file(s); "
+            "both must be non-empty"
+        )
+    return failures
+
+
+def live_workout_dependency_contract(
+    entry: FeatureEntry,
+    common_sources: dict[Path, str],
+) -> list[str]:
+    # SM8 (kmp-phase-7-16-live-workout-feature.md Sections C8 and C10.1): core:data:database stays
+    # one production edge, read by the domain mapper alone. The domain suite's repository fakes
+    # spell its two set models, so that suite may import PlanSetDataModel and SetTypeDataModel and
+    # nothing else from it. core:data:database-test is ExerciseDoneRuleTest's host fixture (7.13
+    # D4-A): one androidHostTest edge, one import. Shared code names no java.*.
+    failures: list[str] = []
+    module = entry.module
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    fixture_edge = "\"androidHostTestImplementation\"(project(\":core:data:database-test\"))"
+    if build_source.count(":core:data:database-test") != 1 or fixture_edge not in build_source:
+        failures.append(
+            f"{module}: :core:data:database-test must be exactly one "
+            "androidHostTestImplementation edge"
+        )
+    mapper = entry.common_main / "domain/mapper/LiveWorkoutDomainMapper.kt"
+    domain_suite = (
+        entry.root / "src/commonTest/kotlin" / entry.package_dir
+        / "domain/LiveWorkoutInteractorImplTest.kt"
+    )
+    done_rule_suite = (
+        entry.root / "src/androidHostTest/kotlin" / entry.package_dir
+        / "mvi/mapper/ExerciseDoneRuleTest.kt"
+    )
+    readers = {
+        domain_suite: [
+            "core.data.database.sets.PlanSetDataModel",
+            "core.data.database.sets.SetTypeDataModel",
+        ],
+        done_rule_suite: ["core.data.database.testfixtures.WorkoutTargetParityFixture"],
+    }
+    if "core.data.database" not in strip_kotlin_comments(common_sources.get(mapper, "")):
+        failures.append(
+            f"{module}: {mapper.relative_to(entry.root)} "
+            "must be the module's one production reader of core:data:database"
+        )
+    java_reference = re.compile(r"(?<![\w.])java\.")
+    shared_sets = ("src/commonMain/", "src/commonTest/", "src/iosTest/")
+    for path in sorted((entry.root / "src").rglob("*.kt")):
+        source = strip_kotlin_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(entry.root)
+        references = re.findall(r"core\.data\.database[\w.]*", source)
+        if path in readers:
+            if references != readers[path]:
+                failures.append(
+                    f"{module}: {relative} may name core:data:database only as "
+                    f"{readers[path]}; found {references}"
+                )
+        elif path != mapper and references:
+            failures.append(
+                f"{module}: {relative} must not read core:data:database;"
+                " only the domain mapper maps its data models"
+            )
+        if relative.as_posix().startswith(shared_sets) and java_reference.search(source):
+            failures.append(f"{module}: {relative} names java.* in shared code")
+    return failures
+~~~
+
+The device contract of earlier entries is not needed: `device_fragments` pins the device class.
+
+### C10.2 The Native oracle (commit 3)
+
+`assert_kmp_ios_smoke.py` gains a `feature:live-workout` entry after exercise's, with `results_dir`
+`feature/live-workout/build/test-results/iosSimulatorArm64Test`, the known suite prefix, and the 227
+tuples of Section C9: the 226 portable identities under their 18 suites' classnames through
+`natives(…)`, in Section C2.2's order, and the scene's
+(`io.github.stslex.workeeper.feature.live_workout.LiveWorkoutFeatureSceneIosTest`,
+`resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`) through `native(…)`. The names are
+written as UTF-8 (`ensure_ascii=False`), the two `—` names among them. That is 327 insertions. On a
+green run it prints
+`feature:live-workout: 227 executed / 0 skipped / 0 failed / 0 errored — verified 227 exact identities`.
+
+### C10.3 The workflow (commit 3)
+
+`android_build_unified.yml`, KMP iOS kit smoke job:
+
+- `:feature:live-workout:iosSimulatorArm64Test` in the simulator test command and
+  `:feature:live-workout:linkDebugTestIosArm64` in the device-link command, each after exercise's;
+- the binary-assert loop's list gains `feature/live-workout` on a continuation line
+  (`feature/exercise-chart feature/single-training feature/exercise \` /
+  `feature/live-workout; do`), `$linked/15 linked` becomes `$linked/16 linked`, and
+  `feature/live-workout/build/test-results/iosSimulatorArm64Test/` joins the upload list after
+  exercise's;
+- the job-header comment rewraps within 100 columns to "…, exercise-chart, single-training,
+  exercise and live-workout features' Phase-7 Native tests on" / "the iOS simulator, then …", and
+  the two "fifteen modules'" comments say "sixteen modules'".
+
+That is 10 insertions and 6 deletions. The job, step and context names stay. The build job's
+comment on the golden-holding modules stays true: live-workout already holds goldens.
+
+The sixteen modules, for every Native command below: `:core:ui:kit`, `:core:ui:navigation`,
+`:core:ui:mvi`, `:core:ui:start-mode`, `:core:ui:plan-editor`, `:feature:image-viewer`,
+`:feature:plan-editor`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
+`:feature:past-session`, `:feature:home`, `:feature:exercise-chart`, `:feature:single-training`,
+`:feature:exercise`, `:feature:live-workout`. The fifteen are the same list without the last.
+
+**The topology output per commit.** The prototype printed, exit 0 and empty stderr, byte-identical
+under Python 3.9 through 3.14:
+
+| Tree | Lines | sha256 (prototype) | What changes against BASE_GATE_OUTPUT |
+| --- | ---: | --- | --- |
+| base, after commit 1 | 833 | `37315e70…` | nothing |
+| after commit 2 | 989 | `32eb44ec3bb0829a1894875e242ab09f71152584cacc331844f53e3eddabcb22` | live-workout's `MODULES` block (154 lines: `  feature:live-workout: 153 exact source/resource/test files` and the 153 paths, after exercise's); `app:common API edges and 2 remaining Context.appDeps readers are exact` (was 3); `compose-resource placeholders: 28 commonMain catalogs walked, …` (was 26), with live-workout's EN (`36 placeholder(s)`) and RU (`40 placeholder(s)`) lines in path order |
+| after commit 3 | 990 | `7271a2b1655ca7f294ed45ae2fa188c26dfd634c70071f5b737da8c6adc7f8d4` | and `  live-workout catalogs, semantic State, suppressions, previews, test identities, and explicit factory flow are exact`, after exercise's line |
+
+The implementation's outputs must have exactly these lines and these differences; their hashes are
+recorded, and a hash that differs from the prototype's while the lines hold is reported with the
+differing lines. The oracle entry's tuples were generated from the prototype tree's names; that run
+is not evidence.
+
+### C10.4 Entry gate before any edit
+
+Part B's Section B6.1 applies, with:
+
+- the base is origin/dev after this amendment's commit; it contains
+  `39be1b4ea2ed9954d332bee5ea8893f9e59dfeac`, and `git diff 39be1b4ea <base>` touches no path of
+  Section C7 except this document;
+- the latest `Android CI/CD - Unified Build and Tests` push run on dev is green (record its id and
+  head; `39be1b4ea`'s is `40350332440`, which concluded success);
+- the census of Section C2 is reproduced on the base, each item with its method: the manifests and
+  counts of C2.1 (the 101 `R.` references in 11 files, the platform imports, the copy reads, the 50
+  composition reads, the 61 / 11 lambdas and the eleven by file); C2.2's 18 suites and 225
+  identities by suite and the retired files' 7; C2.2's name total (277) and, at exit, its hash;
+  C2.3's golden methods, the 60 PNGs and their blob set, and the device class's six names; C2.4's
+  catalogs (94 strings and 2 plurals each, the base hashes `e201fa09…` and `f4b9ad01…`, P1's twelve
+  lines); C2.5's build file; C2.6's consumers; C2.7's 12 + 7 suppressions; C2.8's facts;
+- the exit census (Section C12) on the base exits 1 with exactly the base column;
+- the Mac's simulator runtime and Xcode first-launch state are recorded (`xcrun simctl list
+  runtimes`); a missing runtime or an unfinished first launch is a STOP with the exact command for
+  the maintainer.
+
+Baselines, each with fresh XML:
+
+- `python3 .github/scripts/assert_kmp_ui_source_topology.py` under every Python on the host:
+  byte-identical, exit 0, empty stderr (BASE_GATE_OUTPUT: 833 lines, `37315e70…`);
+- `python3 .github/scripts/assert_mvi_source_topology.py` (BASE_MVI_TOPOLOGY);
+- `./gradlew assembleDebug lintDebug testDebugUnitTest --continue`: every module/task row's suites,
+  cases and names (HOST_BASELINE; live-workout's `testDebugUnitTest` 26 suites and 241 cases; the
+  repository 479 suites and 3,391 cases at the measured tree), and every module's lint findings by
+  id, path and line text (LINT_BASELINE; Part A measured 80 dependency-version advisories in each of
+  app:app, app:dev and app:store, and none elsewhere);
+- `./gradlew verifyPaparazziDebug`: suites and cases (live-workout 30 and 301; the repository 174
+  and 1,787), live-workout's `Visual gate live: 60 golden test case(s) executed for 60 golden
+  image(s).`, porcelain empty afterwards;
+- `./gradlew :lint-rules:test` (16 suites, 151 cases);
+- `./gradlew :app:app:testDebugUnitTest --tests '*LiveWorkoutExtensionIdentityTest*'` (7 cases);
+- the fifteen-module Native command from `android_build_unified.yml` with `--continue`, then
+  `assert_kmp_ios_smoke.py` as CI runs it (NATIVE_BASELINE: 96 suites, 635 cases), and the
+  fifteen-module `linkDebugTestIosArm64` (15/15 `test.kexe`);
+- on the recorded serial: `:feature:live-workout:connectedDebugAndroidTest` (6 cases) and the four
+  app classes (25 cases):
+
+      ANDROID_SERIAL=<serial> ./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.RouteReachabilityTest,io.github.stslex.workeeper.app.NavigationResultTest,io.github.stslex.workeeper.app.StoreRetentionTest,io.github.stslex.workeeper.app.BackStackStateRestorationTest --max-workers=2 --continue
+
+### C10.5 Focused gates per commit
+
+After commit 1: Section C10.0's proof, and detekt alone.
+
+**Early Native check (before commit 2).** As soon as production and commonTest compile for Native,
+before the scene and the app paths, run `:feature:live-workout:iosSimulatorArm64Test`. It is the
+first Native compilation of this module's CMP `BackHandler` opt-in, the results overload, the
+injected `StringResolver` reads and `kotlin.concurrent.atomics`, and the first Native run of the
+watch-write contract on a real `BaseStore` and of the two `—` names: the fresh XML must hold the 226
+identities by name. A failure here is a STOP-and-amend with the compiler or test output.
+
+After commit 2, on the committed tree:
+
+    python3 .github/scripts/assert_kmp_ui_source_topology.py   # 989 lines, every Python
+    ./gradlew :feature:live-workout:assembleDebug              # Android and both iOS klibs
+    ./gradlew :feature:live-workout:testAndroidHostTest        # 21 suites, 235 cases
+    ./gradlew :feature:live-workout:verifyPaparazziDebug       # 25 suites, 295 cases: 60 golden + 235
+    ./gradlew :feature:live-workout:iosSimulatorArm64Test      # 19 suites, 227 cases
+    ./gradlew :app:common:assembleDebug
+    ./gradlew :app:dev:assembleDebug                           # Metro validates the graph
+    ./gradlew :app:app:testDebugUnitTest --tests '*LiveWorkoutExtensionIdentityTest*'   # 7 cases
+    ./gradlew :lint-rules:test                                 # 16 suites, 151 cases
+
+`verifyPaparazziDebug` must print `Visual gate live: 60 golden test case(s) executed for 60 golden
+image(s).` and leave the porcelain empty. Then, on the recorded serial,
+`:feature:live-workout:connectedDebugAndroidTest` (6 cases) and the four app classes (25 cases, the
+five live-workout journeys among them), with fresh XML; the exit census (Section C12), which exits
+0 from this commit on; and detekt alone.
+
+After commit 3: the topology script (990 lines, every Python), the sixteen-module Native command
+(`--continue`) and the oracle (16 modules, 115 suites, 862 cases), the sixteen-module device link
+(`16/16 linked`), and detekt alone.
+
+### C10.6 Repository, visual and device gates (on commit 3's tree)
+
+Each in its own invocation, with Part B's flags (Section B6):
+
+    ./gradlew assembleDebug lintDebug testDebugUnitTest --continue   # = HOST_BASELINE but live-workout (26 → 21 suites, 241 → 235 cases); lint = LINT_BASELINE
+    ./gradlew detekt --continue
+    ./gradlew assembleDebugAndroidTest
+    ./gradlew verifyPaparazziDebug                       # = the baseline but live-workout (30 → 25, 301 → 295); porcelain empty; blob set 53221eab…
+    ./gradlew :lint-rules:test
+    ./gradlew :app:wear:testStoreReleaseUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false --tests '*ReleaseRuntimeBoundaryTest*'
+    python3 .github/scripts/assert_kmp_ui_source_topology.py   # 990 lines, every Python
+    python3 .github/scripts/assert_mvi_source_topology.py      # = BASE_MVI_TOPOLOGY
+    python3 documentation/personal_data_gate.py -v
+    ./gradlew <sixteen-module iosSimulatorArm64Test> --continue && python3 .github/scripts/assert_kmp_ios_smoke.py
+    ./gradlew <sixteen-module linkDebugTestIosArm64> --continue   # 16/16
+
+The repository rows are expected at 474 suites and 3,385 cases for the host task and 169 and 1,781
+for `verifyPaparazziDebug` (the base's minus live-workout's 5 suites and 6 cases); any other
+module's change is a STOP. "Lint = LINT_BASELINE" means every module's set of findings (id, path,
+line text) equals the entry's; a finding on a Section C7 path, or one the baseline lacks, is a
+STOP. The PNG manifest proof: the 60 blobs at their new paths equal the base's at the old ones,
+blob for blob, and the blob set is `53221eab…`.
+
+**Device gates**, on one API-34 emulator with an explicit serial and animations off:
+
+- testing.md's canonical Smoke and Regression suites, in `run_smoke_ui_tests.sh`'s and
+  `ui_tests.yml`'s form, then `assert_mvi_device_identities.py` as the Smoke script runs it. Compare
+  with Part A's record (Section 14.6: Smoke 44 with the 3 documented skips, Regression 88); a new
+  failure is a STOP.
+- The logcat sweep of Section B6.6 around each suite; a `SCREEN_LiveWorkout` error line is a STOP.
+
+**Final diff and remote proof.** Against the PR's base: `git diff --no-renames --name-status`
+lists exactly Section C7's paths (D for the 156 base paths under `src/`, A for the 153 exit paths,
+M for the build file and the 17 others); the 118 byte-identical moves keep their blob ids; the two
+catalogs differ from their base blobs in P1's twelve lines only; no `.png` blob, no
+`gradle/libs.versions.toml` line and no build file outside Section C7 changes. Record the KMP iOS
+kit smoke job's duration on the final head against its 120-minute timeout, next to 7.15's.
+
+## C11. Mandatory known-negative controls
+
+7.15 Section B13's procedure applies: every control runs fresh GREEN → one named observable RED →
+exact restoration → fresh GREEN. Gradle- and device-scored controls go through
+`documentation/mockups/mutation_harness.py` one-shot, with `--no-configuration-cache
+--console=plain` inside `--task`; Python-scored controls run against MAIN's tree with a
+byte-restoring scratchpad copy of each mutated file, restored with `cp` and checked by sha256 and
+mode (no worktree, Section C0.2). A compile-invalid mutation is never a RED where a compiled test is
+the detector; no mutation is committed. Every control runs after commit 3, on its committed tree.
+"Only" means no other identity, suite or line is RED; "at least" means the named ones must be RED
+and every other RED is recorded. Consecutive controls with a byte-identical task may share a GREEN
+when HEAD is unchanged, the porcelain is empty and the restored file's sha256 and mode equal HEAD's.
+
+Paths are relative to `src/commonMain/kotlin/<pkg>/` unless they start with `src/`, `app/`,
+`feature/`, `lint-rules/` or `.github/`; `…` abbreviates a module-relative path, which the
+implementation writes out. A topology RED names exactly the lines quoted, each prefixed
+`feature:live-workout: ` unless it starts with another module or `remaining`.
+
+**From 7.15 (Section B13's rows 1–17, 21–25), with live-workout's names:**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K1 | delete `ui/components/LiveWorkoutHeader.kt` | topology: `source manifest mismatch; missing=['…/ui/components/LiveWorkoutHeader.kt'], extra=[]` and `…/ui/components/LiveWorkoutHeader.kt must hold bare @Preview annotations but is missing` |
+| K2 | copy `di/LiveWorkoutScope.kt` to `src/main/kotlin/<pkg>/di/LiveWorkoutScope.kt` | topology: manifest `extra=['src/main/…/di/LiveWorkoutScope.kt']`, `legacy source set src/main still contains […]` and `unexpected Kotlin-bearing source set src/main: […]` |
+| K3 | move `ui/components/LiveWorkoutHeader.kt` to `ui/LiveWorkoutHeader.kt` | topology: manifest `missing` and `extra`; `…/ui/components/LiveWorkoutHeader.kt must hold bare @Preview annotations but is missing` and `…/ui/LiveWorkoutHeader.kt must hold exactly 0 bare @Preview annotation(s); found 3` |
+| K4 | `import android.util.Log` after the package line of `ui/components/SessionSheets.kt` | topology: `…SessionSheets.kt imports a platform API in commonMain: 'import android.'` |
+| K5 | EN: `name="feature_live_workout_sheet_close"` → `name="feature_live_workout_sheet_close_renamed"` | topology: the EN catalog mismatch (`unexpected=['feature_live_workout_sheet_close_renamed']`, `order=drifted`) and two ownership-drift lines |
+| K6 | RU: `Закрыть` → `Закрыть окно` in `feature_live_workout_sheet_close` | topology: the RU catalog mismatch, `order=exact` |
+| K7 | move the EN `feature_live_workout_sheet_close` line into `feature/settings/src/main/res/values/strings.xml`, before `</resources>` | topology: the EN catalog mismatch (`order=drifted`) and `resource ownership drift for feature_live_workout_sheet_close; …` |
+| K8 | `val titleRes: Int = 0,` after State's `val bottomSheetState: BottomSheetState,` | topology: `Store State must stay semantic with exactly (…)` |
+| K9 | `resetTitle = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_title),` → `resetTitle = resourceWrapper.getString(0),` | topology: `…CommonHandler.kt resolves live-workout copy through ResourceWrapper.getString; use the private Compose resources`; `…CommonHandler.kt copy contract requires 'stringResolver.getString(' exactly 31 times; found 30`; `…CommonHandler.kt reads copy outside the StringResolver: 'getString(' 31 time(s), 30 through stringResolver` |
+| K10 | the load failure's `updateState { it.copy(isLoading = false, loadFailed = true) }` → a block whose first line is `val label = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_title)` | topology: `updateState in …CommonHandler.kt resolves a resource inside the State lambda: 'getString('` and `… 'Res.'`; `…CommonHandler.kt copy contract requires 'stringResolver.getString(' exactly 31 times; found 32` |
+| K11 | the first bare `@Preview` of `ui/components/LiveWorkoutHeader.kt` → `@Preview(uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)` | topology: forbidden `'android.content'` and `'uiMode'`; `exactly six portable previews are required; found 7`; `…LiveWorkoutHeader.kt must hold exactly 3 bare @Preview annotation(s); found 2` |
+| K12 | `LiveWorkoutFeature.processor`'s body → `val context = LocalContext.current`, `val contextFactory = context.appDeps<LiveWorkoutGraph.Factory>()`, and a retained creation that reads `contextFactory.createLiveWorkoutGraph(screen).liveWorkoutStore` | topology: `remaining Context.appDeps readers are not the exact 2 unported entries; …`, forbidden `'LocalContext'` and `'appDeps<'`, `factory invocation must occur exactly inside retained Store creation` |
+| K13 | delete `val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory` and its KDoc from `AppRootDeps` | topology: `exact root-factory flow requires 'val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory' once in app/common/…/AppRootDeps.kt` |
+| K14 | `val graph = factory.createLiveWorkoutGraph(screen)` before `rememberMetroStoreProcessor`, whose lambda then reads `graph.liveWorkoutStore` | topology: `factory invocation must occur exactly inside retained Store creation` |
+| K15 | a second `(context.applicationContext as AppRootDepsHolder).appRootDeps()` inside the admitted `remember(currentPhase.id) { … }` in `App.kt` | device: `UiAdmissionRaceTest`, as in 7.10 |
+| K16 | hoist `val deps = remember(currentPhase.id) { …appRootDeps() }` above `if (admission.granted) {` | device: `UiAdmissionRaceTest`, as in 7.10 |
+| K17 | the identity helper's `liveWorkoutGraphFactory.createLiveWorkoutGraph(` → `asContribution<LiveWorkoutGraph.Factory>().createLiveWorkoutGraph(` | topology: the identity-helper fragment, and `extension identities must not bypass AppRootDeps via asContribution` |
+
+**D7:**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K18 | `LIVE_WORKOUT_ENTRY.state_mutators` loses `"LiveSetMutator"` | topology: exactly eleven `updateState in <file> must return a State copy` lines: `…ClickHandler.kt` 8, `…CommonHandler.kt` 2, `…DialogClickHandler.kt` 1 |
+| K19 | it loses `"StateStatusMapper"` | topology: exactly `state mutator LiveSetMutator in …LiveSetMutator.kt reaches StateStatusMapper, which state_mutators does not list` |
+| K20 | it loses `"LiveWorkoutMapper"` | topology: exactly the `reaches LiveWorkoutMapper` lines of `LiveSetMutator` and `StateStatusMapper` |
+| K21 | it loses `"LiveSetRowsResolver"` | topology: exactly the `reaches LiveSetRowsResolver` lines of `LiveSetMutator` and `LiveWorkoutMapper` |
+| K22 | it loses `"LiveWorkoutDomainMapper"` | topology: exactly the `reaches LiveWorkoutDomainMapper` lines of `LiveSetMutator` and `LiveWorkoutMapper` |
+| K23 | it loses `"ExerciseDoneRule"` | topology: exactly the `reaches ExerciseDoneRule` lines of `StateStatusMapper` and `LiveWorkoutMapper` |
+| K24 | append `private val probe = Res.string.feature_live_workout_status_skipped` to `mvi/mapper/LiveSetMutator.kt` | topology: exactly `state mutator LiveSetMutator in …LiveSetMutator.kt holds 'Res.'; a State lambda returns only through pure code` |
+| K25 | append `private val stringResolver: Any? = null` to `mvi/mapper/StateStatusMapper.kt` | topology: exactly `state mutator StateStatusMapper in …StateStatusMapper.kt names 'stringResolver'` |
+| K26 | append `internal fun probe(resolver: StringResolver): StringResolver = resolver` to `mvi/mapper/LiveWorkoutMapper.kt` | topology: exactly `state mutator LiveWorkoutMapper in …LiveWorkoutMapper.kt takes StringResolver` |
+| K27 | append `private val railProbe = RailMapper` to `mvi/mapper/LiveWorkoutMapper.kt` | topology: exactly `state mutator LiveWorkoutMapper in …LiveWorkoutMapper.kt reaches RailMapper, which state_mutators does not list` |
+| K28 | append `internal class LiveSetMutator` to `mvi/handler/LiveWorkoutDraftExt.kt` | topology: exactly `state mutator LiveSetMutator must be declared once in commonMain; found 2` |
+| K29 | `ClickHandler`: `updateState { it.copy(bottomSheetState = BottomSheetState.SessionMenu) }` → `updateState { interactor.run { it } }` | topology: exactly one `updateState in …ClickHandler.kt must return a State copy` (a non-mutator property does not delegate) |
+
+**The copy contract (D5, D6, SM0, CM2, CM3):**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K30 | `liveCopy = resolveCopy(),` → `liveCopy = LiveWorkoutCopy.EMPTY,` | topology: exactly `…CommonHandler.kt copy contract requires 'liveCopy = resolveCopy(),' exactly once; found 0`; host and Native: at least D8's identity |
+| K31 | append `private typealias LiveWorkoutCopyReader = Any` to `mvi/handler/CommonHandler.kt` | topology: exactly `…CommonHandler.kt copy contract requires 'LiveWorkoutCopyReader' exactly zero times; found 1` and `…CommonHandler.kt still names the Part B reader (SM0)` |
+| K32 | `import org.jetbrains.compose.resources.getString` after `ClickHandler`'s `StringResolver` import | topology: exactly `…ClickHandler.kt imports CMP's top-level getString; read copy outside composition through the injected StringResolver` |
+| K33 | `ui/LiveWorkoutGraph.kt`: `val loadFailedMessage = stringResource(Res.string.feature_live_workout_error_session_load_failed)` → `val loadFailedMessage = runBlocking { getString(Res.string.feature_live_workout_error_session_load_failed) }` | topology: exactly `…ui/LiveWorkoutGraph.kt reads copy outside composition under ui/: 'getString('` |
+| K34 | move `ExercisePickerHandler`'s `val addedMessage = stringResolver.getString(…)` block (four lines) from before the add's `updateState { latest ->` to directly before `// Undo removes the rows the add just wrote.` | topology: exactly `…ExercisePickerHandler.kt must resolve the added toast before its write` |
+| K35 | `message = stringResolver.getString(Res.string.feature_live_workout_finish_success),` → `message = "",` | topology: exactly `…DialogClickHandler.kt copy contract requires 'stringResolver.getString(' exactly two times; found 1` |
+| K36 | `ExercisePickerHandler`: `private suspend fun sendError(type: ErrorType)` → `private fun sendError(type: ErrorType)` | topology: exactly `…ExercisePickerHandler.kt copy contract requires 'private suspend fun sendError(type: ErrorType)' exactly once; found 0` (Python only: the mutation does not compile) |
+| K37 | `nowMillis = Clock.System.now().toEpochMilliseconds(),` → `nowMillis = System.currentTimeMillis(),` in `CommonHandler` | topology: exactly `…CommonHandler.kt copy contract requires 'System.currentTimeMillis' exactly zero times; found 1` (Python only) |
+| K38 | `LiveWorkoutCopy`: `val errorFinishFailed: String,` → `val errorFinish: String,` and `errorFinishFailed = "",` → `errorFinish = "",` | topology: exactly the `LiveWorkoutCopy parameters must be exactly [...]` line and `…LiveWorkoutCopy.kt copy contract requires 'errorFinishFailed = "",' exactly once; found 0` (Python only) |
+
+**The dependency contract (SM8):**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K39 | `import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel` as the first import of `domain/LiveWorkoutInteractorImpl.kt` | topology: exactly `…LiveWorkoutInteractorImpl.kt must not read core:data:database; only the domain mapper maps its data models` |
+| K40 | `import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity` before the `PlanSetDataModel` import of `src/commonTest/…/domain/LiveWorkoutInteractorImplTest.kt` | topology: exactly `…LiveWorkoutInteractorImplTest.kt may name core:data:database only as [...]; found [...]` |
+| K41 | `"androidDeviceTestImplementation"(project(":core:data:database-test"))` after the bundle line of the build file | topology: exactly `:core:data:database-test must be exactly one androidHostTestImplementation edge` |
+| K42 | `private val probe = java.util.UUID.randomUUID()` after `CommonHandlerTest`'s `private val interactor = LoadingInteractor()` | topology: exactly `src/commonTest/…/CommonHandlerTest.kt names java.* in shared code` |
+| K43 | both `import io.github.stslex.workeeper.core.data.database.` prefixes of `domain/mapper/LiveWorkoutDomainMapper.kt` → `import io.github.stslex.workeeper.core.data.legacy.` | topology: exactly `…LiveWorkoutDomainMapper.kt must be the module's one production reader of core:data:database` (Python only) |
+
+**The entry, the identities and the root flow:**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K44 | a 227th `@Test`, `` `a two-hundred-and-twenty-seventh identity nobody declared` `` (`= Unit`), before `NavigationHandlerTest`'s first identity | topology: exactly `exact test identities drifted in …NavigationHandlerTest.kt; missing=[], unexpected=['a two-hundred-and-twenty-seventh identity nobody declared']` |
+| K45 | the scene's `fun resourcesScreenSheetsDialogsAndActionsRenderAndDispatch()` → `fun renamedSceneSubstitute()` | topology: exactly the drift line for the scene, `missing=['resourcesScreenSheetsDialogsAndActionsRenderAndDispatch'], unexpected=['renamedSceneSubstitute']`; Gradle GREEN, then the oracle (K59) |
+| K46 | in `LiveWorkoutExtensionIdentityTest`, `val store = buildAppGraph().liveWorkout(sessionUuid = "s-1").liveWorkoutStore` → `val store = buildAppGraph().liveWorkoutGraphFactory` / `.createLiveWorkoutGraph(Screen.LiveWorkout(sessionUuid = "s-1", trainingUuid = null)).liveWorkoutStore` | topology: exactly `all seven extension identities must reach the graph through the accessor` |
+| K47 | `AppNavigationHost`: delete `factory = liveWorkoutGraphFactory,` from the `liveWorkoutGraph(` call | topology: exactly `exact root-factory flow requires 'liveWorkoutGraph(factory = liveWorkoutGraphFactory,' once in app/common/…/AppNavigationHost.kt` |
+| K48 | `navComponentScreenWithResults(LiveWorkoutFeature(factory))` → `navComponentScreen(LiveWorkoutFeature(factory))` | topology: exactly `exact root-factory flow requires 'navComponentScreenWithResults(LiveWorkoutFeature(factory))' once in …ui/LiveWorkoutGraph.kt` |
+| K49 | `SessionHeaderGoldenTest`'s `fun topbar(theme` → `fun topbarProbe(theme` | topology: exactly `golden methods in src/androidHostTest/…/SessionHeaderGoldenTest.kt must be exactly ['topbar', 'sheadDefault', 'sheadSkippedMeta', 'sheadEditing']; actual=['topbarProbe', …]` |
+| K50 | copy `golden/SessionScreenGoldenTest.kt` to `golden/SessionScreenCopyGoldenTest.kt` (androidHostTest) | topology: manifest `extra=[…SessionScreenCopyGoldenTest.kt]`, the suppressions line (`suppressions must be exactly the nine inherited production and zero Native test-name annotations; …`) and `…SessionScreenCopyGoldenTest.kt renders goldens but is neither golden_test nor in extra_golden_tests` |
+| K51 | P1: EN `%1$d of %2$d exercises · %3$d of %4$d sets` → `%d of %2$d exercises · %3$d of %4$d sets` | topology: the EN catalog mismatch (`order=exact`) and `compose-resource placeholder is not %N$d or %N$s with N >= 1: …values/strings.xml key feature_live_workout_meta_format token '%d'` |
+| K52 | `LiveWorkoutScreenTest`: `fun finish_button_dispatches_OnFinishClick()` → `fun finish_button_dispatches_Finish()` | topology: exactly `device placeholder must keep 'fun finish_button_dispatches_OnFinishClick()' exactly once` |
+| K53 | `@Suppress("MagicNumber")` directly above `internal object RailMapper` | topology: exactly the suppressions line |
+| K54 | `app/common/build.gradle.kts`: `api(project(":feature:live-workout"))` → `implementation(project(":feature:live-workout"))` | topology: exactly `app:common: live-workout edge must be exactly one api dependency` and `app:common: live-workout edge must not remain implementation` |
+| K55 | `val messageRes: StringResource? = null,` after `PendingUndo`'s `val message: String,` | topology: exactly `…PendingUndo.kt carries a resource handle/lookup 'StringResource' in a Store/domain payload` and the same for `'StringRes'` |
+
+**Gradle-, PNG- and detekt-scored:**
+
+| # | Mutation | Scorer: expected RED |
+| ---: | --- | --- |
+| K56 | D8: `resetTitle = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_title),` → `…feature_live_workout_cancel_title),` | host and Native: `a load resolves every copy field from its own catalog key`, and only it; topology GREEN (the count holds) |
+| K57 | the scene's `setContent { … }` body → `setContent { }` | Native: the scene, at its first node assertion; the 226 portable identities pass |
+| K58 | `ui/LiveWorkoutScreen.kt`: the back button's `onClick = { consume(Action.Click.OnBackClick) },` → `onClick = { },` | Native: the scene's step 10 (`Action.Click.OnBackClick` missing from the list), and only it |
+| K59 | K45's rename | Gradle GREEN (the renamed case passes), then the oracle: `feature:live-workout: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.live_workout.LiveWorkoutFeatureSceneIosTest' name='resourcesScreenSheetsDialogsAndActionsRenderAndDispatch[iosSimulatorArm64]', found 0; parsed 227 testcase(s): …` |
+| K60 | flip (XOR 0xFF) the last byte of `src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.live_workout.golden_SessionScreenGoldenTest_sessionScreen_light.png` | PNG assertion: that blob's drift, the blob-set drift, and the manifest drift |
+| K61 | a compile-valid overlong assertion line in `src/commonTest/…/mvi/handler/NavigationHandlerTest.kt` | root detekt, alone: findings on that line only |
+| K62 | EN `feature_live_workout_finish`: `Finish session` → `Finish session.` | `verifyPaparazziDebug`: `SessionScreenGoldenTest.sessionScreen`, both themes, and only it; Native: the scene's step 1; topology: the EN catalog mismatch |
+| K63 | RU `feature_live_workout_setbar_add`: `+ подход` → `+ подход!` | `verifyPaparazziDebug`: `SessionStateGoldenTest.exerciseBodyweightRu`, both themes, and only it; topology: the RU catalog mismatch |
+| K64 | lint-rules: `PERMITTED_READERS`' `feature/live-workout/src/commonMain/kotlin/…` → `feature/live-workout/src/main/kotlin/…` | `:lint-rules:test`: at least `the permitted reader passes`; root detekt: a finding on `LiveExerciseCard.kt`'s reader call |
+| K65 | delete `CommonHandlerExternalWritesTest`'s `Log.isLogging = false` | host: at least one `CommonHandlerExternalWritesTest` identity RED with `… in android.util.Log not mocked` (record the set); Native: GREEN — CM9's switch is what keeps the plain Android host green |
+| K66 | the oracle on copies of the fresh sixteen result directories: delete the scene's `<testcase>` from live-workout's XML copy | the oracle, run from the copies' root: `… found 0; parsed 226 testcase(s): …` |
+| K67 | the same copies: `<skipped/>` inside one live-workout `<testcase>`, and the suite's `skipped="1"` | the oracle: `<testsuite name=…> in <file> reports skipped=1, expected 0` |
+
+K34's move keeps the four lines verbatim. K57 and K58 are 7.15's rows 21 and 22; K60 and K61 its
+rows 24 and 25.
+
+Every new or changed identity has a RED: D8's (K30, K56), the scene (K45, K57, K58, K59, K62,
+K66, K67), the seven extension identities (K17, K46), the device class (K52), the goldens (K49,
+K50, K60, K62, K63).
+
+Each of the 55 Python-scored runs (K1–K14, K17–K55, and the topology halves of K62 and K63), and
+Section C10.0's M1, M2 and Q1 (on the measured tree), was dry-run against the prototype tree under
+Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14 while this document was written. Each produced exactly
+its named result, byte-identical across interpreters, without a traceback, and the restored tree
+gave a fresh GREEN byte-equal to the exit output. That dry run is not evidence. The
+implementation's fresh runs are.
+
+Scorers:
+
+- **Python, the topology script as CI runs it:** K1–K14, K17–K55, and the topology halves of K62
+  and K63;
+- **PNG:** K60;
+- **Gradle:**
+  - `:feature:live-workout:testAndroidHostTest :feature:live-workout:iosSimulatorArm64Test --continue`
+    for K30's and K56's identities, K57, K58, K62's Native half and K65;
+  - `:feature:live-workout:verifyPaparazziDebug` for K62's and K63's golden halves;
+  - the sixteen-module Native command and the oracle for K59;
+  - the oracle alone, on result-directory copies, for K66 and K67;
+  - `:lint-rules:test`, then root detekt alone, for K64; root detekt alone for K61;
+- **device:** K15 and K16 (`UiAdmissionRaceTest` on the recorded serial, fresh XML).
+
+## C12. The exit census (X1–X12)
+
+One script, written by the session (Section C0.2's method), run on the base and on commit 2's and
+commit 3's trees. X5 uses the gate's own functions, imported from
+`.github/scripts/assert_kmp_ui_source_topology.py`. It exits 0 only when every item holds, prints
+each item's input count, and must exit 1 on the base.
+
+| Id | Item | At exit | At the base |
+| --- | --- | --- | --- |
+| X1 | files importing `android.content.Context`, and `context.getString(` calls, in every module source set | none; 0 | `…/mvi/handler/LiveWorkoutCopyReader.kt` and `…/mvi/mapper/LiveWorkoutTemplateParityTest.kt`; 3 |
+| X2 | Kotlin files in the repository (outside `build/`) naming `LiveWorkoutCopyReader` or `copyReader` | none | 5: the reader, `CommonHandler` and three test files |
+| X3 | module files naming `ResourceWrapper` or `resourceWrapper` | none | 7: the three launch-reading handlers and four suites |
+| X4 | `stringResolver.getString(` calls per production file | `ClickHandler` 1, `CommonHandler` 31, `DialogClickHandler` 2, `ExercisePickerHandler` 4 | `CommonHandler` 1 |
+| X5 | Part B's lambda census (Section B2.2): lambdas, without `.copy(`, holding a token, token hits, resolver references, same-file calls, module reach | 61, 11, 0, 0, 0, 0, 0 | the same |
+| X6 | the lambdas without `.copy(` that reach `setMutator` by `.` or `::`, per file | `ClickHandler` 8, `CommonHandler` 2, `DialogClickHandler` 1 | the same, under `src/main` |
+| X7 | commonTest and iosTest files; `org.junit`, `io.mockk`, `org.robolectric`, `@Config`, `Thread.`, `java.` occurrences in them; files holding `runBlocking` | 21; none; the scene only | 0 |
+| X8 | the feature's `R.string.` / `R.plurals.` / `R.drawable.` / `R.dimen.` references, and `import …feature.live_workout.R` lines | 0, 0 | 128, 14 |
+| X9 | `<string name=` and `<plurals name=` per catalog; with the base: each catalog's changed lines | 94 and 2 in each; EN 4 and RU 8 changed lines, every one an `<item quantity=` line whose only change is `%d` → `%1$d` | 94 and 2 |
+| X10 | the goldens' PNGs: count and blob-set sha256 (Section B2.6's definition) | 60, `53221eab…` | the same |
+| X11 | `src/main`, `src/test`, `src/androidTest` present | none | all three |
+| X12 | `liveWorkoutGraphFactory` per app file; `asContribution<LiveWorkoutGraph` in app; `appDeps<LiveWorkoutGraph` in the repository | `App.kt` 2, `AppGraph.kt` 1, `AppNavigationHost.kt` 2, `AppRootDeps.kt` 1, `LiveWorkoutExtensionIdentityTest.kt` 1; 0; 0 | none; 1; 1 |
+
+Calls are read with Section C0.2's method (comments and string literals blanked, a call across
+lines is one call). The census controls run on scratchpad copies of a file, restored with `cp` and
+sha256-checked, each followed by the restored tree's exit 0:
+
+| Id | Mutation | Required verdict |
+| --- | --- | --- |
+| Y1 | `CommonHandler.kt`: `import android.content.Context` after the package line | exit 1: X1 = `[…/mvi/handler/CommonHandler.kt]`, 0 |
+| Y2 | `ClickHandler.kt`: append `internal suspend fun probe(stringResolver: StringResolver) = stringResolver.getString(Res.string.feature_live_workout_finish)` | exit 1: X4 `ClickHandler` 2 |
+| Y3 | `ClickHandler.kt`: K29's mutation | exit 1: X5 = 61, 12, 0, 0, 0, 0, 0; X6 unchanged |
+
+The prototype census produced exactly these verdicts on the prototype tree and the base.
+
+## C13. STOP conditions
+
+Part B's Section B9 applies, read with Section C0.3's substitutions. In addition, stop, report what
+was measured and widen nothing, if:
+
+- the base lacks `39be1b4ea`, the latest dev push run is red, or a Section C7 path drifted;
+- the entry census or a baseline differs from Sections C2 and C10.4, or the exit census on the base
+  differs from Section C12's base column;
+- commit 1's proof (Section C10.0) shows any differing byte, or a Q row deviates;
+- the move needs anything beyond Sections C3–C5 and C8: a production change outside Section C2.1's
+  14 files and the reader's deletion; a click path that suspends for copy; a change to the copy
+  model, the filler, a State lambda, the Store contract, an Event, a `DialogState` variant or a UI
+  model;
+- the copy port needs a resource handle, `ResourceWrapper` or `StringResolver` in a payload file, or
+  resolution or a resolver reference inside a State lambda, directly, through a same-file function
+  or through a state mutator; or D7's contract fails on the exit tree, or a lambda needs a mutator
+  outside CM12's six;
+- an identity needs a name or assertion change; a fake cannot reproduce the mock behaviour an
+  identity relies on (CM6); or a strict fake would have to answer a member no identity reaches;
+- `CommonHandlerExternalWritesTest` fails on either platform: record the identity, the platform and
+  the trace. Never relax a wait, an assertion or the dispatcher order;
+- **any of the 60 PNG blobs changes** under `verifyPaparazziDebug`: record the method, the theme
+  and the differing region. It means CMP renders a catalog, a plural or a font differently from
+  Android resources. Never re-record;
+- `navComponentScreenWithResults` with the class-based feature, CMP's `BackHandler` under
+  `ExperimentalComposeUiApi`, `kotlin.concurrent.atomics`, CMP resources' generated accessors, or
+  `implementation(project(":core:data:database"))` does not resolve for the iOS targets in
+  commonMain: STOP-and-amend with the compiler output;
+- the Native scene's catalog differs from Section C10.1's EN column in any value, or steps 2–4
+  differ from Section C9.5;
+- `SetText`, a click inside a sheet's or dialog's content, or `performScrollToNode` cannot run on
+  the simulator (Section C9.5);
+- a Native test name fails to compile, or appears in the XML under another name than its source
+  (the two `—` names included). Never rename an identity;
+- a test source set needs `core:data:database` beyond the interactor suite's two models, or
+  `core:data:database-test` beyond `ExerciseDoneRuleTest`;
+- Metro rejects the graph after the move, or the generated extension needs a handler's constructor
+  public;
+- the module's device class, the four app classes or `UiAdmissionRaceTest` fails on the recorded
+  serial;
+- a control's verdict differs from its row, or a mutation meant for a compiled detector does not
+  compile;
+- detekt reports anything; lint reports a finding on a Section C7 path or any finding the baseline
+  lacks; any suppression becomes necessary. The fix is never a suppression;
+- a host case outside live-workout changes count or outcome; the topology output differs from
+  Section C10.3's lines; the fifteen earlier modules' Native or link results change;
+- a gate needs a build-file, workflow, CI-script, catalog (beyond P1) or version change other than
+  Sections C8 and C10;
+- the KMP iOS kit smoke job times out on any PR head;
+- a device suite fails in a way Part A's record does not, or a `SCREEN_LiveWorkout` error line
+  appears in the device logcat;
+- the maintainer rules, before the run, that the copy must re-resolve on a locale change (CM16):
+  STOP-and-amend;
+- any path outside Section C7 changes.
+
+A STOP produces a measured note and, where needed, an amendment proposal. It never widens the
+implementation silently.
+
+## C14. Signed, bisect-green commit plan
+
+Four English Conventional Commits. Each is signed, GitHub-verified and green on its own tree:
+
+1. **ci(kmp): let a State lambda return through the module's pure mutators** — D7 only (Section
+   C10.0): the field, the two patterns, the contract, the condition and the call; 1 path.
+2. **refactor(kmp): share live-workout feature entry** — the module (Sections C3–C9 and C7.1), the
+   seven app paths and the two lint-rules paths (Section C5), and the minimal topology delta of
+   Section C10.1 (commit 2).
+3. **ci(kmp): gate shared live-workout feature** — `LIVE_WORKOUT_ENTRY` with its two contracts, the
+   Native oracle entry, and the workflow lists and comments (Sections C10.1–C10.3).
+4. **docs(kmp): record Phase 7.16 Part C evidence** — the four documents of Section C7.4; this
+   document's Status line, which becomes
+   `**Status:** COMPLETE — Part A by PR #344, Part B by PR #345, Part C by the PR whose merge brought`
+   / `this line to dev.`; and Section C17. Sections 0–14, B0–B13 and C0–C16 stay byte-identical.
+
+Each commit is made first. Its gates then run on the committed tree, and so do the controls (after
+commit 3) and the repository gates. A fix is a new signed commit inside Section C7, and every gate
+it can reach re-runs. Nothing is amended, squashed or reordered.
+
+## C15. Exit criteria
+
+### C15.1 PR-M
+
+Section C1 is proven and Sections C10–C12 are evidenced, in one PR into dev with CI green on its
+head:
+
+- commit 1's proof;
+- the 154-path module (Section C7.1) and its two private catalogs, 96 identifiers, changed only by
+  P1's twelve lines;
+- copy outside composition only through `StringResolver`: the load's 31 reads and the seven launch
+  reads; no `ResourceWrapper`, no reader and no `Context` in the module (X1–X4);
+- 61 State lambdas, the 11 without `.copy(` returning through CM12's six mutators, none resolving
+  copy or naming a resolver (X5, X6 and D7's contract);
+- 226 identities on the Android host and on Native, and 227 Native tuples, the scene's among them;
+- 60 golden cases with unchanged blobs, the four classes pinned;
+- 6 device identities from `androidDeviceTest`, the 7 extension identities through the accessor,
+  and the 25 app identities of Section C9.4;
+- the eleven production suppressions and the host golden's one; none in commonTest or iosTest;
+- the explicit shape-B factory flow through `navComponentScreenWithResults`;
+- `core:data:database` one production `implementation` edge read by the domain mapper alone, and
+  `core:data:database-test` one `androidHostTest` edge read by `ExerciseDoneRuleTest` alone;
+- the topology entry, the oracle and the workflow at sixteen modules; Context readers 3 → 2;
+- every control of Section C11 and every census item of Section C12 evidenced;
+- the Section C7.4 documents updated.
+
+`@claude review` is requested, and every finding is classified (correct / already decided / wrong
+/ new) before any fix. The maintainer merges.
+
+### C15.2 The owner's device check (after the merge; not a gate)
+
+On the dev build of the merged tree, with the watch paired and `adb logcat -s SCREEN_LiveWorkout`
+running: Part B's Section B11.2 list, except the delete-session dialog, which no UI opens (Section
+C16), in English and in Russian. Expected: nothing differs from the build before PR-M; a device
+whose first locale has no catalog shows English (OC1). A difference goes to the maintainer as a
+finding.
+
+## C16. Carried out of Part C
+
+- **The dead delete-session surface** (CM17). No composable dispatches
+  `Action.Click.OnDeleteSessionMenuClick` at `39be1b4ea`:
+  `git grep -n OnDeleteSessionMenuClick -- '*.kt'` returns the Store's declaration, `ClickHandler`'s
+  branch and two `ClickHandlerTest` identities. With it, the action,
+  `processDeleteSessionMenuClick`, `DialogState.DeleteDialog`, the screen's branch,
+  `DialogClickHandler`'s confirm and dismiss, the copy's `deleteSessionUnnamed` and
+  `deleteSessionProgressTemplate`, and kit's `DiscardSessionConfirmDialog` (whose only caller is
+  that branch) have no production path. v2.0 shipped a Delete session item in the session overflow;
+  the menu now offers Add exercise and Cancel session only. Part C moves the surface unchanged and
+  tech-debt.md records it (Section C7.4). Restoring the item or dropping the surface is the
+  maintainer's call.
+- **The locale property** (CM16, XC1): the copy in State keeps the latest load's locale until the
+  screen is re-entered or a plan-editor save reloads it, while composition reads relabel at once.
+  tech-debt.md's new row records it; re-resolving at the boundary is a cross-feature decision.
+- **The frontier.** After Part C the two Context readers left are app-dialogs' and settings'
+  (Section C1). Settings follows once `feature:app-dialogs:api` is shared (7.15 Section B17); then
+  `app/common` and the permanent iOS host. A throwaway iosApp remains forbidden.
+
+## C17. Implementation evidence
+
+Filled by commit 4 (Section C14), in Part B's Section B13 form: the base and every commit SHA with
+its local and GitHub signature status; the entry gate (Section C10.4) with each census method and
+baseline; commit 1's proof; the per-commit gates (Section C10.5), the early Native check among them;
+K1–K67 with each mutation, its quoted RED and its restoration; Y1–Y3 and the exit census on the
+base, commit 2 and commit 3; the repository, visual, Native and device gates (Section C10.6) with
+the HOST_BASELINE and LINT_BASELINE comparisons by module and the logcat sweep; the environment;
+every deviation and why; and what the host could not verify. GitHub's verification of commit 4,
+the CI run ids and the review classification go in the PR body, because they cannot exist before
+that commit does.
