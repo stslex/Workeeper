@@ -1864,6 +1864,10 @@ class FeatureEntry:
     # G2 (same section): keys that share resource_prefix but belong to another owner. The
     # ownership walk skips them; the default skips nothing, so every earlier entry is unchanged.
     foreign_resource_prefixes: tuple = ()
+    # D7 (kmp-phase-7-16-live-workout-feature.md Section C10.0): the pure same-module classes a
+    # State lambda may return through in place of a `.copy(`. Empty by default, so every earlier
+    # entry stays byte-identical.
+    state_mutators: tuple = ()
 
     @property
     def common_main(self) -> Path:
@@ -2002,6 +2006,60 @@ def suppression_census(suppressions: dict) -> str:
 
 
 KOTLIN_TEST_NAME = re.compile(r"@Test\s+fun\s+(?:`([^`]+)`|(\w+))\s*\(")
+
+# D7 (kmp-phase-7-16-live-workout-feature.md Section C10.0): a `val`/`var` and its declared type.
+STATE_MUTATOR_PROPERTY = re.compile(r"\b(?:val|var)\s+(\w+)\s*:\s*(\w+)\b")
+# A top-level class or object; a nested one belongs to its file's mutator.
+STATE_MUTATOR_DECLARATION = re.compile(
+    r"^(?:(?:internal|private|public|data|open)\s+)*(?:class|object)\s+(\w+)", re.MULTILINE
+)
+
+
+def state_mutator_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    """D7: each listed mutator is declared once in commonMain, its file is pure (no State lambda
+    side effect, no resolver or wrapper), and every mapper class it names is listed too."""
+    failures: list[str] = []
+    if not entry.state_mutators:
+        return failures
+    declared: dict[str, list[Path]] = {}
+    for path, raw in common_sources.items():
+        for name in STATE_MUTATOR_DECLARATION.findall(strip_kotlin_comments(raw)):
+            declared.setdefault(name, []).append(path)
+    mappers = {
+        name
+        for name, paths in declared.items()
+        if any("/mapper/" in path.as_posix() for path in paths)
+    }
+    for mutator in entry.state_mutators:
+        paths = declared.get(mutator, [])
+        if len(paths) != 1:
+            failures.append(
+                f"{entry.module}: state mutator {mutator} must be declared once in commonMain; "
+                f"found {len(paths)}"
+            )
+            continue
+        relative = paths[0].relative_to(entry.root)
+        source = strip_kotlin_comments(common_sources[paths[0]])
+        for token in FEATURE_STATE_LAMBDA_SIDE_EFFECTS:
+            if token in source:
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} holds {token!r}; "
+                    "a State lambda returns only through pure code"
+                )
+        for name in sorted(set(FEATURE_COPY_HELPER_REFERENCES.findall(source))):
+            failures.append(f"{entry.module}: state mutator {mutator} in {relative} names {name!r}")
+        for type_name in ("ResourceWrapper", "StringResolver"):
+            if type_name in source:
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} takes {type_name}"
+                )
+        for name in sorted(mappers - set(entry.state_mutators)):
+            if re.search(rf"\b{re.escape(name)}\b", source):
+                failures.append(
+                    f"{entry.module}: state mutator {mutator} in {relative} reaches {name}, "
+                    "which state_mutators does not list"
+                )
+    return failures
 
 
 def strip_kotlin_comments(source: str) -> str:
@@ -2223,10 +2281,21 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
         if "/mvi/handler/" not in path.as_posix():
             continue
         helpers = copy_resolving_functions(strip_kotlin_comments(source))
+        # D7: a property of this file whose declared type is a listed mutator, reached with `.`
+        # or `::`, stands in for the `.copy(`.
+        mutators = {
+            name
+            for name, declared in STATE_MUTATOR_PROPERTY.findall(strip_kotlin_comments(source))
+            if declared in entry.state_mutators
+        }
         for call in ("updateState", "updateStateImmediate"):
             for body in braced_call_bodies(source, call):
                 update_count += 1
-                if ".copy(" not in compact(body):
+                delegates = any(
+                    re.search(rf"(?<![\w.]){re.escape(name)}(?:\.|::)", compact(body))
+                    for name in mutators
+                )
+                if ".copy(" not in compact(body) and not delegates:
                     failures.append(
                         f"{module}: {call} in {path.relative_to(root)} must return a State copy"
                     )
@@ -2250,6 +2319,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                         )
     if update_count == 0:
         failures.append(f"{module}: no updateState lambdas were inspected")
+    failures.extend(state_mutator_contract(entry, common_sources))
 
     # Exactly the portable previews: every subject, each Light and Dark.
     preview_count = 2 * len(entry.preview_subjects) + sum(
