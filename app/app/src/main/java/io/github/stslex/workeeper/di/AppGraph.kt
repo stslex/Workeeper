@@ -45,6 +45,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartGraph
 import io.github.stslex.workeeper.feature.home.di.HomeGraph
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutGraph
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
@@ -114,6 +115,8 @@ internal interface AppGraph :
     override val singleTrainingGraphFactory: SingleTrainingGraph.Factory
 
     override val exerciseGraphFactory: ExerciseGraph.Factory
+
+    override val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 

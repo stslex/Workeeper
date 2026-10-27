@@ -72,7 +72,7 @@ class ActiveSurfaceSingleReaderRule(config: Config = Config.empty) : Rule(config
 
         /** The single permitted call site: the active exercise in the live workout. */
         val PERMITTED_READERS = listOf(
-            "feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/" +
+            "feature/live-workout/src/commonMain/kotlin/io/github/stslex/workeeper/feature/" +
                 "live_workout/ui/components/LiveExerciseCard.kt",
         )
 

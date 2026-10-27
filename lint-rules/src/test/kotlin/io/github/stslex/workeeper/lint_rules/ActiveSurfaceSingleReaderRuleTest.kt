@@ -66,7 +66,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `a call site in a feature test is flagged`() {
         val findings = rule.lintAt(
-            path = "feature/live-workout/src/test/kotlin/io/github/stslex/workeeper/feature/" +
+            path = "feature/live-workout/src/commonTest/kotlin/io/github/stslex/workeeper/feature/" +
                 "live_workout/SomeTest.kt",
             content = """
             package io.github.stslex.workeeper.feature.live_workout
@@ -263,7 +263,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     private companion object {
 
         const val PERMITTED_READER =
-            "feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/" +
+            "feature/live-workout/src/commonMain/kotlin/io/github/stslex/workeeper/feature/" +
                 "live_workout/ui/components/LiveExerciseCard.kt"
     }
 }

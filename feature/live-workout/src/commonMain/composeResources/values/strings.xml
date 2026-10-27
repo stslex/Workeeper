@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Header (.shead meta line, extraction §1.3): fin/act exercises · done/total sets -->
+    <string name="feature_live_workout_meta_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises · %3$d of %4$d sets</string>
+    <string name="feature_live_workout_meta_skipped_format" tools:ignore="PluralsCandidate">%1$s · %2$d skipped</string>
+
+    <!-- Railmeta (extraction §1.4): detail label by resolved mode + the counts label -->
+    <string name="feature_live_workout_railmeta_detail_sets">detail: sets</string>
+    <string name="feature_live_workout_railmeta_detail_exercises">detail: exercises</string>
+    <string name="feature_live_workout_railmeta_detail_overall">detail: overall</string>
+    <string name="feature_live_workout_railmeta_counts" tools:ignore="PluralsCandidate">%1$d exercises · %2$d sets</string>
+    <string name="feature_live_workout_railmeta_one_off_suffix" tools:ignore="PluralsCandidate">%1$s · one-off: %2$d</string>
+
+    <!-- Exercise card .sub — always the plan (or the skipped marker); extraction §1.5 -->
+    <string name="feature_live_workout_status_skipped">skipped</string>
+    <string name="feature_live_workout_status_no_plan">no plan</string>
+    <string name="feature_live_workout_one_off_badge">one-off</string>
+    <string name="feature_live_workout_expand">Expand</string>
+    <string name="feature_live_workout_collapse">Collapse</string>
+
+    <!-- sh-ex, the exercise sheet (extraction §1.9) -->
+    <string name="feature_live_workout_action_edit_plan">Edit plan</string>
+    <string name="feature_live_workout_action_reset_sets">Reset sets</string>
+    <string name="feature_live_workout_action_skip">Skip exercise</string>
+    <string name="feature_live_workout_action_unskip">Return to session</string>
+    <string name="feature_live_workout_action_delete_exercise">Delete exercise</string>
+    <string name="feature_live_workout_one_off_row_title">Only for today</string>
+    <string name="feature_live_workout_one_off_row_sub">stays in this session, but won’t be added to the training plan</string>
+
+    <!-- sh-del, the exercise-removal sheet -->
+    <string name="feature_live_workout_delete_workout_title">Remove from this workout?</string>
+    <string name="feature_live_workout_delete_workout_body">“%1$s” will be removed from this workout. Its logged sets will be lost.</string>
+    <string name="feature_live_workout_delete_workout_confirm">Remove from workout</string>
+    <string name="feature_live_workout_delete_plan_title">Remove from the training plan?</string>
+    <string name="feature_live_workout_delete_plan_body_added">“%1$s” was added in this session. Its logged sets will be lost.</string>
+    <string name="feature_live_workout_delete_plan_body_planned">“%1$s” will disappear from the training plan and future sessions. If you just don’t want it today — skipping is the better move.</string>
+    <string name="feature_live_workout_delete_plan_keep">Keep</string>
+    <string name="feature_live_workout_delete_plan_confirm">Remove from plan</string>
+
+    <!-- sh-desc -->
+    <string name="feature_live_workout_sheet_close">Close</string>
+
+    <!-- The undo toast (extraction §1.9) -->
+    <string name="feature_live_workout_toast_set_added">Set added</string>
+    <string name="feature_live_workout_toast_set_removed">Set removed</string>
+    <string name="feature_live_workout_toast_exercise_added">“%1$s” added</string>
+    <string name="feature_live_workout_toast_exercise_removed">“%1$s” removed from plan</string>
+    <string name="feature_live_workout_toast_exercise_removed_from_workout">“%1$s” removed from workout</string>
+    <string name="feature_live_workout_toast_undo" tools:ignore="DuplicateStrings">Undo</string>
+
+    <!-- Setbar (extraction §1.7); "−" is U+2212 MINUS SIGN, as drawn -->
+    <string name="feature_live_workout_setbar_add">+ set</string>
+    <string name="feature_live_workout_setbar_remove">− set</string>
+
+    <!-- Set-type chip tooltip (long-press) -->
+    <string name="feature_live_workout_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>
+
+    <!-- Reset confirmation -->
+    <string name="feature_live_workout_reset_title">Reset sets?</string>
+    <string name="feature_live_workout_reset_body">All logged sets for this exercise will be deleted. This cannot be undone.</string>
+    <string name="feature_live_workout_reset_confirm">Reset</string>
+    <string name="feature_live_workout_reset_dismiss" tools:ignore="DuplicateStrings">Cancel</string>
+
+
+    <!-- Finish dialog -->
+    <string name="feature_live_workout_finish">Finish session</string>
+    <string name="feature_live_workout_finish_title">Finish session?</string>
+    <string name="feature_live_workout_finish_body">Your sets will be logged and plans will update with what you actually performed.</string>
+    <string name="feature_live_workout_finish_name_label">Workout name</string>
+    <string name="feature_live_workout_finish_name_required">Name is required</string>
+    <string name="feature_live_workout_finish_stat_duration">Duration</string>
+    <string name="feature_live_workout_finish_stat_exercises">Exercises</string>
+    <string name="feature_live_workout_finish_stat_sets">Sets logged</string>
+    <string name="feature_live_workout_finish_stat_sets_count">%1$d</string>
+    <string name="feature_live_workout_finish_stat_exercises_format" tools:ignore="PluralsCandidate">%1$d of %2$d done</string>
+    <string name="feature_live_workout_finish_stat_exercises_with_skipped_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$d skipped</string>
+    <string name="feature_live_workout_finish_keep_going" tools:ignore="DuplicateStrings">Keep going</string>
+    <string name="feature_live_workout_finish_confirm">Finish</string>
+    <string name="feature_live_workout_finish_success">Session saved</string>
+
+    <!-- New PR section in finish dialog -->
+    <plurals name="feature_live_workout_finish_new_pr_title">
+        <item quantity="one">%1$d new personal record</item>
+        <item quantity="other">%1$d new personal records</item>
+    </plurals>
+    <string name="feature_live_workout_finish_new_pr_row_format">%1$s — %2$s</string>
+    <plurals name="feature_live_workout_finish_unfilled_discarded">
+        <item quantity="one">%1$d empty set will not be saved</item>
+        <item quantity="other">%1$d empty sets will not be saved</item>
+    </plurals>
+    <string name="feature_live_workout_finish_pr_weighted_format">%1$s × %2$d</string>
+    <string name="feature_live_workout_finish_pr_weightless_format" tools:ignore="PluralsCandidate">%1$d reps</string>
+
+    <!-- Header overflow -->
+    <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Cancel session</string>
+    <string name="feature_live_workout_cancel_title">Cancel session?</string>
+    <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
+    <string name="feature_live_workout_cancel_confirm" tools:ignore="DuplicateStrings">Cancel</string>
+    <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Keep going</string>
+    <string name="feature_live_workout_delete_session_unnamed">Workout</string>
+    <string name="feature_live_workout_delete_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done · %3$d sets logged</string>
+
+    <!-- Empty state (Quick start blank session) -->
+    <string name="feature_live_workout_empty_headline">No exercises yet</string>
+    <string name="feature_live_workout_empty_supporting">Add your first exercise to begin logging sets.</string>
+
+    <!-- Editable training name header (Quick start) -->
+    <string name="feature_live_workout_training_name_placeholder">Untitled</string>
+
+    <!-- Inline exercise picker (Quick start mid-session add) -->
+    <string name="feature_live_workout_picker_search_hint">Type to filter or create new</string>
+    <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
+    <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
+    <string name="feature_live_workout_add_exercise_cta">Add exercise</string>
+
+    <!-- Empty-finish confirm dialog -->
+    <string name="feature_live_workout_empty_finish_title">Discard empty workout?</string>
+    <string name="feature_live_workout_empty_finish_body">This workout has no logged sets. It looks like you haven’t started yet.</string>
+    <string name="feature_live_workout_empty_finish_continue">Continue edit</string>
+    <string name="feature_live_workout_empty_finish_discard">Discard</string>
+
+    <!-- Misc -->
+    <string name="feature_live_workout_back">Back</string>
+    <string name="feature_live_workout_more">More</string>
+    <string name="feature_live_workout_description">Description</string>
+
+    <!-- Errors -->
+    <string name="feature_live_workout_error_invalid_reps">Reps must be greater than 0</string>
+    <string name="feature_live_workout_error_set_save_failed">Could not save set</string>
+    <string name="feature_live_workout_error_set_delete_failed">Could not remove set</string>
+    <string name="feature_live_workout_error_reset_failed">Could not reset sets</string>
+    <string name="feature_live_workout_error_skip_failed">Could not skip exercise</string>
+    <string name="feature_live_workout_error_finish_missing_session">Session is no longer available</string>
+    <string name="feature_live_workout_error_finish_failed">Could not finish session</string>
+    <string name="feature_live_workout_error_cancel_failed">Could not cancel session</string>
+    <string name="feature_live_workout_error_plan_save_failed">Could not save plan</string>
+    <string name="feature_live_workout_error_training_name_save_failed">Could not save workout name</string>
+    <string name="feature_live_workout_error_add_exercise_failed">Could not add exercise</string>
+    <string name="feature_live_workout_error_create_inline_exercise_failed">Could not create exercise</string>
+    <string name="feature_live_workout_error_discard_session_failed">Could not discard workout</string>
+    <string name="feature_live_workout_error_unknown">Something went wrong</string>
+    <string name="feature_live_workout_error_session_load_failed">Could not open the workout</string>
+</resources>
