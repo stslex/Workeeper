@@ -322,9 +322,10 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
 - `AppGraph.stringResolver` still has **no production reader**: no production code reads
   `StringResolver` from the graph. all-exercises' `ClickHandler` and `PagingHandler`,
   past-session's `CommonHandler`, home's `ClickHandler`, `CommonHandler` and `PagingHandler`,
-  exercise-chart's `CommonHandler`, single-training's `ClickHandler` and `CommonHandler`, and
-  exercise's `ClickHandler` and `CommonHandler` receive the binding by constructor injection
-  through their graph extensions, which inherit it
+  exercise-chart's `CommonHandler`, single-training's `ClickHandler` and `CommonHandler`,
+  exercise's `ClickHandler` and `CommonHandler`, and live-workout's `CommonHandler`,
+  `ClickHandler`, `DialogClickHandler` and `ExercisePickerHandler` receive the binding by
+  constructor injection through their graph extensions, which inherit it
   from `AppGraph`. The accessor exists so
   `StringResolverIdentityTest` can prove the binding to
   `ComposeStringResolver` (contributed by `@ContributesBinding(AppScope)` in `core:ui:kit`
@@ -867,6 +868,82 @@ device by the app journeys: `RouteReachabilityTest`'s three exercise journeys,
 `imageRemoveRequestTurnsTheThumbnailIntoThePhotoPickerEntryPoint`, `StoreRetentionTest` and
 `BackStackStateRestorationTest.editorDraftSurvivesTheImageViewerRoundTrip`.
 
+#### Shared live-workout feature
+
+`feature:live-workout` keeps its 18 portable suites in `commonTest`, so the same 226 exact
+identities execute through Android host and `iosSimulatorArm64Test`: interactor 29, click handler
+26, dialog click handler 29, external writes 24, set mutator 27, mapper 20, picker handler 12, draft
+behaviour 10, visible-rows resolver 8, status mapper 7, external-write coverage 6, unfilled set 6,
+mapper reload 5, common handler 4, navigation handler 4, delete-copy mapper 4, route argument 4 and
+input handler 1. One of them was added by Phase 7.16 Part C to pin D8, which no earlier identity
+observed: `CommonHandlerTest`'s `a load resolves every copy field from its own catalog key` loads
+through a catalog resolver that answers each of the 31 copy keys with its own string and fails on
+any other, and requires `State.liveCopy` to equal `NAMED_COPY`, every key read exactly once (D8 of
+[kmp-phase-7-16-live-workout-feature.md](feature-specs/kmp-phase-7-16-live-workout-feature.md)).
+The two identities with `—` in their names run on Native too; the oracle compares them from the
+UTF-8 XML.
+
+The suites use `kotlin.test`, `kotlinx-coroutines-test` and private in-file fakes; MockK and
+Robolectric left with the port, and no shared test names `java.`, `Thread.` or `runBlocking`
+outside the scene. The four click-path suites share a relaxed store fake that reproduces the relaxed
+MockK store: `state` is the identity's flow and `updateState` applies to it, a launch is counted and
+runs nothing, and every other member does what the relaxed mock did; where an identity runs a
+launch, a capturing store fake hands it the latest one, a throw routed to `onError`. The interactor
+fake logs every call in order as a member and its arguments, so a verification is a
+count over the log; the string resolver answers what the identity sets up and `""` otherwise.
+Where a mock was strict, its fake is strict, and a member no identity reaches fails fast.
+`CommonHandlerExternalWritesTest` runs a real `BaseStore` without Robolectric: `Log.isLogging` is
+off for each identity and restored after it, the manual dispatcher's queue is a lock-free deque on
+`kotlin.concurrent.atomics`, and the timer identity busy-waits 2 ms on `kotlin.time.Clock`. The
+interactor suite runs `LiveWorkoutInteractorImpl` on recording fakes of its seven repositories and
+the real `ExternalSessionWrites`.
+
+The module's one production `core:data:database` edge is read by the domain mapper alone. The
+interactor suite's repository fakes spell `PlanSetDataModel` and `SetTypeDataModel`, its only names
+from that module; `core:data:database-test` is one `androidHostTest` edge, read by
+`ExerciseDoneRuleTest` alone; and no shared source set names `java.*`. The topology gate's
+`live_workout_dependency_contract` pins all four.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.live_workout.LiveWorkoutFeatureSceneIosTest.resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`
+reads every copy outside composition through one real `ComposeStringResolver`; the scene declares no
+fake resolver and names no `ResourceWrapper`. It reads the whole private EN catalog as stored and
+both plurals filled; repeats `CommonHandler.resolveCopy`'s 31 reads in its order, every field its
+EN value verbatim; resolves the launch reads with production's arguments and the 13 `ErrorType`
+messages; and runs the production mapper on Native (`Push Day` at `12:34`, its meta line, statuses,
+card labels and finish statistics). It then switches one content slot, from test-held state,
+between the production `LiveWorkoutScreen` and two `LiveSetRow`s under `AppTheme`: the loaded and
+the empty screen; all five sheets and all five dialogs through the screen's own routing,
+plan-editor's shared picker and kit's delete dialog among them; the retired
+`LiveSetRowSemanticsTest`'s two rows, each field announcing its unit; and production's 42 actions as
+one exact ordered list. Text goes through the `SetText` semantics action; the fields are controlled,
+so the test-held State takes each typed value, as the Store would. Settling is bounded: ten steps of
+one virtual second each. Together with the 226 portable cases, the live-workout Native XML contains
+exactly 227 passing cases in 19 suites with no skip, failure, or error.
+
+What this does not cover: RU values render only in `SessionStateGoldenTest.exerciseBodyweightRu`,
+and the gate pins the RU catalog statically; the undo toast's five-second window has no scene path
+(the toast itself is `SessionSheetsGoldenTest.undoToast`); the graph's wiring (the plan editor's
+result read-back, haptics, snackbars, `BackHandler`, the load-failure exit and `AppLoadedContent`)
+has no scene path, and the app journeys below cover it on a device; no UI dispatches
+`OnDeleteSessionMenuClick`, so the delete dialog renders from test-held state only
+([tech-debt.md → Dead delete-session surface](tech-debt.md#dead-delete-session-surface-in-featurelive-workout--actionclickondeletesessionmenuclick-has-no-emitter-phase-716-part-c-2026-10-26));
+and the iosArm64 test binaries are linked, never run.
+
+The four golden classes, `SessionStateGoldenTest`, `SessionHeaderGoldenTest`,
+`SessionScreenGoldenTest` and `SessionSheetsGoldenTest`, moved to `androidHostTest` with their 60
+byte-identical PNGs; they render the catalogs through CMP now, and `exerciseBodyweightRu` the RU
+one. `LiveSetRowOverflowGateTest`, `SetColumnAlignmentGateTest` and `ExerciseDoneRuleTest` moved
+beside them and run in every host test task, so `testAndroidHostTest` runs 21 suites and 235 cases.
+`LiveWorkoutScreenTest` moved to `androidDeviceTest` with its 6 `@Smoke` identities. Android keeps
+the seven `LiveWorkoutExtensionIdentityTest` cases, which reach the graph through
+`AppGraph.liveWorkoutGraphFactory`, and the factory flow and the result read-back are proven on a
+device by the app journeys: `RouteReachabilityTest`'s `liveWorkoutOpensBlankFromHomeAndHomeReturns`,
+`liveWorkoutIsReEnteredThroughTheActiveSessionBanner` and
+`planEditorOpensFromALiveSessionExerciseAndTheSessionReturns`,
+`NavigationResultTest.planEditorSaveReachesTheLiveSessionThatOpenedIt` and
+`StoreRetentionTest.liveWorkoutStoreSurvivesThePlanEditorRoundTrip`.
+
 #### Shared string resolver
 
 `core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside
@@ -1347,13 +1424,13 @@ introducing parallel ones.
   changes again every month with no code change. Assert on seeded names (unique per test) or on
   absolute values the seed controls. Nothing breaks today only because every selector in the suite
   is name-based.
-- **`app/app`'s androidTest source set cannot see a feature module's `R`.**
-  `NavigationResultTest.NO_PLAN_LABEL = "no plan"` is
-  `R.string.feature_live_workout_status_no_plan` inlined by hand; adding that dependency to reach
-  one string would give the navigation suite a compile-time edge into a feature it is otherwise
-  independent of. Accepted cost: re-wording the string turns the "before" assertion into a
-  comparison against a stale literal — which fails loudly rather than passing quietly, so the
-  failure mode is the safe one.
+- **`app/app`'s androidTest source set cannot see a feature module's internal Compose `Res`.**
+  `NavigationResultTest.NO_PLAN_LABEL = "no plan"` is live-workout's
+  `Res.string.feature_live_workout_status_no_plan` inlined by hand; the generated `Res` is internal
+  to the module, and an edge to reach one string would give the navigation suite a compile-time
+  dependency on a feature it is otherwise independent of. Accepted cost: re-wording the string
+  turns the "before" assertion into a comparison against a stale literal — which fails loudly
+  rather than passing quietly, so the failure mode is the safe one.
 - **`BottomBarItem.testTag` (`"BottomAppBarItem_$name"`) is a test contract, not a private
   detail.** `ApplicationBottomBarTest` looks items up by it directly, and `harness/NavPaths.kt`
   pins `BOTTOM_BAR_HOME` / `BOTTOM_BAR_TRAININGS` / `BOTTOM_BAR_EXERCISES` from it. Those tests
@@ -1389,13 +1466,13 @@ Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:pl
 `:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
 `:feature:all-exercises` (KMP), `:feature:past-session` (KMP), `:feature:home` (KMP),
 `:feature:exercise-chart` (KMP), `:feature:single-training` (KMP), `:feature:exercise` (KMP),
-and `feature/`{`live-workout`, `settings`}. Goldens
+`:feature:live-workout` (KMP), and `feature/settings`. Goldens
 live in
 `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
 `:feature:past-session`, `:feature:home`, `:feature:exercise-chart`,
-`:feature:single-training`, `:feature:exercise`), and
+`:feature:single-training`, `:feature:exercise`, `:feature:live-workout`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1412,7 +1489,7 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
 `:feature:past-session`, `:feature:home`, `:feature:exercise-chart`,
-`:feature:single-training`, and `:feature:exercise`
+`:feature:single-training`, `:feature:exercise`, and `:feature:live-workout`
 too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
@@ -1564,7 +1641,7 @@ From the project root:
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests (macOS + Xcode), kept in one --continue invocation
+# Native Phase-7 tests of the 16 modules (macOS + Xcode), kept in one --continue invocation
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
@@ -1580,11 +1657,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:exercise-chart:iosSimulatorArm64Test \
   :feature:single-training:iosSimulatorArm64Test \
   :feature:exercise:iosSimulatorArm64Test \
+  :feature:live-workout:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 15/15.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 16/16.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1600,6 +1678,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:exercise-chart:linkDebugTestIosArm64 \
   :feature:single-training:linkDebugTestIosArm64 \
   :feature:exercise:linkDebugTestIosArm64 \
+  :feature:live-workout:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities
