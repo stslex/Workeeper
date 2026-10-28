@@ -4365,11 +4365,14 @@ worktree.
 - Commit 3: `c4cfb1642338b9d60513f969d5d06bc2676884b6`, the topology script (829 insertions), the
   oracle (327 insertions) and the workflow (10 insertions, 6 deletions); local `gpgsig` header
   present. See deviation 7 for 829.
-- Commit 4: this commit.
+- Commit 4: `55390757dfaa325128df64c65cf4ecaa9cad5272`, this section, the Status line and four
+  other documents (588 insertions, 65 deletions); local `gpgsig` header present.
+- Commit 5: this commit, the review fix (deviation 10).
 
 Against the base: 1 path after commit 1, 320 after commit 2, 322 after commit 3, and Section C7's
-327 after commit 4. No `.png` blob changes; `gradle/libs.versions.toml`, `settings.gradle.kts` and
-`build-logic/` are unchanged; the only build files are the module's and `app/common`'s.
+327 after commit 4 and after commit 5. No `.png` blob changes; `gradle/libs.versions.toml`,
+`settings.gradle.kts` and `build-logic/` are unchanged; the only build files are the module's and
+`app/common`'s.
 
 ### C17.2 Entry gate (Section C10.4)
 
@@ -4766,6 +4769,21 @@ the serial.
    after the control's start.
 9. **One more test run before each commit**, as Section C0.2 says: the module's tests ran on each
    staged tree, and the commit's gates then ran on the committed tree.
+10. **A review fix (commit 5).** The PR's review found that `ExercisePickerHandler`'s add launch
+    read the added toast after `interactor.addExerciseToActiveSession(…)`, so a read that throws
+    once the add's row is committed sends the launch to `onError`: `AddExerciseFailed`, the sheet
+    hidden, and a row in the database that State shows only after a reload. A probe identity, added
+    through `mutation_harness.py` and removed by it, reproduced this on commit 4 (`the add wrote its
+    row before the toast's read failed ==> expected: <0> but was: <1>`) and passed on commit 5's
+    tree. Commit 5 moves the four-line read to the top of the launch body, above the add, and
+    rewords its comment; nothing else in the function changes. CM3's order still holds: the toast
+    resolves before both the add's write and the State write, and the gate's three anchors keep
+    their order. Section C4.2's listing shows the pre-review placement. K34 moves the same four
+    lines from their new place to directly before `// Undo removes the rows the add just wrote.`
+    and gives its recorded line. The same commit replaces `CommonHandlerExternalWritesTest`'s KDoc
+    reason with deviation 3's: the switch keeps the suite's output quiet, and the previous flag is
+    restored after each identity. No identity changes: the module's host and Native suites stay at
+    21 suites, 235 cases and 19 suites, 227 cases, the same names.
 
 ### C17.9 Not verified on this host
 

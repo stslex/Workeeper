@@ -72,7 +72,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * `init` consumes `Init`, every `dispose` ends the scope) around the real [CommonHandler], with one
  * test dispatcher for every store dispatcher. The interactor is faked: its loads can be held open,
  * and its write flow counts the collectors. CM9: no Robolectric — the store's logging is off for each
- * identity, because the plain Android host's `android.util.Log` throws.
+ * identity, which keeps the suite's output quiet; the previous flag is restored after it.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class CommonHandlerExternalWritesTest {

@@ -170,6 +170,12 @@ class ExercisePickerHandler @Inject internal constructor(
                 sendError(ErrorType.AddExerciseFailed)
             },
         ) {
+            // «{name}» добавлено — resolved before the add's DB write, so a failed read writes
+            // nothing, and no suspension separates the State write from its undo window.
+            val addedMessage = stringResolver.getString(
+                Res.string.feature_live_workout_toast_exercise_added,
+                picked.name.truncateForToast(),
+            )
             val addResult = interactor.addExerciseToActiveSession(
                 sessionUuid = sessionUuid,
                 trainingUuid = trainingUuid,
@@ -186,12 +192,6 @@ class ExercisePickerHandler @Inject internal constructor(
             // Convert outside `updateState` so the lambda stays a pure state transformation.
             val planUi: ImmutableList<PlanSetUiModel> =
                 addResult.planSets?.toUi() ?: persistentListOf()
-            // «{name}» добавлено — resolved before the write, so no suspension separates the write
-            // from its undo window.
-            val addedMessage = stringResolver.getString(
-                Res.string.feature_live_workout_toast_exercise_added,
-                picked.name.truncateForToast(),
-            )
             updateState { latest ->
                 val nextExercises = (
                     latest.exercises + buildPickedExerciseUi(
