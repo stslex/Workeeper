@@ -227,16 +227,17 @@ the Activity's store, silently process-scoping every Store
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
    navigation library type. The shared image-viewer, plan-editor, past-session, exercise-chart,
-   single-training, and exercise entries are the shape-B factory-resolution exceptions: their
-   generation-owned root passes the required `ImageViewerGraph.Factory` /
+   single-training, exercise, and live-workout entries are the shape-B factory-resolution
+   exceptions: their generation-owned root passes the required `ImageViewerGraph.Factory` /
    `PlanEditorGraph.Factory` / `PastSessionGraph.Factory` / `ExerciseChartGraph.Factory` /
-   `SingleTrainingGraph.Factory` / `ExerciseGraph.Factory` through `AppNavigationHost` and
-   `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` / `exerciseChartGraph` /
-   `singleTrainingsGraph` / `exerciseGraph` into `ImageViewerFeature` / `PlanEditorFeature` /
-   `PastSessionFeature` / `ExerciseChartFeature` / `SingleTrainingFeature` / `ExerciseFeature`.
-   Each invokes it only inside the `rememberMetroStoreProcessor` creation lambda. Exercise
-   registers through `navComponentScreenWithResults`, the `FeatureAssisted` overload that also
-   hands the content the destination's `NavResults`.
+   `SingleTrainingGraph.Factory` / `ExerciseGraph.Factory` / `LiveWorkoutGraph.Factory` through
+   `AppNavigationHost` and `imageViewerGraph` / `planEditorGraph` / `pastSessionGraph` /
+   `exerciseChartGraph` / `singleTrainingsGraph` / `exerciseGraph` / `liveWorkoutGraph` into
+   `ImageViewerFeature` / `PlanEditorFeature` / `PastSessionFeature` / `ExerciseChartFeature` /
+   `SingleTrainingFeature` / `ExerciseFeature` / `LiveWorkoutFeature`. Each invokes it only inside
+   the `rememberMetroStoreProcessor` creation lambda. Exercise and live-workout register through
+   `navComponentScreenWithResults`, the `FeatureAssisted` overload that also hands the content the
+   destination's `NavResults`.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -516,15 +517,16 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, home, exercise-chart, single-training, and exercise no longer use the feature-side
-Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+past-session, home, exercise-chart, single-training, exercise, and live-workout no longer use the
+feature-side Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
 `AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
 `AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`,
-`AppGraph.singleTrainingGraphFactory`, and `AppGraph.exerciseGraphFactory` implement the
-accessors declared by `AppRootDeps`, and the admitted composition reads that root contract
-exactly once. Retired generations and generations that lose the publication race resolve it
-zero times. Exactly 3 feature/dialog Context readers remain.
+`AppGraph.singleTrainingGraphFactory`, `AppGraph.exerciseGraphFactory`, and
+`AppGraph.liveWorkoutGraphFactory` implement the accessors declared by `AppRootDeps`, and the
+admitted composition reads that root contract exactly once. Retired generations and generations
+that lose the publication race resolve it zero times. Exactly 2 feature/dialog Context readers
+remain.
 
 ### Feature graphs (`@GraphExtension`)
 
@@ -1435,7 +1437,7 @@ The mechanics:
    `NavResultsSource`:
 
    ```kotlin
-   navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
+   navComponentScreenWithResults(LiveWorkoutFeature(factory)) { results, processor ->
        results.OnResult(Screen.PlanEditor::class) { saved ->
            processor.consume(Action.Common.PlanResultReceived(saved))
        }
@@ -2131,7 +2133,7 @@ in its build file.
 The reader is chosen by the catalog a string lives in, not by the module kind:
 
 - **An Android `R` string:** `stringResource(R.string.*)` in composition, `ResourceWrapper`
-  outside it, except live-workout's verbatim copy read (below).
+  outside it.
 - **A Compose-resource string** (`Res.string.*` / `Res.plurals.*`, in any module, including kit
   strings read by Android-only features): `org.jetbrains.compose.resources.stringResource` /
   `pluralStringResource` in composition, an injected `StringResolver` (`core/ui/kit`) outside
@@ -2158,10 +2160,11 @@ templates included, is read verbatim at each load into `State.liveCopy`, and kit
 beside `StringResolver`, fills a template synchronously, exactly as Compose resources' `getString`
 fills it: each positional `%N$s` or `%N$d` becomes the argument's `toString()`. So its status
 pipeline runs inside its compare-and-set lambdas, and its dialogs, toasts and synchronous errors
-open in one write, with nothing to resolve. Until the feature moves (Part C), the verbatim read of
-its `R` strings goes through the temporary module-local `LiveWorkoutCopyReader` on the app
-`Context`, because `ResourceWrapper.getString` always formats and a template read through it
-throws `MissingFormatArgumentException`.
+open in one write, with nothing to resolve. The verbatim read goes through `StringResolver`'s
+no-argument path, which returns the stored template unfilled. Until the feature moved (Part C), it
+went through the temporary module-local `LiveWorkoutCopyReader` on the app `Context`, because
+`ResourceWrapper.getString` always formats and a template read through it throws
+`MissingFormatArgumentException`.
 
 #### Naming convention
 

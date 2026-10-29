@@ -153,8 +153,9 @@ internal class NavigationResultTest {
         const val EXERCISE_IMAGE_SOURCE_SHEET = "ExerciseImageSourceSheet"
 
         /**
-         * `R.string.feature_live_workout_status_no_plan`, inlined — androidTest cannot see a
-         * feature module's `R`. Renaming the string fails this loudly, not quietly.
+         * `Res.string.feature_live_workout_status_no_plan`, inlined — androidTest cannot see a
+         * feature module's internal Compose `Res`. Renaming the string fails this loudly, not
+         * quietly.
          */
         const val NO_PLAN_LABEL = "no plan"
 

@@ -1,0 +1,277 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.live_workout.ui.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButton
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
+import io.github.stslex.workeeper.core.ui.kit.components.motion.rememberSetClosureVisuals
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
+import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
+import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_set_type_tooltip
+import org.jetbrains.compose.resources.stringResource
+import io.github.stslex.workeeper.feature.live_workout.resources.Res as LiveWorkoutRes
+
+/** `.set.flash` peaks: 13% dark, 9% light, scaled by the decaying flash envelope. */
+private const val FLASH_PEAK_ALPHA_DARK = 0.13f
+private const val FLASH_PEAK_ALPHA_LIGHT = 0.09f
+
+/**
+ * `.set`: `set-i · field(s) · tchip-or-prtag · mark` on a transparent row — the done wash
+ * lives on the field, not the row. [flashAlphaOverride] is golden-only, never set in prod.
+ */
+@Suppress("LongParameterList")
+@Composable
+internal fun LiveSetRow(
+    set: LiveSetUiModel,
+    isWeighted: Boolean,
+    onWeightChange: (Double?) -> Unit,
+    onRepsChange: (Int?) -> Unit,
+    onTypeChange: (SetTypeUiModel) -> Unit,
+    onMarkDone: () -> Unit,
+    onUncheck: () -> Unit,
+    editable: Boolean,
+    modifier: Modifier = Modifier,
+    indexColumnWidth: Dp = SetRowGeometry.indexMinWidth,
+    testTagPrefix: String? = null,
+    flashAlphaOverride: Float? = null,
+    weightSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    indexColumnProbe: ((widthPx: Int) -> Unit)? = null,
+) {
+    // One automaton for the whole row: mark morph, flash and rail segment share one closure.
+    val closure = rememberSetClosureVisuals(isDone = set.isDone, isRecord = set.isPersonalRecord)
+    val flashPeak = if (AppUi.colors.isDark) FLASH_PEAK_ALPHA_DARK else FLASH_PEAK_ALPHA_LIGHT
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppDimension.Radius.small))
+            // GUARD: the flash is a COLOUR, so drive it with `out`, never the overshooting
+            // `spring` — an alpha lerped past 1.0 clamps and the wash reads as a hard cut.
+            .drawWithContent {
+                drawContent()
+                val alpha = flashAlphaOverride ?: closure.flashAlpha
+                if (alpha > 0f) {
+                    drawRect(color = closure.accent, alpha = alpha * flashPeak)
+                }
+            }
+            .padding(
+                horizontal = AppDimension.Space.xs,
+                vertical = AppDimension.Space.sm,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    ) {
+        Text(
+            // Min-width, not fixed: a two-digit index needs ~15dp and a fixed 12dp box breaks
+            // mid-grapheme. The minimum arrives from `SetRowGeometry.resolveIndexColumnWidth`.
+            modifier = Modifier
+                .widthIn(min = indexColumnWidth)
+                // Test-only capture of the index column's laid-out width.
+                .onSizeChanged { size -> indexColumnProbe?.invoke(size.width) },
+            text = (set.position + 1).toString(),
+            style = AppUi.typography.mono.meta,
+            color = AppUi.colors.textDim,
+            maxLines = 1,
+        )
+        if (isWeighted) {
+            Box(modifier = Modifier.weight(SetRowGeometry.WEIGHT_COLUMN_FLEX)) {
+                AppNumberInput(
+                    value = set.weightLabel,
+                    onValueChange = { input -> onWeightChange(input.toDoubleOrNull()) },
+                    decimals = 2,
+                    enabled = editable && !set.isDone,
+                    isRecord = set.isPersonalRecord,
+                    isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        Res.string.core_ui_kit_set_field_a11y_weight,
+                    ),
+                    valueSlotProbe = weightSlotProbe,
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                AppNumberInput(
+                    value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
+                    onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
+                    decimals = 0,
+                    enabled = editable && !set.isDone,
+                    isRecord = set.isPersonalRecord,
+                    isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        Res.string.core_ui_kit_set_field_a11y_reps,
+                    ),
+                    valueSlotProbe = repsSlotProbe,
+                )
+            }
+        } else {
+            // Bodyweight: ONE field, full width; the unit lives in the column header.
+            Box(modifier = Modifier.weight(1f)) {
+                AppNumberInput(
+                    value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
+                    onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
+                    decimals = 0,
+                    enabled = editable && !set.isDone,
+                    isRecord = set.isPersonalRecord,
+                    isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        Res.string.core_ui_kit_set_field_a11y_reps,
+                    ),
+                    valueSlotProbe = repsSlotProbe,
+                )
+            }
+        }
+        // GUARD: one slot width for chip and tag alike — the tag outgrows their shared
+        // minimum at large text scales and per-component widths break column alignment.
+        val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
+        if (set.isPersonalRecord) {
+            PersonalRecordTag(
+                modifier = Modifier
+                    .width(trailingSlotWidth)
+                    .let { base ->
+                        if (testTagPrefix != null) base.testTag("${testTagPrefix}_PrTag") else base
+                    },
+            )
+        } else {
+            AppTooltip(text = stringResource(LiveWorkoutRes.string.feature_live_workout_set_type_tooltip)) {
+                Box(
+                    modifier = Modifier
+                        .width(trailingSlotWidth)
+                        .let { base ->
+                            if (testTagPrefix != null) base.testTag("${testTagPrefix}_TypeChip") else base
+                        }
+                        .clickable(enabled = editable) { onTypeChange(set.type) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppSetTypeChip(type = set.type.toUiKitType())
+                }
+            }
+        }
+        AppCheckmarkButton(
+            modifier = if (testTagPrefix != null) {
+                Modifier.testTag("${testTagPrefix}_Checkbox")
+            } else {
+                Modifier
+            },
+            isDone = set.isDone,
+            isRecord = set.isPersonalRecord,
+            enabled = true,
+            onToggle = { if (set.isDone) onUncheck() else onMarkDone() },
+        )
+    }
+}
+
+@Preview(name = "Pending Light", showBackground = true)
+@Composable
+private fun LiveSetRowPendingLightPreview() {
+    LiveSetRowPendingPreview(themeMode = ThemeMode.LIGHT)
+}
+
+@Preview(name = "Pending Dark", showBackground = true)
+@Composable
+private fun LiveSetRowPendingDarkPreview() {
+    LiveSetRowPendingPreview(themeMode = ThemeMode.DARK)
+}
+
+@Composable
+private fun LiveSetRowPendingPreview(themeMode: ThemeMode) {
+    AppTheme(themeMode = themeMode) {
+        LiveSetRow(
+            set = LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = false),
+            isWeighted = true,
+            onWeightChange = {},
+            onRepsChange = {},
+            onTypeChange = {},
+            onMarkDone = {},
+            onUncheck = {},
+            editable = true,
+        )
+    }
+}
+
+@Preview(name = "Done Light", showBackground = true)
+@Composable
+private fun LiveSetRowDoneLightPreview() {
+    LiveSetRowDonePreview(themeMode = ThemeMode.LIGHT)
+}
+
+@Preview(name = "Done Dark", showBackground = true)
+@Composable
+private fun LiveSetRowDoneDarkPreview() {
+    LiveSetRowDonePreview(themeMode = ThemeMode.DARK)
+}
+
+@Composable
+private fun LiveSetRowDonePreview(themeMode: ThemeMode) {
+    AppTheme(themeMode = themeMode) {
+        LiveSetRow(
+            set = LiveSetUiModel(position = 1, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+            isWeighted = true,
+            onWeightChange = {},
+            onRepsChange = {},
+            onTypeChange = {},
+            onMarkDone = {},
+            onUncheck = {},
+            editable = true,
+        )
+    }
+}
+
+@Preview(name = "Weightless Light", showBackground = true)
+@Composable
+private fun LiveSetRowWeightlessLightPreview() {
+    LiveSetRowWeightlessPreview(themeMode = ThemeMode.LIGHT)
+}
+
+@Preview(name = "Weightless Dark", showBackground = true)
+@Composable
+private fun LiveSetRowWeightlessDarkPreview() {
+    LiveSetRowWeightlessPreview(themeMode = ThemeMode.DARK)
+}
+
+@Composable
+private fun LiveSetRowWeightlessPreview(themeMode: ThemeMode) {
+    AppTheme(themeMode = themeMode) {
+        LiveSetRow(
+            set = LiveSetUiModel(position = 0, weight = null, reps = 12, type = SetTypeUiModel.WARMUP, isDone = false),
+            isWeighted = false,
+            onWeightChange = {},
+            onRepsChange = {},
+            onTypeChange = {},
+            onMarkDone = {},
+            onUncheck = {},
+            editable = true,
+        )
+    }
+}

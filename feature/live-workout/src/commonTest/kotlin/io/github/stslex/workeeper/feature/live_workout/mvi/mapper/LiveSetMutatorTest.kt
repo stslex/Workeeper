@@ -1,0 +1,634 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
+
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toImmutableMap
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Unit tests for the state mutator: every public method against a `State` snapshot, with no
+ * handler or store. The fixtures carry the empty copy, since assertions key off structure.
+ */
+internal class LiveSetMutatorTest {
+
+    private val statusMapper = StateStatusMapper()
+    private val mutator = LiveSetMutator(statusMapper)
+
+    @Test
+    fun `findExercise returns the matching exercise or null`() {
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+
+        assertEquals(PE_UUID, mutator.findExercise(state, PE_UUID)?.performedExerciseUuid)
+        assertNull(mutator.findExercise(state, "missing"))
+    }
+
+    @Test
+    fun `draftFor returns existing draft when present`() {
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+            .copy(
+                setDrafts = persistentMapOf(
+                    State.DraftKey(PE_UUID, 0) to LiveSetUiModel(
+                        position = 0,
+                        weight = 87.5,
+                        reps = 12,
+                        type = SetTypeUiModel.FAILURE,
+                        isDone = false,
+                    ),
+                ),
+            )
+
+        val seed = mutator.draftFor(state, PE_UUID, position = 0)
+
+        assertEquals(87.5, seed.weight)
+        assertEquals(12, seed.reps)
+        assertEquals(SetTypeUiModel.FAILURE, seed.type)
+    }
+
+    @Test
+    fun `draftFor falls back to performed set when no draft exists`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(
+                        position = 0,
+                        weight = 110.0,
+                        reps = 6,
+                        type = SetTypeUiModel.WORK,
+                        isDone = true,
+                    ),
+                ),
+            ),
+        )
+
+        val seed = mutator.draftFor(state, PE_UUID, position = 0)
+
+        assertEquals(110.0, seed.weight)
+        assertEquals(6, seed.reps)
+        assertEquals(true, seed.isDone)
+    }
+
+    @Test
+    fun `draftFor falls back to plan when no draft or performed exists`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WARMUP),
+                ),
+            ),
+        )
+
+        val seed = mutator.draftFor(state, PE_UUID, position = 0)
+
+        assertEquals(100.0, seed.weight)
+        assertEquals(5, seed.reps)
+        assertEquals(SetTypeUiModel.WARMUP, seed.type)
+        assertEquals(false, seed.isDone)
+    }
+
+    @Test
+    fun `draftFor returns fallback empty row when no source covers the position`() {
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+
+        val seed = mutator.draftFor(state, PE_UUID, position = 0)
+
+        assertNull(seed.weight)
+        assertEquals(0, seed.reps)
+        assertEquals(SetTypeUiModel.WORK, seed.type)
+        assertEquals(false, seed.isDone)
+    }
+
+    @Test
+    fun `applySetMarked clears the draft and writes a performed set with draft fields`() {
+        val draft = LiveSetUiModel(
+            position = 0,
+            weight = 105.0,
+            reps = 6,
+            type = SetTypeUiModel.WORK,
+            isDone = false,
+        )
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+            .copy(setDrafts = persistentMapOf(State.DraftKey(PE_UUID, 0) to draft))
+
+        val result = mutator.applySetMarked(state, PE_UUID, position = 0, draft = draft)
+
+        assertNull(result.setDrafts[State.DraftKey(PE_UUID, 0)])
+        val performed = result.exercises.first().performedSets.single()
+        assertEquals(105.0, performed.weight)
+        assertEquals(6, performed.reps)
+        assertEquals(true, performed.isDone)
+    }
+
+    @Test
+    fun `applySetUnchecked drops the performed set at the given position`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertTrue(result.exercises.first().performedSets.isEmpty())
+    }
+
+    @Test
+    fun `applySetUnchecked restores draft from user values when the row was a modified plan set`() {
+        // After uncheck the draft must mirror what the user entered, not the plan.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(
+                        position = 0,
+                        weight = 110.0,
+                        reps = 6,
+                        type = SetTypeUiModel.FAILURE,
+                        isDone = true,
+                        isPersonalRecord = true,
+                    ),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        val performed = result.exercises.first().performedSets
+        assertNull(performed.firstOrNull { it.position == 0 })
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 0)]
+        assertNotNull(draft)
+        assertEquals(0, draft?.position)
+        assertEquals(110.0, draft?.weight)
+        assertEquals(6, draft?.reps)
+        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(false, draft?.isDone)
+        assertEquals(false, draft?.isPersonalRecord)
+    }
+
+    @Test
+    fun `applySetUnchecked restores draft from user values for a set added beyond plan via Add Set`() {
+        // Uncheck must restore the user's drafted values, not a fallback row.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(),
+                performed = persistentListOf(
+                    LiveSetUiModel(
+                        position = 0,
+                        weight = 80.0,
+                        reps = 10,
+                        type = SetTypeUiModel.WORK,
+                        isDone = true,
+                    ),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertTrue(result.exercises.first().performedSets.isEmpty())
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 0)]
+        assertNotNull(draft)
+        assertEquals(0, draft?.position)
+        assertEquals(80.0, draft?.weight)
+        assertEquals(10, draft?.reps)
+        assertEquals(SetTypeUiModel.WORK, draft?.type)
+        assertEquals(false, draft?.isDone)
+        assertEquals(false, draft?.isPersonalRecord)
+    }
+
+    @Test
+    fun `applySetUnchecked returns the state unchanged when no performed set exists at the position`() {
+        // Plan exists but performed is empty — uncheck for position 0 must early-return.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertEquals(state, result)
+    }
+
+    @Test
+    fun `applySetUnchecked recomputes status from DONE to CURRENT after dropping the only done set`() {
+        // With no done sets left, the auto-current rule elects this exercise CURRENT.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+                status = ExerciseStatusUiModel.DONE,
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertEquals(ExerciseStatusUiModel.CURRENT, result.exercises.first().status)
+    }
+
+    @Test
+    fun `applySetTypeChange rewrites the type of the targeted performed set only`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                    LiveSetUiModel(1, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+            ),
+        )
+
+        val result =
+            mutator.applySetTypeChange(state, PE_UUID, position = 1, type = SetTypeUiModel.FAILURE)
+
+        val performed = result.exercises.first().performedSets
+        assertEquals(SetTypeUiModel.WORK, performed[0].type)
+        assertEquals(SetTypeUiModel.FAILURE, performed[1].type)
+        assertEquals(SetTypeUiModel.FAILURE, result.exercises.first().visibleSets[1].type)
+    }
+
+    @Test
+    fun `applyResetSets clears performed sets and drafts only for the targeted exercise`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+            ),
+        ).copy(
+            dialogState = DialogState.ConfirmDialog.ResetSets(
+                title = "title",
+                body = "body",
+                confirmLabel = "confirm",
+                dismissLabel = "dismiss",
+                exerciseUuid = PE_UUID,
+            ),
+            setDrafts = mapOf(
+                State.DraftKey(PE_UUID, 1) to LiveSetUiModel(
+                    1,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
+                State.DraftKey("OTHER", 0) to LiveSetUiModel(
+                    0,
+                    50.0,
+                    3,
+                    SetTypeUiModel.WARMUP,
+                    isDone = false,
+                ),
+            ).toImmutableMap(),
+        )
+
+        val result = mutator.applyResetSets(state, PE_UUID)
+
+        assertTrue(result.exercises.first().performedSets.isEmpty())
+        assertNull(result.setDrafts[State.DraftKey(PE_UUID, 1)])
+        assertNotNull(result.setDrafts[State.DraftKey("OTHER", 0)])
+        assertNull((result.dialogState as? DialogState.ConfirmDialog.ResetSets)?.exerciseUuid)
+    }
+
+    @Test
+    fun `applySkipToggle flips status to SKIPPED and preserves sets and drafts`() {
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        )
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = performed,
+            ),
+        ).copy(
+            setDrafts = persistentMapOf(
+                State.DraftKey(PE_UUID, 1) to LiveSetUiModel(
+                    1,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
+            ),
+        ).withVisibleSets()
+
+        val skipped = mutator.applySkipToggle(state, PE_UUID, skipped = true)
+
+        // §6.1: reversible in place — nothing is destroyed by skipping.
+        assertEquals(ExerciseStatusUiModel.SKIPPED, skipped.exercises.first().status)
+        assertEquals(1, skipped.exercises.first().performedSets.size)
+        assertEquals(1, skipped.setDrafts.size)
+
+        val restored = mutator.applySkipToggle(skipped, PE_UUID, skipped = false)
+
+        assertTrue(restored.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
+        assertEquals(1, restored.exercises.first().performedSets.size)
+    }
+
+    @Test
+    fun `applyAddSet seeds the next position from the last plan row`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        ).withVisibleSets()
+
+        val result = mutator.applyAddSet(state, PE_UUID)
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 2)]
+        assertNotNull(draft)
+        assertEquals(2, draft?.position)
+        assertEquals(102.5, draft?.weight)
+        assertEquals(5, draft?.reps)
+        assertEquals(SetTypeUiModel.WORK, draft?.type)
+        assertEquals(false, draft?.isDone)
+    }
+
+    @Test
+    fun `applyAddSet returns the state unchanged for an unknown exercise uuid`() {
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+
+        val result = mutator.applyAddSet(state, "unknown")
+
+        assertEquals(state, result)
+    }
+
+    @Test
+    fun `nextSetPosition is one past the highest of plan performed and draft positions`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+            ),
+        ).copy(
+            setDrafts = persistentMapOf(
+                State.DraftKey(PE_UUID, 4) to LiveSetUiModel(
+                    4,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
+            ),
+        )
+        val exercise = state.exercises.first()
+
+        assertEquals(5, mutator.nextSetPosition(state, exercise))
+    }
+
+    @Test
+    fun `lastKnownSetSeed prefers the latest draft over plan and performed`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+            ),
+        ).copy(
+            setDrafts = persistentMapOf(
+                State.DraftKey(PE_UUID, 3) to LiveSetUiModel(
+                    3,
+                    88.0,
+                    11,
+                    SetTypeUiModel.DROP,
+                    isDone = false,
+                ),
+            ),
+        )
+        val exercise = state.exercises.first()
+
+        val seed = mutator.lastKnownSetSeed(state, exercise)
+
+        assertEquals(88.0, seed?.weight)
+        assertEquals(11, seed?.reps)
+        assertEquals(SetTypeUiModel.DROP, seed?.type)
+    }
+
+    @Test
+    fun `lastKnownSetSeed returns null when no source has any rows`() {
+        val state = stateWith(exerciseWithPlan(plan = persistentListOf()))
+        val exercise = state.exercises.first()
+
+        assertNull(mutator.lastKnownSetSeed(state, exercise))
+    }
+
+    @Test
+    fun `recomputeStatuses delegates to the status mapper and recomputes presentation`() {
+        // Simulate a stale `status` field — recomputeStatuses should re-derive it.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+                status = ExerciseStatusUiModel.PENDING, // stale
+            ),
+        )
+
+        val result = mutator.recomputeStatuses(state)
+
+        assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
+    }
+
+    @Test
+    fun `completing the last set never collapses the card`() {
+        // No auto-collapse on completion: status recompute never touches the open set.
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan))
+            .copy(expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(PE_UUID))
+            .withVisibleSets()
+        val draft = LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = false)
+
+        val result = mutator.applySetMarked(state, PE_UUID, position = 0, draft = draft)
+
+        assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
+        assertTrue(PE_UUID in result.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `applyAddSet appends a copy of the last visible row and raises the override`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 102.5, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        ).withVisibleSets()
+
+        val result = mutator.applyAddSet(state, PE_UUID)
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 2)]
+        assertNotNull(draft)
+        assertEquals(102.5, draft?.weight)
+        assertEquals(3, draft?.reps)
+        assertEquals(3, result.rowCountOverrides[PE_UUID])
+        assertEquals(3, result.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyAddSet returns a completed exercise to incomplete`() {
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        )
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = performed,
+                status = ExerciseStatusUiModel.DONE,
+            ),
+        ).withVisibleSets()
+
+        val result = mutator.applyAddSet(state, PE_UUID)
+
+        assertTrue(result.exercises.first().status != ExerciseStatusUiModel.DONE)
+        assertEquals(2, result.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet truncates below the plan without touching it`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertNull(result.removedPerformedPosition)
+        assertEquals(2, result.state.rowCountOverrides[PE_UUID])
+        assertEquals(2, result.state.exercises.first().visibleSets.size)
+        assertEquals(3, result.state.exercises.first().planSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet removes a performed row and reports its position`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 1, weight = 110.0, reps = 4, type = SetTypeUiModel.WORK, isDone = true),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan, performed = performed)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertEquals(1, result.removedPerformedPosition)
+        assertTrue(result.state.exercises.first().performedSets.isEmpty())
+        assertEquals(1, result.state.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet refuses to go below one row`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertNull(result.removedPerformedPosition)
+        assertEquals(1, result.state.exercises.first().visibleSets.size)
+        assertTrue(PE_UUID !in result.state.rowCountOverrides)
+    }
+
+    @Test
+    fun `addSet after truncation grows one row at a time seeded from the visible last`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 105.0, reps = 4, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 110.0, reps = 3, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val truncated = mutator.applyRemoveLastSet(state, PE_UUID).state
+        val grown = mutator.applyAddSet(truncated, PE_UUID)
+
+        // The new row copies the last VISIBLE row (plan row 1), not the shadowed plan row 2.
+        val draft = grown.setDrafts[State.DraftKey(PE_UUID, 2)]
+        assertEquals(105.0, draft?.weight)
+        assertEquals(4, draft?.reps)
+        assertEquals(3, grown.rowCountOverrides[PE_UUID])
+        assertEquals(3, grown.exercises.first().visibleSets.size)
+    }
+
+    private fun stateWith(exercise: LiveExerciseUiModel): State = State.create(
+        sessionUuid = "session-1",
+        trainingUuid = "training-1",
+    ).copy(
+        isLoading = false,
+        exercises = persistentListOf(exercise),
+    )
+
+    private fun exerciseWithPlan(
+        plan: ImmutableList<PlanSetUiModel>,
+        performed: ImmutableList<LiveSetUiModel> = persistentListOf(),
+        status: ExerciseStatusUiModel = ExerciseStatusUiModel.CURRENT,
+    ): LiveExerciseUiModel = LiveExerciseUiModel(
+        performedExerciseUuid = PE_UUID,
+        exerciseUuid = "ex-1",
+        exerciseName = "Bench Press",
+        exerciseType = ExerciseTypeUiModel.WEIGHTED,
+        position = 0,
+        status = status,
+        statusLabel = "",
+        planSets = plan,
+        performedSets = performed,
+    )
+
+    private companion object {
+        const val PE_UUID = "pe-1"
+    }
+}

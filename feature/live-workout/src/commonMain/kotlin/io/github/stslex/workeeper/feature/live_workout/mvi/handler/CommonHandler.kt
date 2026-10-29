@@ -1,0 +1,296 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.live_workout.mvi.handler
+
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
+import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExternalWriteUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveWorkoutCopy
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_cancel_body
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_cancel_confirm
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_cancel_dismiss
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_cancel_title
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_delete_session_progress_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_delete_session_unnamed
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_empty_finish_continue
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_empty_finish_discard
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_error_finish_failed
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_error_invalid_reps
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_name_label
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_name_required
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_pr_weighted_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_pr_weightless_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_stat_exercises_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_stat_exercises_with_skipped_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_finish_stat_sets_count
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_meta_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_meta_skipped_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_reset_body
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_reset_confirm
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_reset_dismiss
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_reset_title
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_status_no_plan
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_status_skipped
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_toast_exercise_removed
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_toast_exercise_removed_from_workout
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_toast_set_added
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_toast_set_removed
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_training_name_placeholder
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.time.Clock
+import io.github.stslex.workeeper.feature.live_workout.resources.Res as LiveWorkoutRes
+
+/**
+ * GUARD (D14, wear-live-sync.md §6.4): every state write here goes through `updateState`, a
+ * compare-and-set that retries on the newer state, never `updateStateImmediate`, a read then a write.
+ * The timer ticks on the work dispatcher while watch writes and load results land on the main thread
+ * and the exercise picker writes from the work dispatcher, so a read then a write could erase a write
+ * made in between, and nothing would show it again until the screen is re-entered (F29). No update
+ * function has a side effect, so a retry repeats nothing: `coverage.receive` stays outside them, and
+ * `coverage.since` only reads.
+ */
+@SingleIn(LiveWorkoutScope::class)
+internal class CommonHandler @Inject constructor(
+    private val interactor: LiveWorkoutInteractor,
+    private val stringResolver: StringResolver,
+    private val setMutator: LiveSetMutator,
+    private val storeDispatchers: StoreDispatchers,
+    store: LiveWorkoutHandlerStore,
+) : Handler<Action.Common>, LiveWorkoutHandlerStore by store {
+
+    private var startTimerJob: Job? = null
+    private var externalWritesJob: Job? = null
+    private val coverage = ExternalWriteCoverage()
+
+    /** Completed once the latest Init's subscription is active; a reload waits for it. */
+    private var subscribed = CompletableDeferred<Unit>()
+
+    override fun invoke(action: Action.Common) {
+        when (action) {
+            Action.Common.Init -> processInit()
+            // Only a save changes what the session shows, so only a save re-reads it.
+            is Action.Common.PlanResultReceived -> if (action.saved) processReload()
+        }
+    }
+
+    private fun processInit() {
+        val current = state.value
+        // GUARD: Init and PlanResultReceived are both consumed on the main thread, so a reload
+        // consumed after this Init always waits for this Init's subscription.
+        if (subscribed.isCompleted) subscribed = CompletableDeferred()
+        launch(onError = { abandonUnloadedSession() }) {
+            val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
+            if (sessionUuid == null) {
+                onMain { abandonUnloadedSession() }
+                return@launch
+            }
+            val initScope = this
+            onMain { restartExternalWrites(initScope, sessionUuid) }
+            val loaded = coveredLoad { interactor.loadSession(sessionUuid)?.toLoadedState() }
+            onMain { if (loaded) startTimer() else abandonUnloadedSession() }
+        }
+    }
+
+    /**
+     * The only honest exit when the session did not load. GUARD: set both flags, and record the
+     * failure in State, never as an event. See documentation/architecture.md.
+     */
+    private fun abandonUnloadedSession() {
+        updateState { it.copy(isLoading = false, loadFailed = true) }
+    }
+
+    private suspend fun createSession(trainingUuid: String?): String? {
+        if (trainingUuid.isNullOrBlank()) {
+            // Blank-init branch (Quick start "Start blank"): both route args are null, so
+            // mint a fresh ad-hoc training plus an empty IN_PROGRESS session.
+            return interactor.createAdhocSession(
+                name = "",
+                exerciseUuids = emptyList(),
+            ).sessionUuid
+        }
+        return interactor.startSession(trainingUuid)
+    }
+
+    private fun processReload() {
+        val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
+        val subscription = subscribed
+        launch {
+            // As the Init load: no read before the subscription is active, or a watch write committed
+            // between the two would reach nobody, and a later apply of this result would hide it.
+            subscription.await()
+            coveredLoad { interactor.loadSession(sessionUuid)?.toLoadedState() }
+        }
+    }
+
+    private suspend fun SessionSnapshotDomain.toLoadedState(): State = toState(
+        nowMillis = Clock.System.now().toEpochMilliseconds(),
+        // D5: the copy resolves here, at the load's suspend boundary, so the mapper and every
+        // State lambda after it stay pure synchronous transformations.
+        liveCopy = resolveCopy(),
+    )
+
+    /** D5: each field from its own key, read verbatim, so a template keeps its placeholders. */
+    private suspend fun resolveCopy(): LiveWorkoutCopy = LiveWorkoutCopy(
+        trainingNamePlaceholder = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_training_name_placeholder,
+        ),
+        statusSkipped = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_status_skipped),
+        statusNoPlan = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_status_no_plan),
+        repsUnit = stringResolver.getString(Res.string.core_ui_kit_plan_editor_unit_reps),
+        metaTemplate = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_meta_format),
+        metaSkippedTemplate = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_meta_skipped_format),
+        resetTitle = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_title),
+        resetBody = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_body),
+        resetConfirm = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_confirm),
+        resetDismiss = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_reset_dismiss),
+        emptyFinishDiscard = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_empty_finish_discard),
+        emptyFinishContinue = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_empty_finish_continue,
+        ),
+        cancelTitle = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_cancel_title),
+        cancelBody = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_cancel_body),
+        cancelConfirm = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_cancel_confirm),
+        cancelDismiss = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_cancel_dismiss),
+        deleteSessionUnnamed = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_delete_session_unnamed,
+        ),
+        deleteSessionProgressTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_delete_session_progress_format,
+        ),
+        finishNameLabel = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_finish_name_label),
+        finishNameRequired = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_finish_name_required),
+        finishSetsCountTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_finish_stat_sets_count,
+        ),
+        finishExercisesTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_finish_stat_exercises_format,
+        ),
+        finishExercisesWithSkippedTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_finish_stat_exercises_with_skipped_format,
+        ),
+        finishPrWeightedTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_finish_pr_weighted_format,
+        ),
+        finishPrWeightlessTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_finish_pr_weightless_format,
+        ),
+        toastSetAdded = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_toast_set_added),
+        toastSetRemoved = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_toast_set_removed),
+        toastExerciseRemovedTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_toast_exercise_removed,
+        ),
+        toastExerciseRemovedFromWorkoutTemplate = stringResolver.getString(
+            LiveWorkoutRes.string.feature_live_workout_toast_exercise_removed_from_workout,
+        ),
+        errorInvalidReps = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_error_invalid_reps),
+        errorFinishFailed = stringResolver.getString(LiveWorkoutRes.string.feature_live_workout_error_finish_failed),
+    )
+
+    /**
+     * One load under wear-live-sync.md §6.4 "Loads": the watch writes received after its read
+     * started are applied again right after its result, in the same state update, so the result
+     * cannot hide them. False when the read found no session.
+     */
+    private suspend fun coveredLoad(read: suspend () -> State?): Boolean {
+        val load = ExternalWriteCoverage.Load()
+        // GUARD: begin inside the try. A dispose between the begin block and the hop back still throws
+        // out of withContext, after the block ran; the finally must end that load too.
+        try {
+            onMain { coverage.begin(load) }
+            val loaded = read() ?: return false
+            onMain {
+                // A plan-editor round-trip is not leaving the session (§7); expansions survive.
+                updateState { previous ->
+                    coverage.since(load).fold(loaded.withExpansionCarriedFrom(previous), setMutator::applyExternalWrite)
+                }
+            }
+            return true
+        } finally {
+            withContext(NonCancellable + storeDispatchers.mainImmediateDispatcher) { coverage.end(load) }
+        }
+    }
+
+    /**
+     * D10 (wear-live-sync.md §6.4): every Init restarts this subscription, as it restarts the timer,
+     * because the store's scope ends whenever the screen leaves composition. It is started
+     * undispatched, so it is active before this Init's load starts and no write can fall between.
+     *
+     * GUARD: if Init stops running on each return (the latch tech-debt.md proposes), this
+     * subscription and the timer must move to the return path; the return-to-screen test fails
+     * until they do.
+     */
+    private fun restartExternalWrites(scope: CoroutineScope, sessionUuid: String) {
+        externalWritesJob?.cancel()
+        externalWritesJob = scope.launch(storeDispatchers.mainImmediateDispatcher, CoroutineStart.UNDISPATCHED) {
+            interactor.observeExternalWrites(sessionUuid)
+                .map { write -> write.toUi() }
+                .onEach(::applyExternalWrite)
+                .catch { failure -> logger.w { "external writes stopped: ${failure::class.simpleName}" } }
+                .collect()
+        }
+        subscribed.complete(Unit)
+    }
+
+    /**
+     * A set or a skip, applied at once (wear-live-sync.md §6.4 A to C, wear-phase-2-exercise-list.md
+     * §6.5) and kept while a load is in flight.
+     */
+    private fun applyExternalWrite(write: ExternalWriteUiModel) {
+        coverage.receive(write)
+        updateState { latest -> setMutator.applyExternalWrite(latest, write) }
+    }
+
+    private suspend fun <T> onMain(block: suspend () -> T): T =
+        withContext(storeDispatchers.mainImmediateDispatcher) { block() }
+
+    private fun startTimer() {
+        startTimerJob?.cancel()
+        startTimerJob = launch {
+            while (isActive) {
+                val now = Clock.System.now().toEpochMilliseconds()
+                updateState { current ->
+                    if (current.startedAt <= 0L) current
+                    else {
+                        current.copy(
+                            nowMillis = now,
+                            elapsedDurationLabel = formatElapsedDuration(now - current.startedAt),
+                        )
+                    }
+                }
+                delay(TIMER_TICK_MS)
+            }
+        }
+    }
+
+    companion object {
+
+        private const val TIMER_TICK_MS = 1000L
+    }
+}
