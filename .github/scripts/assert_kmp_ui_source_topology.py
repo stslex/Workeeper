@@ -1168,6 +1168,59 @@ MODULES = {
         },
         "resource_dirs": set(),
     },
+    # D1 (kmp-phase-7-17-app-dialogs-feature.md Section 10.1): the screen-less app-root feature,
+    # 34 paths: 21 production files and the two catalogs in commonMain, six suites and D5's expect
+    # in commonTest, D5's actuals, the scene, and the moved device class.
+    "feature:app-dialogs:impl": {
+        "root": Path("feature/app-dialogs/impl"),
+        "files": {
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContentTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.android.kt",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogKeys.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepository.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogsScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolver.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/store/AppDialogStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/store/AppDialogStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/publisher/AppDialogPublisherImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHost.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/RestoreFailureDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/RestoreSuccessDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreSuccessDialog.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepositoryTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolverTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImplTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/AppDialogFeatureSceneIosTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.ios.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -1214,7 +1267,6 @@ IMAGE_VIEWER_CATALOGS = {
 }
 
 EXPECTED_APP_DEPS_READERS = {
-    Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
 }
 
