@@ -1974,7 +1974,8 @@ class FeatureEntry:
     resource_wrapper_readers, preview_subjects' keys, preview_inventory's keys and
     resource_wrapper_dates' keys are relative to root/src/commonMain/kotlin/<package_dir>. An
     empty device_test means the module has no device test: its file is not read, and
-    device_fragments must then be empty. Containers keep the type their failure text embeds:
+    device_fragments must then be empty; an empty golden_test likewise means no golden class, and
+    golden_methods must then be empty. Containers keep the type their failure text embeds:
     lists stay lists and tuples stay tuples, because a repr is part of the message. Never hash an
     entry; it holds lists and dicts.
     """
@@ -2036,6 +2037,14 @@ class FeatureEntry:
     # State lambda may return through in place of a `.copy(`. Empty by default, so every earlier
     # entry stays byte-identical.
     state_mutators: tuple = ()
+    # D6 (kmp-phase-7-17-app-dialogs-feature.md Section 10.0): where the entry mounts. "nav_host"
+    # registers its graph in AppNavigationHost; "app_root" mounts its host composable in App.kt's
+    # admitted generation, beside AppNavigationHost. The default keeps every earlier entry
+    # byte-identical.
+    mount: str = "nav_host"
+    # D6: the configuration of app:app's direct edge on the module. The default keeps every
+    # earlier entry byte-identical.
+    app_aggregation: str = "implementation"
 
     @property
     def common_main(self) -> Path:
@@ -2583,13 +2592,19 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                     f"{module}: {path.relative_to(root)} contains forbidden test API "
                     f"{forbidden!r}"
                 )
-    golden_source = (root / entry.golden_test).read_text(encoding="utf-8")
-    golden_methods = re.findall(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source)
-    if golden_methods != entry.golden_methods:
-        failures.append(
-            f"{module}: golden methods must be exactly {entry.golden_methods}; "
-            f"actual={golden_methods}"
+    if entry.golden_test:
+        golden_source = (root / entry.golden_test).read_text(encoding="utf-8")
+        golden_methods = re.findall(
+            r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source
         )
+        if golden_methods != entry.golden_methods:
+            failures.append(
+                f"{module}: golden methods must be exactly {entry.golden_methods}; "
+                f"actual={golden_methods}"
+            )
+    elif entry.golden_methods:
+        # D6: an entry without a golden class pins no golden method.
+        failures.append(f"{module}: golden methods {entry.golden_methods} need a golden_test")
     # D4: every extra golden class is pinned like golden_test, and no other androidHostTest file
     # renders goldens.
     for relative, expected_methods in entry.extra_golden_tests.items():
@@ -2628,27 +2643,44 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     feature_source = common_sources[feature_path]
     graph_path = common_main / entry.graph_file
     graph_source = common_sources[graph_path]
+    if entry.mount not in ("nav_host", "app_root"):
+        failures.append(f"{module}: mount must be 'nav_host' or 'app_root'; found {entry.mount!r}")
+    if entry.mount == "app_root":
+        # D6: the host composable is called once in the admitted generation and builds the
+        # Feature from its own required factory; AppNavigationHost does not register it.
+        app_mount = f"{entry.graph_function}(factory = deps.{entry.factory_accessor})"
+        mount_fragments = [
+            (
+                graph_path,
+                [
+                    f"factory: {graph_factory},",
+                    f"remember(factory) {{ {entry.feature_class}(factory) }}",
+                ],
+            ),
+        ]
+    else:
+        app_mount = f"{entry.factory_accessor} = deps.{entry.factory_accessor}"
+        mount_fragments = [
+            (
+                APP_NAVIGATION_HOST_PATH,
+                [
+                    f"{entry.factory_accessor}: {graph_factory},",
+                    f"{entry.graph_function}(factory = {entry.factory_accessor},",
+                ],
+            ),
+            (
+                graph_path,
+                [
+                    f"factory: {graph_factory},",
+                    f"{entry.screen_registration}({entry.feature_class}(factory))",
+                ],
+            ),
+        ]
     required_root_fragments = [
         (APP_ROOT_DEPS_PATH, [f"val {entry.factory_accessor}: {graph_factory}"]),
         (APP_GRAPH_PATH, [f"override val {entry.factory_accessor}: {graph_factory}"]),
-        (
-            APP_PATH,
-            [*APP_ADMISSION_FRAGMENTS, f"{entry.factory_accessor} = deps.{entry.factory_accessor}"],
-        ),
-        (
-            APP_NAVIGATION_HOST_PATH,
-            [
-                f"{entry.factory_accessor}: {graph_factory},",
-                f"{entry.graph_function}(factory = {entry.factory_accessor},",
-            ],
-        ),
-        (
-            graph_path,
-            [
-                f"factory: {graph_factory},",
-                f"{entry.screen_registration}({entry.feature_class}(factory))",
-            ],
-        ),
+        (APP_PATH, [*APP_ADMISSION_FRAGMENTS, app_mount]),
+        *mount_fragments,
         (
             feature_path,
             [f"internal class {entry.feature_class}(", f"private val factory: {graph_factory}"],
@@ -2664,6 +2696,17 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 failures.append(
                     f"{module}: exact root-factory flow requires {fragment!r} once in {path}"
                 )
+    if entry.mount == "app_root":
+        host_source = (
+            APP_NAVIGATION_HOST_PATH.read_text(encoding="utf-8")
+            if APP_NAVIGATION_HOST_PATH.is_file()
+            else ""
+        )
+        if entry.factory_accessor in host_source:
+            failures.append(
+                f"{module}: mounted at the app root, so {APP_NAVIGATION_HOST_PATH} must not "
+                f"name {entry.factory_accessor}"
+            )
     retained_factory = compact(
         f"""
         rememberMetroStoreProcessor<{entry.store_impl}> {{
@@ -2722,9 +2765,10 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     if f'implementation(project(":{module}"))' in app_common_build:
         failures.append(f"app:common: {entry.short_name} edge must not remain implementation")
     app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
-    if app_build.count(f'implementation(project(":{module}"))') != 1:
+    if app_build.count(f'{entry.app_aggregation}(project(":{module}"))') != 1:
         failures.append(
-            f"app:app: direct {entry.short_name} aggregation edge must remain implementation"
+            f"app:app: direct {entry.short_name} aggregation edge must remain "
+            f"{entry.app_aggregation}"
         )
 
     for extra_check in entry.extra_checks:
