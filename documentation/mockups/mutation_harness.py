@@ -158,12 +158,24 @@ def _reused_outputs(out: str, task: str) -> str | None:
 
     Reads the task line rather than trusting the flags, because that is the whole lesson: an
     attestation that reads only what it asked for cannot see that it did not get it.
+
+    The task is matched by its path, never as a substring: `:lint-rules:test` is not reused when
+    `> Task :lint-rules:testClasses UP-TO-DATE` is printed. A qualified needle (`:m:task`) names one
+    task path and must equal it; an unqualified one (`detekt`) names that task in every project, so
+    any path ending in `:detekt` matches.
     """
     needle = task.split()[0]
     for line in out.splitlines():
-        if line.startswith("> Task ") and needle in line:
-            if any(marker in line for marker in _REUSE_MARKERS):
-                return line.strip()
+        if not line.startswith("> Task "):
+            continue
+        parts = line.split()
+        task_path = parts[2] if len(parts) > 2 else ""
+        if needle.startswith(":"):
+            matched = task_path == needle
+        else:
+            matched = task_path.endswith(f":{needle}")
+        if matched and any(marker in line for marker in _REUSE_MARKERS):
+            return line.strip()
     return None
 
 
