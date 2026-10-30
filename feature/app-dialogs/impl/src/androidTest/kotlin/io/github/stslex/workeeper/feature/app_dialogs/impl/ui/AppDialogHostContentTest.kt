@@ -37,7 +37,7 @@ class AppDialogHostContentTest {
     fun nullCurrentRendersNothing() {
         composeTestRule.setContent {
             AppTheme {
-                AppDialogHostContent(current = null, onChoice = {})
+                AppDialogHostContent(current = null, dateLabel = "", onChoice = {})
             }
         }
         composeTestRule.onAllNodesWithText("Restore complete").assertCountEquals(0)
@@ -53,6 +53,7 @@ class AppDialogHostContentTest {
                         restoredAtEpochMs = 1_700_000_000_000L,
                         previousVersionAvailable = true,
                     ),
+                    dateLabel = TEST_DATE_LABEL,
                     onChoice = {},
                 )
             }
@@ -71,6 +72,7 @@ class AppDialogHostContentTest {
                         restoredAtEpochMs = 1_700_000_000_000L,
                         previousVersionAvailable = false,
                     ),
+                    dateLabel = TEST_DATE_LABEL,
                     onChoice = {},
                 )
             }
@@ -89,6 +91,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = TEST_DATE_LABEL,
                     onChoice = { captured.value = it },
                 )
             }
@@ -105,6 +108,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = "",
                     onChoice = { captured.value = it },
                 )
             }
@@ -124,6 +128,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = "",
                     onChoice = { captured.value = it },
                 )
             }
@@ -140,6 +145,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = "",
                     onChoice = { captured.value = it },
                 )
             }
@@ -162,6 +168,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = TEST_DATE_LABEL,
                     onChoice = { captured.value = it },
                 )
             }
@@ -183,6 +190,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = variant,
+                    dateLabel = TEST_DATE_LABEL,
                     onChoice = { captured.value = it },
                 )
             }
@@ -198,6 +206,7 @@ class AppDialogHostContentTest {
             AppTheme {
                 AppDialogHostContent(
                     current = AppDialog.UndoRestoreSuccess(),
+                    dateLabel = "",
                     onChoice = { captured.value = it },
                 )
             }
@@ -214,5 +223,6 @@ class AppDialogHostContentTest {
         val TEST_UNDO_REF = UndoRef(
             RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
         )
+        const val TEST_DATE_LABEL: String = "Nov 14, 2023"
     }
 }

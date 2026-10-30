@@ -17,6 +17,7 @@ fun AppDialogHost() {
     val state by processor.state
     AppDialogHostContent(
         current = state.current,
+        dateLabel = state.dateLabel,
         onChoice = { choice -> processor.consume(Action.Choose(choice.dialog, choice.action)) },
     )
 }

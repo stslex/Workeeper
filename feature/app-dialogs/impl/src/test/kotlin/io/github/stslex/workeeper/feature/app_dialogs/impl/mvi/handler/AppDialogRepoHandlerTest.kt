@@ -2,6 +2,9 @@
 package io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler
 
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
@@ -39,6 +42,22 @@ import org.junit.jupiter.api.Test
  */
 internal class AppDialogRepoHandlerTest {
 
+    private val resources = object : ResourceWrapper {
+        override fun getString(id: Int, vararg args: Any): String =
+            error("the handler reads no copy through ResourceWrapper; id $id")
+
+        override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): String =
+            error("the handler reads no plural through ResourceWrapper; id $id")
+
+        override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long): String =
+            error("Not used in AppDialogRepoHandlerTest")
+
+        override fun formatDayMonth(timestamp: Long): String =
+            error("Not used in AppDialogRepoHandlerTest")
+
+        override fun formatMediumDate(timestamp: Long): String = "medium:$timestamp"
+    }
+
     @Test
     fun `Observe updates state when repository emits a dialog`() = runTest {
         val dialog = AppDialog.RestoreSuccess(
@@ -50,7 +69,7 @@ internal class AppDialogRepoHandlerTest {
         }
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(this, dispatcher)
-        val handler = AppDialogRepoHandler(repository, store)
+        val handler = AppDialogRepoHandler(repository, resources, store)
 
         handler.invoke(Action.RepoAction.Observe)
         advanceUntilIdle()
@@ -65,7 +84,7 @@ internal class AppDialogRepoHandlerTest {
         }
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(this, dispatcher)
-        val handler = AppDialogRepoHandler(repository, store)
+        val handler = AppDialogRepoHandler(repository, resources, store)
 
         handler.invoke(Action.RepoAction.Observe)
         advanceUntilIdle()
@@ -74,12 +93,31 @@ internal class AppDialogRepoHandlerTest {
     }
 
     @Test
+    fun `Observe writes the dialog's formatted date beside it`() = runTest {
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = UndoRef(RestoreOwnerId("00000000-0000-4000-8000-000000000011")),
+            originalDataDateEpochMs = 2_000L,
+        )
+        val repository = mockk<AppDialogRepository> {
+            every { currentDialog } returns flowOf(dialog)
+        }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(this, dispatcher)
+        val handler = AppDialogRepoHandler(repository, resources, store)
+
+        handler.invoke(Action.RepoAction.Observe)
+        advanceUntilIdle()
+
+        assertEquals(State(current = dialog, dateLabel = "medium:2000"), store.state.value)
+    }
+
+    @Test
     fun `Publish forwards dialog to repository`() = runTest {
         val dialog = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
         val repository = mockk<AppDialogRepository>(relaxed = true)
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(this, dispatcher)
-        val handler = AppDialogRepoHandler(repository, store)
+        val handler = AppDialogRepoHandler(repository, resources, store)
 
         handler.invoke(Action.RepoAction.Publish(dialog))
         advanceUntilIdle()
@@ -93,7 +131,7 @@ internal class AppDialogRepoHandlerTest {
         val repository = mockk<AppDialogRepository>(relaxed = true)
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(this, dispatcher)
-        val handler = AppDialogRepoHandler(repository, store)
+        val handler = AppDialogRepoHandler(repository, resources, store)
 
         handler.invoke(Action.RepoAction.Dismiss(dialog))
         advanceUntilIdle()

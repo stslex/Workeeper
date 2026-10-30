@@ -3,12 +3,9 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.ui
 
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.DialogProperties
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
-import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialog
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
@@ -18,23 +15,20 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.R
  * User-initiated revert-last-restore confirmation. Destructive — confirm chrome
  * is rendered in red because the action overwrites the freshly-restored live
  * database with the pre-restore copy. The body shows the date of the data the
- * user is about to bring back, derived from
+ * user is about to bring back: [dateLabel], formatted in State from
  * [AppDialog.UndoRestoreConfirmation.originalDataDateEpochMs].
  */
 @Composable
 internal fun UndoRestoreConfirmationDialog(
-    dialog: AppDialog.UndoRestoreConfirmation,
+    dateLabel: String,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val formattedDate = remember(dialog.originalDataDateEpochMs) {
-        formatMediumDate(dialog.originalDataDateEpochMs)
-    }
     AppConfirmationDialog(
         title = stringResource(R.string.app_dialog_undo_restore_confirmation_title),
         body = stringResource(
             R.string.app_dialog_undo_restore_confirmation_body,
-            formattedDate,
+            dateLabel,
         ),
         confirmLabel = stringResource(R.string.app_dialog_undo_restore_confirmation_confirm),
         onConfirm = onConfirm,
@@ -54,12 +48,7 @@ internal fun UndoRestoreConfirmationDialog(
 private fun UndoRestoreConfirmationDialogPreview() {
     AppTheme {
         UndoRestoreConfirmationDialog(
-            dialog = AppDialog.UndoRestoreConfirmation(
-                undoRef = UndoRef(
-                    RestoreOwnerId("00000000-0000-4000-8000-000000000009"),
-                ),
-                originalDataDateEpochMs = 1_700_000_000_000L,
-            ),
+            dateLabel = "Nov 14, 2023",
             onConfirm = {},
             onCancel = {},
         )

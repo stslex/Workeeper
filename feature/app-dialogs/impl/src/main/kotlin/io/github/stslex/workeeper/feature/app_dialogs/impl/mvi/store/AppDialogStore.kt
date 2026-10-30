@@ -14,12 +14,17 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  */
 interface AppDialogStore : Store<State, Action, Event> {
 
-    /** Top-priority pending dialog as projected from the repository; `null` renders nothing. */
+    /**
+     * Top-priority pending dialog as projected from the repository; `null` renders nothing.
+     * [dateLabel] is the medium date the dialog's body shows, formatted before the State write;
+     * empty for a dialog without a date.
+     */
     data class State(
         val current: AppDialog?,
+        val dateLabel: String,
     ) : Store.State {
         companion object {
-            val EMPTY: State = State(current = null)
+            val EMPTY: State = State(current = null, dateLabel = "")
         }
     }
 

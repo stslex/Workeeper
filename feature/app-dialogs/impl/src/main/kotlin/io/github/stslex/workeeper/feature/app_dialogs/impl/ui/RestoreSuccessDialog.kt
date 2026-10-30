@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.ui
 
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.DialogProperties
@@ -14,21 +13,19 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.R
 
 /**
  * Post-restore acknowledgement; adds an Undo button when a rollback slot is still available.
- * Back press dismisses, outside tap does not.
+ * Back press dismisses, outside tap does not. [dateLabel] is the restore's date, formatted in State.
  */
 @Composable
 internal fun RestoreSuccessDialog(
     dialog: AppDialog.RestoreSuccess,
+    dateLabel: String,
     onAcknowledge: () -> Unit,
     onUndoRestore: () -> Unit,
 ) {
-    val formattedDate = remember(dialog.restoredAtEpochMs) {
-        formatMediumDate(dialog.restoredAtEpochMs)
-    }
     val body = if (dialog.previousVersionAvailable) {
-        stringResource(R.string.app_dialog_restore_success_body, formattedDate)
+        stringResource(R.string.app_dialog_restore_success_body, dateLabel)
     } else {
-        stringResource(R.string.app_dialog_restore_success_body_no_previous, formattedDate)
+        stringResource(R.string.app_dialog_restore_success_body_no_previous, dateLabel)
     }
     AppConfirmationDialog(
         title = stringResource(R.string.app_dialog_restore_success_title),
@@ -56,6 +53,7 @@ private fun RestoreSuccessDialogWithUndoPreview() {
                 restoredAtEpochMs = PREVIEW_EPOCH_MS,
                 previousVersionAvailable = true,
             ),
+            dateLabel = PREVIEW_DATE_LABEL,
             onAcknowledge = {},
             onUndoRestore = {},
         )
@@ -71,6 +69,7 @@ private fun RestoreSuccessDialogNoUndoPreview() {
                 restoredAtEpochMs = PREVIEW_EPOCH_MS,
                 previousVersionAvailable = false,
             ),
+            dateLabel = PREVIEW_DATE_LABEL,
             onAcknowledge = {},
             onUndoRestore = {},
         )
@@ -78,3 +77,4 @@ private fun RestoreSuccessDialogNoUndoPreview() {
 }
 
 private const val PREVIEW_EPOCH_MS: Long = 1_700_000_000_000L
+private const val PREVIEW_DATE_LABEL: String = "Nov 14, 2023"

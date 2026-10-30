@@ -8,17 +8,20 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 
 /**
  * Pure-Compose renderer split out of [AppDialogHost] so UI tests can drive it with synthetic
- * state and a fake [onChoice]; renders nothing when [current] is `null`.
+ * state and a fake [onChoice]; renders nothing when [current] is `null`. [dateLabel] is State's
+ * formatted date for the dialogs that show one.
  */
 @Composable
 internal fun AppDialogHostContent(
     current: AppDialog?,
+    dateLabel: String,
     onChoice: (AppDialogUserChoice) -> Unit,
 ) {
     val dialog = current ?: return
     when (dialog) {
         is AppDialog.RestoreSuccess -> RestoreSuccessDialog(
             dialog = dialog,
+            dateLabel = dateLabel,
             onAcknowledge = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Acknowledge)) },
             onUndoRestore = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.RequestUndo)) },
         )
@@ -33,7 +36,7 @@ internal fun AppDialogHostContent(
         )
 
         is AppDialog.UndoRestoreConfirmation -> UndoRestoreConfirmationDialog(
-            dialog = dialog,
+            dateLabel = dateLabel,
             onConfirm = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.ConfirmUndo)) },
             onCancel = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Cancel)) },
         )
