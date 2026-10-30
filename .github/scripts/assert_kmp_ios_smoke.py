@@ -1529,6 +1529,92 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        # Phase 7.17: the six portable suites (16/12/5/2/3/5) plus the one production scene, 44
+        # exact.
+        "module": "feature:app-dialogs:impl",
+        "results_dir": "feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepositoryTest",
+                [
+                    "currentDialog is null when no flag is set",
+                    "publish RestoreSuccess surfaces the variant with payload",
+                    "publish RestoreFailure surfaces the variant with reason",
+                    "publish UndoRestoreConfirmation surfaces with date",
+                    "missing confirmation owner does not block publishing a valid owner",
+                    "invalid confirmation owner does not block publishing a valid owner",
+                    "different confirmation owner does not block publishing the current owner",
+                    "old owner dismiss preserves the newer confirmation",
+                    "publish UndoRestoreSuccess surfaces the data variant",
+                    "new terminal owner replaces identical payload and stale dismiss preserves it",
+                    "new owned terminal payload replaces a stale pending payload",
+                    "foreign install epoch clears transferred restore dialogs before resolution",
+                    "dismiss clears only the named variant's flags",
+                    "dismiss the only pending variant emits null",
+                    "dedup is per-variant — pending RestoreFailure does not block RestoreSuccess publish",
+                    "publish then dismiss then publish same variant succeeds — the flag was cleared",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolverTest",
+                [
+                    "no flag set resolves to null",
+                    "RestoreFailure resolves with reason",
+                    "RestoreFailure with missing reason key falls back to Unknown",
+                    "RestoreFailure with unparseable reason name falls back to Unknown",
+                    "RestoreSuccess resolves with payload",
+                    "RestoreSuccess with missing metadata uses defaults",
+                    "UndoRestoreSuccess resolves to the data variant",
+                    "UndoRestoreConfirmation resolves with date",
+                    "RestoreFailure outranks every other variant when all flags are set",
+                    "RestoreSuccess wins when RestoreFailure is absent",
+                    "UndoRestoreSuccess wins over UndoRestoreConfirmation",
+                    "UndoRestoreConfirmation is the lowest-priority resolution",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.AppDialogRepoHandlerTest",
+                [
+                    "Observe updates state when repository emits a dialog",
+                    "Observe sets state to null when repository emits null",
+                    "Observe writes the dialog's formatted date beside it",
+                    "Publish forwards dialog to repository",
+                    "Dismiss forwards dialog to repository",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.ChooseHandlerTest",
+                [
+                    "Choose emits the choice to the observer",
+                    "Choose does NOT dismiss the dialog — the consumer is responsible",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.mapper.AppDialogDateMapperTest",
+                [
+                    "a restore success labels the date its backup was restored",
+                    "an undo confirmation labels the date of the data it brings back",
+                    "a failure or an undo success or no dialog labels nothing and formats nothing",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImplTest",
+                [
+                    "emit delivers the choice to a live subscriber",
+                    "late subscriber does NOT receive past emissions — replay = 0 and no persisted-choice replay",
+                    "acknowledgeReaction delegates to repository dismiss",
+                    "multiple subscribers all receive the same emission",
+                    "emit with no subscriber buffers up to capacity without suspending",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.app_dialogs.impl.AppDialogFeatureSceneIosTest",
+                "resourcesDatesVariantsAndChoicesRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 
