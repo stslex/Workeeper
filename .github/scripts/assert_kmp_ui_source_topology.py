@@ -1152,6 +1152,22 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    # S1 (kmp-phase-7-17-app-dialogs-feature.md Section 10.1): the dialog catalog's contract, pure
+    # Kotlin in commonMain, with no resources.
+    "feature:app-dialogs:api": {
+        "root": Path("feature/app-dialogs/api"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialogUserAction.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialogUserChoice.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/observer/AppDialogObserver.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/publisher/AppDialogPublisher.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+        },
+        "resource_dirs": set(),
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")

@@ -5,10 +5,10 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import java.io.File
 
 /** Android owner of strict protocol filenames below `noBackupFilesDir/restore-recovery`. */
-interface RestoreRecoveryFiles {
+interface RestoreRecoveryFiles : InstallEpochSource {
 
     /** Atomically creates or reads the stable installation token in the no-backup root. */
-    suspend fun installEpoch(): InstallEpoch
+    override suspend fun installEpoch(): InstallEpoch
 
     /** Publishes an immutable undo through `undo_<owner>.db.creating` without overwriting. */
     suspend fun publishUndo(source: File, ref: UndoRef): BackupResult<File>

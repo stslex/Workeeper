@@ -9,8 +9,8 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
+import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpochSource
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreRecoveryFiles
 import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -36,10 +36,10 @@ class AppDialogRepository internal constructor(
     @Inject
     constructor(
         storeFactory: DataStoreProviderFactory,
-        recoveryFiles: RestoreRecoveryFiles,
+        installEpochSource: InstallEpochSource,
     ) : this(
         storeFactory.create(PREFS_NAME).dataStore,
-        recoveryFiles::installEpoch,
+        installEpochSource::installEpoch,
     )
 
     /** Highest-priority pending dialog, or `null`; re-emits on every DataStore write. */
