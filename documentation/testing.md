@@ -944,6 +944,45 @@ device by the app journeys: `RouteReachabilityTest`'s `liveWorkoutOpensBlankFrom
 `NavigationResultTest.planEditorSaveReachesTheLiveSessionThatOpenedIt` and
 `StoreRetentionTest.liveWorkoutStoreSurvivesThePlanEditorRoundTrip`.
 
+#### Shared app-dialogs feature
+
+`feature:app-dialogs:impl` keeps its six portable suites in `commonTest`, so the same 43 exact
+identities execute through Android host and `iosSimulatorArm64Test`: repository 16, resolver 12,
+repo handler 5, observer 5, date mapper 3 and choose handler 2. Four of them were added by Phase
+7.17 to pin D3, which moved the dialogs' medium date out of composition and into
+`State.dateLabel`: `AppDialogRepoHandlerTest`'s `Observe writes the dialog's formatted date beside
+it` and `AppDialogDateMapperTest`'s three
+([kmp-phase-7-17-app-dialogs-feature.md](feature-specs/kmp-phase-7-17-app-dialogs-feature.md)).
+Two identities were renamed for Native (S2), and the two with `—` in their names run on Native too.
+
+The suites use `kotlin.test`, `kotlinx-coroutines-test` and private nested fakes; MockK left with
+the port. `AppDialogRepositoryTest` runs the real file-backed store (D5): each identity opens
+`PreferenceDataStoreFactory.createWithPath` over its own file in okio's
+`FileSystem.SYSTEM_TEMPORARY_DIRECTORY`, on `Dispatchers.Default`, and deletes it afterwards through
+`deleteStoreFile`, an `expect` with one `actual` per platform. The handler and observer suites run
+the real `AppDialogRepository` and `AppDialogObserverImpl` over an in-memory `DataStore<Preferences>`
+nested in each suite, whose edits complete on the test scheduler, so every claim is an effect on
+the store (S3): a publish is read back, a dismiss reads back nothing, and a choice reaches a live
+subscriber.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.app_dialogs.impl.AppDialogFeatureSceneIosTest.resourcesDatesVariantsAndChoicesRenderAndDispatch`
+reads the whole private EN catalog as stored and its four placeholder entries filled through one
+real `ComposeStringResolver`; runs the production date mapper over all four variants with a stubbed
+`ResourceWrapper.formatMediumDate`, the scene's only test double; then renders the production
+`AppDialogHostContent` under `AppTheme` from test-held State: nothing, both restore successes, the
+failure body for each of the twelve `BackupErrorCode`s, the undo confirmation and the undo success,
+and requires the nine choices as one exact ordered list. Settling is bounded: ten steps of one
+virtual second each. Together with the 43 portable cases, the app-dialogs Native XML contains
+exactly 44 passing cases in 7 suites with no skip, failure, or error.
+
+What this does not cover: RU values, which the gate pins statically; `AppDialogHost` itself, whose
+two State reads the gate pins (`app_dialogs_contract`); the Store and its graph, whose wiring
+`AppDialogExtensionIdentityTest` (4 cases, through `AppGraph.appDialogGraphFactory`) and
+`DialogStateAcrossGenerationsTest` cover on Android; and the iosArm64 test binaries, which are
+linked, never run. `AppDialogHostContentTest` moved to `androidDeviceTest` with its 10 `@Smoke`
+identities.
+
 #### Shared string resolver
 
 `core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside
@@ -1641,7 +1680,7 @@ From the project root:
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests of the 16 modules (macOS + Xcode), kept in one --continue invocation
+# Native Phase-7 tests of the 17 modules (macOS + Xcode), kept in one --continue invocation
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
@@ -1658,11 +1697,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:single-training:iosSimulatorArm64Test \
   :feature:exercise:iosSimulatorArm64Test \
   :feature:live-workout:iosSimulatorArm64Test \
+  :feature:app-dialogs:impl:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 16/16.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 17/17.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1679,6 +1719,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:single-training:linkDebugTestIosArm64 \
   :feature:exercise:linkDebugTestIosArm64 \
   :feature:live-workout:linkDebugTestIosArm64 \
+  :feature:app-dialogs:impl:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 
 # Focused MVI device cases plus exact JUnit identities

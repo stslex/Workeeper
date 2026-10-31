@@ -510,50 +510,47 @@ their own NavigationHandler, never through free Compose functions).
 ## AppDialogHost mounting
 
 ```kotlin
-// app/common/.../App.kt — mounting site
+// app/common/.../App.kt — App() composes the admitted generation under its own owner:
+//     CompositionLocalProvider(
+//         LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
+//     ) { AppGenerationContent(deps) }
 @Composable
-fun App() {
-    AppTheme(themeMode = themeMode) {
-        Box(modifier = Modifier.fillMaxSize()) {
+private fun AppGenerationContent(deps: AppRootDeps) {
+    // ... the theme, the chrome and the snackbar host ...
 
-            AppNavigationHost(/* NavHost is mounted inside this */)
+    AppNavigationHost(/* NavDisplay is mounted inside this */)
 
-            // ▼ MUST stay a SIBLING of AppNavigationHost (the NavHost), never
-            // inside any destination. LocalViewModelStoreOwner at this depth
-            // resolves to the host ComponentActivity, which is what scopes
-            // AppDialogStore to the Activity (not to a NavBackStackEntry).
-            // Moving this call inside NavHost silently rescopes the Store to
-            // a destination — no compile error, behaviour breaks at runtime.
-            AppDialogHost()
-        }
-    }
+    // ▼ MUST stay a SIBLING of AppNavigationHost, never inside any destination.
+    // LocalViewModelStoreOwner at this depth is the generation's owner, which is
+    // what scopes AppDialogStore to the generation (not to a NavBackStackEntry).
+    // Moving this call inside the nav host silently rescopes the Store to a
+    // destination — no compile error, behaviour breaks at runtime.
+    AppDialogHost(factory = deps.appDialogGraphFactory)
 }
 ```
 
 The host:
 
-- Resolves `AppDialogStore` via the screen-less composition entry
-  `AppDialogFeature.processor()` (a single-instance object that delegates
-  to `rememberMetroStoreProcessor<AppDialogStoreImpl>()`). Because the surrounding
-  `LocalViewModelStoreOwner` is the host `ComponentActivity` (App root is a
-  sibling of NavHost), the resulting Store is **Activity-scoped** — same
-  lifetime as the Activity's `ViewModelStore`, NOT the current navigation
-  destination, NOT a `@SingleIn(AppScope)`. It survives configuration changes and is
-  reused across all destinations.
+- Takes the generation's required `AppDialogGraph.Factory`, read from `AppRootDeps` (Phase 7.17;
+  it no longer reads `Context.appDeps`), and builds the screen-less composition entry
+  `AppDialogFeature(factory)` under `remember(factory)`. `processor()` delegates to
+  `rememberMetroStoreProcessor<AppDialogStoreImpl>`, whose lambda alone creates the graph
+  extension. Because the surrounding `LocalViewModelStoreOwner` is the admitted generation's owner
+  (App root is a sibling of the nav host), the resulting Store is **generation-scoped** — it
+  survives configuration changes and is reused across all destinations, and a new generation (a
+  database replacement) builds a new one. It is NOT scoped to the current navigation destination
+  and NOT a `@SingleIn(AppScope)`.
 
   `AppDialogFeature` is an `AppFeature<TProcessor>` — a screen-less twin of
   the existing `Feature` / `FeatureAssisted` composition-entry hierarchy in
   `core/ui/mvi`. The screen-less variant exists for app-root mounts; it
-  must not be used inside `NavHost` (where `Feature` is the right entry).
-  This is the minimal new MVI-composition entry required for the refactor;
-  the underlying scope/owner mechanism (`rememberMetroStoreProcessor<T>()` →
-  `LocalViewModelStoreOwner`) is reused unchanged from the
-  existing `AppRootViewModel` Activity-scoped VM (see
-  [`App.kt:63`](../../app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt)).
+  must not be used inside the nav host (where `Feature` is the right entry).
 - Dispatches `Action.RepoAction.Observe` once on mount to subscribe to the
-  repository flow and project it into State.
-- Reads `state.value.current: AppDialog?`. When `null`, composes nothing —
-  there is no scrim, no placeholder. When non-null, dispatches on the
+  repository flow and project it into State. The handler formats the date a dialog's body shows
+  through `ResourceWrapper.formatMediumDate` before the State write, into `State.dateLabel`
+  (Phase 7.17 D3); composition formats nothing.
+- Reads `state.value.current: AppDialog?` and `state.value.dateLabel`. When `current` is `null`,
+  composes nothing — there is no scrim, no placeholder. When non-null, dispatches on the
   variant and renders the appropriate Composable file
   (`ui/<Name>Dialog.kt`). Buttons dispatch `Action.Choose(dialog,
   action)` to the Store; the `ChooseHandler` emits the choice to the
@@ -562,17 +559,17 @@ The host:
   `state.value`. No `EntryPointAccessors`. No free `scope.launch { … }`
   with embedded logic. No typed callbacks into producer features.
 
-Mounting as a **sibling of** `NavHost` means:
+Mounting as a **sibling of** the nav host means:
 
 - The dialog appears regardless of destination — useful for backup-recovery's
   "restart, then show dialog on whatever the user lands on".
 - The dialog survives navigation — a user tapping a bottom-bar tab while the
   dialog is open does not dismiss it. Only the dismiss gestures listed in
   the [Dismiss policy](#dismiss-policy) clear the flag.
-- Recomposition of `NavHost` (route changes, config changes) does not affect
+- Recomposition of the nav host (route changes, config changes) does not affect
   the host — it reads its own State and composes independently.
-- The Store is **not** re-instantiated per destination. Inside NavHost,
-  `LocalViewModelStoreOwner` is the current `NavBackStackEntry`, which
+- The Store is **not** re-instantiated per destination. Inside the nav host,
+  `LocalViewModelStoreOwner` is the current back-stack entry, which
   would rescope the Store to the destination and lose its app-wide
   semantics. This is the load-bearing invariant — see the code comment at
   the mount site.
@@ -586,8 +583,10 @@ internal interface AppDialogStore : Store<State, Action, Event> {
     data class State(
         /** Currently-displayed dialog, or null when none is pending. */
         val current: AppDialog?,
+        /** Phase 7.17 D3: its body's medium date, formatted before the write; "" without one. */
+        val dateLabel: String,
     ) : Store.State {
-        companion object { val EMPTY = State(current = null) }
+        companion object { val EMPTY = State(current = null, dateLabel = "") }
     }
 
     sealed interface Action : Store.Action {

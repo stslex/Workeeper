@@ -239,6 +239,13 @@ the Activity's store, silently process-scoping every Store
    `navComponentScreenWithResults`, the `FeatureAssisted` overload that also hands the content the
    destination's `NavResults`.
 
+The screen-less `AppFeature` goes through it as well, and the shared app-dialogs entry is its one
+user: `App.kt` passes the admitted generation's `AppDialogGraph.Factory` to `AppDialogHost`, a
+sibling of `AppNavigationHost` with no route and no nav-host registration, which builds
+`AppDialogFeature` from it under `remember(factory)`. The Feature invokes it only inside the
+`rememberMetroStoreProcessor` creation lambda, so the Store lives in the generation's
+`ViewModelStoreOwner`.
+
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
 to exactly the Store's lifetime.
@@ -517,16 +524,17 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, home, exercise-chart, single-training, exercise, and live-workout no longer use the
-feature-side Context seam: `AppGraph.imageViewerGraphFactory`, `AppGraph.planEditorGraphFactory`,
+past-session, home, exercise-chart, single-training, exercise, live-workout, and app-dialogs no
+longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
+`AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
 `AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
 `AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`,
-`AppGraph.singleTrainingGraphFactory`, `AppGraph.exerciseGraphFactory`, and
-`AppGraph.liveWorkoutGraphFactory` implement the accessors declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. Exactly 2 feature/dialog Context readers
-remain.
+`AppGraph.singleTrainingGraphFactory`, `AppGraph.exerciseGraphFactory`,
+`AppGraph.liveWorkoutGraphFactory`, and `AppGraph.appDialogGraphFactory` implement the accessors
+declared by `AppRootDeps`, and the admitted composition reads that root contract exactly once.
+Retired generations and generations that lose the publication race resolve it zero times.
+Exactly 1 feature Context reader remains: settings.
 
 ### Feature graphs (`@GraphExtension`)
 

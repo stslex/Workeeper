@@ -1,6 +1,6 @@
 # KMP Phase 7.17 — feature:app-dialogs, api and impl, become a shared feature entry
 
-**Status:** SPECIFIED — D1–D7 GO (the maintainer, 2026-10-29); implementation pending.
+**Status:** COMPLETE — implemented by the PR whose merge brought this line to dev.
 
 **Discovery baseline:** dev @ a4bcd440dc7420c80d16d9423990491f5a12fd4a (2026-10-29 05:06 +03:00, the
 merge of #346, Phase 7.16 Part C). Its parents are `6d88cedcd` (the Part C SPEC commit) and
@@ -920,10 +920,630 @@ success; EN and RU; and a restore failure, if one can be forced.
 
 ## 19. Implementation evidence
 
-Filled by commit 7: the base and every commit with its signature status; the entry gate; commit 1's
-proof and the per-commit gates; K1–K20, G1–G15, O1–O2 and Y1–Y3 with their quoted verdicts; the
-exit census; the repository, Native and device gates; the environment; every deviation and repair
-(Section 0.4) with its diff; and what this host could not verify.
+Recorded for the seven-commit implementation on one checkout, without a worktree or a delegated agent. Every accepted Gradle gate first stopped only this run's daemon registry, then used `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`. Host, Native and link commands used `-Dorg.gradle.jvmargs=-Xmx4g --max-workers=2`; Android device commands used `-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue`. Detekt ran separately from tests. Every quoted summary has only executed actionable tasks. XML was admitted only when its modification time was after that gate's recorded start, and copied aside immediately. Snapshot labels below identify the preserved raw log, command metadata and XML copy; XML paths are repository-relative originals.
+
+`N17` and `L17` mean exactly the seventeen task paths, in order, in the workflow's Native-test and device-link steps (Section 10.5), prefixed by `./gradlew` and the common flags above; the workflow also supplies `--full-stacktrace --continue`. `N16` / `L16` are the base workflow's same lists before their final app-dialogs entry. Native executables use debugTest; application builds and device suites target debug variants.
+
+### 19.1 Base, commits and reference integrity
+
+- Base: `d1fa60dac68380b32f69de9f48ce2e603c5ce7d2`, the one-file specification landing on dev, parent `a4bcd440dc7420c80d16d9423990491f5a12fd4a`. The specification blob was `c2ee4413d24185fc80c9edc76b1762b4c09daf6a`; its initial SHA-256 was `6eff3440bd640c1b3b0ae58746fd09d485dd9abf9f4da50090eb201c03d7e7cd`. The guarded dev push belonged to the prior run; this implementation made no further dev push.
+- Base GitHub signature: `verified: true`, reason `valid`, verified at `2026-10-29T14:24:19Z` (raw GitHub Git-commit API).
+- Commit 1: `c8ecc0c52621006a9842294c12b1e4e3560f8a09`, `ci(kmp): let a feature entry mount at the app root without goldens`; local `gpgsig` header verified.
+- Commit 2: `883bab9b9fc2c88d9daf30ae68759b8b7d71e6d5`, `chore(harness): match the mutated task by its path, not as a substring`; local `gpgsig` header verified.
+- Commit 3: `f460fa4a5cb174ca7d403f2a0dd08afe34167f4e`, `refactor(kmp): share the app-dialogs api and its install-epoch seam`; local `gpgsig` header verified.
+- Commit 4: `fe262bad24a8e3faf60d59c6f9ed8da2df68c0bf`, `refactor(app-dialogs): format the dialog dates into State before the write`; local `gpgsig` header verified.
+- Commit 5: `e326f7d74c3f31714ff5021a584f37a1990501e7`, `refactor(kmp): share the app-dialogs feature entry (Phase 7.17)`; local `gpgsig` header verified.
+- Commit 6: `bdd7bce7bac4b18492d01ebd41544145f7a939d2`, `ci(kmp): hold the app-dialogs entry to its exact contract on the gate and on Native`; local `gpgsig` header verified.
+- Commit 7 is this signed evidence commit. Its final SHA, authoritative GitHub signature verification for every commit, PR/CI job IDs, final required contexts and review-request URL are checked after publication and reported in the maintainer handoff; they are not inferred from local signing.
+- All fifteen original kit files matched `SHA256SUMS`; that manifest's SHA-256 remained `0e6e29c72cf56de4fcf42351aeec89c1ecfe9c96278eb69ba07edfc3d0710be6`. The original kit was not rewritten. Each original reference digest was verified before repair; the approved replacement references and their blob changes are recorded in Section 19.8. Original c6 and c7 still applied without rejects, three-way application or hand merging.
+
+### 19.2 Entry gate
+
+The latest unified dev push run at entry was `40804398303`, head `a4bcd440dc7420c80d16d9423990491f5a12fd4a`, success. Drift to the base touched only this specification. The base census had the required twenty non-exit items, E5 and E7 already at exit, and no base drift. The six topology outputs were byte-identical: 990 lines, SHA-256 `7271a2b1655ca7f294ed45ae2fa188c26dfd634c70071f5b737da8c6adc7f8d4`; MVI topology was retained as `BASE_MVI_TOPOLOGY`. The saved old topology gate's SHA-256 was `b07bfaa412465041cc475e851af3b84fd4f2bac154366c75b2a08c180c681c7f`.
+
+| Gate / XML snapshot label | Command (common flags above) | Gradle evidence | Fresh XML |
+| --- | --- | --- | --- |
+| `p2/host` | `./gradlew assembleDebug lintDebug testDebugUnitTest` | `2841 actionable tasks: 2841 executed` | 474 suites / 3385 cases / 0 skipped; per-module XML roots in the tables below |
+| `p2/lint-rules` | `./gradlew :lint-rules:test` | `9 actionable tasks: 9 executed` | 16 suites / 151 cases / 0 skipped; `lint-rules/build/test-results/test/TEST-*.xml` |
+| `p2/native` | `N16` | `434 actionable tasks: 434 executed` | 115 suites / 862 cases / 0 skipped; per-module XML roots in the tables below |
+| `p2/link` | `L16` | `418 actionable tasks: 418 executed` | no test XML expected |
+| `p2/device-dialogs` | `./gradlew :feature:app-dialogs:impl:connectedDebugAndroidTest` | `227 actionable tasks: 227 executed` | 1 suites / 10 cases / 0 skipped; `feature/app-dialogs/impl/build/outputs/androidTest-results/connected/debug/TEST-*.xml` |
+| `p2/device-app` | `./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest,io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest,io.github.stslex.workeeper.app.UiAdmissionRaceTest,io.github.stslex.workeeper.app.UiGenerationSwapTest,io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest` | `759 actionable tasks: 759 executed` | 5 suites / 12 cases / 0 skipped; `app/app/build/outputs/androidTest-results/connected/debug/TEST-*.xml` |
+
+HOST_BASELINE contained 34 module/task rows, 474 suites and 3,385 cases, all passing. LINT_BASELINE contained 77 XML reports and 480 dependency-version advisory occurrences (36 `AndroidGradlePluginVersion`, 240 `GradleDependency`, 204 `NewerVersionAvailable`), no errors. The Native baseline held 115 suites / 862 cases in sixteen modules; its exact oracle passed. All sixteen device-target test executables were fresh. The two Android baseline gates held the ten dialog identities and twelve APP_CLASSES identities with no skips or failures.
+
+### 19.3 Per-commit gates and gate-equivalence proof
+
+Commit 1's canonical `diffproof.py` completed on its committed tree under all six Python paths. Every GREEN pair matched the entry bytes; M1, M2 and M3 each returned 1 identically in old and new gates; Q1 returned 0 identically. The final fresh GREEN matched the first; bytes, modes and tracked porcelain were restored. The retained transcript ends:
+```text
+fresh GREEN after the last row equal: True
+PROOF OK
+```
+
+Commit 2's `harness_reuse_check.py` gave `8 cases, 0 wrong` on the new harness. Its base-harness control gave `8 cases, 2 wrong`, exactly S1 (`:lint-rules:test` versus `testClasses`) and S4 (`detekt` versus `detektMain`). No other row differed.
+
+| Gate / XML snapshot label | Command (common flags above) | Gradle evidence | Fresh XML |
+| --- | --- | --- | --- |
+| `c1/pre-tests` | `./gradlew :feature:app-dialogs:impl:testDebugUnitTest` | `156 actionable tasks: 156 executed` | 5 suites / 39 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c1/pre-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c1/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c2/pre-tests` | `./gradlew :feature:app-dialogs:impl:testDebugUnitTest` | `156 actionable tasks: 156 executed` | 5 suites / 39 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c2/pre-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c2/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c3/pre-tests` | `./gradlew :feature:app-dialogs:api:assembleDebug :feature:app-dialogs:impl:testDebugUnitTest :app:dev:assembleDebug` | `734 actionable tasks: 734 executed` | 5 suites / 39 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c3/pre-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c3/post-tests` | `./gradlew :feature:app-dialogs:api:assembleDebug :core:data:backup:api:assembleDebug :core:data:database:testDebugUnitTest :core:data:backup:scheduling:testDebugUnitTest :feature:app-dialogs:impl:testDebugUnitTest :feature:recovery:testDebugUnitTest :app:app:testDebugUnitTest :feature:settings:assembleDebug :app:dev:assembleDebug` | `809 actionable tasks: 809 executed` | 71 suites / 550 cases / 0 skipped; per-module XML roots in the tables below |
+| `c3/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c4/pre-tests` | `./gradlew :feature:app-dialogs:impl:testDebugUnitTest :app:dev:assembleDebug` | `695 actionable tasks: 695 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c4/pre-tests-amendment` | `./gradlew :feature:app-dialogs:impl:testDebugUnitTest :app:dev:assembleDebug` | `695 actionable tasks: 695 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c4/pre-detekt-amendment` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c4/post-tests` | `./gradlew :feature:app-dialogs:impl:testDebugUnitTest :app:dev:assembleDebug` | `695 actionable tasks: 695 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c4/device-dialogs` | `./gradlew :feature:app-dialogs:impl:connectedDebugAndroidTest` | `217 actionable tasks: 217 executed` | 1 suites / 10 cases / 0 skipped; `feature/app-dialogs/impl/build/outputs/androidTest-results/connected/debug/TEST-*.xml` |
+| `c4/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c5/variants-after-dependencies` | `./gradlew :feature:app-dialogs:impl:dependencies :feature:app-dialogs:impl:outgoingVariants --no-parallel --stacktrace` | `6 actionable tasks: 6 executed` | no test XML expected |
+| `c5/consumers-green` | `./gradlew :app:app:dependencyInsight --configuration debugCompileClasspath --dependency app-dialogs :app:common:dependencyInsight --configuration debugCompileClasspath --dependency app-dialogs :feature:settings:dependencyInsight --configuration debugCompileClasspath --dependency app-dialogs :feature:recovery:dependencyInsight --configuration debugCompileClasspath --dependency app-dialogs` | `8 actionable tasks: 8 executed` | no test XML expected |
+| `c5/early-native-amendment` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest :feature:app-dialogs:impl:iosSimulatorArm64Test` | `233 actionable tasks: 233 executed` | 13 suites / 87 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/TEST-*.xml`; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+| `c5/pre-app` | `./gradlew :app:dev:assembleDebug :app:app:testDebugUnitTest --tests '*AppDialogExtensionIdentityTest'` | `698 actionable tasks: 698 executed` | 1 suites / 4 cases / 0 skipped; `app/app/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c5/pre-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c5/post-host` | `./gradlew :feature:app-dialogs:api:assembleDebug :feature:app-dialogs:impl:assembleDebug :feature:app-dialogs:impl:testAndroidHostTest :app:common:assembleDebug :app:dev:assembleDebug :app:app:testDebugUnitTest :feature:recovery:testDebugUnitTest :feature:settings:testDebugUnitTest` | `999 actionable tasks: 999 executed` | 47 suites / 459 cases / 0 skipped; `app/app/build/test-results/testDebugUnitTest/TEST-*.xml`; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml`; `feature/recovery/build/test-results/testDebugUnitTest/TEST-*.xml`; `feature/settings/build/test-results/testDebugUnitTest/TEST-*.xml` |
+| `c5/post-native-link` | `./gradlew :feature:app-dialogs:impl:iosSimulatorArm64Test :feature:app-dialogs:impl:linkDebugTestIosArm64` | `167 actionable tasks: 167 executed` | 7 suites / 44 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/TEST-*.xml` |
+| `c5/lint-rules` | `./gradlew :lint-rules:test` | `9 actionable tasks: 9 executed` | 16 suites / 151 cases / 0 skipped; `lint-rules/build/test-results/test/TEST-*.xml` |
+| `c5/device-dialogs` | `./gradlew :feature:app-dialogs:impl:connectedDebugAndroidTest` | `217 actionable tasks: 217 executed` | 1 suites / 10 cases / 0 skipped; `feature/app-dialogs/impl/build/outputs/androidTest-results/connected/androidMain/TEST-*.xml` |
+| `c5/device-app` | `./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest,io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest,io.github.stslex.workeeper.app.UiAdmissionRaceTest,io.github.stslex.workeeper.app.UiGenerationSwapTest,io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest` | `752 actionable tasks: 752 executed` | 5 suites / 12 cases / 0 skipped; `app/app/build/outputs/androidTest-results/connected/debug/TEST-*.xml` |
+| `c5/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c6/pre-tests` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest` | `148 actionable tasks: 148 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+| `c6/pre-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `c6/native` | `N17` | `467 actionable tasks: 467 executed` | 122 suites / 906 cases / 0 skipped; per-module XML roots in the tables below |
+| `c6/link` | `L17` | `450 actionable tasks: 450 executed` | no test XML expected |
+| `c6/post-detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+
+Topology after each commit was byte-identical under all six Python paths:
+
+| Commits | Lines | SHA-256 |
+| --- | ---: | --- |
+| 1–2 | 990 | `7271a2b1655ca7f294ed45ae2fa188c26dfd634c70071f5b737da8c6adc7f8d4` |
+| 3–4 | 996 | `3203da7840da5d081ecb45161839b1c4a5ecd0d05c1bfc87eb9e05fb83832510` |
+| 5 | 1033 | `2f2dc0f914b7e821d40d3c1fa8c70f6b819a3afbf409cd48b11bab44be4f4197` |
+| 6 | 1034 | `ce7dfb815d27a058daba246b1beb9cc069368491b977f6fbb743025c3a171522` |
+
+Commit 3's five consumer rows were name/outcome-identical to HOST_BASELINE (71 suites / 550 cases). Commit 4 retained all 39 base identities and added exactly D3's four; its ten device identities remained unchanged. Commit 5's 416 app/settings/recovery identities matched their baseline exactly; all 43 portable and 44 Native app-dialogs identities were checked by full class and method name, with only S2's two specified renames. The four extension identities and both device inventories matched their base names and outcomes. Its outgoing variants listed Android, iosArm64 and iosSimulatorArm64; every Section 8 classic compile/test classpath selected `androidApiElements` with platform `androidJvm`. Native collection and real file DataStore were proven before committing the conversion.
+
+### 19.4 Known-negative controls
+
+All controls ran on commit 6's tree. The Python-scored tools ran under `python3` only, in the required O → K → Y order before any Gradle mutation could replace the fresh seventeen-module XML. G controls used the unchanged canonical tool and mutation harness; a logging-only external Python hook preserved their complete Gradle output and fresh XML. Every G row additionally matched the full 43/44 identity inventory, its exact expected RED set and an executed-only summary. Every mutated file's bytes and mode, the commit and tracked cleanliness were checked on restoration.
+
+Oracle controls:
+```text
+GREEN mirror exit 0
+O1 exit 1 RED as required ["  feature:app-dialogs:impl: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.app_dialogs.impl.AppDialogFeatureSceneIosTest' name='resourcesDatesVariantsAndChoicesRenderAndDispatch[iosSimul"]
+O2 exit 1 RED as required ["  feature:app-dialogs:impl: expected exactly one testcase with classname='io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.mapper.AppDialogDateMapperTest' name='a restore success labels the date its backup was res"]
+```
+
+**K1:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exact root-factory flow requires 'remember(factory) { AppDialogFeature(factory) }' once in feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHost.kt
+```
+
+**K2:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exact root-factory flow requires 'AppDialogHost(factory = deps.appDialogGraphFactory)' once in app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt
+```
+
+**K3:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: mounted at the app root, so app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt must not name appDialogGraphFactory
+```
+
+**K4:** exit 1, RED as required; quoted topology failures:
+```text
+app:app: direct app-dialogs aggregation edge must remain api
+```
+
+**K5:** exit 1, RED as required; quoted topology failures:
+```text
+app:common: app-dialogs edge must be exactly one api dependency
+app:common: app-dialogs edge must not remain implementation
+```
+
+**K6:** exit 1, RED as required; quoted topology failures:
+```text
+remaining Context.appDeps readers are not the exact 1 unported entries; expected={PosixPath('feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt'): ['SettingsGraph.Factory']}, actual={PosixPath('feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt'): ['AppDialogGraph.Factory'], PosixPath('feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt'): ['SettingsGraph.Factory']}
+feature:app-dialogs:impl: src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt contains forbidden platform/lookup API 'LocalContext'
+feature:app-dialogs:impl: src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt contains forbidden platform/lookup API 'appDeps<'
+```
+
+**K7:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: Store State must stay semantic with exactly (('current', 'AppDialog?'), ('dateLabel', 'String')); actual=(('current', 'AppDialog?'), ('dateLabel', 'String?'))
+```
+
+**K8:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: updateState in src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt references 'resourceWrapper' inside the State lambda; resolve copy before it
+```
+
+**K9:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt must read the ResourceWrapper.formatMediumDate date exactly 2 time(s); found 1
+feature:app-dialogs:impl: D3's date path requires 'is AppDialog.UndoRestoreConfirmation -> resourceWrapper.formatMediumDate(originalDataDateEpochMs)' exactly once in mvi/mapper/AppDialogDateMapper.kt
+```
+
+**K10:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: the failure reason map must stay exactly twelve codes onto ten keys; expected={'NotAuthenticated': ['app_dialog_restore_failure_reason_not_authenticated'], 'NetworkUnavailable': ['app_dialog_restore_failure_reason_network_unavailable'], 'AuthRevoked': ['app_dialog_restore_failure_reason_auth_revoked'], 'MissingRequiredScope': ['app_dialog_restore_failure_reason_missing_required_scope'], 'StorageQuotaExceeded': ['app_dialog_restore_failure_reason_storage_quota_exceeded'], 'InsufficientLocalStorage': ['app_dialog_restore_failure_reason_io'], 'StorageCapacityUnavailable': ['app_dialog_restore_failure_reason_io'], 'CorruptedBackup': ['app_dialog_restore_failure_reason_corrupted_backup'], 'SchemaTooNew': ['app_dialog_restore_failure_reason_schema_too_new'], 'MissingMigrationPath': ['app_dialog_restore_failure_reason_missing_migration_path'], 'Io': ['app_dialog_restore_failure_reason_io'], 'Unknown': ['app_dialog_restore_failure_reason_unknown']}, actual={'NotAuthenticated': ['app_dialog_restore_failure_reason_not_authenticated'], 'NetworkUnavailable': ['app_dialog_restore_failure_reason_network_unavailable'], 'AuthRevoked': ['app_dialog_restore_failure_reason_auth_revoked'], 'MissingRequiredScope': ['app_dialog_restore_failure_reason_missing_required_scope'], 'StorageQuotaExceeded': ['app_dialog_restore_failure_reason_storage_quota_exceeded'], 'InsufficientLocalStorage': ['app_dialog_restore_failure_reason_io'], 'StorageCapacityUnavailable': ['app_dialog_restore_failure_reason_io'], 'CorruptedBackup': ['app_dialog_restore_failure_reason_corrupted_backup'], 'SchemaTooNew': ['app_dialog_restore_failure_reason_schema_too_new'], 'MissingMigrationPath': ['app_dialog_restore_failure_reason_missing_migration_path'], 'Io': ['app_dialog_restore_failure_reason_unknown'], 'Unknown': ['app_dialog_restore_failure_reason_unknown']}
+```
+
+**K11:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: project edges must be exactly ['core:core', 'core:data:backup:api', 'core:data:dataStore', 'core:ui:kit', 'core:ui:mvi', 'core:ui:test-utils', 'feature:app-dialogs:api']; actual=['core:core', 'core:data:backup:api', 'core:data:dataStore', 'core:data:database', 'core:ui:kit', 'core:ui:mvi', 'core:ui:test-utils', 'feature:app-dialogs:api']
+```
+
+**K12:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exact root-factory flow requires 'private fun AppGraph.appDialogs(): AppDialogGraph = appDialogGraphFactory.createAppDialogGraph()' once in app/app/src/test/kotlin/io/github/stslex/workeeper/di/AppDialogExtensionIdentityTest.kt
+feature:app-dialogs:impl: extension identities must not bypass AppRootDeps via asContribution
+```
+
+**K13:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/RestoreSuccessDialog.kt contains forbidden platform/lookup API 'uiMode'
+feature:app-dialogs:impl: RestoreSuccessDialog.kt preview inventory must be exactly ['name = "Light", showBackground = true', 'name = "Dark", showBackground = true', 'name = "No previous version", showBackground = true']; actual=['name = "Light", showBackground = true', 'name = "Dark", showBackground = true', 'name = "No previous version", showBackground = true, uiMode = 0x21']
+```
+
+**K14:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: D3's date path requires 'dateLabel = state.dateLabel,' exactly once in ui/AppDialogHost.kt
+```
+
+**K15:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exact test identities drifted in src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/AppDialogFeatureSceneIosTest.kt; missing=['resourcesDatesVariantsAndChoicesRenderAndDispatch'], unexpected=['resourcesDatesAndChoicesRenderAndDispatch']
+```
+
+**K16:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: suppressions must be exactly the one inherited production and zero Native test-name annotations; expected={'src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt': ['"UNCHECKED_CAST"']}, actual={'src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt': ['"UNCHECKED_CAST"'], 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepositoryTest.kt': ['"INVALID_CHARACTERS_NATIVE_ERROR"']}
+```
+
+**K17:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImplTest.kt contains forbidden test API 'io.mockk'
+```
+
+**K18:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exact private CMP catalog mismatch in feature/app-dialogs/impl/src/commonMain/composeResources/values-ru/strings.xml; mismatched=["app_dialog_undo_restore_confirmation_cancel: expected='Отмена', actual=('string', 'app_dialog_undo_restore_confirmation_cancel', 'Отменить')"], unexpected=[], order=exact
+```
+
+**K19:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:api: source manifest mismatch; missing=[], extra=['src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialogExtra.kt']
+```
+
+**K20:** exit 1, RED as required; quoted topology failures:
+```text
+feature:app-dialogs:impl: exactly nine portable previews are required; found 8
+feature:app-dialogs:impl: RestoreFailureDialog.kt preview contract requires '@Preview(name = "Dark", showBackground = true)' exactly once
+```
+
+After K20: `fresh GREEN equal; tracked porcelain empty; 20 rows, 0 off`.
+
+Census controls:
+```text
+Y1 rc 1 names ['E10 MockK test files: base=3 tree=1 -> NOT AT EXIT'] -> as required
+Y2 rc 1 names ["E5 catalog blobs: base=('eb21921800ae', 'd7f3c6797a7e') tree=('eb21921800ae', 'c79064155c14') -> NOT AT EXIT"] -> as required
+Y3 rc 1 names ['E17 App.kt mounts old / new: base=(1, 0) tree=(1, 1) -> NOT AT EXIT'] -> as required
+restored tree census exit 0
+tracked porcelain empty
+```
+
+All fifteen G anchors matched exactly once before execution. The unmutated TH and TB commands were the exact `g_rows.py` definitions, with R4's forced-execution flags added. Both were GREEN before and after the fifteen rows; TH had 6 suites / 43 cases, TB additionally 7 Native suites / 44 cases, all passing:
+
+| Gate / XML snapshot label | Command (common flags above) | Gradle evidence | Fresh XML |
+| --- | --- | --- | --- |
+| `controls/pre-TH` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest` | `148 actionable tasks: 148 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+| `controls/pre-TB` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest :feature:app-dialogs:impl:iosSimulatorArm64Test` | `233 actionable tasks: 233 executed` | 13 suites / 87 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/TEST-*.xml`; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+| `controls/post-TH` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest` | `148 actionable tasks: 148 executed` | 6 suites / 43 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+| `controls/post-TB` | `./gradlew :feature:app-dialogs:impl:testAndroidHostTest :feature:app-dialogs:impl:iosSimulatorArm64Test` | `233 actionable tasks: 233 executed` | 13 suites / 87 cases / 0 skipped; `feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/TEST-*.xml`; `feature/app-dialogs/impl/build/test-results/testAndroidHostTest/TEST-*.xml` |
+
+**G1:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G1: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogRepoHandlerTest', "Observe writes the dialog's formatted date beside it")] of 43 cases
+1 row(s), 0 off
+```
+
+**G2:** `233 actionable tasks: 233 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G2: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt -> RED (3 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogDateMapperTest', 'a restore success labels the date its backup was restored')] of 43 cases
+  native: RED exactly [('AppDialogDateMapperTest', 'a restore success labels the date its backup was restored'), ('AppDialogFeatureSceneIosTest', 'resourcesDatesVariantsAndChoicesRenderAndDispatch')] of 44 cases
+1 row(s), 0 off
+```
+
+**G3:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G3: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt -> RED (2 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogDateMapperTest', 'an undo confirmation labels the date of the data it brings back'), ('AppDialogRepoHandlerTest', "Observe writes the dialog's formatted date beside it")] of 43 cases
+1 row(s), 0 off
+```
+
+**G4:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G4: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogDateMapperTest', 'a failure or an undo success or no dialog labels nothing and formats nothing')] of 43 cases
+1 row(s), 0 off
+```
+
+**G5:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G5: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('ChooseHandlerTest', 'Choose emits the choice to the observer')] of 43 cases
+1 row(s), 0 off
+```
+
+**G6:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G6: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('ChooseHandlerTest', 'Choose does NOT dismiss the dialog — the consumer is responsible')] of 43 cases
+1 row(s), 0 off
+```
+
+**G7:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G7: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImpl.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogObserverImplTest', 'acknowledgeReaction delegates to repository dismiss')] of 43 cases
+1 row(s), 0 off
+```
+
+**G8:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G8: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogRepoHandlerTest', 'Publish forwards dialog to repository')] of 43 cases
+1 row(s), 0 off
+```
+
+**G9:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G9: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogRepoHandlerTest', 'Dismiss forwards dialog to repository')] of 43 cases
+1 row(s), 0 off
+```
+
+**G10:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G10: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogRepoHandlerTest', 'Observe sets state to null when repository emits null')] of 43 cases
+1 row(s), 0 off
+```
+
+**G11:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G11: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImpl.kt -> RED (2 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogObserverImplTest', 'emit with no subscriber buffers up to capacity without suspending'), ('ChooseHandlerTest', 'Choose does NOT dismiss the dialog — the consumer is responsible')] of 43 cases
+1 row(s), 0 off
+```
+
+**G12:** `233 actionable tasks: 233 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G12: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepository.kt -> RED (16 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogRepoHandlerTest', 'Observe updates state when repository emits a dialog'), ('AppDialogRepositoryTest', 'dedup is per-variant — pending RestoreFailure does not block RestoreSuccess publish'), ('AppDialogRepositoryTest', "dismiss clears only the named variant's flags"), ('AppDialogRepositoryTest', 'dismiss the only pending variant emits null'), ('AppDialogRepositoryTest', 'new owned terminal payload replaces a stale pending payload'), ('AppDialogRepositoryTest', 'new terminal owner replaces identical payload and stale dismiss preserves it'), ('AppDialogRepositoryTest', 'publish RestoreSuccess surfaces the variant with payload'), ('AppDialogRepositoryTest', 'publish then dismiss then publish same variant succeeds — the flag was cleared')] of 43 cases
+  native: RED exactly [('AppDialogRepoHandlerTest', 'Observe updates state when repository emits a dialog'), ('AppDialogRepositoryTest', 'dedup is per-variant — pending RestoreFailure does not block RestoreSuccess publish'), ('AppDialogRepositoryTest', "dismiss clears only the named variant's flags"), ('AppDialogRepositoryTest', 'dismiss the only pending variant emits null'), ('AppDialogRepositoryTest', 'new owned terminal payload replaces a stale pending payload'), ('AppDialogRepositoryTest', 'new terminal owner replaces identical payload and stale dismiss preserves it'), ('AppDialogRepositoryTest', 'publish RestoreSuccess surfaces the variant with payload'), ('AppDialogRepositoryTest', 'publish then dismiss then publish same variant succeeds — the flag was cleared')] of 44 cases
+1 row(s), 0 off
+```
+
+**G13:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G13: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImpl.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogObserverImplTest', 'late subscriber does NOT receive past emissions — replay = 0 and no persisted-choice replay')] of 43 cases
+1 row(s), 0 off
+```
+
+**G14:** `148 actionable tasks: 148 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G14: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolver.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [('AppDialogResolverTest', 'RestoreSuccess wins when RestoreFailure is absent')] of 43 cases
+1 row(s), 0 off
+```
+
+**G15:** `233 actionable tasks: 233 executed`; mutation restored, exact inventory and RED set verified:
+```text
+G15: harness exit 0: ['=== one-shot: feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt -> RED (1 test(s))', '      expected RED: OK']
+  host: RED exactly [] of 43 cases
+  native: RED exactly [('AppDialogFeatureSceneIosTest', 'resourcesDatesVariantsAndChoicesRenderAndDispatch')] of 44 cases
+1 row(s), 0 off
+```
+
+Every O/K/Y/G row matched its required verdict. No compile failure, reused task output, missing XML, extra failed identity or failed restoration was accepted as RED.
+
+### 19.5 Exit census and boundary
+
+Commit 5's census had exactly E19, E20 and E21 off. On commit 6, and again after Y3, the census exited 0 with all twenty-two rows at exit:
+```text
+E1 api source sets: base={'main': 5} tree={'commonMain': 5} -> ok
+E2 api plugin: base='convention.androidLibrary' tree='convention.kmpLibrary' -> ok
+E3 impl source sets: base={'androidTest': 1, 'main': 23, 'test': 5} tree={'androidDeviceTest': 1, 'androidHostTest': 1, 'commonMain': 23, 'commonTest': 7, 'iosTest': 2} -> ok
+E4 impl plugin: base='convention.composeLibrary' tree='convention.kmpComposeLibrary' -> ok
+E5 catalog blobs: base=('eb21921800ae', 'd7f3c6797a7e') tree=('eb21921800ae', 'd7f3c6797a7e') -> ok
+E6 portable identities: base=(39, 'b1e9c0b98356a58f') tree=(44, '4666f71428554a91') -> ok
+E7 device identities: base=(10, '82e9964f235c9a1b') tree=(10, '82e9964f235c9a1b') -> ok
+E8 Native-rejected names: base=2 tree=0 -> ok
+E9 platform reads in production: base=39 tree=0 -> ok
+E10 MockK test files: base=3 tree=0 -> ok
+E11 Context.appDeps readers: base=2 tree=1 -> ok
+E12 asContribution in the identity test: base=2 tree=0 -> ok
+E13 RestoreRecoveryFiles in app-dialogs: base=2 tree=0 -> ok
+E14 InstallEpochSource declared / bound: base=(0, 0) tree=(1, 1) -> ok
+E15 formatMediumDate in ui / mapper: base=(3, 0) tree=(0, 2) -> ok
+E16 previews / uiMode: base=(9, 4) tree=(9, 0) -> ok
+E17 App.kt mounts old / new: base=(1, 0) tree=(0, 1) -> ok
+E18 app:common impl edge: base=['implementation'] tree=['api'] -> ok
+E19 iOS job: tests / links / $linked/N: base=(16, 16, ['16']) tree=(17, 17, ['17']) -> ok
+E20 oracle modules: base=16 tree=17 -> ok
+E21 gate entries / modules: base=(9, 13) tree=(10, 15) -> ok
+E22 harness exact task match: base=0 tree=1 -> ok
+0 item(s) off
+```
+
+Commit 3 had five R100 API moves and commit 5 eighteen R100 moves. The final implementation retains seventeen R100 moves against the base; the module's 36 paths became 41. Both catalog blobs remain `eb21921800ae…` and `d7f3c6797a7e…`. No golden was recorded and no PNG blob changed. No suppression was added. The final seven-commit diff check requires exactly 40 A / 34 D / 18 M, plus this specification as M (93 paths); it is repeated after this commit.
+
+### 19.6 Repository, Native and device exit gates
+
+| Gate / XML snapshot label | Command (common flags above) | Gradle evidence | Fresh XML |
+| --- | --- | --- | --- |
+| `exit/host` | `./gradlew assembleDebug lintDebug testDebugUnitTest` | `2885 actionable tasks: 2885 executed` | 475 suites / 3389 cases / 0 skipped; per-module XML roots in the tables below |
+| `exit/lint-rules` | `./gradlew :lint-rules:test` | `9 actionable tasks: 9 executed` | 16 suites / 151 cases / 0 skipped; `lint-rules/build/test-results/test/TEST-*.xml` |
+| `exit/detekt` | `./gradlew detekt` | `63 actionable tasks: 63 executed` | no test XML expected |
+| `exit/native` | `N17` | `467 actionable tasks: 467 executed` | 122 suites / 906 cases / 0 skipped; per-module XML roots in the tables below |
+| `exit/link` | `L17` | `450 actionable tasks: 450 executed` | no test XML expected |
+| `exit/device-dialogs` | `./gradlew :feature:app-dialogs:impl:connectedDebugAndroidTest` | `217 actionable tasks: 217 executed` | 1 suites / 10 cases / 0 skipped; `feature/app-dialogs/impl/build/outputs/androidTest-results/connected/androidMain/TEST-*.xml` |
+| `exit/device-app` | `./gradlew :app:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest,io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest,io.github.stslex.workeeper.app.UiAdmissionRaceTest,io.github.stslex.workeeper.app.UiGenerationSwapTest,io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest` | `752 actionable tasks: 752 executed` | 5 suites / 12 cases / 0 skipped; `app/app/build/outputs/androidTest-results/connected/debug/TEST-*.xml` |
+| `exit/smoke` | `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke` | `2116 actionable tasks: 2116 executed` | 12 suites / 44 cases / 3 skipped; per-module XML roots in the tables below |
+| `exit/regression` | `./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression` | `2116 actionable tasks: 2116 executed` | 27 suites / 88 cases / 0 skipped; per-module XML roots in the tables below |
+
+The repository gate had 475 suites / 3389 cases. All 33 unaffected module/task rows matched HOST_BASELINE by exact identity and outcome. Only app-dialogs changed: 5 → 6 suites, 39 → 43 cases, with the two required renames. All 77 fresh lint reports were compared by module, finding ID, severity, source path and source-line text: the same 480 baseline advisory occurrences, no errors and no finding on a changed Section 7 path. MVI topology remained byte-identical to BASE_MVI_TOPOLOGY; topology remained the six-path 1034-line output above.
+
+| Host XML root (`TEST-*.xml`) | Base suites/cases | Exit suites/cases |
+| --- | ---: | ---: |
+| `app/app/build/test-results/testDebugUnitTest` | 23/200 | 23/200 |
+| `app/common/build/test-results/testDebugUnitTest` | 4/37 | 4/37 |
+| `app/wear/build/test-results/testDevDebugUnitTest` | 94/360 | 94/360 |
+| `app/wear/build/test-results/testStoreDebugUnitTest` | 94/360 | 94/360 |
+| `app/wear/build/test-results/verifyEmulatorAcceptanceRunner` | 1/65 | 1/65 |
+| `core/core/build/test-results/testAndroidHostTest` | 9/46 | 9/46 |
+| `core/data/backup/api/build/test-results/testAndroidHostTest` | 1/1 | 1/1 |
+| `core/data/backup/google-drive/build/test-results/testDebugUnitTest` | 11/109 | 11/109 |
+| `core/data/backup/scheduling/build/test-results/testDebugUnitTest` | 2/49 | 2/49 |
+| `core/data/backup/worker/build/test-results/testDebugUnitTest` | 3/27 | 3/27 |
+| `core/data/dataStore/build/test-results/testAndroidHostTest` | 2/5 | 2/5 |
+| `core/data/database/build/test-results/testAndroidHostTest` | 33/166 | 33/166 |
+| `core/data/exercise/build/test-results/testAndroidHostTest` | 20/222 | 20/222 |
+| `core/ui/kit/build/test-results/testAndroidHostTest` | 30/423 | 30/423 |
+| `core/ui/mvi/build/test-results/testAndroidHostTest` | 8/38 | 8/38 |
+| `core/ui/navigation/build/test-results/testAndroidHostTest` | 1/1 | 1/1 |
+| `core/ui/plan-editor/build/test-results/testAndroidHostTest` | 1/19 | 1/19 |
+| `core/ui/start-mode/build/test-results/testAndroidHostTest` | 1/1 | 1/1 |
+| `core/wear-protocol/build/test-results/test` | 8/51 | 8/51 |
+| `feature/all-exercises/build/test-results/testAndroidHostTest` | 10/66 | 10/66 |
+| `feature/all-trainings/build/test-results/testAndroidHostTest` | 9/49 | 9/49 |
+| `feature/app-dialogs/impl/build/test-results/testAndroidHostTest` | 5/39 | 6/43 |
+| `feature/archive/build/test-results/testAndroidHostTest` | 5/25 | 5/25 |
+| `feature/exercise-chart/build/test-results/testAndroidHostTest` | 9/72 | 9/72 |
+| `feature/exercise/build/test-results/testAndroidHostTest` | 10/142 | 10/142 |
+| `feature/home/build/test-results/testAndroidHostTest` | 12/70 | 12/70 |
+| `feature/image-viewer/build/test-results/testAndroidHostTest` | 3/12 | 3/12 |
+| `feature/live-workout/build/test-results/testAndroidHostTest` | 21/235 | 21/235 |
+| `feature/past-session/build/test-results/testAndroidHostTest` | 7/41 | 7/41 |
+| `feature/plan-editor/build/test-results/testAndroidHostTest` | 6/42 | 6/42 |
+| `feature/recovery/build/test-results/testDebugUnitTest` | 8/96 | 8/96 |
+| `feature/settings/build/test-results/testDebugUnitTest` | 10/120 | 10/120 |
+| `feature/single-training/build/test-results/testAndroidHostTest` | 4/62 | 4/62 |
+| `feature/wear-bridge/build/test-results/testDebugUnitTest` | 9/134 | 9/134 |
+
+| Native XML root (`TEST-*.xml`) | Suites/cases |
+| --- | ---: |
+| `core/ui/kit/build/test-results/iosSimulatorArm64Test` | 2/2 |
+| `core/ui/mvi/build/test-results/iosSimulatorArm64Test` | 5/23 |
+| `core/ui/navigation/build/test-results/iosSimulatorArm64Test` | 1/1 |
+| `core/ui/plan-editor/build/test-results/iosSimulatorArm64Test` | 2/20 |
+| `core/ui/start-mode/build/test-results/iosSimulatorArm64Test` | 2/2 |
+| `feature/all-exercises/build/test-results/iosSimulatorArm64Test` | 11/67 |
+| `feature/all-trainings/build/test-results/iosSimulatorArm64Test` | 10/50 |
+| `feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test` | 7/44 |
+| `feature/archive/build/test-results/iosSimulatorArm64Test` | 6/26 |
+| `feature/exercise-chart/build/test-results/iosSimulatorArm64Test` | 9/69 |
+| `feature/exercise/build/test-results/iosSimulatorArm64Test` | 11/143 |
+| `feature/home/build/test-results/iosSimulatorArm64Test` | 14/72 |
+| `feature/image-viewer/build/test-results/iosSimulatorArm64Test` | 4/13 |
+| `feature/live-workout/build/test-results/iosSimulatorArm64Test` | 19/227 |
+| `feature/past-session/build/test-results/iosSimulatorArm64Test` | 7/41 |
+| `feature/plan-editor/build/test-results/iosSimulatorArm64Test` | 7/43 |
+| `feature/single-training/build/test-results/iosSimulatorArm64Test` | 5/63 |
+
+The final Native oracle verified seventeen modules, including `feature:app-dialogs:impl: 44 executed / 0 skipped / 0 failed / 0 errored — verified 44 exact identities`. All sixteen unaffected modules also matched NATIVE_BASELINE in full. Device-target executables were checked individually for existence and modification time after the final link start: `17/17 linked`.
+
+Android gates used only the recorded API-34 `emulator-5554`, with animations disabled and keyguard dismissed; instrumentation, rotation, animation scales and package update times were sampled before and after each gate. Around every exit suite a dedicated threadtime logcat writer was started after clearing logcat and stopped by its recorded PID. The exact Smoke/Regression name inventory was read from the base git objects and annotation selection, including method-level Regression; its 12/44/3 and 27/88/0 suites/cases/skips match Phase 7.16 Section C17.6's executed record. Current fresh XML matched every tuple and outcome; the previous run's raw XML was not available on this host. The three Smoke skips remain `pendingFeatureRewrite` in archive, all-trainings and all-exercises. `assert_mvi_device_identities.py` verified the same two MVI device identities after Smoke.
+
+- `device-dialogs` logcat: no E-priority `SCREEN_` lines.
+- `device-app` logcat: no E-priority `SCREEN_` lines.
+- `smoke` logcat: no E-priority `SCREEN_` lines.
+- `regression` logcat: no E-priority `SCREEN_` lines.
+
+Commit 7 applies the five documentation reference paths, changes only this specification's Status and Section 19, and repeats the topology, MVI, personal-data and separate Detekt gates. The mandatory module test also runs on its staged tree. These final documentation-commit checks and the post-commit path/signature checks are recorded in the maintainer handoff because their final commit object does not exist while this section is being written.
+
+### 19.7 Environment
+
+- Xcode 27.0 (27A266a), first launch complete; installed iOS runtimes 18.0, 18.2, 18.6 and 26.5. CI selects Xcode 26.6. JDK 21.0.11 (JBR). SDK and existing local signing/configuration files were used in place; their contents were not printed, copied or moved.
+- Python paths: `/Users/stslex/.local/bin/python3.11` 3.11.16; `/opt/homebrew/bin/python3` 3.15.2; `/opt/homebrew/bin/python3.13` 3.13.18; `/opt/homebrew/bin/python3.14` 3.14.10; `/opt/homebrew/bin/python3.15` 3.15.2; `/usr/bin/python3` 3.9.6. The two 3.15 paths were both executed even though they resolve to the same interpreter.
+- AC power and open lid were rechecked before resuming; `caffeinate -dims` covered accepted work. The entry power interruptions are described below. Only owned Android emulator PIDs were stopped; the emulator was shut down between device and heavy Native work. Final emulator/caffeinate shutdown is checked again before requesting review.
+- Every Gradle invocation, mutation harness child and commit hook used this run's isolated daemon registry. Before each load-bearing gate, Gradle clients/daemon command lines and cwd were sampled; no competing device-capable client was admitted. Free disk, `vm_stat` and swap were sampled around every load-bearing Gradle gate. No disk-full recovery was required. Spotlight indexing was enabled and left unchanged.
+
+### 19.8 Approved repairs and deviations
+
+1. C4's reference built and passed 43 tests, but executed Detekt reported `UnusedParameter` for `UndoRestoreConfirmationDialog`'s `dialog` parameter. The maintainer approved a Section 0.4(b) amendment: remove that unused renderer parameter, its host/preview arguments and two obsolete preview imports; preserve the host's dialog-capturing callbacks. The matching change was carried through c5's commonMain move. C4's original digest was checked before repair; the original c4/c5 chain was also replayed and digest-checked in a temporary index before applying the approved replacement c5. No user file or real index was changed by that proposal replay.
+
+Repair snapshot `c4/approved-repair.json`:
+```diff
+--- a/feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt
++++ b/feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt
+@@ -36,7 +36,6 @@
+         )
+ 
+         is AppDialog.UndoRestoreConfirmation -> UndoRestoreConfirmationDialog(
+-            dialog = dialog,
+             dateLabel = dateLabel,
+             onConfirm = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.ConfirmUndo)) },
+             onCancel = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Cancel)) },
+--- a/feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt
++++ b/feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt
+@@ -6,8 +6,6 @@
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.window.DialogProperties
+-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+-import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
+ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialog
+ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
+@@ -22,7 +20,6 @@
+  */
+ @Composable
+ internal fun UndoRestoreConfirmationDialog(
+-    dialog: AppDialog.UndoRestoreConfirmation,
+     dateLabel: String,
+     onConfirm: () -> Unit,
+     onCancel: () -> Unit,
+@@ -51,12 +48,6 @@
+ private fun UndoRestoreConfirmationDialogPreview() {
+     AppTheme {
+         UndoRestoreConfirmationDialog(
+-            dialog = AppDialog.UndoRestoreConfirmation(
+-                undoRef = UndoRef(
+-                    RestoreOwnerId("00000000-0000-4000-8000-000000000009"),
+-                ),
+-                originalDataDateEpochMs = 1_700_000_000_000L,
+-            ),
+             dateLabel = "Nov 14, 2023",
+             onConfirm = {},
+             onCancel = {},
+```
+
+- `feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt`: `f39770af2c8b8ed581f1eebd4b39e64e25e0543f` → `1e4d872089d8a3a40fb57ea3b5a46d2874821594`.
+- `feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt`: `fd0a3d16d0fbead1c0e3d158f07a30d591a84496` → `ba9e3698fe11395bc30e7f75d04890fa018637ac`.
+
+Repair snapshot `c5/approved-repair.json`:
+```diff
+diff --git a/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt b/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt
+index f39770af2c8b8ed581f1eebd4b39e64e25e0543f..1e4d872089d8a3a40fb57ea3b5a46d2874821594 100644
+--- a/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt
++++ b/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt
+@@ -36,7 +36,6 @@ internal fun AppDialogHostContent(
+         )
+ 
+         is AppDialog.UndoRestoreConfirmation -> UndoRestoreConfirmationDialog(
+-            dialog = dialog,
+             dateLabel = dateLabel,
+             onConfirm = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.ConfirmUndo)) },
+             onCancel = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Cancel)) },
+diff --git a/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt b/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt
+index af508b6b83d50cbad8006d43e43a3ee052cde870..4f44c71277e95e562cb4717a10d4be6fa13816fa 100644
+--- a/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt
++++ b/feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt
+@@ -4,8 +4,6 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.ui
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.window.DialogProperties
+-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+-import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
+ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialog
+ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+@@ -26,7 +24,6 @@ import org.jetbrains.compose.resources.stringResource
+  */
+ @Composable
+ internal fun UndoRestoreConfirmationDialog(
+-    dialog: AppDialog.UndoRestoreConfirmation,
+     dateLabel: String,
+     onConfirm: () -> Unit,
+     onCancel: () -> Unit,
+@@ -65,12 +62,6 @@ private fun UndoRestoreConfirmationDialogDarkPreview() {
+ private fun UndoRestoreConfirmationDialogPreview(themeMode: ThemeMode) {
+     AppTheme(themeMode = themeMode) {
+         UndoRestoreConfirmationDialog(
+-            dialog = AppDialog.UndoRestoreConfirmation(
+-                undoRef = UndoRef(
+-                    RestoreOwnerId("00000000-0000-4000-8000-000000000009"),
+-                ),
+-                originalDataDateEpochMs = 1_700_000_000_000L,
+-            ),
+             dateLabel = "Nov 14, 2023",
+             onConfirm = {},
+             onCancel = {},
+```
+
+- `feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt`: `f39770af2c8b8ed581f1eebd4b39e64e25e0543f` → `1e4d872089d8a3a40fb57ea3b5a46d2874821594`.
+- `feature/app-dialogs/impl/src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt`: `af508b6b83d50cbad8006d43e43a3ee052cde870` → `4f44c71277e95e562cb4717a10d4be6fa13816fa`.
+
+2. C5's first early gate reported `234 actionable tasks: 234 executed` and compiled on both targets, but the same three Observe identities failed on host and Native. All sixteen real file DataStore identities and the Native scene passed. Their background collector had not run: `advanceUntilIdle()` stops when only `backgroundScope` work remains. The maintainer approved replacing that scheduler step by `runCurrent()` only in the three Observe tests, plus its import. Names, repository setup, production calls, assertions, D5 and the scene were preserved. See the [coroutines backgroundScope contract](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-scope/background-scope.html). The repeated early gate reported `233 actionable tasks: 233 executed`, host 43/43 and Native 44/44; every subsequent positive gate and required negative control used the repaired tree.
+
+```diff
+--- a/feature/app-dialogs/impl/src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt
++++ b/feature/app-dialogs/impl/src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt
+@@ -31,6 +31,7 @@
+ import kotlinx.coroutines.test.TestDispatcher
+ import kotlinx.coroutines.test.TestScope
+ import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.runCurrent
+ import kotlinx.coroutines.test.runTest
+ import kotlinx.coroutines.withContext
+ import kotlin.test.Test
+@@ -74,7 +75,7 @@
+         val handler = AppDialogRepoHandler(repository, resources, store)
+ 
+         handler.invoke(Action.RepoAction.Observe)
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertEquals(dialog, store.state.value.current)
+     }
+@@ -91,7 +92,7 @@
+         val handler = AppDialogRepoHandler(repository, resources, store)
+ 
+         handler.invoke(Action.RepoAction.Observe)
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertNull(store.state.value.current)
+     }
+@@ -108,7 +109,7 @@
+         val handler = AppDialogRepoHandler(repository, resources, store)
+ 
+         handler.invoke(Action.RepoAction.Observe)
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertEquals(State(current = dialog, dateLabel = "medium:2000"), store.state.value)
+     }
+```
+
+`feature/app-dialogs/impl/src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt`: `c6cc7b0251672d950b50113702d815fa7c4f91b5` → `4d4f31e81fa2ef23e749c94ba1db2c588bb281b6`.
+
+| Approved reference | Patch SHA-256 | Staged digest | No-renames numstat |
+| --- | --- | --- | --- |
+| c4 | `1a680290aaf21e9cbaa385745bfa997d224229b2dc594922fc82209a3e3a4c93` | `6ca0195e21132dc6fe8b917fa702b524a76bbb5167dfb2f3059ebd943a745a16` | +175 −48 |
+| c5 after renderer repair | `be1aa217f5e0cd2b8570751e8e900e8b7701cb8f6c61e34c98f91881777456b9` | `6e84f28e371e88842f6ed34bf5409b451657a59752ceffa85a319005d7df6817` | +3042 −2305 |
+| c5 after scheduler repair | `9a9854c338b903172a790055a8ae607c43e5d1331e05b9982209f42a1bac65eb` | `2004870315c807001c89b527fa943c757878f4f2b642ecbbac3d2b8a51d7f079` | +3043 −2305 |
+
+3. The c3 pre-commit hook inherited project-default Gradle heap/workers (8g/4); all evidence gates explicitly used 4g/2 or device 3g/2. Future commit commands also constrain the hook through GRADLE_OPTS.
+4. Gradle outgoingVariants threw ConcurrentModificationException in ConfigurationReportModelFactory on both app-dialogs and unchanged live-workout, even with --no-parallel. With the standard dependencies report first in the same invocation, the unmodified outgoingVariants passed (6/6 executed). No project or gate script changed.
+5. Power preflight stopped earlier device attempts. One shell wrapper continued to boot an emulator after its preceding preflight failed because the commands were separated by a newline. That owned emulator and caffeinate were stopped immediately; no device Gradle gate started in that attempt. The replacement Python preflight checked three samples and aborted before spawning anything on failure. Accepted device results came only from the corrected path.
+6. The unchanged canonical K tool's final internal `git status` uses its explicit MAIN cwd instead of a `-C` argument. Its caller additionally checked `git -C MAIN` before and after; no kit file was rewritten to change the tool's command.
+
+7. The final documentation pre-test attempt stopped in preflight with AC power present and `AppleClamshellState = Yes`, before Gradle started. The owned caffeinate and isolated daemons were stopped; the Android emulator was already down. After the maintainer reopened the lid, three AC/open-lid samples passed and caffeinate was restarted. The unexecuted attempt was archived separately and contributes no green gate evidence.
+
+### 19.9 Verification limits and handoff
+
+No physical iOS device was used: iosArm64 test binaries were linked, never executed. The Native scene covers production renderers, EN resources, the date mapper with the specified date stub and all choices; it does not instantiate the app-root Store/Metro graph. Android extension and generation device tests cover that graph. RU values are pinned statically, and `AppDialogHost`'s two State reads and root-factory flow are pinned statically. The owner's post-merge dev-device check remains Section 17's non-gate: Drive restore success with its date, Undo confirmation with its date and undo success, EN and RU, and a restore failure if one can be forced. Section 18's Q1/settings policy, two dead actions, Activity-scoped wording, skills file and primary-locale item remain carried decisions. The maintainer merges; this implementation neither merges nor enables auto-merge.
 
 ---
 
