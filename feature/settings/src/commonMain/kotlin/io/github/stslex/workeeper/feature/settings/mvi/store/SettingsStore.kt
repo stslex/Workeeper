@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.settings.mvi.store
+
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedCountsUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.SettingsAuthRequest
+import io.github.stslex.workeeper.feature.settings.mvi.model.SettingsAuthResult
+import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
+import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
+import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
+
+interface SettingsStore : Store<State, Action, Event> {
+
+    @Stable
+    data class State(
+        val themeMode: ThemeMode,
+
+        /**
+         * The Home start card's readout mode, or null until the preference's first emission.
+         * GUARD: never substitute a default — a guess is indistinguishable from a real reading.
+         */
+        val startCardMode: StartCardModeUi?,
+        val appVersion: String,
+        val appVersionCode: Int,
+        val backupAvailable: Boolean,
+        val backupAuth: BackupAuthUi,
+        val backupOperation: BackupOperationUi,
+        val dialogState: DialogState,
+        val backupInfo: BackupInfoUi,
+        val backupPreferences: BackupPreferencesUi?,
+        val restoreProgress: RestoreProgressUi,
+        val canRevertLastRestore: Boolean,
+
+        /** The Archive row's drawn sub-line, or null until the counts arrive. */
+        val archivedCounts: ArchivedCountsUi?,
+    ) : Store.State {
+
+        companion object {
+
+            fun initial(
+                appVersion: String,
+                appVersionCode: Int,
+                backupAvailable: Boolean,
+            ): State = State(
+                themeMode = ThemeMode.SYSTEM,
+                startCardMode = null,
+                appVersion = appVersion,
+                appVersionCode = appVersionCode,
+                backupAvailable = backupAvailable,
+                backupAuth = BackupAuthUi.NotAuthenticated,
+                backupOperation = BackupOperationUi.Idle,
+                dialogState = DialogState.Hidden,
+                backupInfo = BackupInfoUi.Unknown,
+                backupPreferences = null,
+                restoreProgress = RestoreProgressUi.Idle,
+                canRevertLastRestore = false,
+                archivedCounts = null,
+            )
+        }
+    }
+
+    @Stable
+    sealed interface Action : Store.Action {
+
+        sealed interface Paging : Action {
+
+            data object Init : Paging
+        }
+
+        sealed interface Click : Action {
+
+            data object OnStartCardModeClick : Click
+
+            /** Sheet dismissal — no haptic, per the cancel/dismiss convention. */
+            data object OnStartCardModeSheetDismiss : Click
+
+            data object OnArchiveClick : Click
+            data object OnGitHubClick : Click
+            data object OnLicenseClick : Click
+            data object OnPrivacyPolicyClick : Click
+        }
+
+        sealed interface Input : Action {
+
+            data class OnThemeChange(val mode: ThemeMode) : Input
+
+            /** A row of the mode sheet: persist (HS6) and close; state follows DataStore. */
+            data class OnStartCardModeChange(val mode: StartCardModeUi) : Input
+        }
+
+        sealed interface Navigation : Action {
+
+            data object Back : Navigation
+
+            data object OpenArchive : Navigation
+
+            data object RestartApp : Navigation
+        }
+
+        sealed interface Backup : Action {
+
+            data object ObserveAuth : Backup
+            data object ObservePreferences : Backup
+            data object ObserveRestoreState : Backup
+            data object RequestRevertLastRestore : Backup
+            data object SignIn : Backup
+            data class HandleAuthResult(val result: SettingsAuthResult) : Backup
+            data object RequestSignOut : Backup
+            data object ConfirmSignOut : Backup
+            data object DismissSignOutConfirmation : Backup
+            data object CreateBackup : Backup
+            data object RequestRestore : Backup
+            data object ConfirmRestore : Backup
+            data object DismissRestoreDialog : Backup
+            data object LoadBackupList : Backup
+            data object OpenFrequencyPicker : Backup
+            data object DismissFrequencyPicker : Backup
+            data class SaveFrequency(
+                val schedule: BackupScheduleUi,
+                val allowOnMobileData: Boolean,
+            ) : Backup
+
+            data class UpdateFrequencyPickerSelection(
+                val schedule: BackupScheduleUi,
+                val allowOnMobileData: Boolean,
+            ) : Backup
+
+            data class ToggleAiExport(val enabled: Boolean) : Backup
+        }
+    }
+
+    @Stable
+    sealed interface Event : Store.Event {
+
+        data class ShowExternalLink(val url: String) : Event
+
+        data class Haptic(val type: HapticFeedbackType) : Event
+
+        data class AuthResolutionRequested(val request: SettingsAuthRequest) : Event
+
+        data class ShowBackupError(val error: BackupErrorUi) : Event
+
+        data object ShowBackupCreated : Event
+
+        data object ShowAutoBackupEnabledSnackbarRequested : Event
+
+        data object ShowAiExportAccessNeeded : Event
+    }
+}

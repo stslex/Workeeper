@@ -27,7 +27,7 @@ dependencies {
     implementation(libs.bundles.lifecycle)
 
     // The twelve entry providers AppNavigationHost composes.
-    implementation(project(":feature:settings"))
+    api(project(":feature:settings"))
     api(project(":feature:all-trainings"))
     api(project(":feature:all-exercises"))
     api(project(":feature:past-session"))

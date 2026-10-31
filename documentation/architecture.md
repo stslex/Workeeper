@@ -94,6 +94,17 @@ feature entry: its Store, handlers, Metro extension, UI, and private resources c
 [features.md](features.md); their conventional layout is described under
 [Per-feature MVI layout](#per-feature-mvi-layout).
 
+Settings is a shared KMP Compose entry with a local platform boundary. The admitted root passes
+`SettingsGraph.Factory` through `AppRootDeps` and `AppNavigationHost`; the destination remembers
+`SettingsFeature(factory)` and reads the Store once inside retained creation. Common Settings
+owns general preferences and all renderers. Android owns backup/auth/scheduling/restore/undo
+orchestration and typed platform auth wrappers. The selected `SettingsBackupHandler` alone owns
+availability: Android is available; the iOS object is inert and unavailable. State derives the
+flag from that handler, skips backup startup observers when unavailable, and guards every backup
+surface while keeping general Settings actions. See
+[Phase 7.18](feature-specs/kmp-phase-7-18-settings-feature.md) for its acceptance evidence and
+explicitly deferred iOS backend.
+
 ### `build-logic/`
 
 Convention plugins applied via the version catalog plugin aliases
@@ -524,17 +535,18 @@ seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers s
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
 not depend on `core:ui:mvi`). Image-viewer, plan-editor, archive, all-trainings, all-exercises,
-past-session, home, exercise-chart, single-training, exercise, live-workout, and app-dialogs no
+past-session, home, exercise-chart, single-training, exercise, live-workout, app-dialogs, and Settings no
 longer use the feature-side Context seam: `AppGraph.imageViewerGraphFactory`,
 `AppGraph.planEditorGraphFactory`,
 `AppGraph.archiveGraphFactory`, `AppGraph.allTrainingsGraphFactory`,
 `AppGraph.allExercisesGraphFactory`, `AppGraph.pastSessionGraphFactory`,
 `AppGraph.homeGraphFactory`, `AppGraph.exerciseChartGraphFactory`,
 `AppGraph.singleTrainingGraphFactory`, `AppGraph.exerciseGraphFactory`,
-`AppGraph.liveWorkoutGraphFactory`, and `AppGraph.appDialogGraphFactory` implement the accessors
+`AppGraph.liveWorkoutGraphFactory`, `AppGraph.appDialogGraphFactory`, and
+`AppGraph.settingsGraphFactory` implement the accessors
 declared by `AppRootDeps`, and the admitted composition reads that root contract exactly once.
 Retired generations and generations that lose the publication race resolve it zero times.
-Exactly 1 feature Context reader remains: settings.
+No feature Context factory reader remains after the Settings conversion.
 
 ### Feature graphs (`@GraphExtension`)
 

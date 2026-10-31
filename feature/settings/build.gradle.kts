@@ -1,42 +1,72 @@
 plugins {
-    alias(libs.plugins.convention.composeLibrary)
-    // The largest feature graph — it inherits the most app-scoped bindings.
+    alias(libs.plugins.convention.kmpComposeLibrary)
     alias(libs.plugins.metro)
-    // Goldens for the settings surface; the harness comes from core:ui:golden-harness.
     alias(libs.plugins.paparazzi)
 }
 
-// includeJavax keeps @DefaultDispatcher and @IODispatcher distinct as binding keys.
+compose.resources {
+    packageOfResClass = "io.github.stslex.workeeper.feature.settings.resources"
+}
+
 metro {
     interop {
         includeJavax()
     }
 }
 
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:core"))
+            implementation(project(":core:data:dataStore"))
+            implementation(project(":core:data:exercise"))
+            api(project(":core:ui:kit"))
+            api(project(":core:ui:start-mode"))
+            api(project(":core:ui:mvi"))
+            api(project(":core:ui:navigation"))
+            api(libs.cmp.ui)
+            api(libs.coroutines.core)
+            implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.cmp.animation)
+            implementation(libs.cmp.material.icons.extended)
+        }
+        androidMain.dependencies {
+            implementation(project(":core:data:backup:api"))
+            implementation(project(":core:data:database"))
+            implementation(project(":feature:app-dialogs:api"))
+            implementation(libs.androidx.compose.activity)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.coroutine.test)
+        }
+        iosTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.cmp.ui.test)
+        }
+    }
+}
+
 dependencies {
-    implementation(project(":core:core"))
+    "androidHostTestImplementation"(libs.robolectric)
+    "androidHostTestImplementation"(libs.robolectric.junit5.extension)
+    "androidHostTestImplementation"(libs.androidx.test)
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
+    "androidHostTestImplementation"(project(":core:ui:golden-harness"))
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.junit4)
+    "androidHostTestImplementation"(platform(libs.androidx.compose.bom))
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.manifest)
 
-    implementation(project(":core:data:dataStore"))
-    implementation(project(":core:ui:kit"))
-    // HS5: the Home start card's mode sheet — one sheet, two entry points.
-    implementation(project(":core:ui:start-mode"))
-    implementation(project(":core:ui:mvi"))
-    implementation(project(":core:ui:navigation"))
-    implementation(project(":core:data:exercise"))
-    implementation(project(":core:data:backup:api"))
-    implementation(project(":core:data:database"))
-    implementation(project(":feature:app-dialogs:api"))
+    "androidDeviceTestImplementation"(libs.bundles.android.test)
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)
+    "androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)
+    "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
+}
 
-    testImplementation(kotlin("test"))
-    testImplementation(libs.androidx.paging.testing)
-    testImplementation(project(":core:ui:golden-harness"))
-    // `runComposeUiTest` for SettingsStartCardModeSheetTest — the sheet is a window, not a golden.
-    testImplementation(libs.androidx.compose.ui.test.junit4)
-
-    androidTestImplementation(libs.bundles.android.test)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(project(":core:ui:test-utils"))
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }
 
 apply(from = "$rootDir/gradle/golden-gate.gradle.kts")
