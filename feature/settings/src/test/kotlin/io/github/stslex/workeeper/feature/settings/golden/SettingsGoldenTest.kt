@@ -90,6 +90,7 @@ internal class SettingsGoldenTest {
 }
 
 private fun baseState(): State = State.initial(
+    backupAvailable = true,
     appVersion = "1.48.0",
     appVersionCode = 49,
 ).copy(

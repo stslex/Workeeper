@@ -10,7 +10,7 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStoreImpl
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
-import io.github.stslex.workeeper.feature.settings.mvi.handler.BackupClickHandler
+import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsBackupHandler
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandler
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsInputHandler
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsNavigationHandler
@@ -27,7 +27,7 @@ class SettingsStoreImpl internal constructor(
     pagingHandler: SettingsPagingHandler,
     clickHandler: SettingsClickHandler,
     inputHandler: SettingsInputHandler,
-    backupClickHandler: BackupClickHandler,
+    backupHandler: SettingsBackupHandler,
     interactor: SettingsInteractor,
     storeDispatchers: StoreDispatchers,
     storeEmitter: SettingsHandlerStoreImpl,
@@ -39,6 +39,7 @@ class SettingsStoreImpl internal constructor(
     initialState = State.initial(
         appVersion = interactor.appVersionName(),
         appVersionCode = interactor.appVersionCode().toInt(),
+        backupAvailable = backupHandler.isAvailable,
     ),
     storeEmitter = storeEmitter,
     storeDispatchers = storeDispatchers,
@@ -48,15 +49,17 @@ class SettingsStoreImpl internal constructor(
             is Action.Navigation -> navigationHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
-            is Action.Backup -> backupClickHandler
+            is Action.Backup -> backupHandler
         }
     },
-    initialActions = listOf(
-        Action.Paging.Init,
-        Action.Backup.ObserveAuth,
-        Action.Backup.ObservePreferences,
-        Action.Backup.ObserveRestoreState,
-    ),
+    initialActions = buildList {
+        add(Action.Paging.Init)
+        if (backupHandler.isAvailable) {
+            add(Action.Backup.ObserveAuth)
+            add(Action.Backup.ObservePreferences)
+            add(Action.Backup.ObserveRestoreState)
+        }
+    },
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
     appScopeLifetime = appScopeLifetime,

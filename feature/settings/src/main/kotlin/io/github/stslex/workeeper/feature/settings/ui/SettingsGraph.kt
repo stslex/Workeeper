@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.di.SettingsFeature
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.SettingsAuthMapper
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
@@ -38,7 +39,7 @@ fun NavGraphScope.settingsGraph(
         val authResolutionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartIntentSenderForResult(),
         ) { result ->
-            processor.consume(Action.Backup.HandleAuthResult(result.data))
+            processor.consume(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(result.data)))
         }
 
         processor.Handle { event ->
@@ -54,7 +55,7 @@ fun NavGraphScope.settingsGraph(
 
                 is Event.AuthResolutionRequested -> {
                     authResolutionLauncher.launch(
-                        IntentSenderRequest.Builder(event.intentSender).build(),
+                        IntentSenderRequest.Builder(SettingsAuthMapper.toIntentSender(event.request)).build(),
                     )
                 }
 

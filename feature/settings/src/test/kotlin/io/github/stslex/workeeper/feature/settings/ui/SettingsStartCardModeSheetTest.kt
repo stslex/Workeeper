@@ -56,7 +56,7 @@ internal class SettingsStartCardModeSheetTest {
     }
 
     private fun pickerOpen(startCardMode: StartCardModeUi?): State = State
-        .initial(appVersion = "1.0.0", appVersionCode = 15)
+        .initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
         .copy(
             startCardMode = startCardMode,
             dialogState = DialogState.StartCardModePicker,

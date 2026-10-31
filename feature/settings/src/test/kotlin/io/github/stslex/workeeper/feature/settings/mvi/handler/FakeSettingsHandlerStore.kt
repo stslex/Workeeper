@@ -27,7 +27,7 @@ internal class FakeSettingsHandlerStore(
 ) : SettingsHandlerStore {
 
     val stateFlow: MutableStateFlow<State> =
-        MutableStateFlow(State.initial(appVersion = "1.0.0", appVersionCode = 1))
+        MutableStateFlow(State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 1))
     val events: MutableList<Event> = mutableListOf()
     val consumedActions: MutableList<Action> = mutableListOf()
 

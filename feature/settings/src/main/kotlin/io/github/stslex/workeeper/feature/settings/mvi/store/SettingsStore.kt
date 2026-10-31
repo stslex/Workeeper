@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.mvi.store
 
-import android.content.Intent
-import android.content.IntentSender
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -16,6 +14,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.SettingsAuthRequest
+import io.github.stslex.workeeper.feature.settings.mvi.model.SettingsAuthResult
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
@@ -33,6 +33,7 @@ interface SettingsStore : Store<State, Action, Event> {
         val startCardMode: StartCardModeUi?,
         val appVersion: String,
         val appVersionCode: Int,
+        val backupAvailable: Boolean,
         val backupAuth: BackupAuthUi,
         val backupOperation: BackupOperationUi,
         val dialogState: DialogState,
@@ -50,11 +51,13 @@ interface SettingsStore : Store<State, Action, Event> {
             fun initial(
                 appVersion: String,
                 appVersionCode: Int,
+                backupAvailable: Boolean,
             ): State = State(
                 themeMode = ThemeMode.SYSTEM,
                 startCardMode = null,
                 appVersion = appVersion,
                 appVersionCode = appVersionCode,
+                backupAvailable = backupAvailable,
                 backupAuth = BackupAuthUi.NotAuthenticated,
                 backupOperation = BackupOperationUi.Idle,
                 dialogState = DialogState.Hidden,
@@ -112,7 +115,7 @@ interface SettingsStore : Store<State, Action, Event> {
             data object ObserveRestoreState : Backup
             data object RequestRevertLastRestore : Backup
             data object SignIn : Backup
-            data class HandleAuthResult(val resultIntent: Intent?) : Backup
+            data class HandleAuthResult(val result: SettingsAuthResult) : Backup
             data object RequestSignOut : Backup
             data object ConfirmSignOut : Backup
             data object DismissSignOutConfirmation : Backup
@@ -144,7 +147,7 @@ interface SettingsStore : Store<State, Action, Event> {
 
         data class Haptic(val type: HapticFeedbackType) : Event
 
-        data class AuthResolutionRequested(val intentSender: IntentSender) : Event
+        data class AuthResolutionRequested(val request: SettingsAuthRequest) : Event
 
         data class ShowBackupError(val error: BackupErrorUi) : Event
 

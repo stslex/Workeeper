@@ -27,6 +27,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupAuthDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.SettingsAuthMapper
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -231,7 +232,7 @@ internal class BackupClickHandlerTest {
             assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
             val event = store.events.single()
             assertTrue(event is Event.AuthResolutionRequested)
-            assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+            assertSame(sender, SettingsAuthMapper.toIntentSender((event as Event.AuthResolutionRequested).request))
         }
 
     @Test
@@ -286,7 +287,7 @@ internal class BackupClickHandlerTest {
 
             val event = store.events.single()
             assertTrue(event is Event.AuthResolutionRequested)
-            assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+            assertSame(sender, SettingsAuthMapper.toIntentSender((event as Event.AuthResolutionRequested).request))
             coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
         }
 
@@ -302,7 +303,7 @@ internal class BackupClickHandlerTest {
                 BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns true
 
-            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+            handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(mockk(relaxed = true))))
 
             coVerify { preferencesRepository.setAiExportEnabled(true) }
         }
@@ -319,7 +320,7 @@ internal class BackupClickHandlerTest {
                 BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns false
 
-            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+            handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(mockk(relaxed = true))))
 
             assertTrue(store.events.any { it is Event.ShowAiExportAccessNeeded })
             coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
@@ -385,7 +386,7 @@ internal class BackupClickHandlerTest {
                 BackupError.MissingRequiredScope,
             )
 
-            handler.invoke(Action.Backup.HandleAuthResult(intent))
+            handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(intent)))
 
             val event = store.events.single()
             assertTrue(event is Event.ShowBackupError)
@@ -413,7 +414,7 @@ internal class BackupClickHandlerTest {
         coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(
             BackupError.AuthRevoked,
         )
-        handler.invoke(Action.Backup.HandleAuthResult(intent))
+        handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(intent)))
         val event = store.events.single()
         assertTrue(event is Event.ShowBackupError)
         assertEquals(BackupErrorUi.AUTH_REVOKED, (event as Event.ShowBackupError).error)
@@ -430,7 +431,7 @@ internal class BackupClickHandlerTest {
             val expectedAccount = AccountDomain(email = "a@example.com", displayName = "A")
             coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(expectedAccount)
 
-            handler.invoke(Action.Backup.HandleAuthResult(intent))
+            handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(intent)))
 
             assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
             coVerify { autoBackupController.schedulePeriodic(any()) }
@@ -449,7 +450,7 @@ internal class BackupClickHandlerTest {
                 AccountDomain("first@example.com", "First"),
             )
 
-            handler.invoke(Action.Backup.HandleAuthResult(intent))
+            handler.invoke(Action.Backup.HandleAuthResult(SettingsAuthMapper.toResult(intent)))
 
             coVerify { preferencesRepository.setAutoBackupBootstrapped(true) }
             coVerify { autoBackupController.schedulePeriodic(any()) }

@@ -30,7 +30,7 @@ class SettingsScreenTest : BaseComposeTest() {
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 SettingsScreen(
-                    state = State.initial(appVersion = "1.0", appVersionCode = 1)
+                    state = State.initial(backupAvailable = true, appVersion = "1.0", appVersionCode = 1)
                         .copy(themeMode = ThemeMode.LIGHT),
                     consume = capture,
                 )
@@ -50,7 +50,7 @@ class SettingsScreenTest : BaseComposeTest() {
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 SettingsScreen(
-                    state = State.initial(appVersion = "1.0", appVersionCode = 1)
+                    state = State.initial(backupAvailable = true, appVersion = "1.0", appVersionCode = 1)
                         .copy(themeMode = ThemeMode.LIGHT),
                     consume = capture,
                 )

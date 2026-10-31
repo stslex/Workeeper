@@ -59,7 +59,8 @@ internal class SettingsClickHandlerTest {
 
     @Test
     fun `OnStartCardModeClick emits a haptic and opens the mode sheet`() {
-        val stateFlow = MutableStateFlow(State.initial(appVersion = "1.0.0", appVersionCode = 1))
+        val stateFlow =
+            MutableStateFlow(State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 1))
         val statefulStore = mockk<SettingsHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow
             every { updateState(any()) } answers {
@@ -80,7 +81,7 @@ internal class SettingsClickHandlerTest {
     @Test
     fun `OnStartCardModeClick while the frequency picker is up replaces the dialog`() {
         val stateFlow = MutableStateFlow(
-            State.initial(appVersion = "1.0.0", appVersionCode = 1).copy(
+            State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 1).copy(
                 dialogState = DialogState.SignOutConfirmation,
             ),
         )
@@ -101,7 +102,7 @@ internal class SettingsClickHandlerTest {
     @Test
     fun `OnStartCardModeSheetDismiss hides the sheet and emits no haptic`() {
         val stateFlow = MutableStateFlow(
-            State.initial(appVersion = "1.0.0", appVersionCode = 1).copy(
+            State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 1).copy(
                 dialogState = DialogState.StartCardModePicker,
             ),
         )

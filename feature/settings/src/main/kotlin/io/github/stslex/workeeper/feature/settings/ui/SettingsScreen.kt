@@ -95,16 +95,18 @@ internal fun SettingsScreen(
                         onClick = { consume(Action.Click.OnStartCardModeClick) },
                     )
                 }
-                BackupSection(
-                    state = SettingsBackupState(
-                        auth = state.backupAuth,
-                        operation = state.backupOperation,
-                        info = state.backupInfo,
-                        preferences = state.backupPreferences,
-                        canRevertLastRestore = state.canRevertLastRestore,
-                    ),
-                    onAction = { consume(it) },
-                )
+                if (state.backupAvailable) {
+                    BackupSection(
+                        state = SettingsBackupState(
+                            auth = state.backupAuth,
+                            operation = state.backupOperation,
+                            info = state.backupInfo,
+                            preferences = state.backupPreferences,
+                            canRevertLastRestore = state.canRevertLastRestore,
+                        ),
+                        onAction = { consume(it) },
+                    )
+                }
                 SettingsGroup(label = stringResource(R.string.feature_settings_section_data)) {
                     SettingsGroupRow(
                         modifier = Modifier.testTag("SettingsArchiveRow"),
@@ -157,14 +159,14 @@ internal fun SettingsScreen(
         }
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
-            is DialogState.RestoreConfirmation -> RestoreConfirmationDialog(
+            is DialogState.RestoreConfirmation -> if (state.backupAvailable) RestoreConfirmationDialog(
                 state = dialog,
                 onAction = { consume(it) },
             )
-            DialogState.SignOutConfirmation -> SignOutConfirmationDialog(
+            DialogState.SignOutConfirmation -> if (state.backupAvailable) SignOutConfirmationDialog(
                 onAction = { consume(it) },
             )
-            is DialogState.FrequencyPicker -> FrequencyPickerBottomSheet(
+            is DialogState.FrequencyPicker -> if (state.backupAvailable) FrequencyPickerBottomSheet(
                 state = dialog,
                 onAction = { consume(it) },
             )
@@ -176,7 +178,9 @@ internal fun SettingsScreen(
                 onDismiss = { consume(Action.Click.OnStartCardModeSheetDismiss) },
             )
         }
-        RestoreProgressOverlay(state = state.restoreProgress)
+        if (state.backupAvailable) {
+            RestoreProgressOverlay(state = state.restoreProgress)
+        }
     }
 }
 
@@ -226,7 +230,7 @@ private fun ThemeRow(
 private fun SettingsScreenNotAuthenticatedPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15),
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15),
             consume = {},
         )
     }
@@ -237,7 +241,7 @@ private fun SettingsScreenNotAuthenticatedPreview() {
 private fun SettingsScreenAuthenticatedPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
                 .copy(
                     backupAuth = BackupAuthUi.Authenticated(
                         email = "user@example.com",
@@ -258,7 +262,7 @@ private fun SettingsScreenAuthenticatedPreview() {
 private fun SettingsScreenRestoreDialogPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
                 .copy(
                     backupAuth = BackupAuthUi.Authenticated(
                         email = "user@example.com",
@@ -280,7 +284,7 @@ private fun SettingsScreenRestoreDialogPreview() {
 private fun SettingsScreenSignOutConfirmationPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
                 .copy(
                     backupAuth = BackupAuthUi.Authenticated(
                         email = "user@example.com",
@@ -298,7 +302,7 @@ private fun SettingsScreenSignOutConfirmationPreview() {
 private fun SettingsScreenRestoreInProgressPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
                 .copy(
                     backupAuth = BackupAuthUi.Authenticated(
                         email = "user@example.com",
@@ -316,7 +320,7 @@ private fun SettingsScreenRestoreInProgressPreview() {
 private fun SettingsScreenRestoreCompletedPreview() {
     AppTheme {
         SettingsScreen(
-            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+            state = State.initial(backupAvailable = true, appVersion = "1.0.0", appVersionCode = 15)
                 .copy(
                     backupAuth = BackupAuthUi.Authenticated(
                         email = "user@example.com",

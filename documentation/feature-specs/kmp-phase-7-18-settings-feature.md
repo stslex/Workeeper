@@ -1,6 +1,6 @@
 # KMP Phase 7.18 — shared Settings with deferred iOS backup
 
-**Status:** SPECIFICATION — proposed for maintainer review; implementation has not started.
+**Status:** IN PROGRESS — implementation authorized; exit evidence and review pending.
 
 **Discovery base:** `dev` at `179e1c7df95e40912f0fb6c7eea8a3142b1c8b8a`
 (Phase 7.17, PR [#347](https://github.com/stslex/Workeeper/pull/347)).
@@ -583,3 +583,71 @@ IN PROGRESS.
 - Retain the existing primary-locale fallback limitation and unrelated Settings formatting debt.
 - Do not remove the existing unused `Navigation.RestartApp` action or perform unrelated cleanup
   under this migration.
+
+### 12.1 Accepted implementation amendment — root call site (2026-10-31)
+
+The maintainer approved adding
+`app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt` to Section 10's allowed paths,
+limited to passing `settingsGraphFactory = deps.settingsGraphFactory` to the existing
+`AppNavigationHost` call. On the actual base, that host receives each feature factory as a
+parameter and does not receive `AppRootDeps`; the one admitted root-deps read stays in `App.kt`.
+Section 5's factory flow follows that existing parameter path. No second root lookup is added.
+
+### 12.2 Implementation base and entry evidence (2026-10-31)
+
+Implementation starts at signed `origin/dev`
+`a06afc577a48e7bd63c43f49c9a4570de1f04586`; accepted specification blob
+`d7053bf94b5c7fb829e53bf86bb94158e2abfb37`. GitHub reports `verified=true`,
+`reason=valid`, `verified_at=2026-10-31T11:00:48Z`. The unsigned review-source commit was
+not used as the branch base. The main checkout was clean on `feature/kmp-app-dialogs-entry`;
+implementation is isolated in `.claude/worktrees/kmp-settings` on `feature/kmp-settings`.
+The only change from discovery base `179e1c7df95e40912f0fb6c7eea8a3142b1c8b8a` to the
+implementation base is this specification.
+
+Entry topology and MVI source checks exited 0. With all four Section 9 flags:
+
+| Entry command (after `./gradlew`) | Exit | Executed summary / fresh identities |
+| --- | ---: | --- |
+| `:feature:settings:assembleDebug :feature:settings:lintDebug :feature:settings:testDebugUnitTest` | 0 | `349 actionable tasks: 349 executed`; 120 exact non-golden cases; no lint findings |
+| `:feature:settings:verifyPaparazziDebug` | 0 | `211 actionable tasks: 211 executed`; 12/12 golden invocations |
+| `:app:app:testDebugUnitTest --tests io.github.stslex.workeeper.di.SettingsExtensionIdentityTest` | 0 | `591 actionable tasks: 591 executed`; four identities |
+
+The first two configuration attempts failed because the isolated worktree lacked ignored
+local signing inputs (`getProperty(...) must not be null`, then `keystore.jks is inValid`).
+Existing ignored local properties, keystore and Firebase files were copied without exposing
+values; no convention or tracked configuration was changed. These failures are not test evidence.
+Baseline XML, the 120 source identities, 12 basename-to-blob map and catalog inputs were saved
+before any implementation edit.
+
+Environment: JBR/OpenJDK 21.0.11; Gradle 9.6.1; project Kotlin 2.4.10, Metro 1.3.2;
+Xcode 27.0 (27A266a), installed iOS 26.5 simulator runtime; Android CLI's existing
+Pixel_6_API_34 emulator started as `emulator-5554`. Local Git signing is enabled with SSH.
+No toolchain version or global configuration was changed.
+
+### 12.3 First-step implementation and review
+
+The first step adds typed UI auth handles and the dedicated identity-preserving Android
+mapper; `SettingsBackupHandler` owns availability, State derives it from the selected handler,
+and Store startup conditionally sends the ordered backup observer trio. The five UI guards
+cover the section, three backup dialog branches and restore overlay; start-card mode stays
+independent. Existing Android fixtures explicitly pass `backupAvailable=true`.
+
+The 120 original exact host XML identities remain, with the six Section 7.2 identities added;
+the four app identity meanings remain. Source comparisons found all ten protected Android
+files and all twelve PNG blobs unchanged. A separate `spec_review` reviewer role independently
+checked these preservation sets and the first-step diff.
+
+| Review finding | Classification | Resolution |
+| --- | --- | --- |
+| The bounded path list omitted the actual root factory call site | correct-and-new | Maintainer accepted Section 12.1's narrow `App.kt` amendment |
+| An internal contributed Settings binding interface did not aggregate into the app graph | correct | Reproduced `[Metro/MissingBinding]` for `SettingsBackupHandler`; a public contributed interface with an internal companion provider preserves the internal contract and passes the real app graph/four identity tests (`591 actionable tasks: 591 executed`) |
+
+The first new-fixture compilation caught a multiline `State.initial` call missing its explicit
+availability argument. It was repaired locally without changing an identity or assertion.
+Fresh first-step repository build/lint/unit execution exited 0 with
+`2885 actionable tasks: 2885 executed`. Fresh Settings visual verification and custom-rule tests
+exited 0 with `216 actionable tasks: 216 executed`, including 12/12 unchanged goldens.
+Topology and MVI source checks exited 0. Full exit gates, negative controls, final signatures,
+Native/device evidence and final independent review remain pending.
+
+Separate repository Detekt exited 0: `63 actionable tasks: 63 executed`.

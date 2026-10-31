@@ -14,7 +14,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
-import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
@@ -26,6 +25,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupPreferencesU
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupPreferencesUiMapper.toDomain
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toConfirmation
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.SettingsAuthMapper
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -48,7 +48,9 @@ internal class BackupClickHandler @Inject constructor(
     private val appDialogPublisher: AppDialogPublisher,
     private val context: Context,
     store: SettingsHandlerStore,
-) : Handler<Action.Backup>, SettingsHandlerStore by store {
+) : SettingsBackupHandler, SettingsHandlerStore by store {
+
+    override val isAvailable: Boolean = true
 
     override fun invoke(action: Action.Backup) {
         when (action) {
@@ -57,7 +59,7 @@ internal class BackupClickHandler @Inject constructor(
             Action.Backup.ObserveRestoreState -> observeRestoreState()
             Action.Backup.RequestRevertLastRestore -> requestRevertLastRestore()
             Action.Backup.SignIn -> signIn()
-            is Action.Backup.HandleAuthResult -> handleAuthResult(action.resultIntent)
+            is Action.Backup.HandleAuthResult -> handleAuthResult(SettingsAuthMapper.toIntent(action.result))
             Action.Backup.RequestSignOut -> requestSignOut()
             Action.Backup.DismissSignOutConfirmation -> dismissSignOutConfirmation()
             Action.Backup.ConfirmSignOut -> confirmSignOut()
@@ -183,7 +185,9 @@ internal class BackupClickHandler @Inject constructor(
                         // Downcast the opaque resolution to the Android launch handle at the
                         // mvi edge; the domain never unpacks .platform.
                         sendEvent(
-                            Event.AuthResolutionRequested(result.resolution.platform as IntentSender),
+                            Event.AuthResolutionRequested(
+                                SettingsAuthMapper.toRequest(result.resolution.platform as IntentSender),
+                            ),
                         )
                     }
 
@@ -278,7 +282,9 @@ internal class BackupClickHandler @Inject constructor(
 
                     // Keep TogglingAiExport set; handleAuthResult resolves the grant and resets it.
                     is SignInOutcomeDomain.NeedsResolution -> sendEvent(
-                        Event.AuthResolutionRequested(outcome.resolution.platform as IntentSender),
+                        Event.AuthResolutionRequested(
+                            SettingsAuthMapper.toRequest(outcome.resolution.platform as IntentSender),
+                        ),
                     )
 
                     is SignInOutcomeDomain.PartialGrant,
