@@ -27,7 +27,7 @@ three distinct outcomes:
   real failure upstream.
 """
 
-from junit_identity import run_gate
+from junit_identity import ModuleError, check_module, run_gate
 
 # The Kotlin/Native Gradle test task prefixes every suite/testcase classname
 # with its own name ("iosSimulatorArm64Test.<fqcn>"), and suffixes every method
@@ -1618,7 +1618,74 @@ EXPECTED = [
 ]
 
 
+
+
+EXPECTED.append({
+    "module": "feature:settings",
+    "results_dir": "feature/settings/build/test-results/iosSimulatorArm64Test",
+    "classname_prefix": KNOWN_SUITE_PREFIX,
+    "identities": [
+        *natives('io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest', ['observeThemeMode maps stored string to ThemeMode',
+ 'observeThemeMode returns SYSTEM for unknown stored value',
+ 'setThemeMode forwards enum name to data store',
+ 'observeStartCardMode maps stored string to the domain mode',
+ 'observeStartCardMode returns WEEK for unknown stored value',
+ 'setStartCardMode forwards the persistence encoding to the data store',
+ 'the storage encoding and the WEEK default are pinned',
+ 'observeArchivedCounts combines the two counts that already existed']),
+        *natives('io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest', ['OnArchiveClick emits Haptic ContextClick then consumes OpenArchive',
+ 'OnGitHubClick emits Haptic ContextClick then ShowExternalLink GitHub url',
+ 'OnLicenseClick emits Haptic ContextClick then ShowExternalLink license url',
+ 'OnPrivacyPolicyClick emits Haptic ContextClick then ShowExternalLink privacy url',
+ 'OnStartCardModeClick emits a haptic and opens the mode sheet',
+ 'OnStartCardModeClick while the frequency picker is up replaces the dialog',
+ 'OnStartCardModeSheetDismiss hides the sheet and emits no haptic']),
+        *natives('io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsInputHandlerTest', ['OnThemeChange emits ContextClick haptic and updates state',
+ 'OnStartCardModeChange closes the sheet and persists the MAPPED mode']),
+        *natives('io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsNavigationHandlerTest', ['Back triggers popBack', 'OpenArchive navigates to Screen Archive']),
+        *natives('io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapperTest', ['every UI mode maps to its own domain twin',
+ 'every domain mode maps to its own UI twin',
+ 'the mapping round-trips over the whole catalog']),
+        *natives('io.github.stslex.workeeper.feature.settings.SettingsBackupAvailabilityTest', ['availableBackupInitializesAllThreeObservers', 'unavailableBackupInitializesNoObservers']),
+        *natives('io.github.stslex.workeeper.feature.settings.SettingsUnavailableBackupTest', ['productionGraphConstructsSettingsWithUnavailableBackup',
+ 'allBackupActionsLeaveStateAndEventsUnchanged',
+ 'unavailableAuthLauncherNeverCallsBack']),
+        *natives('io.github.stslex.workeeper.feature.settings.SettingsNativeSceneTest', ['settingsWithoutBackupKeepsGeneralActions',
+ 'unavailableBackupHidesSectionDialogsAndOverlay',
+ 'startCardModeWaitsForThePersistedPreference',
+ 'sharedBackupContentRendersWithAnEnabledFixture']),
+    ],
+})
+
+
+def settings_results_are_fresh() -> None:
+    from pathlib import Path
+    marker = Path("feature/settings/build/native-test-start")
+    results = Path("feature/settings/build/test-results/iosSimulatorArm64Test")
+    if not marker.is_file():
+        raise ModuleError("feature:settings: execution-start marker is missing")
+    stale = [str(path) for path in results.glob("TEST-*.xml") if path.stat().st_mtime_ns < marker.stat().st_mtime_ns]
+    if stale:
+        raise ModuleError(f"feature:settings: stale XML: {stale}")
+
+
 def main() -> None:
+    try:
+        settings_results_are_fresh()
+    except ModuleError as error:
+        failures = [str(error)]
+        verified = []
+        for expected in EXPECTED:
+            try:
+                verified.append(check_module(expected))
+            except ModuleError as identity_error:
+                failures.append(str(identity_error))
+        for line in verified:
+            print(f"  ok: {line}")
+        raise SystemExit(
+            "native gate FAILED (every module was checked, so no verdict is hidden):\n"
+            + "\n".join(f"  {message}" for message in failures)
+        )
     run_gate("native gate", EXPECTED)
 
 
