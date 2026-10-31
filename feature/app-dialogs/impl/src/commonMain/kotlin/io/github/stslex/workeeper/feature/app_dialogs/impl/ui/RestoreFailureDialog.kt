@@ -1,0 +1,153 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.app_dialogs.impl.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.Res
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_body
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_confirm
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_export_action
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_auth_revoked
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_corrupted_backup
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_io
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_missing_migration_path
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_missing_required_scope
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_network_unavailable
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_not_authenticated
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_schema_too_new
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_storage_quota_exceeded
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_reason_unknown
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_report_action
+import io.github.stslex.workeeper.feature.app_dialogs.impl.resources.app_dialog_restore_failure_title
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Three-action restore-failure dialog; `AppConfirmationDialog` supports at most two buttons.
+ * Neither back press nor outside tap dismisses it — acknowledgement must be explicit.
+ */
+@Composable
+internal fun RestoreFailureDialog(
+    dialog: AppDialog.RestoreFailure,
+    onAcknowledge: () -> Unit,
+    onReport: () -> Unit,
+    onExportDiagnostics: () -> Unit,
+) {
+    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
+    Dialog(
+        onDismissRequest = onAcknowledge,
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(AppUi.shapes.medium)
+                .background(dialogBg)
+                .padding(AppDimension.Space.lg),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        ) {
+            Text(
+                text = stringResource(Res.string.app_dialog_restore_failure_title),
+                style = AppUi.typography.titleLarge,
+                color = AppUi.colors.textPrimary,
+            )
+            Text(
+                text = stringResource(
+                    Res.string.app_dialog_restore_failure_body,
+                    stringResource(dialog.reason.toReasonStringRes()),
+                ),
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textSecondary,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    space = AppDimension.Space.sm,
+                    alignment = Alignment.End,
+                ),
+            ) {
+                AppButton.Tertiary(
+                    text = stringResource(Res.string.app_dialog_restore_failure_export_action),
+                    onClick = onExportDiagnostics,
+                    size = AppButtonSize.MEDIUM,
+                )
+                AppButton.Tertiary(
+                    text = stringResource(Res.string.app_dialog_restore_failure_report_action),
+                    onClick = onReport,
+                    size = AppButtonSize.MEDIUM,
+                )
+                AppButton.Primary(
+                    text = stringResource(Res.string.app_dialog_restore_failure_confirm),
+                    onClick = onAcknowledge,
+                    size = AppButtonSize.MEDIUM,
+                )
+            }
+        }
+    }
+}
+
+/** S4: the same twelve codes onto the same ten reasons, now as Compose resources. */
+private fun BackupErrorCode.toReasonStringRes(): StringResource = when (this) {
+    BackupErrorCode.NotAuthenticated -> Res.string.app_dialog_restore_failure_reason_not_authenticated
+    BackupErrorCode.NetworkUnavailable -> Res.string.app_dialog_restore_failure_reason_network_unavailable
+    BackupErrorCode.AuthRevoked -> Res.string.app_dialog_restore_failure_reason_auth_revoked
+    BackupErrorCode.MissingRequiredScope ->
+        Res.string.app_dialog_restore_failure_reason_missing_required_scope
+    BackupErrorCode.StorageQuotaExceeded ->
+        Res.string.app_dialog_restore_failure_reason_storage_quota_exceeded
+    BackupErrorCode.InsufficientLocalStorage,
+    BackupErrorCode.StorageCapacityUnavailable,
+    -> Res.string.app_dialog_restore_failure_reason_io
+    BackupErrorCode.CorruptedBackup -> Res.string.app_dialog_restore_failure_reason_corrupted_backup
+    BackupErrorCode.SchemaTooNew -> Res.string.app_dialog_restore_failure_reason_schema_too_new
+    BackupErrorCode.MissingMigrationPath ->
+        Res.string.app_dialog_restore_failure_reason_missing_migration_path
+    BackupErrorCode.Io -> Res.string.app_dialog_restore_failure_reason_io
+    BackupErrorCode.Unknown -> Res.string.app_dialog_restore_failure_reason_unknown
+}
+
+@Preview(name = "Light", showBackground = true)
+@Composable
+private fun RestoreFailureDialogLightPreview() {
+    RestoreFailureDialogPreview(themeMode = ThemeMode.LIGHT)
+}
+
+@Preview(name = "Dark", showBackground = true)
+@Composable
+private fun RestoreFailureDialogDarkPreview() {
+    RestoreFailureDialogPreview(themeMode = ThemeMode.DARK)
+}
+
+@Composable
+private fun RestoreFailureDialogPreview(themeMode: ThemeMode) {
+    AppTheme(themeMode = themeMode) {
+        RestoreFailureDialog(
+            dialog = AppDialog.RestoreFailure(reason = BackupErrorCode.SchemaTooNew),
+            onAcknowledge = {},
+            onReport = {},
+            onExportDiagnostics = {},
+        )
+    }
+}

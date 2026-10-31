@@ -1152,6 +1152,75 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    # S1 (kmp-phase-7-17-app-dialogs-feature.md Section 10.1): the dialog catalog's contract, pure
+    # Kotlin in commonMain, with no resources.
+    "feature:app-dialogs:api": {
+        "root": Path("feature/app-dialogs/api"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialogUserAction.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialogUserChoice.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/observer/AppDialogObserver.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/publisher/AppDialogPublisher.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+        },
+        "resource_dirs": set(),
+    },
+    # D1 (kmp-phase-7-17-app-dialogs-feature.md Section 10.1): the screen-less app-root feature,
+    # 34 paths: 21 production files and the two catalogs in commonMain, six suites and D5's expect
+    # in commonTest, D5's actuals, the scene, and the moved device class.
+    "feature:app-dialogs:impl": {
+        "root": Path("feature/app-dialogs/impl"),
+        "files": {
+            "src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContentTest.kt",
+            "src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.android.kt",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogKeys.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepository.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogsScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolver.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/store/AppDialogStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/store/AppDialogStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/publisher/AppDialogPublisherImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHost.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContent.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/RestoreFailureDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/RestoreSuccessDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreConfirmationDialog.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/UndoRestoreSuccessDialog.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepositoryTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolverTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImplTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/AppDialogFeatureSceneIosTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/TestStoreFile.ios.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "androidHostTest",
+            "androidDeviceTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -1198,7 +1267,6 @@ IMAGE_VIEWER_CATALOGS = {
 }
 
 EXPECTED_APP_DEPS_READERS = {
-    Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
 }
 
@@ -1974,7 +2042,8 @@ class FeatureEntry:
     resource_wrapper_readers, preview_subjects' keys, preview_inventory's keys and
     resource_wrapper_dates' keys are relative to root/src/commonMain/kotlin/<package_dir>. An
     empty device_test means the module has no device test: its file is not read, and
-    device_fragments must then be empty. Containers keep the type their failure text embeds:
+    device_fragments must then be empty; an empty golden_test likewise means no golden class, and
+    golden_methods must then be empty. Containers keep the type their failure text embeds:
     lists stay lists and tuples stay tuples, because a repr is part of the message. Never hash an
     entry; it holds lists and dicts.
     """
@@ -2036,6 +2105,14 @@ class FeatureEntry:
     # State lambda may return through in place of a `.copy(`. Empty by default, so every earlier
     # entry stays byte-identical.
     state_mutators: tuple = ()
+    # D6 (kmp-phase-7-17-app-dialogs-feature.md Section 10.0): where the entry mounts. "nav_host"
+    # registers its graph in AppNavigationHost; "app_root" mounts its host composable in App.kt's
+    # admitted generation, beside AppNavigationHost. The default keeps every earlier entry
+    # byte-identical.
+    mount: str = "nav_host"
+    # D6: the configuration of app:app's direct edge on the module. The default keeps every
+    # earlier entry byte-identical.
+    app_aggregation: str = "implementation"
 
     @property
     def common_main(self) -> Path:
@@ -2583,13 +2660,19 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                     f"{module}: {path.relative_to(root)} contains forbidden test API "
                     f"{forbidden!r}"
                 )
-    golden_source = (root / entry.golden_test).read_text(encoding="utf-8")
-    golden_methods = re.findall(r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source)
-    if golden_methods != entry.golden_methods:
-        failures.append(
-            f"{module}: golden methods must be exactly {entry.golden_methods}; "
-            f"actual={golden_methods}"
+    if entry.golden_test:
+        golden_source = (root / entry.golden_test).read_text(encoding="utf-8")
+        golden_methods = re.findall(
+            r"@EnumSource\(GoldenTheme::class\)\s+fun\s+(\w+)\(", golden_source
         )
+        if golden_methods != entry.golden_methods:
+            failures.append(
+                f"{module}: golden methods must be exactly {entry.golden_methods}; "
+                f"actual={golden_methods}"
+            )
+    elif entry.golden_methods:
+        # D6: an entry without a golden class pins no golden method.
+        failures.append(f"{module}: golden methods {entry.golden_methods} need a golden_test")
     # D4: every extra golden class is pinned like golden_test, and no other androidHostTest file
     # renders goldens.
     for relative, expected_methods in entry.extra_golden_tests.items():
@@ -2628,27 +2711,44 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     feature_source = common_sources[feature_path]
     graph_path = common_main / entry.graph_file
     graph_source = common_sources[graph_path]
+    if entry.mount not in ("nav_host", "app_root"):
+        failures.append(f"{module}: mount must be 'nav_host' or 'app_root'; found {entry.mount!r}")
+    if entry.mount == "app_root":
+        # D6: the host composable is called once in the admitted generation and builds the
+        # Feature from its own required factory; AppNavigationHost does not register it.
+        app_mount = f"{entry.graph_function}(factory = deps.{entry.factory_accessor})"
+        mount_fragments = [
+            (
+                graph_path,
+                [
+                    f"factory: {graph_factory},",
+                    f"remember(factory) {{ {entry.feature_class}(factory) }}",
+                ],
+            ),
+        ]
+    else:
+        app_mount = f"{entry.factory_accessor} = deps.{entry.factory_accessor}"
+        mount_fragments = [
+            (
+                APP_NAVIGATION_HOST_PATH,
+                [
+                    f"{entry.factory_accessor}: {graph_factory},",
+                    f"{entry.graph_function}(factory = {entry.factory_accessor},",
+                ],
+            ),
+            (
+                graph_path,
+                [
+                    f"factory: {graph_factory},",
+                    f"{entry.screen_registration}({entry.feature_class}(factory))",
+                ],
+            ),
+        ]
     required_root_fragments = [
         (APP_ROOT_DEPS_PATH, [f"val {entry.factory_accessor}: {graph_factory}"]),
         (APP_GRAPH_PATH, [f"override val {entry.factory_accessor}: {graph_factory}"]),
-        (
-            APP_PATH,
-            [*APP_ADMISSION_FRAGMENTS, f"{entry.factory_accessor} = deps.{entry.factory_accessor}"],
-        ),
-        (
-            APP_NAVIGATION_HOST_PATH,
-            [
-                f"{entry.factory_accessor}: {graph_factory},",
-                f"{entry.graph_function}(factory = {entry.factory_accessor},",
-            ],
-        ),
-        (
-            graph_path,
-            [
-                f"factory: {graph_factory},",
-                f"{entry.screen_registration}({entry.feature_class}(factory))",
-            ],
-        ),
+        (APP_PATH, [*APP_ADMISSION_FRAGMENTS, app_mount]),
+        *mount_fragments,
         (
             feature_path,
             [f"internal class {entry.feature_class}(", f"private val factory: {graph_factory}"],
@@ -2664,6 +2764,17 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 failures.append(
                     f"{module}: exact root-factory flow requires {fragment!r} once in {path}"
                 )
+    if entry.mount == "app_root":
+        host_source = (
+            APP_NAVIGATION_HOST_PATH.read_text(encoding="utf-8")
+            if APP_NAVIGATION_HOST_PATH.is_file()
+            else ""
+        )
+        if entry.factory_accessor in host_source:
+            failures.append(
+                f"{module}: mounted at the app root, so {APP_NAVIGATION_HOST_PATH} must not "
+                f"name {entry.factory_accessor}"
+            )
     retained_factory = compact(
         f"""
         rememberMetroStoreProcessor<{entry.store_impl}> {{
@@ -2722,9 +2833,10 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
     if f'implementation(project(":{module}"))' in app_common_build:
         failures.append(f"app:common: {entry.short_name} edge must not remain implementation")
     app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
-    if app_build.count(f'implementation(project(":{module}"))') != 1:
+    if app_build.count(f'{entry.app_aggregation}(project(":{module}"))') != 1:
         failures.append(
-            f"app:app: direct {entry.short_name} aggregation edge must remain implementation"
+            f"app:app: direct {entry.short_name} aggregation edge must remain "
+            f"{entry.app_aggregation}"
         )
 
     for extra_check in entry.extra_checks:
@@ -7747,6 +7859,291 @@ LIVE_WORKOUT_ENTRY = FeatureEntry(
     ),
 )
 
+# S4 (kmp-phase-7-17-app-dialogs-feature.md Section 10.2): the twelve failure codes onto the ten
+# reason keys, exactly as the Android map held them.
+APP_DIALOGS_REASON_KEYS = {
+    "NotAuthenticated": "app_dialog_restore_failure_reason_not_authenticated",
+    "NetworkUnavailable": "app_dialog_restore_failure_reason_network_unavailable",
+    "AuthRevoked": "app_dialog_restore_failure_reason_auth_revoked",
+    "MissingRequiredScope": "app_dialog_restore_failure_reason_missing_required_scope",
+    "StorageQuotaExceeded": "app_dialog_restore_failure_reason_storage_quota_exceeded",
+    "InsufficientLocalStorage": "app_dialog_restore_failure_reason_io",
+    "StorageCapacityUnavailable": "app_dialog_restore_failure_reason_io",
+    "CorruptedBackup": "app_dialog_restore_failure_reason_corrupted_backup",
+    "SchemaTooNew": "app_dialog_restore_failure_reason_schema_too_new",
+    "MissingMigrationPath": "app_dialog_restore_failure_reason_missing_migration_path",
+    "Io": "app_dialog_restore_failure_reason_io",
+    "Unknown": "app_dialog_restore_failure_reason_unknown",
+}
+
+# D3 (same section): the date's whole path, State to body, as fragments read once each.
+APP_DIALOGS_DATE_FRAGMENTS = {
+    "mvi/mapper/AppDialogDateMapper.kt": (
+        "is AppDialog.RestoreSuccess -> resourceWrapper.formatMediumDate(restoredAtEpochMs)",
+        "is AppDialog.UndoRestoreConfirmation -> resourceWrapper.formatMediumDate(originalDataDateEpochMs)",
+        'is AppDialog.RestoreFailure, is AppDialog.UndoRestoreSuccess, null -> ""',
+    ),
+    "ui/AppDialogHost.kt": (
+        "current = state.current,",
+        "dateLabel = state.dateLabel,",
+    ),
+}
+
+# The module's exact project edges, each once; anything else is a new dependency (Section 8).
+APP_DIALOGS_PROJECT_EDGES = [
+    "core:core",
+    "core:data:backup:api",
+    "core:data:dataStore",
+    "core:ui:kit",
+    "core:ui:mvi",
+    "core:ui:test-utils",
+    "feature:app-dialogs:api",
+]
+
+
+def app_dialogs_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    failures: list[str] = []
+    dialog = entry.common_main / "ui/RestoreFailureDialog.kt"
+    source = strip_kotlin_comments(common_sources.get(dialog, ""))
+    body = re.search(
+        r"fun BackupErrorCode\.toReasonStringRes\(\): StringResource = when \(this\) \{(?P<body>.*?)\n\}",
+        source,
+        re.DOTALL,
+    )
+    actual: dict[str, list[str]] = {}
+    for branch in re.finditer(
+        r"(?P<codes>(?:BackupErrorCode\.\w+\s*,\s*)*BackupErrorCode\.\w+)\s*,?\s*->\s*"
+        r"Res\.string\.(?P<key>\w+)",
+        body.group("body") if body else "",
+    ):
+        for code in re.findall(r"BackupErrorCode\.(\w+)", branch.group("codes")):
+            actual.setdefault(code, []).append(branch.group("key"))
+    expected = {code: [key] for code, key in APP_DIALOGS_REASON_KEYS.items()}
+    if actual != expected:
+        failures.append(
+            f"{entry.module}: the failure reason map must stay exactly twelve codes onto ten keys; "
+            f"expected={expected!r}, actual={actual!r}"
+        )
+    for relative, fragments in APP_DIALOGS_DATE_FRAGMENTS.items():
+        compact_source = compact(strip_kotlin_comments(common_sources.get(entry.common_main / relative, "")))
+        for fragment in fragments:
+            if compact_source.count(compact(fragment)) != 1:
+                failures.append(
+                    f"{entry.module}: D3's date path requires {fragment!r} exactly once in {relative}"
+                )
+    build_source = (entry.root / "build.gradle.kts").read_text(encoding="utf-8")
+    edges = sorted(re.findall(r'project\(":([^"]+)"\)', build_source))
+    if edges != APP_DIALOGS_PROJECT_EDGES:
+        failures.append(
+            f"{entry.module}: project edges must be exactly {APP_DIALOGS_PROJECT_EDGES!r}; "
+            f"actual={edges!r}"
+        )
+    return failures
+
+
+APP_DIALOGS_ENTRY = FeatureEntry(
+    module="feature:app-dialogs:impl",
+    short_name="app-dialogs",
+    root=Path("feature/app-dialogs/impl"),
+    package_dir="io/github/stslex/workeeper/feature/app_dialogs/impl",
+    # Every plugin, resource-package, interop and dependency line of Section 8, each exactly once;
+    # kotlin("test") is counted by kotlin_test_count, and app_dialogs_contract holds the edge set.
+    build_fragments=(
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        "packageOfResClass = \"io.github.stslex.workeeper.feature.app_dialogs.impl.resources\"",
+        "includeJavax()",
+        "implementation(project(\":core:core\"))",
+        "implementation(project(\":core:ui:kit\"))",
+        "api(project(\":core:ui:mvi\"))",
+        "api(project(\":feature:app-dialogs:api\"))",
+        "api(project(\":core:data:backup:api\"))",
+        "api(project(\":core:data:dataStore\"))",
+        "implementation(libs.androidx.datastore.core)",
+        "implementation(libs.androidx.datastore.preferences.core)",
+        "api(libs.coroutines.core)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+        "\"androidDeviceTestImplementation\"(libs.bundles.android.test)",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.junit4)",
+        "\"androidDeviceTestImplementation\"(platform(libs.androidx.compose.bom))",
+        "\"androidDeviceTestImplementation\"(libs.androidx.compose.ui.test.manifest)",
+        "\"androidDeviceTestImplementation\"(project(\":core:ui:test-utils\"))",
+    ),
+    kotlin_test_count=2,
+    # S6: the two catalogs moved byte-identical, in file order: (tag, name, EN value, RU value).
+    catalog=(
+        ("string", "app_dialog_restore_success_title", "Restore complete", "Восстановление завершено"),
+        ("string", "app_dialog_restore_success_body", "Your data was restored from a backup dated %1$s. You can revert to your previous data in Settings if needed.", "Данные восстановлены из резервной копии от %1$s. При необходимости вы можете вернуться к предыдущим данным в настройках."),
+        ("string", "app_dialog_restore_success_body_no_previous", "Your data was restored from a backup dated %1$s.", "Данные восстановлены из резервной копии от %1$s."),
+        ("string", "app_dialog_restore_success_confirm", "OK", "ОК"),
+        ("string", "app_dialog_restore_success_undo_action", "Undo restore", "Откатить восстановление"),
+        ("string", "app_dialog_restore_failure_title", "Restore failed", "Не удалось восстановить"),
+        ("string", "app_dialog_restore_failure_body", "Your data is intact. Reason: %1$s. Please report this issue so we can fix it.", "Ваши данные сохранены. Причина: %1$s. Сообщите об ошибке, чтобы мы могли её исправить."),
+        ("string", "app_dialog_restore_failure_confirm", "OK", "ОК"),
+        ("string", "app_dialog_restore_failure_report_action", "Report", "Сообщить"),
+        ("string", "app_dialog_restore_failure_export_action", "Export diagnostics", "Экспорт диагностики"),
+        ("string", "app_dialog_undo_restore_confirmation_title", "Undo last restore?", "Отменить последнее восстановление?"),
+        ("string", "app_dialog_undo_restore_confirmation_body", "Your data will revert to the state it was in on %1$s. This cannot be undone.", "Данные вернутся к состоянию на %1$s. Это действие необратимо."),
+        ("string", "app_dialog_undo_restore_confirmation_confirm", "Undo restore", "Отменить восстановление"),
+        ("string", "app_dialog_undo_restore_confirmation_cancel", "Cancel", "Отмена"),
+        ("string", "app_dialog_undo_restore_success_title", "Reverted", "Возврат выполнен"),
+        ("string", "app_dialog_undo_restore_success_body", "Your data has been restored to the previous state.", "Данные восстановлены к предыдущему состоянию."),
+        ("string", "app_dialog_undo_restore_success_confirm", "OK", "ОК"),
+        ("string", "app_dialog_restore_failure_reason_not_authenticated", "not signed in", "не выполнен вход"),
+        ("string", "app_dialog_restore_failure_reason_network_unavailable", "no network", "нет подключения к сети"),
+        ("string", "app_dialog_restore_failure_reason_auth_revoked", "Google account access was revoked", "доступ к Google-аккаунту был отозван"),
+        ("string", "app_dialog_restore_failure_reason_missing_required_scope", "Drive access was not granted", "не предоставлен доступ к Drive"),
+        ("string", "app_dialog_restore_failure_reason_storage_quota_exceeded", "Drive storage is full", "место в Drive закончилось"),
+        ("string", "app_dialog_restore_failure_reason_corrupted_backup", "the backup file is corrupted", "файл резервной копии повреждён"),
+        ("string", "app_dialog_restore_failure_reason_schema_too_new", "the backup was created by a newer app version", "резервная копия создана более новой версией приложения"),
+        ("string", "app_dialog_restore_failure_reason_missing_migration_path", "no migration path to this app version", "нет пути миграции к этой версии приложения"),
+        ("string", "app_dialog_restore_failure_reason_io", "a read or write error occurred", "произошла ошибка чтения или записи"),
+        ("string", "app_dialog_restore_failure_reason_unknown", "an unexpected error occurred", "произошла непредвиденная ошибка"),
+    ),
+    resource_prefix="app_dialog_",
+    # The Store and its State; AppDialogResolver is a payload as the one domain file.
+    payload_files=frozenset({"AppDialogStore.kt"}),
+    store_file="mvi/store/AppDialogStore.kt",
+    # D3: the medium date beside the dialog, formatted before the State write.
+    state_fields=(
+        ("current", "AppDialog?"),
+        ("dateLabel", "String"),
+    ),
+    # D3: the handler passes ResourceWrapper on; the mapper holds the two date reads.
+    resource_wrapper_readers=frozenset({"mvi/handler/AppDialogRepoHandler.kt", "mvi/mapper/AppDialogDateMapper.kt"}),
+    # S4: three Light/Dark pairs as ThemeMode subjects; RestoreSuccessDialog's third is inventoried.
+    preview_subjects={
+        "ui/RestoreFailureDialog.kt": "RestoreFailureDialog",
+        "ui/UndoRestoreConfirmationDialog.kt": "UndoRestoreConfirmationDialog",
+        "ui/UndoRestoreSuccessDialog.kt": "UndoRestoreSuccessDialog",
+    },
+    # The one inherited production suppression; no Native test-name annotation (S2 renames).
+    suppressions={
+        "src/commonMain/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt": [
+            '"UNCHECKED_CAST"',
+        ],
+    },
+    # Section 9's 43 portable identities and the Native scene of Section 9.4.
+    test_names={
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepositoryTest.kt": [
+            "currentDialog is null when no flag is set",
+            "publish RestoreSuccess surfaces the variant with payload",
+            "publish RestoreFailure surfaces the variant with reason",
+            "publish UndoRestoreConfirmation surfaces with date",
+            "missing confirmation owner does not block publishing a valid owner",
+            "invalid confirmation owner does not block publishing a valid owner",
+            "different confirmation owner does not block publishing the current owner",
+            "old owner dismiss preserves the newer confirmation",
+            "publish UndoRestoreSuccess surfaces the data variant",
+            "new terminal owner replaces identical payload and stale dismiss preserves it",
+            "new owned terminal payload replaces a stale pending payload",
+            "foreign install epoch clears transferred restore dialogs before resolution",
+            "dismiss clears only the named variant's flags",
+            "dismiss the only pending variant emits null",
+            "dedup is per-variant — pending RestoreFailure does not block RestoreSuccess publish",
+            "publish then dismiss then publish same variant succeeds — the flag was cleared",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/domain/AppDialogResolverTest.kt": [
+            "no flag set resolves to null",
+            "RestoreFailure resolves with reason",
+            "RestoreFailure with missing reason key falls back to Unknown",
+            "RestoreFailure with unparseable reason name falls back to Unknown",
+            "RestoreSuccess resolves with payload",
+            "RestoreSuccess with missing metadata uses defaults",
+            "UndoRestoreSuccess resolves to the data variant",
+            "UndoRestoreConfirmation resolves with date",
+            "RestoreFailure outranks every other variant when all flags are set",
+            "RestoreSuccess wins when RestoreFailure is absent",
+            "UndoRestoreSuccess wins over UndoRestoreConfirmation",
+            "UndoRestoreConfirmation is the lowest-priority resolution",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/AppDialogRepoHandlerTest.kt": [
+            "Observe updates state when repository emits a dialog",
+            "Observe sets state to null when repository emits null",
+            "Observe writes the dialog's formatted date beside it",
+            "Publish forwards dialog to repository",
+            "Dismiss forwards dialog to repository",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/handler/ChooseHandlerTest.kt": [
+            "Choose emits the choice to the observer",
+            "Choose does NOT dismiss the dialog — the consumer is responsible",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/mvi/mapper/AppDialogDateMapperTest.kt": [
+            "a restore success labels the date its backup was restored",
+            "an undo confirmation labels the date of the data it brings back",
+            "a failure or an undo success or no dialog labels nothing and formats nothing",
+        ],
+        "src/commonTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/observer/AppDialogObserverImplTest.kt": [
+            "emit delivers the choice to a live subscriber",
+            "late subscriber does NOT receive past emissions — replay = 0 and no persisted-choice replay",
+            "acknowledgeReaction delegates to repository dismiss",
+            "multiple subscribers all receive the same emission",
+            "emit with no subscriber buffers up to capacity without suspending",
+        ],
+        "src/iosTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/AppDialogFeatureSceneIosTest.kt": [
+            "resourcesDatesVariantsAndChoicesRenderAndDispatch",
+        ],
+    },
+    # D6: the first entry without a golden class.
+    golden_test="",
+    golden_methods=[],
+    device_test="src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/ui/AppDialogHostContentTest.kt",
+    # The moved @Smoke class: its annotation and its ten methods, each once.
+    device_fragments=(
+        "@Smoke\n@RunWith(AndroidJUnit4::class)",
+        "fun nullCurrentRendersNothing()",
+        "fun restoreSuccessRendersWithTitleAndUndoActionWhenPreviousAvailable()",
+        "fun restoreSuccessHidesUndoActionWhenNoPreviousAvailable()",
+        "fun restoreSuccessUndoTapDispatchesRequestUndoChoice()",
+        "fun restoreFailureRendersThreeButtonsAndOkDispatchesAcknowledge()",
+        "fun restoreFailureReportTapDispatchesReport()",
+        "fun restoreFailureExportTapDispatchesExportDiagnostics()",
+        "fun undoRestoreConfirmationConfirmDispatchesConfirmUndo()",
+        "fun undoRestoreConfirmationCancelDispatchesCancel()",
+        "fun undoRestoreSuccessRendersTitleAndOkDispatchesAcknowledge()",
+    ),
+    feature_class="AppDialogFeature",
+    graph_interface="AppDialogGraph",
+    # D6: mounted at the app root, so the "graph function" is the host composable.
+    graph_function="AppDialogHost",
+    factory_accessor="appDialogGraphFactory",
+    create_method="createAppDialogGraph",
+    store_impl="AppDialogStoreImpl",
+    store_accessor="appDialogStore",
+    feature_file="di/AppDialogFeature.kt",
+    graph_file="ui/AppDialogHost.kt",
+    identity_test=Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/AppDialogExtensionIdentityTest.kt"
+    ),
+    identity_fragments=(
+        "private fun AppGraph.appDialogs(): AppDialogGraph = appDialogGraphFactory.createAppDialogGraph()",
+    ),
+    identity_names=[
+        "extension resolves the store through the parent graph",
+        "store's app-scoped deps are the SAME instances the parent holds",
+        "the app-scoped dialog singletons are inherited, retiring the internals holder seam",
+        "the no-arg creator builds a distinct extension and store per call",
+    ],
+    # Each identity reaches the graph once through the accessor; the fourth's second call is not
+    # counted.
+    identity_accessor=r"val (?:store|extension|first) = (?:buildAppGraph\(\)|appGraph)\.appDialogs\(\)",
+    extra_checks=(app_dialogs_contract,),
+    # S4: the "No previous version" preview stays, so this file is pinned by its arguments.
+    preview_inventory={
+        "ui/RestoreSuccessDialog.kt": [
+            'name = "Light", showBackground = true',
+            'name = "Dark", showBackground = true',
+            'name = "No previous version", showBackground = true',
+        ],
+    },
+    resource_wrapper_dates={"mvi/mapper/AppDialogDateMapper.kt": {"formatMediumDate": 2}},
+    # D6: mounted in App.kt's admitted generation, beside AppNavigationHost; app:app keeps its
+    # api edge.
+    mount="app_root",
+    app_aggregation="api",
+)
+
 # Every shared feature entry the gate holds to its exact contract.
 FEATURE_ENTRIES = (
     ARCHIVE_ENTRY,
@@ -7758,6 +8155,7 @@ FEATURE_ENTRIES = (
     SINGLE_TRAINING_ENTRY,
     EXERCISE_ENTRY,
     LIVE_WORKOUT_ENTRY,
+    APP_DIALOGS_ENTRY,
 )
 
 

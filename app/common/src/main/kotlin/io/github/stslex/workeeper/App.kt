@@ -276,7 +276,7 @@ private fun AppGenerationContent(deps: AppRootDeps) {
 
             // Sibling of AppNavigationHost so the dialog shows on any route; its state lives in
             // DataStore. See documentation/feature-specs/app-dialogs.md → "AppDialogHost mounting".
-            AppDialogHost()
+            AppDialogHost(factory = deps.appDialogGraphFactory)
         }
     }
 }

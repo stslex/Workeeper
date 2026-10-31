@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
+import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpochSource
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreGarbageCollectionReport
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
@@ -50,6 +51,7 @@ interface RestoreRecoveryFileStore : RestoreRecoveryFiles {
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class, binding = binding<RestoreRecoveryFiles>())
 @ContributesBinding(AppScope::class, binding = binding<RestoreRecoveryFileStore>())
+@ContributesBinding(AppScope::class, binding = binding<InstallEpochSource>())
 public class RestoreRecoveryFilesImpl internal constructor(
     private val context: Context,
     private val dispatcher: CoroutineDispatcher,

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.app.common.di
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
+import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogGraph
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartGraph
@@ -62,6 +63,9 @@ interface AppRootDeps {
 
     /** Generation-owned factory for the live-workout graph extension. */
     val liveWorkoutGraphFactory: LiveWorkoutGraph.Factory
+
+    /** Generation-owned factory for the app-dialogs graph extension, mounted at the app root. */
+    val appDialogGraphFactory: AppDialogGraph.Factory
 }
 
 /**

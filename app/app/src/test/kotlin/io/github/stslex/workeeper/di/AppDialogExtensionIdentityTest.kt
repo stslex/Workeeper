@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogGraph
@@ -44,8 +43,7 @@ internal class AppDialogExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
-    private fun AppGraph.appDialogs(): AppDialogGraph =
-        asContribution<AppDialogGraph.Factory>().createAppDialogGraph()
+    private fun AppGraph.appDialogs(): AppDialogGraph = appDialogGraphFactory.createAppDialogGraph()
 
     @Test
     fun `extension resolves the store through the parent graph`() {
