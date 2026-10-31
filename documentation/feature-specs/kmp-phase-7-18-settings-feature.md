@@ -1,6 +1,6 @@
 # KMP Phase 7.18 — shared Settings with deferred iOS backup
 
-**Status:** IN PROGRESS — implementation authorized; exit evidence and review pending.
+**Status:** IMPLEMENTED — local exit evidence and separate review accepted; PR CI tracked in #349.
 
 **Discovery base:** `dev` at `179e1c7df95e40912f0fb6c7eea8a3142b1c8b8a`
 (Phase 7.17, PR [#347](https://github.com/stslex/Workeeper/pull/347)).
@@ -651,3 +651,194 @@ Topology and MVI source checks exited 0. Full exit gates, negative controls, fin
 Native/device evidence and final independent review remain pending.
 
 Separate repository Detekt exited 0: `63 actionable tasks: 63 executed`.
+
+### 12.4 Shared-source implementation and immutable inventories
+
+The original 51 production files map to 39 common files and 12 Android files. The final
+105-file manifest contains 44 `commonMain`, 18 `androidMain`, four `iosMain`, 11
+`commonTest`, nine `androidHostTest`, four `iosTest`, one `androidDeviceTest` Kotlin files,
+two catalogs and 12 PNGs. The topology gate pins this exact set, the ten protected Android
+source blobs, dependency ownership and only the two local launcher expect declarations.
+There are no common/native backup-backend imports or Context factory readers.
+
+The common graph uses the required factory. The route's existing component wrapper is
+expanded locally to `navScreen<Screen.Settings>` so its composable body can
+`remember(factory) { SettingsFeature(factory) }`; the feature still retains one Store and
+uses the existing processor/owner lifecycle. This is a bounded repair to the specification's
+non-composable registration example. The separate reviewer confirmed equivalence. The root
+call-site change is precisely Section 12.1's approved single argument.
+
+Android keeps its auth/backup/scheduling/restore/undo implementation; the ten protected files
+remain byte-identical. The date mapper keeps Android time/date behavior and resolves moved
+resources through `StringResolver` in the existing coroutine path. Public marker auth handles
+carry internal Android wrappers without copying their underlying objects. The iOS production
+binding supplies the dependency-free unavailable handler; real-Store initialization and all
+19 directly dispatched backup actions are exercised. The iOS auth launcher never calls back.
+
+Catalog comparison against the entry inputs is byte-exact after replacing six EN and twelve
+RU bare `%d` placeholders with `%1$d`. Complete final catalog SHA256 values are
+`7000bdad9431d90a349ce4fee8e5b3b940ca53d61d51aa6089e16936f10be7c3` (EN) and
+`84cbcdf78caef2992f8ed3d2269be1d0298079f36c85b954d93db9cf031909e3` (RU).
+No golden was recorded. All files below moved to `src/androidHostTest/snapshots/images/`
+with the exact original basename and Git blob:
+
+| PNG basename (common prefix `io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_`) | Git blob |
+| --- | --- |
+| `screenAuthPaused_dark.png` | `686e2f876f9bc1db28874ff9f4b27a4041f3a426` |
+| `screenAuthPaused_light.png` | `fe996f6077a57d9ee0ab28a39610c8e32d330ede` |
+| `screenRestoreOverlayCompleted_dark.png` | `96cdcd7ad31152c7caebd696b705269bda40e349` |
+| `screenRestoreOverlayCompleted_light.png` | `958cd96d7fa4765cf22798df31bade59f0f7f2df` |
+| `screenRestoreOverlayRestoring_dark.png` | `2f775d4d33042bb45298522d21d99ea7e514fb66` |
+| `screenRestoreOverlayRestoring_light.png` | `38d8279de19d94b611d751e6f5f47acee41041e5` |
+| `screenSignedIn_dark.png` | `cb74e7211a956431de1570018144965d35e20395` |
+| `screenSignedIn_light.png` | `420ef8c15eee0106c16b17637e96d5e014dd8fc9` |
+| `screenSignedOut_dark.png` | `261a4648352931c491e149a50d4028242274e751` |
+| `screenSignedOut_light.png` | `142319655e31d9b6253ded28ae202b9d4e2e3048` |
+| `screenThemeDark_dark.png` | `6f8260b7c31e943331b40082d6b216f3b81d7106` |
+| `screenThemeDark_light.png` | `2b8cc8c272668ab6ac9230788cd454f8706aabd8` |
+
+### 12.5 Negative-control evidence and restoration
+
+Ten Gradle mutations were run through the repository mutation harness, with the four forced
+execution flags on every underlying Gradle invocation. Each harness result is RED from an
+executed assertion, not compilation, linking, `NO-SOURCE` or cached output. Each Android
+control reports `212 actionable tasks: 212 executed`; each Native control reports
+`133 actionable tasks: 133 executed`. The wrapper saves command/start/end/exit, raw Gradle
+log and fresh failing XML, then asserts restored source bytes and mode. Recorded restored
+SHA256 values match the implemented source.
+
+| Independent mutation | Executed failing observation |
+| --- | --- |
+| Send observers while unavailable | `unavailableBackupInitializesNoObservers` |
+| Remove available `ObservePreferences` startup | `availableBackupInitializesAllThreeObservers` |
+| Make the iOS handler available | Production graph and all-action availability assertions |
+| Throw in the unavailable handler | `allBackupActionsLeaveStateAndEventsUnchanged` |
+| Remove restore-dialog guard | Native unavailable-surface absence assertion |
+| Remove sign-out-dialog guard | Native unavailable-surface absence assertion |
+| Remove frequency-picker guard | Native unavailable-surface absence assertion |
+| Remove backup-section guard | Native general-action and unavailable-surface assertions |
+| Remove restore-overlay guard | Native unavailable-surface absence assertion |
+| Lose the Android result Intent | `authResultPreservesIntentIdentity` |
+
+Eight safe Python source controls reject removing the public root factory, simulator task,
+device-link task, binary-loop module or Native oracle identity, adding an availability default,
+adding MockK to commonMain, and adding a third expect declaration. Each snapshots bytes/mode,
+restores in `finally`, asserts restoration and reruns the scoped checker GREEN. All ten old
+`FeatureEntry` positives and the existing Home nullable-factory negative return byte-identical
+old/new outcomes and failure messages.
+
+The Native XML parser was tested separately using copied fixture results: positive, dropped
+identity, duplicate, empty, skipped-only, stale XML and missing freshness marker. Every
+negative is rejected; every restored fixture is accepted with exact byte/mode/timestamp
+restoration. These parser fixtures are not test-execution evidence. The previous 17 module
+expectation structures remain unchanged.
+
+After all mutations, source topology and MVI checks exit 0. The intermediate restored
+Settings run exits 0 with `365 actionable tasks: 365 executed`; its Android XML was later
+overwritten, so that run is not used as the retained host-XML proof. The reviewer classified
+this retention gap as correct-and-new. A final complete Settings build/lint/host/golden/device
+compile/Native/link batch closes it: `716 actionable tasks: 716 executed`, exit 0. Its XML was
+archived immediately before another Gradle invocation: exactly 126 non-golden host identities,
+12 golden invocations and 31 Native identities, all fresh and passing with zero skips.
+
+### 12.6 Executed exit gates (2026-10-31)
+
+The source implementation is signed commit `4ae670d518fb9271bea7959c823a6b80d16205fb`,
+following signed seam commit `6c8cf1dac358c4607f538494d25602b48b5dcc18`.
+The final documentation-only commit is identified by the PR head and signature receipt;
+embedding its own SHA in its contents is not possible. Every Gradle command in this table
+includes `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`.
+Commands, UTC start/end/exit, raw task logs and exact-identity XML inventories are retained
+under the receipt names below, separately from historical or parser-fixture output.
+
+| Receipt | Command/task ownership | Exit | Exact executed-task summary | Fresh test evidence |
+| --- | --- | ---: | --- | --- |
+| `exit-visual-rules` | `verifyPaparazziDebug :lint-rules:test --continue` | 0 | `638 actionable tasks: 638 executed` | 1938 passing cases in 187 fresh XML files, including Settings 126+12; the whole snapshot also contains historical XML, which is excluded |
+| `exit-repository` | `assembleDebug lintDebug testDebugUnitTest assembleDebugAndroidTest :core:ui:mvi:testAndroidHostTest --continue` | 0 | `4231 actionable tasks: 4231 executed` | 3395 passing cases in 477 fresh XML files; Settings 126 and app identity four; no skips |
+| `exit-detekt` | `detekt --continue` | 0 | `63 actionable tasks: 63 executed` | Separate static-analysis invocation; custom-rule tests ran first |
+| `exit-settings-final` | Section 9.2 Settings build/lint/host/golden/device compile plus Native simulator/link tasks, `--continue` | 0 | `716 actionable tasks: 716 executed` | 169 passing cases in 21 fresh XML files: 126 host +12 golden +31 Native; no skips |
+| `exit-native18` | All 18 `iosSimulatorArm64Test` tasks from the updated workflow, `--continue` | 0 | `491 actionable tasks: 491 executed` | 937 passing cases in 130 fresh XML files across 18 modules; no skips; exact Native oracle exit 0 |
+| `exit-link18` | All 18 `linkDebugTestIosArm64` tasks from that workflow, `--continue` | 0 | `473 actionable tasks: 473 executed` | 18/18 binaries exist with fresh mtimes and recorded SHA256; linking only |
+| `exit-wear-release` | `:app:wear:testStoreReleaseUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false --tests '*ReleaseRuntimeBoundaryTest*'` | 0 | `107 actionable tasks: 107 executed` | Three passing exact release-boundary identities; no skips |
+| `retry-smoke` | `connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --continue --no-parallel --max-workers=2` | 0 | `2116 actionable tasks: 2116 executed` | 44 cases: 41 PASS, three unchanged pendingFeatureRewrite skips; Settings 2/2 and MVI 2/2 executed; no SCREEN_ errors |
+
+MVI source and host identity assertions, complete shared topology, privacy scan and Wear
+transport normal gate exit 0; the Wear self-test passes 53 controls. Mockup appearance passes
+11/11 checks; its `f52462c7` known negative exits 1 with seven meaningful failures. The local
+system Python 3.9 cannot parse two existing gate scripts; the already installed Python 3.13
+runs them unchanged. The existing Chrome executable is invoked through a temporary absolute
+launcher for the browser probe, with no gate/global configuration changes.
+
+The first Smoke attempt exits 1 (`2116 actionable tasks: 2116 executed`): QEMU's hang detector
+terminates the emulator, then UTP reports offline/missing device. That run is not green and
+its partial XML/logcat/crash report are retained. A cold start of the same AVD also hangs;
+the owned unresponsive QEMU ignores SIGTERM and is terminated before replacement. The same
+API 34 AVD then boots with software rendering, Vulkan disabled and preserved disk data.
+The complete retry uses serial project execution and two Gradle workers, as recorded above;
+no app source, test assertion, SDK/toolchain version, suppression or baseline changes.
+The exact initial hang cause is not established beyond the emulator's captured stack.
+
+The accepted C2 CI run is [941](https://github.com/stslex/Workeeper/actions/runs/41200738809):
+Build and Unit Tests, KMP iOS kit smoke and Release bundle identity all succeed. Its companion
+mockup run [701](https://github.com/stslex/Workeeper/actions/runs/41200738789) succeeds.
+These are CI statuses, separate from the forced local execution evidence above.
+
+Bounded compilation repairs included the existing CMP BackHandler opt-in, `StringResource`
+private UI labels, portable fake signatures and test-only iOS plain dispatcher qualifiers.
+No global convention, suppression, baseline or version was changed to resolve them.
+
+Regression and the final documentation/signature/review supplement remain pending at this
+intermediate ledger point. The append below records their eventual result.
+
+### 12.7 Final device, review and handoff supplement
+
+The full Regression invocation uses the same annotation selector as Section 9.2 and all four
+forced flags, plus `--continue --no-parallel --max-workers=2`. It exits 0:
+`2116 actionable tasks: 2116 executed`. Its 88 exact cases are fresh, with zero failures,
+errors or skips. The twelve required app generation/dialog identities each occur once and
+pass, including `greenGate_restoreThenRollback_coherentGenerationHandover`. Room migration,
+atomic rollback, invalidation, same-instance reopening and round-trip device cases pass.
+Both device suites retain separate XML/identity inventories and logcat; neither contains an
+`E SCREEN_` error. Smoke's three pre-existing `pendingFeatureRewrite` skips remain explicit.
+
+The final preservation comparison confirms the ten Android blobs, full twelve-PNG map and
+both normalized catalogs; exact Counter equality for the 120+6 host cases, unchanged four
+app extension XML identities, two executed Settings device methods, twelve app device cases
+and all 31 predeclared Native identities. No golden was recorded.
+
+| Created source SHA | GitHub verification | Independently re-read |
+| --- | --- | --- |
+| `6c8cf1dac358c4607f538494d25602b48b5dcc18` | `verified=true`, `reason=valid`, `verified_at=2026-10-31T11:27:19Z` | Yes, via the GitHub connector |
+| `4ae670d518fb9271bea7959c823a6b80d16205fb` | `verified=true`, `reason=valid`, `verified_at=2026-10-31T12:20:39Z` | Yes, via the GitHub connector |
+
+The documentation-only commit is checked immediately after creation and on GitHub after its
+fast-forward push; its SHA/verification timestamp live in the final signature receipt and
+[implementation PR #349](https://github.com/stslex/Workeeper/pull/349), avoiding a self-SHA.
+No merge, auto-merge, force push or push to dev/master is part of this handoff.
+
+A separate `spec_review` agent role reviewed the source, exact assertions/inventories,
+Android semantics, iOS production aggregation/inertness, State/modal discipline, scope,
+negative controls, freshness, signatures and canonical documentation. It independently
+parsed the archived XML, reran the existing Python identity parser against archived Native
+results, checked binary hashes/timestamps and read source signatures/CI from GitHub.
+Its source review found no unresolved defect; the accepted scope and evidence findings
+and their resolutions are recorded in Sections 12.1, 12.3 and 12.5.
+That role accepted the final Regression/documentation supplement: all 88 fresh cases,
+twelve required app identities and 2708 archived artifact size/mode/SHA256 records checked;
+no unresolved source or evidence finding remains. The documentation SHA's GitHub signature
+and final PR-head CI are checked separately after this commit is created.
+
+Full commands, statuses, task summaries, exact baseline/final identities, source/blob/catalog
+maps, fresh and failed XML, mutation logs/restoration assertions and device logcat are preserved
+in the local ignored artifact archive `.claude/worktrees/phase718-evidence-20261031/` in the
+main checkout (`INDEX.md` and `manifest-sha256.json`). This is an evidence directory, not a
+second checkout. Timestamped inventories distinguish fresh cases from older files copied into
+whole-report snapshots. Parser fixtures and failed environment runs remain labeled separately.
+CI also uploads the Native XML and freshness marker through the unchanged stable job.
+
+Limits: iOS backup remains intentionally unavailable; no iOS app host/backend or physical iOS
+execution is introduced. Real interactive Google account/Drive operations were not manually
+performed; Android's preserved behavior is supported by the existing host, golden and device
+contracts. PR CI/review after the documentation head is reported on the PR; C2's accepted CI
+statuses above are not relabeled as a later head's result. Final acceptance/merge remains with
+the maintainer.

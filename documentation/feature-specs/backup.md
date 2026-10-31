@@ -16,6 +16,24 @@ layer (`core/data/backup/api`) is provider-neutral; the only concrete impl
 today is Google Drive, but a future self-hosted backend can land alongside it
 without touching the feature module.
 
+## Settings platform boundary
+
+The shared Settings entry retains these backup flows on Android. Its `SettingsBackupHandler`
+implementation is the single source of availability; Android binds `BackupClickHandler`, while
+iOS binds a stateless unavailable object with no backup dependencies. iOS starts no backup
+observers, renders no backup section/dialog/progress overlay even for stale State, and treats
+all directly dispatched backup actions as inert. General Settings and external links remain
+available. A real iOS backend is deferred until after the KMP migration and needs its own accepted
+specification; this does not decide an iOS release feature set.
+
+UI auth transport uses public opaque `SettingsAuthRequest` / `SettingsAuthResult` markers.
+Android-local wrappers preserve the original IntentSender and nullable Intent identities; the
+launcher still forwards nullable result data without changing result-code interpretation.
+Backup date/size formatting stays Android-only. Its Settings catalog reads now use injected
+`StringResolver`, with the shared resource stack's inherited primary-locale/EN fallback limit.
+The backup, restore and undo algorithms remain unchanged. See
+[Phase 7.18](kmp-phase-7-18-settings-feature.md) for source boundaries and verification evidence.
+
 ## Status
 
 - Sign in / sign out / create backup / list backups / restore latest backup are
@@ -46,7 +64,8 @@ without touching the feature module.
 | `core/data/database/snapshot` | `DatabaseSnapshotProvider[Impl]` + `RestoreRecoveryFiles[Impl]` — WAL checkpoint/capture, exact-ref validation/replacement, no-backup recovery assets, advisory capacity admission, and owner-aware sweep. |
 | `feature/settings` | UI integration: `BackupSection`, `FrequencyPickerBottomSheet`, `AutoBackupRow`, `AuthPausedBanner`, `RestoreConfirmationDialog`, `SignOutConfirmationDialog`, and the `BackupClickHandler` that orchestrates all four flows (sign-in, manual backup, restore, scheduling). |
 
-The feature module depends only on `core/data/backup/api`; concrete impls are
+Among backup-provider modules, Settings `androidMain` depends only on `core/data/backup/api`;
+its existing database and app-dialog contracts also stay Android-owned. Concrete impls are
 bound at the app graph via `:core:data:backup:google-drive`,
 `:core:data:backup:scheduling`, and `:core:data:backup:worker`, all declared as
 `implementation` from `app/app/build.gradle.kts`. This means a future
@@ -77,8 +96,8 @@ feature code.
 
 ## Architectural rules
 
-- **api-vs-impl split.** The feature module depends only on the
-  `core/data/backup/api` module. Impl modules (`google-drive`, `scheduling`,
+- **api-vs-impl split.** Settings owns its backup-provider dependency on
+  `core/data/backup/api` in `androidMain` only. Impl modules (`google-drive`, `scheduling`,
   `worker`) are wired at the app graph. The
   [`DomainLayerPurityRule`](../lint-rules.md#domainlayerpurityrule) explicitly
   exempts `core.data.<feature>.api.*` so the settings domain layer can import
@@ -618,7 +637,7 @@ All user-facing text lives in resources, EN + RU. Backup strings are grouped
 by purpose:
 
 - `feature_settings_backup_*` — Settings UI: button labels, dialog titles,
-  banner copy. In `feature/settings/src/main/res/values/strings.xml` and the
+  banner copy. In `feature/settings/src/commonMain/composeResources/values/strings.xml` and the
   `values-ru/` counterpart.
 - `feature_settings_backup_error_*` — typed error messages keyed by
   `BackupErrorUi` enum. The graph maps each error code to a localized string
@@ -708,7 +727,7 @@ UI surfaces each variant via `BackupErrorUi` + a localized string resource.
 | `MissingRequiredScope` | Consent screen returned a token but `grantedScopes` excludes `drive.appdata`; detected at the data boundary before any token is cached | n/a (sign-in path only — periodic never reaches this) | snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE` with explicit retry copy |
 | `StorageQuotaExceeded` | Drive 403 with `quotaExceeded` / `userRateLimitExceeded` reason in the body | `Result.failure()` (non-retryable without user action) | snackbar via `BackupErrorUi.STORAGE_QUOTA_EXCEEDED` |
 | `CorruptedBackup(reason)` | SQLite magic header mismatch on restore; manifest parse failure | `Result.retry()` (other paths) | snackbar via `BackupErrorUi.CORRUPTED_BACKUP` |
-| `BackupTooNew(backupSchema, appSchema)` | Pre-restore in [`RestoreLatestBackupUseCase`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/usecase/RestoreLatestBackupUseCase.kt): `backup.schemaVersion > currentCodeSchemaVersion`, then exact staged-source validation before mutation. | n/a (restore path) | snackbar via `BackupErrorUi.BACKUP_TOO_NEW` ("Update the app to restore this backup"). |
+| `BackupTooNew(backupSchema, appSchema)` | Pre-restore in [`RestoreLatestBackupUseCase`](../../feature/settings/src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/usecase/RestoreLatestBackupUseCase.kt): `backup.schemaVersion > currentCodeSchemaVersion`, then exact staged-source validation before mutation. | n/a (restore path) | snackbar via `BackupErrorUi.BACKUP_TOO_NEW` ("Update the app to restore this backup"). |
 | `MissingMigrationPath(backupSchema, appSchema)` | The same use case and staged-source validation reject a strictly older schema when [`hasMigrationPath`](../../core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/migration/MigrationGraph.kt) returns false. Distinct from `BackupTooNew` and `CorruptedBackup`. | n/a (restore path) | snackbar via `BackupErrorUi.MISSING_MIGRATION_PATH` ("Backup is from an older version that this app build cannot migrate"). |
 | `InsufficientLocalStorage(requiredBytes, availableBytes)` | Advisory restore/rollback admission estimate is larger than allocatable bytes, or overflow makes the safe requirement unrepresentable. | n/a (restore path) | snackbar via `BackupErrorUi.IO_ERROR`; mutation has not started. |
 | `StorageCapacityUnavailable(cause)` | Android cannot answer `StorageManager.getAllocatableBytes()`, or reports an invalid negative capacity/size. | n/a (restore path) | snackbar via `BackupErrorUi.IO_ERROR`; mutation has not started. |
