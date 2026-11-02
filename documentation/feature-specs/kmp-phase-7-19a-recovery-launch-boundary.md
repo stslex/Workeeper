@@ -177,8 +177,8 @@ own log, start/command/PID receipt and copied fresh JUnit XML. Device:
 | Repository device-test compilation | PASS: `2156 actionable tasks: 2156 executed`; existing Android/KMP test compilation and classpath checks retained. |
 | Separate Detekt | PASS: `63 actionable tasks: 63 executed`; no auto-correct, new suppression or baseline change. |
 | Exit host identities, allowed-path/startup/recovery-tree comparison | PASS: exact entry/exit identity multisets match for all 333 host cases; exactly nine allowed paths; startup before `setContent` byte-identical; recovery tree unchanged. |
-| Commit signatures and implementation PR | Pending. |
-| Remote CI and maintainer review | Pending publication. The maintainer owns merge. |
+| Commit signatures and implementation PR | Implementation commit `fd487e152a9e9d510cbedc43dec3e84f7d274045`: local SSH signature valid; GitHub `verified: true`, reason `valid`. [Implementation PR #351](https://github.com/stslex/Workeeper/pull/351) targets `dev`; the signed evidence attestation is verified in the PR handoff. |
+| Remote CI and maintainer review | At publication, CI and requested bot review were pending. Live results are tracked in [PR #351](https://github.com/stslex/Workeeper/pull/351); the maintainer owns merge. |
 
 The first baseline attempt stopped at configuration (`keystore.jks is inValid`): the
 fresh worktree lacked the existing ignored signing file. Copying the local ignored
