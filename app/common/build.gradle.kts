@@ -43,7 +43,4 @@ dependencies {
     // `api`: AppRootDeps names AppDialogGraph.Factory; AppDialogHost is mounted as a sibling of
     // AppNavigationHost.
     api(project(":feature:app-dialogs:impl"))
-
-    // RecoveryActivity, for NavigatorExt's NavCommand.OpenRecovery branch.
-    implementation(project(":feature:recovery"))
 }

@@ -55,7 +55,7 @@ internal class UiAdmissionRaceTest {
         val generationId = publishedGenerationId()
         MetroTestGraphHolder.appRootDepsResolutions.set(0)
 
-        composeRule.setContent { App() }
+        composeRule.setContent { App(onOpenRecovery = { error("Unexpected recovery launch") }) }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(APP_ROOT_TAG).assertIsDisplayed()
@@ -78,7 +78,7 @@ internal class UiAdmissionRaceTest {
         MetroTestGraphHolder.appRootDepsResolutions.set(0)
         MetroTestGraphHolder.retireUiGeneration(generationId)
 
-        composeRule.setContent { App() }
+        composeRule.setContent { App(onOpenRecovery = { error("Unexpected recovery launch") }) }
         composeRule.waitForIdle()
 
         assertEquals(
@@ -102,7 +102,7 @@ internal class UiAdmissionRaceTest {
      */
     @Test
     fun retirementBetweenPublicationAndFrame_resolvesNothing() {
-        composeRule.setContent { App() }
+        composeRule.setContent { App(onOpenRecovery = { error("Unexpected recovery launch") }) }
         composeRule.waitForIdle()
         val generationOne = publishedGenerationId()
         composeRule.onNodeWithTag(APP_ROOT_TAG).assertIsDisplayed()

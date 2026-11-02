@@ -1099,7 +1099,7 @@ round-trips every `Screen` leaf through it. The stack is wrapped in a
 
 ```kotlin
 @Composable
-fun App() {
+fun App(onOpenRecovery: () -> Unit) {
     AppTheme(themeMode = themeMode) {
         val backStack = rememberNavBackStack(
             screenSavedStateConfiguration,
@@ -1112,6 +1112,7 @@ fun App() {
             navigatorHolder = holder,
             navigator = navigatorEventBus,
             results = navigatorEventBus,
+            onOpenRecovery = onOpenRecovery,
         )
 
         // ... NavDisplay wired through
@@ -1130,15 +1131,16 @@ fun NavigationEventBusSetup(
     navigatorHolder: NavigatorHolder,
     navigator: NavigatorReceiver,
     results: NavResultsSource,
+    onOpenRecovery: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val currentOnOpenRecovery by rememberUpdatedState(onOpenRecovery)
     LaunchedEffect(navigatorHolder) {
         navigator.commands.collect { command ->
             processCommand(
                 holder = navigatorHolder,
                 command = command,
                 results = results,
-                context = context,
+                onOpenRecovery = currentOnOpenRecovery,
             )
         }
     }
@@ -1179,16 +1181,18 @@ app-owned stack:
   `NavResultsSource` **before** the pop, which is how navigation results flow
   back to the previous screen (see [Navigation results](#navigation-results)).
 - `ReplaceTo` — replace the top entry.
-- `OpenRecovery` — the one branch that does not touch the stack: it uses the
-  `Context` captured at bridge attach to launch `RecoveryActivity` in a fresh
-  task (`FLAG_ACTIVITY_NEW_TASK`).
+- `OpenRecovery` — invokes the current host callback without touching the stack.
+  `MainActivity` passes it through the admitted generation and launches the explicit
+  `RecoveryScenario.StartupMigration` intent (`FLAG_ACTIVITY_NEW_TASK`, Continue denied).
+  `rememberUpdatedState` updates the callback without restarting the holder-keyed collector.
 
 Process restart is **not** one of these branches — it never reaches
 `processCommand` at all, because `restartApp()` invokes the `AppReinitializer`
 seam directly instead of emitting a `NavCommand` (see the destructive
-app-restart section below). The bridge is the only place that holds `Context`
-for the navigation pipeline; no feature module imports `Context` for restart
-or recovery purposes.
+app-restart section below). The Android host owns the recovery launch; the bridge
+holds no `Context` and `app:common` has no direct dependency on `feature:recovery`.
+The separate startup preflight still launches recovery before composition and finishes
+`MainActivity`. See [Phase 7.19A](feature-specs/kmp-phase-7-19a-recovery-launch-boundary.md).
 
 ### Lifetime rules
 
