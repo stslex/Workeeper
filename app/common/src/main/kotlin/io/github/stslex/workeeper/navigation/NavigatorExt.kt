@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
-import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.telemetryDedupeKey
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
@@ -14,7 +14,6 @@ import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorReceiver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
 
 object NavigatorExt {
 
@@ -27,15 +26,16 @@ object NavigatorExt {
         navigatorHolder: NavigatorHolder,
         navigator: NavigatorReceiver,
         results: NavResultsSource,
+        onOpenRecovery: () -> Unit,
     ) {
-        val context = LocalContext.current
+        val currentOnOpenRecovery by rememberUpdatedState(onOpenRecovery)
         LaunchedEffect(navigatorHolder) {
             navigator.commands.collect { command ->
                 processCommand(
                     holder = navigatorHolder,
                     command = command,
                     results = results,
-                    context = context,
+                    onOpenRecovery = currentOnOpenRecovery,
                 )
             }
         }
@@ -45,7 +45,7 @@ object NavigatorExt {
         holder: NavigatorHolder,
         command: NavCommand,
         results: NavResultsSource,
-        context: Context,
+        onOpenRecovery: () -> Unit,
     ) {
         logger.i("Processing navigation command: ${command.logLabel()}", telemetryDedupeKey(command))
         when (command) {
@@ -59,7 +59,7 @@ object NavigatorExt {
             )
 
             is NavCommand.ReplaceTo -> replaceTo(holder, command.screen)
-            NavCommand.OpenRecovery -> openRecovery(context)
+            NavCommand.OpenRecovery -> onOpenRecovery()
         }
     }
 
@@ -127,13 +127,5 @@ object NavigatorExt {
         } catch (ignore: Exception) {
             logger.e(ignore, "screen: ${screen.logLabel()}")
         }
-    }
-
-    // The in-app seam is the Scenario-2 route by construction: Scenario 1 is decided before any
-    // composition exists and launches from MainActivity. See RecoveryScenario.
-    private fun openRecovery(context: Context) {
-        context.startActivity(
-            RecoveryScenario.intent(context, RecoveryScenario.StartupMigration),
-        )
     }
 }

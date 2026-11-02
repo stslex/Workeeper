@@ -1592,8 +1592,8 @@ def check_image_viewer_contract() -> list[str]:
             "if (admission.granted) {",
             "val deps = remember(currentPhase.id)",
             "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
-            "AppGenerationContent(deps)",
-            "private fun AppGenerationContent(deps: AppRootDeps)",
+            "AppGenerationContent(deps, onOpenRecovery)",
+            "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
             "commonDataStore = deps.commonDataStore",
             "navigatorEventBus = deps.navigatorEventBus",
             "imageViewerGraphFactory = deps.imageViewerGraphFactory",
@@ -1920,8 +1920,8 @@ def check_plan_editor_feature_contract() -> list[str]:
             "if (admission.granted) {",
             "val deps = remember(currentPhase.id)",
             "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
-            "AppGenerationContent(deps)",
-            "private fun AppGenerationContent(deps: AppRootDeps)",
+            "AppGenerationContent(deps, onOpenRecovery)",
+            "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
             "planEditorGraphFactory = deps.planEditorGraphFactory",
         ],
         Path("app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
@@ -2141,8 +2141,8 @@ APP_ADMISSION_FRAGMENTS = (
     "if (admission.granted) {",
     "val deps = remember(currentPhase.id)",
     "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
-    "AppGenerationContent(deps)",
-    "private fun AppGenerationContent(deps: AppRootDeps)",
+    "AppGenerationContent(deps, onOpenRecovery)",
+    "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
 )
 
 FEATURE_FORBIDDEN_BUILD_TOKENS = (
@@ -9784,6 +9784,65 @@ SETTINGS_ENTRY = FeatureEntry(
 FEATURE_ENTRIES += (SETTINGS_ENTRY,)
 
 
+def check_recovery_launch_boundary() -> list[str]:
+    failures: list[str] = []
+    app = strip_kotlin_comments(APP_PATH.read_text(encoding="utf-8"))
+    bridge_path = Path(
+        "app/common/src/main/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt"
+    )
+    bridge = strip_kotlin_comments(bridge_path.read_text(encoding="utf-8"))
+    host = strip_kotlin_comments(Path(
+        "app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt"
+    ).read_text(encoding="utf-8"))
+
+    admitted = braced_call_bodies(app, "if (admission.granted)")
+    if len(admitted) != 1 or any(
+        compact(admitted[0]).count(compact(fragment)) != 1
+        for fragment in (
+            "val deps = remember(currentPhase.id)",
+            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "AppGenerationContent(deps, onOpenRecovery)",
+        )
+    ):
+        failures.append("recovery launch: dependencies and callback must cross the admitted region")
+
+    for source, fragments, owner in (
+        (app, (
+            "fun App(onOpenRecovery: () -> Unit)",
+            "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
+            "NavigationEventBusSetup(navigatorHolder = holder, navigator = navigatorEventBus, "
+            "results = navigatorEventBus, onOpenRecovery = onOpenRecovery,)",
+        ), "composition root"),
+        (bridge, (
+            "fun NavigationEventBusSetup(navigatorHolder: NavigatorHolder, "
+            "navigator: NavigatorReceiver, results: NavResultsSource, onOpenRecovery: () -> Unit,)",
+            "val currentOnOpenRecovery by rememberUpdatedState(onOpenRecovery)",
+            "LaunchedEffect(navigatorHolder)",
+            "onOpenRecovery = currentOnOpenRecovery,",
+            "NavCommand.OpenRecovery -> onOpenRecovery()",
+        ), "navigation bridge"),
+        (host, (
+            "setContent { App(onOpenRecovery = ::openRecovery) }",
+            "private fun openRecovery() { "
+            "startActivity(RecoveryScenario.intent(this, RecoveryScenario.StartupMigration)) }",
+        ), "Android host"),
+    ):
+        for fragment in fragments:
+            if compact(source).count(compact(fragment)) != 1:
+                failures.append(f"recovery launch: {owner} must contain {fragment!r} exactly once")
+
+    common_build = strip_kotlin_comments(Path("app/common/build.gradle.kts").read_text(encoding="utf-8"))
+    if re.search(r'project\s*\(\s*":feature:recovery"\s*\)', common_build):
+        failures.append("recovery launch: app:common must not depend directly on feature:recovery")
+    for path in Path("app/common/src").rglob("*.kt"):
+        if re.search(r"^\s*import\s+io\.github\.stslex\.workeeper\.feature\.recovery\b", path.read_text(), re.M):
+            failures.append(f"recovery launch: recovery import remains in {path}")
+    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
+    if compact(app_build).count('api(project(":feature:recovery"))') != 1:
+        failures.append("recovery launch: app:app must retain the Android feature edge")
+    return failures
+
+
 def main() -> None:
     failures: list[str] = []
     for name, manifest in MODULES.items():
@@ -9791,6 +9850,7 @@ def main() -> None:
     failures.extend(check_plan_editor_resources())
     failures.extend(check_image_viewer_contract())
     failures.extend(check_plan_editor_feature_contract())
+    failures.extend(check_recovery_launch_boundary())
     for entry in FEATURE_ENTRIES:
         failures.extend(check_feature_entry(entry))
     placeholder_failures, placeholder_walk = check_compose_resource_placeholders()

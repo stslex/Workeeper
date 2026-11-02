@@ -69,7 +69,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * generation id, under the generation's ViewModelStoreOwner. See the Phase-5 startup spec §8.7.
  */
 @Composable
-fun App() {
+fun App(onOpenRecovery: () -> Unit) {
     val context = LocalContext.current
     val generationsHolder = remember(context) {
         context.applicationContext as AppUiGenerationsHolder
@@ -101,7 +101,7 @@ fun App() {
                                 ?.let(saveableStateHolder::removeState)
                             previousGenerationId = currentPhase.id
                         }
-                        AppGenerationContent(deps)
+                        AppGenerationContent(deps, onOpenRecovery)
                     }
                 }
             }
@@ -141,7 +141,7 @@ private class GenerationAdmission(
 
 @Composable
 @Suppress("LongMethod")
-private fun AppGenerationContent(deps: AppRootDeps) {
+private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit) {
     // AppRootViewModel reads deps through [AppRootDeps]; the app graph is below-the-line here and
     // cannot be named. The admitted generation resolves and passes this exact instance once.
     val viewModel: AppRootViewModel = viewModel {
@@ -169,6 +169,7 @@ private fun AppGenerationContent(deps: AppRootDeps) {
             navigatorHolder = holder,
             navigator = navigatorEventBus,
             results = navigatorEventBus,
+            onOpenRecovery = onOpenRecovery,
         )
 
         val snackbarHostState = remember { SnackbarHostState() }

@@ -58,8 +58,12 @@ class MainActivity : ComponentActivity() {
         activityProducer.produce(this)
 
         setContent {
-            App()
+            App(onOpenRecovery = ::openRecovery)
         }
+    }
+
+    private fun openRecovery() {
+        startActivity(RecoveryScenario.intent(this, RecoveryScenario.StartupMigration))
     }
 
     override fun onDestroy() {
