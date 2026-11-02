@@ -154,3 +154,170 @@ suppressions/baselines, golden movement or missing execution evidence. Report co
 identities/skips, controls, ownership and remaining device/host work. Use signed Conventional Commits and an
 independent final review on the implementation head. Open one implementation PR into `dev`. The maintainer owns
 merge.
+
+## Implementation evidence
+
+Entry is `origin/dev@d30d0f2f862915a13b3c8034d1842513949da984`, the actual merge of
+[specification PR #356](https://github.com/stslex/Workeeper/pull/356). Its accepted specification
+blob `9bcc3edd384792aa3d29df790ff7293bfd9bdb78` equals the blob on final reviewed head
+`930c097a92c6522bfb21a591d292eeccc5eeb441`; the merge is reachable from `origin/dev`.
+Implementation uses the separate `codex/kmp-7-20b-ios-metro-graph` branch/worktree. The PR records
+the exact published head, GitHub verification of every implementation commit and independent
+review provenance.
+
+### Host and ownership inventory
+
+Local host: Apple silicon arm64, macOS 27.0 (`26A428`), Xcode 27.0 (`27A266a`), JBR 21.0.11.
+The existing Kotlin 2.4.10 and Metro 1.3.2 pins are unchanged. Android execution uses
+`Pixel_6_API_34`, `emulator-5554`, API 34, `arm64-v8a`. Local long gates ran on AC under
+`caffeinate`; the later closed-lid state was checked with an online external main display,
+`AppleClamshellCausesSleep=No` and `IOPMUserIsActive=Yes`. No power policy was changed.
+
+The task created its own iOS 26.5 simulators. Entry/P0 used
+`7D203404-E9C0-44FE-9E67-7D7BABED2572`; after the initial UI teardown experiments, the final suite
+and independent controls used `CAA5D7AA-88BE-42C9-917A-1210CB5274FF`
+(`Workeeper-Phase-7.20B-20261102-r3`). Tests compare the expected UUID with `SIMULATOR_UDID`,
+`NSHomeDirectory()` and the user-domain support path before the public database factory writes.
+Database and graph tasks execute serially on that device. Only the newly created default database
+directory is removed after handles close; DataStore retains ownership of its preference files
+until process exit. Task-owned simulators are removed only after all test processes exit.
+
+`build/kmp-7-20b-evidence/entry.json` retains the seven schema blob/SHA-256 pairs, the twenty
+original Native expectation dictionaries and the seven graph identities registered before output.
+`feature-factories.json` records all thirteen source declarations. The graph requires exactly the
+two borrowed roots and five host ports in the accepted ownership table. Real contributions supply
+Room repositories, DataStore, dialog persistence, the scoped navigator and all thirteen feature
+extensions. No extra root, bare dispatcher, production stub, Android DI change or API-classpath fix
+was needed.
+
+### Dispatcher P0
+
+A disposable three-module probe separates producer, consumer and test host. Four tagged dispatcher
+instances cross compiled module boundaries into qualified consumers and the real `StoreDispatchers`.
+Both Native fixtures now supply qualified inputs while retaining all original test assertions.
+The positive probe also links its fresh iosArm64 executable.
+
+The unchanged canonical mutation harness then removes only the probe's IO provider. The exact
+command is `:probe:dispatcher-host:compileTestKotlinIosSimulatorArm64 -I
+build/kmp-7-20b-evidence/probe.init.gradle` with the four forced-execution flags below. It exits 1
+with `[Metro/MissingBinding] No binding found for @IODispatcher CoroutineDispatcher`, reporting
+`35 actionable tasks: 35 executed`. This is an intended compile-only negative, classified
+`INVALID` by the behavioral harness. Its actual command/log/status and exact byte/mode restoration
+are retained in `p0-missing-key-r2/`. Restored simulator cases, device links and Android's existing
+59 dispatcher/extension identity cases pass. Probe modules remain outside Git.
+
+### Entry and P0 receipts
+
+All receipt paths below are relative to ignored `build/kmp-7-20b-evidence/`. Each receipt records
+the full command, actual exit status, start/end UTC timestamps and execution-only Gradle summary.
+Copied fresh XML and exact identities/skip states accompany test commands. Times are on
+2026-11-02 UTC; durations are rounded seconds. A validator row claims no test execution.
+Every Gradle gate uses `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`.
+The frozen local gate/control manifest is `local-gate-manifest-sha256.json`, SHA-256
+`b7a05913eb247f880a1206fa47470f093e3455b37e13f61de37587b1317a0c54`.
+Later publication metadata is recorded separately.
+
+| Gate | Executed result | Start UTC; duration | Receipt |
+| --- | --- | --- | --- |
+| 20-module Native entry | `560 actionable tasks: 560 executed`; 956 cases / 0 skips | 17:24:37; 328s | `entry-native/receipt.json` |
+| Android DI / database / root host entry | `623 actionable tasks: 623 executed`; 265 cases / 0 skips | 17:30:12; 169s | `entry-host/receipt.json` |
+| Smoke entry | `2117 actionable tasks: 2117 executed`; 44 cases / 3 skips | 17:33:15; 338s | `entry-smoke/receipt.json` |
+| Regression entry | `2117 actionable tasks: 2117 executed`; 90 cases / 0 skips | 17:38:55; 348s | `entry-regression/receipt.json` |
+| Cross-module dispatcher probe + device link | `85 actionable tasks: 85 executed`; 1 case / 0 skips | 17:45:28; 72s | `p0-positive/receipt.json` |
+| Restored probe / two Native fixtures + links | `545 actionable tasks: 545 executed`; 43 cases / 0 skips | 17:48:24; 146s | `p0-restored-native/receipt.json` |
+| Final Native fixtures / Android DI identities | `823 actionable tasks: 823 executed`; 101 cases / 0 skips | 17:51:57; 144s | `p0-fixtures-and-android/receipt.json` |
+
+### Exit receipts
+
+The Bash commands in the accepted gate section ran unchanged; the full Native task lists match
+the updated workflow. Freshness markers were created before simulator execution and device
+linking. `exit-native.sh` also uses `--no-parallel`; the graph task is ordered after the database
+task. Smoke XML was copied before Regression overwrote generated output.
+
+| Gate | Executed result | Start UTC; duration | Receipt |
+| --- | --- | --- | --- |
+| Seven focused graph simulator cases | `350 actionable tasks: 350 executed`; 7 cases / 0 skips | 18:15:07; 100s | `graph-native-focused-r3/receipt.json` |
+| Focused graph device link | `349 actionable tasks: 349 executed`; 0 cases / 0 skips | 18:19:16; 80s | `focused-device-link/receipt.json` |
+| All 21 simulator tasks + Native oracle | `584 actionable tasks: 584 executed`; 963 cases / 0 skips | 18:20:41; 302s | `exit-native/receipt.json` |
+| All 21 device-target links | `563 actionable tasks: 563 executed`; 0 cases / 0 skips | 18:25:46; 134s | `exit-device-links/receipt.json` |
+| Android build / Lint / host tests | `3149 actionable tasks: 3149 executed`; 3398 cases / 0 skips | 18:28:05; 832s | `exit-android-build-host/receipt.json` |
+| Device-test compilation | `2210 actionable tasks: 2210 executed`; 0 cases / 0 skips | 18:42:01; 353s | `exit-device-compile/receipt.json` |
+| Paparazzi verification / lint-rules tests | `638 actionable tasks: 638 executed`; 1938 cases / 0 skips | 18:47:58; 103s | `exit-paparazzi-lint-rules/receipt.json` |
+| Separate Detekt | `64 actionable tasks: 64 executed`; 0 cases / 0 skips | 18:49:45; 39s | `exit-detekt/receipt.json` |
+| Smoke | `2171 actionable tasks: 2171 executed`; 44 cases / 3 skips | 18:50:28; 778s | `exit-smoke/receipt.json` |
+| Smoke identity oracle | `validator exit 0`; 0 cases / 0 skips | 19:03:30; 0s | `exit-smoke-oracle/receipt.json` |
+| Regression | `2171 actionable tasks: 2171 executed`; 90 cases / 0 skips | 19:03:30; 814s | `exit-regression/receipt.json` |
+| Dev release runtime report | `5 actionable tasks: 5 executed`; 0 cases / 0 skips | 19:17:09; 11s | `exit-runtime-dev/receipt.json` |
+| Store release runtime report | `5 actionable tasks: 5 executed`; 0 cases / 0 skips | 19:17:24; 8s | `exit-runtime-store/receipt.json` |
+
+All 956 previous Native tuples and skip states are retained, with exactly the seven preregistered
+graph tuples added: 963 total, no failures/errors/skips. The original twenty expectation
+dictionaries are unchanged. Android retains all 265 entry DI/database/root host tuples.
+Smoke's exact 44 identities retain the three existing
+`pendingFeatureRewrite` skips in archive, all-trainings and all-exercises. Regression retains all
+90 identities, including all 35 database cases, with no skips. `exit-audit.json` verifies those
+multisets, fresh XML timestamps, all source digests and unchanged dev/store release runtime trees;
+`:app:ios` is absent from both shipping trees.
+
+All 21 device executables are fresh and nonempty. `exit-binaries.json` records path, size,
+timestamp, SHA-256 and Mach-O platform `IOS`; copies are retained in `exit-binaries/`. The new
+graph executable is 95,318,256 bytes. P0's three executable copies are in `p0-binaries/`.
+Device linking is distinct from simulator execution and does not prove physical-device execution.
+
+Source topology, MVI source/host identity and privacy gates pass (`source-topology/`,
+`mvi-source-topology/`, `mvi-host-identities/`, `privacy/`). `source-audit/` and
+`golden-byte-audit.json` retain exact equality for all seven schema files, 456 golden PNGs,
+toolchain pins, Android qualifier actuals, privacy documents and existing Native assertion files.
+No suppression, baseline or golden was changed. The mockup shell gate passes all eleven checks;
+the known `f52462c7` negative exits 1 and reproduces check 7's `width=0px→0px` discriminator.
+Optional actionlint reports the same existing SC2129 finding on entry and implementation;
+normalized diagnostics are identical and this check is not reported as green.
+
+Synthetic validator fixtures accept complete 21-module XML, reject missing/stale/incomplete host
+XML and reject either missing host simulator or device-link CI row. Source is unchanged by these
+fixtures. `validator-controls-run-r2/` and `validator-fixtures/` prove validator discrimination,
+not Native execution.
+
+### Independent behavioral controls
+
+Two separate clean worktrees start from signed implementation snapshot
+`071e0a290359f737ccd35e8d951df67a5cc14e95`. The unchanged canonical `mutation_harness.py`
+owns each one-shot mutation and finally-restoration. An observation-only subprocess wrapper
+retains original stdout/stderr, actual process results, commands and timing without replacing
+the harness's verdict. Each positive, mutant and restored run compiles, links and executes exactly
+one intended simulator identity, with fresh XML and an archived `IOSSIMULATOR` executable.
+
+| Mutation | Measured sequence | Evidence |
+| --- | --- | --- |
+| Default provider returns Main.immediate | positive: exit 0, `350 actionable tasks: 350 executed`; mutant: exit 1, `350 actionable tasks: 350 executed`; restored: exit 0, `350 actionable tasks: 350 executed` | `behavior-controls/behavior-dispatcher/` |
+| Active Paging query adds `AND t.uuid IS NULL` | positive: exit 0, `350 actionable tasks: 350 executed`; mutant: exit 1, `350 actionable tasks: 350 executed`; restored: exit 0, `350 actionable tasks: 350 executed` | `behavior-controls/behavior-query/` |
+
+The dispatcher mutation fails `qualifiedDispatchersReachProductionConsumers[iosSimulatorArm64]`
+at the real `StoreDispatchers` Default identity assertion, with an `AssertionError` showing the
+expected `DarwinGlobalQueueDispatcher` and actual `Dispatchers.Main.immediate`. The query mutation fails
+`admittedRootShowsTrainingFromOwnedDatabase[iosSimulatorArm64]` with `ComposeTimeoutException`
+while awaiting the active sentinel. Before mounting the root, the unchanged DAO `getById`
+assertions still find both seeded rows. Only `pagedActiveWithStats` is mutated. The archived
+mutant source, exact failure type/message, normalized Native class/target identity, source hashes
+and restored file modes are retained. Each restoration returns the same case to one pass with no
+skip/error/failure, and the tracked control tree is clean. Evidence is copied and hash-verified
+before either temporary control worktree is removed without force.
+
+Initial setup failures (a duplicated Gradle option and evidence-directory collisions) and the
+first two UI teardown experiments are retained separately and excluded from green evidence.
+The first dispatcher observer also rejected Kotlin/Native's concrete Default rendering after the
+intended RED; its incomplete receipt is retained separately. The corrected observer verifies that
+concrete expected dispatcher, actual Main.immediate and the exact consumer assertion site.
+The first teardown blocked inside nested `runBlocking`; the second timed out with a manually
+driven lifecycle fixture. The final test observes a real generation-owned child finish, then
+keeps the successor mounted through the actual shared App/Store path. Its suspend teardown
+disposes composition and owners before joining lifetimes and closing the database.
+
+### Review and remaining platform work
+
+The implementation PR carries independent review against the exact published head, final-head
+CI status and GitHub verification for every new signed commit. The maintainer owns merge.
+The public graph is ready for a separately specified host. Swift/Xcode packaging, native media
+and date services, durable installation identity, production generation replacement/recovery,
+iOS backup and physical-device/App Store acceptance remain separate work. Same-process
+preferences/dialog recreation does not establish process-death or production runtime replacement.
