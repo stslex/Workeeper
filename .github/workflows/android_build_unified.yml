@@ -562,7 +562,7 @@ jobs:
   # the image-viewer, plan-editor, archive, all-trainings, all-exercises, past-session, home,
   # exercise-chart, single-training, exercise, live-workout and app-dialogs features' Phase-7
   # Native tests on the iOS simulator, then a checked-in script requires every exact per-module
-  # XML identity. A second forced invocation links the same nineteen modules' iosArm64 device
+  # XML identity. A second forced invocation links the same twenty-one modules' iosArm64 device
   # test binaries and a check requires each executable; device tests are compiled and linked,
   # never run.
   # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
@@ -712,6 +712,9 @@ jobs:
           mkdir -p core/data/database/build
           rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
           touch core/data/database/build/native-test-start
+          mkdir -p app/ios/build
+          rm -rf app/ios/build/test-results/iosSimulatorArm64Test
+          touch app/ios/build/native-test-start
 
       - name: Run native shared UI, feature and application root tests
         id: native_tests
@@ -737,6 +740,7 @@ jobs:
           :feature:settings:iosSimulatorArm64Test
           :app:common:iosSimulatorArm64Test
           :core:data:database:iosSimulatorArm64Test
+          :app:ios:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -759,7 +763,7 @@ jobs:
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
-      # The device half of the target pair: the same twenty modules' iosArm64 test binaries,
+      # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).
       - name: Mark fresh device links
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
@@ -790,6 +794,7 @@ jobs:
           :feature:settings:linkDebugTestIosArm64
           :app:common:linkDebugTestIosArm64
           :core:data:database:linkDebugTestIosArm64
+          :app:ios:linkDebugTestIosArm64
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -805,7 +810,7 @@ jobs:
               core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive \
               feature/all-trainings feature/all-exercises feature/past-session feature/home \
               feature/exercise-chart feature/single-training feature/exercise \
-              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database; do
+              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do
             binary="$module/build/bin/iosArm64/debugTest/test.kexe"
             if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
               linked=$((linked + 1))
@@ -813,7 +818,7 @@ jobs:
               missing+=("$module")
             fi
           done
-          echo "$linked/20 linked"
+          echo "$linked/21 linked"
           if [ "${#missing[@]}" -ne 0 ]; then
             echo "::error::missing, empty or stale iosArm64 test binary for: ${missing[*]}"
             exit 1
@@ -850,6 +855,9 @@ jobs:
             core/data/database/build/native-test-start
             core/data/database/build/device-link-start
             core/data/database/build/native-fixtures/
+            app/ios/build/test-results/iosSimulatorArm64Test/
+            app/ios/build/native-test-start
+            app/ios/build/bin/iosArm64/debugTest/test.kexe
           retention-days: 30
 
       - name: Remove the owned database simulator

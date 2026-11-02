@@ -32,6 +32,7 @@ include(":app:app")
 // navigator. `:app:app` depends on it, so it sits BELOW the app graph and reads what it needs
 // through its own AppRootDeps contract. See documentation/feature-specs/kmp-phase-4-app-common.md.
 include(":app:common")
+include(":app:ios")
 include(":app:dev")
 include(":app:store")
 include(":app:wear")

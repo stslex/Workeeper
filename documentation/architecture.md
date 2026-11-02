@@ -30,6 +30,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `AppGenerationContent` to both `AppRootViewModel` and `AppNavigationHost`. See
   [feature-specs/kmp-phase-4-app-common.md](feature-specs/kmp-phase-4-app-common.md).
   (`navigation/NavigatorReceiver.kt` went to `core/ui/navigation` — it is navigation tooling.)
+- `app/ios` — the Apple Metro parent above `app/common`. `buildIosAppGraph` returns `AppRootDeps`
+  with all thirteen generated feature factories, real Room repositories, DataStore and the scoped
+  navigator. Its Apple dependencies live in `iosMain`; the shipped Android apps have no edge to it.
+  The caller supplies its database, generation lifetime and five required host services. See
+  [Phase 7.20B ownership](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#production-graph-and-ownership).
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
@@ -551,6 +556,14 @@ No feature Context factory reader remains after the Settings conversion.
 
 ### Feature graphs (`@GraphExtension`)
 
+The Apple parent is `app/ios/.../IosAppGraph.kt`, constructed through Metro's generated factory.
+It implements the same `AppRootDeps` contract and resolves all thirteen contributed extensions.
+`ImageStorage`, `CameraPermission`, `ResourceWrapper`, `InstallEpochSource` and
+`AppReinitializationHost` are required caller inputs alongside the borrowed `AppDatabase` and
+`AppScopeLifetime`. The parent binds the existing Apple path resolver, platform information,
+analytics and reinitializer. The caller disposes UI/owners, cancels and joins its lifetime, then
+closes the database. The Swift/Xcode host and production generation coordinator are separate stages.
+
 Each Store-hosting feature owns two files under `feature/<name>/.../di/`:
 
 - `<Name>Scope.kt` — an inert scope token (`abstract class <Name>Scope private constructor()`),
@@ -733,8 +746,8 @@ keeps its existing location, driver, query-context default and generation/recove
 
 The common `buildAppDatabase(builder)` overload in `AppDatabaseBuilder.kt` registers `MIGRATIONS`
 once and adds `reportReconciledTargets()` in `onOpen`. Room invokes that callback after the
-migration transaction commits, so it reports committed reconciliation. The future Apple host's
-DI/runtime binding remains a separate scope. See
+migration transaction commits, so it reports committed reconciliation. The Apple Metro parent
+borrows the constructed database; the production generation runtime remains a separate stage. See
 [Phase 7.20A](feature-specs/kmp-phase-7-20a-ios-room-database.md#production-contract).
 
 **Migration policy (release).** From schema version 5 onward, no destructive
@@ -2131,8 +2144,10 @@ haptic call at all (measured), which is why the nav-tab `SegmentTick` is fired i
   handed on, and a timeout is a failure. So `onError` never logs: it restores state or tells the
   user.
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
-  and `@MainImmediateDispatcher`, both contributed by
-  `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt`.
+  and `@MainImmediateDispatcher`. Android contributes these through
+  `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt`; the Apple parent provides
+  all four keys locally. Android actual annotations retain `javax.inject.Qualifier`; Apple
+  actuals carry Metro's `Qualifier`. Native test parents provide their own qualified values.
 - `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` is the backstop that keeps an `async`
   fan-out recoverable, and it records through the same logger. `feature/exercise`'s
   `CommonHandler.loadExercise` fans out through SIX `async` children (`getExercise`,

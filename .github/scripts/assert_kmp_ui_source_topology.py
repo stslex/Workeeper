@@ -8541,7 +8541,7 @@ def settings_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> l
     if set(re.findall(r'project\("([^"]+)"\)', common_block)) != expected_common:
         failures.append("feature:settings: common project ownership must stay within the seven approved edges")
     workflow = Path(".github/workflows/android_build_unified.yml").read_text()
-    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database; do", '$linked/20 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
+    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do", '$linked/21 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
         if workflow.count(fragment) != 1:
             failures.append(f"feature:settings: Native workflow requires {fragment!r} exactly once")
     from assert_kmp_ios_smoke import EXPECTED, TARGET_SUFFIX
@@ -9934,11 +9934,11 @@ def check_composition_root() -> list[str]:
     for fragment in (
         ":app:common:iosSimulatorArm64Test", ":app:common:linkDebugTestIosArm64",
         "app/common/build/test-results/iosSimulatorArm64Test/", "app/common/build/native-test-start",
-        'echo "$linked/20 linked"',
+        'echo "$linked/21 linked"',
     ):
         if fragment not in workflow:
             failures.append(f"app:common: Native workflow is missing {fragment!r}")
-    if "app/common core/data/database; do" not in workflow:
+    if "app/common core/data/database app/ios; do" not in workflow:
         failures.append("app:common: device binary check must include the root")
     return failures
 
@@ -9954,8 +9954,8 @@ def check_database_native_gate() -> list[str]:
         "core/data/database/build/test-results/iosSimulatorArm64Test/",
         "touch core/data/database/build/native-test-start",
         "            core/data/database/build/native-test-start",
-        "app/common core/data/database; do",
-        'echo "$linked/20 linked"',
+        "app/common core/data/database app/ios; do",
+        'echo "$linked/21 linked"',
         '[ -s "$binary" ]',
         '[ "$binary" -nt core/data/database/build/device-link-start ]',
         "WORKEEPER_DATABASE_TEST_SIMULATOR=$device",
@@ -9971,19 +9971,89 @@ def check_database_native_gate() -> list[str]:
     modules = {row["module"] for row in EXPECTED}
     for task in ("iosSimulatorArm64Test", "linkDebugTestIosArm64"):
         declared = re.findall(r"^\s+:([^\s]+):" + task + r"\s*$", workflow, re.MULTILINE)
-        if len(declared) != 20 or set(declared) != modules:
-            failures.append(f"Native workflow {task} must cover all twenty oracle modules exactly once")
+        if len(declared) != 21 or set(declared) != modules:
+            failures.append(f"Native workflow {task} must cover all twenty-one oracle modules exactly once")
     loop = re.search(r"for module in (core/ui/kit.*?); do", workflow, re.DOTALL)
     binaries = loop.group(1).replace("\\", "").split() if loop else []
-    if len(binaries) != 20 or {module.replace("/", ":") for module in binaries} != modules:
-        failures.append("Native device binary check must cover all twenty oracle modules exactly once")
+    if len(binaries) != 21 or {module.replace("/", ":") for module in binaries} != modules:
+        failures.append("Native device binary check must cover all twenty-one oracle modules exactly once")
     rows = [row for row in EXPECTED if row["module"] == "core:data:database"]
     wanted = [{"classname": "io.github.stslex.workeeper.core.data.database.IosAppDatabaseTest",
                "name": method + TARGET_SUFFIX} for method in methods]
-    if len(EXPECTED) != 20 or len({row["module"] for row in EXPECTED}) != 20:
-        failures.append("Native oracle must retain exactly twenty distinct module rows")
+    if len(EXPECTED) != 21 or len({row["module"] for row in EXPECTED}) != 21:
+        failures.append("Native oracle must retain exactly twenty-one distinct module rows")
     if len(rows) != 1 or rows[0]["identities"] != wanted or rows[0]["classname_prefix"] != KNOWN_SUITE_PREFIX:
         failures.append("core:data:database: Native oracle must register all eight exact identities once")
+    return failures
+
+
+def check_apple_host_graph() -> list[str]:
+    from assert_kmp_ios_smoke import EXPECTED, KNOWN_SUITE_PREFIX, TARGET_SUFFIX
+    failures = []
+    root = Path("app/ios")
+    expected_files = {
+        "src/iosMain/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraph.kt",
+        "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraphTest.kt",
+        "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosGraphFixture.kt",
+    }
+    actual_files = {path.relative_to(root).as_posix() for path in root.glob("src/**/*.kt")}
+    if actual_files != expected_files:
+        failures.append(f"app:ios: host graph source manifest differs: {actual_files ^ expected_files}")
+    required = [root / path for path in expected_files] + [root / "build.gradle.kts"]
+    if not all(path.is_file() for path in required):
+        return failures + ["app:ios: required host graph source/build files are missing"]
+    build = (root / "build.gradle.kts").read_text()
+    graph = strip_kotlin_comments((root / "src/iosMain/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraph.kt").read_text())
+    tests = (root / "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraphTest.kt").read_text()
+    for fragment in (
+        "alias(libs.plugins.convention.kmpComposeLibrary)", "alias(libs.plugins.metro)",
+        "iosMain.dependencies", "iosTest.dependencies", ":app:common", ":core:core",
+        ":core:data:database", ":core:data:exercise", ":core:data:dataStore",
+        "WORKEEPER_DATABASE_TEST_SIMULATOR", "SIMCTL_CHILD_WORKEEPER_DATABASE_TEST_SIMULATOR",
+        'mustRunAfter(":core:data:database:iosSimulatorArm64Test")',
+    ):
+        if fragment not in build:
+            failures.append(f"app:ios: build is missing {fragment!r}")
+    if 'include(":app:ios")' not in Path("settings.gradle.kts").read_text():
+        failures.append("app:ios: host module is not included")
+    for fragment in (
+        "@DependencyGraph(AppScope::class)", "internal interface IosAppGraph : AppRootDeps",
+        "createGraphFactory<IosAppGraph.Factory>()", "@DependencyGraph.Factory",
+        "AppDatabase", "AppScopeLifetime", "ImageStorage", "CameraPermission",
+        "ResourceWrapper", "InstallEpochSource", "AppReinitializationHost",
+        "IosDataStorePathResolver()", "StoreDispatchers", "Dispatchers.Main.immediate", "Dispatchers.IO",
+    ):
+        if fragment not in graph:
+            failures.append(f"app:ios: production parent is missing {fragment!r}")
+    for forbidden in ("excludes", "buildIosAppDatabase", "database.close(", "lifetime.cancel(", "lifetime.cancelAndJoin("):
+        if forbidden in graph:
+            failures.append(f"app:ios: production graph must borrow roots without {forbidden!r}")
+    for top in (Path("app"), Path("core"), Path("feature")):
+        for path in top.rglob("build.gradle.kts"):
+            if path != root / "build.gradle.kts" and ":app:ios" in path.read_text():
+                failures.append(f"app:ios: host module must remain outside shipped dependency graphs: {path}")
+    workflow = Path(".github/workflows/android_build_unified.yml").read_text()
+    for fragment in (
+        ":app:ios:iosSimulatorArm64Test", ":app:ios:linkDebugTestIosArm64",
+        "app/ios/build/test-results/iosSimulatorArm64Test/", "touch app/ios/build/native-test-start",
+        "            app/ios/build/native-test-start", "app/ios/build/bin/iosArm64/debugTest/test.kexe",
+    ):
+        if workflow.count(fragment) != 1:
+            failures.append(f"app:ios: Native workflow requires {fragment!r} exactly once")
+    methods = [
+        "qualifiedDispatchersReachProductionConsumers", "allThirteenFactoriesConstructRealStores",
+        "navigatorIsSharedAndRestartReachesHost", "unadmittedRootSkipsGraphResolution",
+        "admittedRootShowsTrainingFromOwnedDatabase", "preferencesAndDialogsSurviveGraphRecreation",
+        "generationLifetimesAreIndependent",
+    ]
+    wanted = [{"classname": "io.github.stslex.workeeper.app.ios.IosAppGraphTest",
+               "name": method + TARGET_SUFFIX} for method in methods]
+    rows = [row for row in EXPECTED if row["module"] == "app:ios"]
+    if len(rows) != 1 or rows[0]["identities"] != wanted or rows[0]["classname_prefix"] != KNOWN_SUITE_PREFIX:
+        failures.append("app:ios: Native oracle must register the seven exact host identities once")
+    factories = re.findall(r"val (\w+GraphFactory):", APP_ROOT_DEPS_PATH.read_text())
+    if len(factories) != 13 or any(f"graph.{factory}." not in tests for factory in factories):
+        failures.append("app:ios: tests must invoke all thirteen production factory accessors")
     return failures
 
 
@@ -9997,6 +10067,7 @@ def main() -> None:
     failures.extend(check_recovery_launch_boundary())
     failures.extend(check_composition_root())
     failures.extend(check_database_native_gate())
+    failures.extend(check_apple_host_graph())
     for entry in FEATURE_ENTRIES:
         failures.extend(check_feature_entry(entry))
     placeholder_failures, placeholder_walk = check_compose_resource_placeholders()
@@ -10009,6 +10080,7 @@ def main() -> None:
         )
 
     print("shared KMP UI topology gate live:")
+    print("  app:ios: Apple host graph, 13 factories and 21-module Native coverage are exact")
     for name, manifest in MODULES.items():
         print(f"  {name}: {len(manifest['files'])} exact source/resource/test files")
         for path in sorted(manifest["files"]):

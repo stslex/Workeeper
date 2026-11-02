@@ -1699,6 +1699,33 @@ EXPECTED.append({
 })
 
 
+EXPECTED.append({
+    "module": "app:ios",
+    "results_dir": "app/ios/build/test-results/iosSimulatorArm64Test",
+    "classname_prefix": KNOWN_SUITE_PREFIX,
+    "identities": natives("io.github.stslex.workeeper.app.ios.IosAppGraphTest", [
+        "qualifiedDispatchersReachProductionConsumers",
+        "allThirteenFactoriesConstructRealStores",
+        "navigatorIsSharedAndRestartReachesHost",
+        "unadmittedRootSkipsGraphResolution",
+        "admittedRootShowsTrainingFromOwnedDatabase",
+        "preferencesAndDialogsSurviveGraphRecreation",
+        "generationLifetimesAreIndependent",
+    ]),
+})
+
+
+def ios_graph_results_are_fresh() -> None:
+    from pathlib import Path
+    marker = Path("app/ios/build/native-test-start")
+    results = Path("app/ios/build/test-results/iosSimulatorArm64Test")
+    if not marker.is_file():
+        raise ModuleError("app:ios: execution-start marker is missing")
+    stale = [str(path) for path in results.glob("TEST-*.xml") if path.stat().st_mtime_ns < marker.stat().st_mtime_ns]
+    if stale:
+        raise ModuleError(f"app:ios: stale XML: {stale}")
+
+
 def database_results_are_fresh() -> None:
     from pathlib import Path
     marker = Path("core/data/database/build/native-test-start")
@@ -1734,6 +1761,7 @@ def settings_results_are_fresh() -> None:
 
 def main() -> None:
     try:
+        ios_graph_results_are_fresh()
         settings_results_are_fresh()
         root_results_are_fresh()
         database_results_are_fresh()

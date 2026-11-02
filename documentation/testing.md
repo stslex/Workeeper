@@ -1673,7 +1673,8 @@ remain Android-host tests. Two real-Store availability cases and four Android ad
 bring its Android-host non-golden inventory to 126. Native runs the 22 ports, two availability
 cases, three unavailable-backup/production-graph cases and four production-scene cases: 31 exact
 identities. No mock backup backend is supplied to the Native parent. Its local dispatcher fixture
-uses the existing plain iOS annotations; Android retains both qualified identity accessors.
+supplies qualified test values and resolves the real `StoreDispatchers`; Android retains both
+qualified identity accessors.
 The 12 golden PNGs move byte-identically to `androidHostTest`; two Settings Smoke identities and
 four app extension identity meanings remain. The app's 12 generation/dialog device identities
 are verified separately from these host and Native inventories.
@@ -1699,7 +1700,7 @@ result-before-pop ordering, the latest recovery callback and the iOS reinitializ
 
 Root Native XML must be newer than `app/common/build/native-test-start`. The existing Native
 job removes these results and creates the marker, retaining Settings' separate freshness check.
-All 20 simulator tasks and device links use forced execution flags. This is simulator root
+All 21 simulator tasks and device links use forced execution flags. This is simulator root
 recreation and device-target linking, not physical-device or production iOS-host acceptance.
 
 ### iOS production database
@@ -1725,6 +1726,23 @@ IDs. WAL-mode fixture copies can be inspected read-only with SQLite's `immutable
 The Native oracle requires database XML newer than its own `native-test-start`, while retaining
 the independent Settings/root markers and every previous identity expectation. Device-target
 binaries establish linking; physical-device and production Apple-host acceptance remain pending.
+
+### Apple Metro graph
+
+`app/ios` registers the seven exact `IosAppGraphTest` methods from
+[Phase 7.20B](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#simulator-acceptance).
+They exercise the production parent and all thirteen real Store factories, qualified dispatcher
+consumers, the shared navigator/restart host, admission, an active DAO sentinel rendered through
+Home → Trainings, preference/dialog graph recreation, and independent generation lifetimes.
+The database comes from the public iOS factory off Main. Host service recordings stay in `iosTest`.
+
+The Native oracle requires fresh XML relative to `app/ios/build/native-test-start`. The graph suite
+uses the owned `WORKEEPER_DATABASE_TEST_SIMULATOR`, verifies its process UUID and sandbox before
+default-path writes, and must run after the database suite when both tasks are selected. DataStore
+keeps ownership of its live `Documents/datastore` files across same-process graph recreation.
+The caller disposes UI/owners, joins each lifetime, then closes its borrowed database. The separate
+cross-module P0 probe distinguishes four tagged dispatcher instances and checks the real
+`StoreDispatchers`; Android keeps its existing dispatcher and extension identity tests.
 
 ## Running tests
 
