@@ -1682,6 +1682,34 @@ EXPECTED.append({
 })
 
 
+EXPECTED.append({
+    "module": "core:data:database",
+    "results_dir": "core/data/database/build/test-results/iosSimulatorArm64Test",
+    "classname_prefix": KNOWN_SUITE_PREFIX,
+    "identities": natives("io.github.stslex.workeeper.core.data.database.IosAppDatabaseTest", [
+        "defaultLocationUsesApplicationSupport",
+        "tagSurvivesCloseAndReopen",
+        "upgradesV5ThroughV7",
+        "upgradesV6WithDuplicateTargets",
+        "unsupportedVersionKeepsOriginalRow",
+        "unusableDirectoryFailsWithoutFallback",
+        "childWritesRollBackTogether",
+        "activeTagFlowObservesCommittedWrite",
+    ]),
+})
+
+
+def database_results_are_fresh() -> None:
+    from pathlib import Path
+    marker = Path("core/data/database/build/native-test-start")
+    results = Path("core/data/database/build/test-results/iosSimulatorArm64Test")
+    if not marker.is_file():
+        raise ModuleError("core:data:database: execution-start marker is missing")
+    stale = [str(path) for path in results.glob("TEST-*.xml") if path.stat().st_mtime_ns < marker.stat().st_mtime_ns]
+    if stale:
+        raise ModuleError(f"core:data:database: stale XML: {stale}")
+
+
 def root_results_are_fresh() -> None:
     from pathlib import Path
     marker = Path("app/common/build/native-test-start")
@@ -1708,6 +1736,7 @@ def main() -> None:
     try:
         settings_results_are_fresh()
         root_results_are_fresh()
+        database_results_are_fresh()
     except ModuleError as error:
         failures = [str(error)]
         verified = []

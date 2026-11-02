@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
+
 plugins {
     // GUARD: kmpLibrary MUST precede roomLibrary — the Room convention branches on the base
     // convention already applied to pick its configuration names.
@@ -15,8 +17,7 @@ metro {
     }
 }
 
-// The Room surface (entities, DAOs, converters, migrations, export) is commonMain; only
-// platform-typed code stays in androidMain — buildAppDatabase and the snapshot/ package.
+// The Room model and migration policy are common; factories and snapshot I/O stay platform-local.
 kotlin {
     sourceSets {
         commonMain.dependencies {
@@ -28,7 +29,48 @@ kotlin {
             // BackupResult/BackupError in DatabaseSnapshotProvider's signatures only.
             implementation(project(":core:data:backup:api"))
         }
+
+        iosMain.dependencies {
+            implementation(libs.androidx.sqlite.bundled)
+        }
+
+        iosTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.androidx.room.testing)
+        }
     }
+}
+
+val generatedIosSchemas = layout.buildDirectory.dir("generated/iosTest/schemas")
+val generateIosSchemaFixtures by tasks.registering(Exec::class) {
+    val generator = layout.projectDirectory.file("src/iosTest/generate_schemas.py")
+    inputs.file(generator)
+    inputs.files((5..6).map { version ->
+        layout.projectDirectory.file(
+            "schemas/io.github.stslex.workeeper.core.data.database.AppDatabase/$version.json",
+        )
+    })
+    outputs.dir(generatedIosSchemas)
+    commandLine("python3", generator.asFile, "--output", generatedIosSchemas.get().asFile)
+}
+kotlin.sourceSets.named("iosTest") {
+    kotlin.srcDir(generatedIosSchemas)
+}
+tasks.matching {
+    it.name == "compileTestKotlinIosSimulatorArm64" || it.name == "compileTestKotlinIosArm64"
+}.configureEach {
+    dependsOn(generateIosSchemaFixtures)
+}
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    val ownedDevice = providers.environmentVariable("WORKEEPER_DATABASE_TEST_SIMULATOR").orNull
+    if (ownedDevice != null) {
+        device.set(ownedDevice)
+        standalone.set(false)
+        environment("SIMCTL_CHILD_WORKEEPER_DATABASE_TEST_SIMULATOR", ownedDevice)
+    }
+    val artifacts = layout.buildDirectory.dir("native-fixtures")
+    environment("SIMCTL_CHILD_WORKEEPER_DATABASE_TEST_ARTIFACTS", artifacts.get().asFile.absolutePath)
+    doFirst { artifacts.get().asFile.mkdirs() }
 }
 
 dependencies {

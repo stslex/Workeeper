@@ -692,7 +692,16 @@ jobs:
 
       # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
       # identity script needs both modules' XML to say which tuple broke.
-      - name: Prepare fresh Settings and application-root native evidence
+      - name: Provision an owned database simulator
+        shell: bash
+        run: |
+          runtime="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; rs=[r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and ".iOS-" in r["identifier"]]; print(max(rs, key=lambda r: tuple(map(int, r["version"].split("."))))["identifier"])')"
+          device="$(xcrun simctl create "Workeeper-database-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
+          echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+
+      - name: Prepare fresh Settings, application-root and database native evidence
         run: |
           mkdir -p feature/settings/build
           rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
@@ -700,6 +709,9 @@ jobs:
           mkdir -p app/common/build
           rm -rf app/common/build/test-results/iosSimulatorArm64Test
           touch app/common/build/native-test-start
+          mkdir -p core/data/database/build
+          rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
+          touch core/data/database/build/native-test-start
 
       - name: Run native shared UI, feature and application root tests
         id: native_tests
@@ -724,6 +736,7 @@ jobs:
           :feature:app-dialogs:impl:iosSimulatorArm64Test
           :feature:settings:iosSimulatorArm64Test
           :app:common:iosSimulatorArm64Test
+          :core:data:database:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -746,8 +759,12 @@ jobs:
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
-      # The device half of the target pair: the same nineteen modules' iosArm64 test binaries,
+      # The device half of the target pair: the same twenty modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).
+      - name: Mark fresh device links
+        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
+        run: touch core/data/database/build/device-link-start
+
       - name: Link the iOS device test binaries
         id: device_link
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
@@ -772,6 +789,7 @@ jobs:
           :feature:app-dialogs:impl:linkDebugTestIosArm64
           :feature:settings:linkDebugTestIosArm64
           :app:common:linkDebugTestIosArm64
+          :core:data:database:linkDebugTestIosArm64
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -787,16 +805,17 @@ jobs:
               core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive \
               feature/all-trainings feature/all-exercises feature/past-session feature/home \
               feature/exercise-chart feature/single-training feature/exercise \
-              feature/live-workout feature/app-dialogs/impl feature/settings app/common; do
-            if [ -f "$module/build/bin/iosArm64/debugTest/test.kexe" ]; then
+              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database; do
+            binary="$module/build/bin/iosArm64/debugTest/test.kexe"
+            if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
               linked=$((linked + 1))
             else
               missing+=("$module")
             fi
           done
-          echo "$linked/19 linked"
+          echo "$linked/20 linked"
           if [ "${#missing[@]}" -ne 0 ]; then
-            echo "::error::no iosArm64 test binary for: ${missing[*]}"
+            echo "::error::missing, empty or stale iosArm64 test binary for: ${missing[*]}"
             exit 1
           fi
 
@@ -827,7 +846,18 @@ jobs:
             feature/settings/build/native-test-start
             app/common/build/test-results/iosSimulatorArm64Test/
             app/common/build/native-test-start
+            core/data/database/build/test-results/iosSimulatorArm64Test/
+            core/data/database/build/native-test-start
+            core/data/database/build/device-link-start
+            core/data/database/build/native-fixtures/
           retention-days: 30
+
+      - name: Remove the owned database simulator
+        if: always() && env.WORKEEPER_DATABASE_TEST_SIMULATOR != ''
+        shell: bash
+        run: |
+          xcrun simctl shutdown "$WORKEEPER_DATABASE_TEST_SIMULATOR" || true
+          xcrun simctl delete "$WORKEEPER_DATABASE_TEST_SIMULATOR"
 
       # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.
       - name: Save Kotlin/Native toolchain

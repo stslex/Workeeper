@@ -77,3 +77,152 @@ Run both full 20-module Gradle task lists from the updated workflow with the sam
 Report each command, start time, exit status, executed tasks, test identities/counts/skips and artifact paths. Compare unchanged suites against fresh entry evidence. The 7.19B counts (948 Native cases, Smoke 44 with three known skips, Regression 90) are historical comparators. The database row adds eight required identities. Cached, skipped, empty or stale target results are not evidence. Neither a green topology check nor a linked device binary substitutes for execution. Stop on any file/schema/Android behavior drift, new suppression or baseline, golden movement, failed behavioral control or missing required runtime. Label device links as links and any physical-device/App Store checks as pending.
 
 **Handoff.** Record reproducible evidence and residuals in the implementation PR/spec appendix. Keep the coding-agent prompt outside Git. Use signed Conventional Commits, verify every implementation commit on GitHub and obtain an independent review on the exact head. The implementation PR targets `dev`. The maintainer owns merge and the next scope decision.
+
+## Implementation evidence
+
+Entry is `origin/dev@46df486e4b2417264b128e849f488cedd504fc67`, the actual merge of
+[specification PR #354](https://github.com/stslex/Workeeper/pull/354). The merge is reachable
+from `origin/dev`; its specification blob and final reviewed head
+`bfa31c7feecd14bd4f15e3ab7446513792a74712` both contain
+`e3cf3c02b8a4b63c050d6ff283334a079925ef75`. Implementation uses the separate
+`codex/kmp-7-20a-ios-room-database` worktree/branch. The implementation PR carries the exact
+published head, every commit's GitHub signature verification and independent review provenance.
+
+### Runtime and entry inventory
+
+Local host: Apple silicon arm64, macOS 27.0 (`26A428`), Xcode 27.0 (`27A266a`), JBR 21.0.11.
+Android: `Pixel_6_API_34`, `emulator-5554`, API 34, `arm64-v8a`. Apple simulator: newly created
+`Workeeper-Phase-7.20A-20261102`, UUID `5EEB2D38-BC98-4945-95F8-B8B8C4F97A1E`, iOS 26.5.
+The production default-path smoke runs only in that owned user container. Local gates ran
+under a fresh recorded `caffeinate` process; continuation on battery was explicitly authorized.
+CI retains its existing Xcode selection and provisions its own disposable database simulator.
+
+`build/kmp-7-20a-evidence/entry.json` records the target, all seven schema blob/SHA-256 pairs
+and the nineteen original Native expectation dictionaries. Every original expectation is retained.
+The fresh legacy Native inventory was measured on a clean detached entry worktree, archived into
+the implementation worktree, then the temporary worktree was removed without force. Android entry
+inventories contain 166 database and 40 root host cases, 44 Smoke identities (the three existing
+`pendingFeatureRewrite` skips), and 90 Regression identities including all 35 database cases.
+
+### P0 and production boundary
+
+Both Apple KSP tasks executed and emitted fresh, nonempty generated `AppDatabaseConstructor`
+actuals (308 bytes each). Before expanding beyond the database module, the real bundled-driver
+factory wrote/read through a DAO, closed/reopened its owned file on the simulator, and linked a
+fresh iosArm64 debug test executable (9,209,016 bytes; Mach-O platform `IOS`). The initial simulator
+attempt was a compile failure in Foundation interop spelling/imports; it is retained separately
+and is not a behavioral negative. No pin, driver, schema, convention or additional production
+module change was required.
+
+`AppDatabaseBuilder.kt` owns the sole migration registration and post-commit reporting callback.
+Android keeps its public entry, location, bundled driver, callback order, unset query-context
+override and recovery/generation ownership. The Apple entry uses the actual user-domain
+Application Support directory, `Workeeper/app.db`, off-Main filesystem work and an IO query context.
+The module-local Apple driver dependency is the existing pinned alias. Source and runtime checks
+cover the eight previously registered identities; the factory remains independent of Apple DI,
+DataStore, shared UI, the Swift/Xcode host and iOS backup.
+
+### Historical inputs and behavioral coverage
+
+Pinned Native Room 3 `MigrationTestHelper` creates historical files from tracked JSON embedded
+byte-for-byte by the test-only module generator. Raw SQLite observes the version, Room identity
+and exact sentinel before the production builder opens each file. The archived pre-open copies
+contain versions 5, 6 and the isolated future-version 8 refusal fixture, with their JSON and blob
+IDs. The future-version fixture is seeded from v6 and then deliberately marked 8 solely for the
+unsupported-version case.
+
+| Tracked fixture export | Source Git blob | Pre-open Room identity |
+| --- | --- | --- |
+| `5.json` | `e767ebd355060e39d44cfc5a7ef8c858d0c1cb8c` | `b602a2bf8888dbd9c8880e7f9697be9f` |
+| `6.json` | `1f624c48c88db5e40c284cc11211f3d46fdb9e68` | `9a848458f02ef4c4ace9841b9f2e3d42` |
+
+The v6 fixture pins the Android reconciliation expectation: rowids 10/20 at position 0 and
+rowid 30 at position 5 become positions 0/6/5 for their unchanged UUIDs. Row count, values, the
+unique index, v7 identity and reopen are checked. The rollback case invokes the production runner,
+observes both child writes inside its transaction, catches the same injected exception and retains
+only the precommitted control. The invalidation case retains one collector across initial emission,
+production-runner commit and the new emission. Public-path setup refuses any pre-existing default
+directory and closes handles before removing only its newly owned directory.
+
+### Gate receipts
+
+Each directory below is under ignored `build/kmp-7-20a-evidence/`. Its receipt records the full
+command, start/end UTC times, actual status, execution-only Gradle summary, test/skip counts and
+XML paths; identities and copied XML are retained beside it. The entry instrumentation XML uses
+explicit `device-xml` / `device-identities.json` supplements after the initial collector's host-only
+path selection was corrected, before Regression reused the result paths. `clean` was preparation,
+with byte-exact evidence backup/restoration, and is not reported as an executed green gate.
+
+| Gate | Executed result | Receipt |
+| --- | --- | --- |
+| Entry database/root host | `499 actionable tasks: 499 executed`; 206 cases / 0 skips | `entry-host/receipt.json` |
+| Entry Smoke | `2117 actionable tasks: 2117 executed`; 44 cases / 3 skips | `entry-smoke/receipt.json` |
+| Entry Regression | `2117 actionable tasks: 2117 executed`; 90 cases / 0 skips | `entry-regression/receipt.json` |
+| Entry 19-module Native | `554 actionable tasks: 554 executed`; 948 cases / 0 skips | `entry-native/receipt.json` |
+| P0 Apple KSP pair | `11 actionable tasks: 11 executed`; 0 cases / 0 skips | `p0-ksp/receipt.json` |
+| P0 real file reopen | `43 actionable tasks: 43 executed`; 1 cases / 0 skips | `p0-simulator-r2/receipt.json` |
+| P0 device-target link | `42 actionable tasks: 42 executed`; 0 cases / 0 skips | `p0-device-link/receipt.json` |
+| Eight database simulator cases | `44 actionable tasks: 44 executed`; 8 cases / 0 skips | `database-eight/receipt.json` |
+| Database source analysis | `9 actionable tasks: 9 executed`; 0 cases / 0 skips | `database-detekt-r2/receipt.json` |
+| Repository builds / Lint / host | `3061 actionable tasks: 3061 executed`; 3398 cases / 0 skips | `exit-build-lint-host/receipt.json` |
+
+The eight-case Native XML has zero skips/failures/errors and every required tuple exactly once.
+Synthetic validator controls accept complete twenty-module input, reject missing/stale/incomplete
+database XML and reject a missing database workflow row; restoration passes. These synthetic files
+prove the validator only. Logs are under `validator-controls-r2/`. The new CI row retains Settings
+and root freshness checks; all twenty device executable paths require fresh, nonempty files.
+
+### Exit validation
+
+| Gate | Executed result | Receipt |
+| --- | --- | --- |
+| Repository device-test compilation | `2157 actionable tasks: 2157 executed`; 0 cases / 0 skips | `exit-device-compile/receipt.json` |
+| Paparazzi verification and lint-rules tests | `638 actionable tasks: 638 executed`; 1938 cases / 0 skips | `exit-paparazzi-lint-rules/receipt.json` |
+| Separate repository Detekt | `63 actionable tasks: 63 executed`; 0 cases / 0 skips | `exit-detekt/receipt.json` |
+| Exit Smoke | `2117 actionable tasks: 2117 executed`; 44 cases / 3 skips | `exit-smoke/receipt.json` |
+| Exit Regression | `2117 actionable tasks: 2117 executed`; 90 cases / 0 skips | `exit-regression/receipt.json` |
+| All twenty simulator tasks and Native oracle | `560 actionable tasks: 560 executed`; 956 cases / 0 skips | `exit-native/receipt.json` |
+| All twenty device-target links | `540 actionable tasks: 540 executed`; 0 cases / 0 skips | `exit-device-links/receipt.json` |
+
+The 206 database/root host tuples and skip states equal entry exactly. Smoke retains all 44
+identities and the same three skips; Regression retains all 90 identities, including every one
+of the 35 database cases. Native retains all 948 entry tuples/skip states and adds exactly the
+eight registered database cases. All twenty result sets are fresh. Every device executable is
+fresh and nonempty; `binaries.json` records path, size, timestamp and SHA-256, and the database
+binary's Mach-O platform is `IOS`.
+
+The final source-topology, MVI source/host identity and personal-data gates pass. Their separate
+`final-*` receipts record validator execution, with no test execution attributed to those commands.
+The earlier parallel static receipts retain an interpretation note for unrelated concurrent XML
+captured by the generic collector. The final collector restricts XML capture to test commands.
+The mockup shell gate passes all eleven checks; its permanent `f52462c7` negative exits nonzero
+and reproduces check 7's exact `width=0px→0px` discriminator. Strict raw logs and actual statuses
+are under `mockup-controls-strict/`. No schema, golden, suppression or baseline changed.
+
+### Behavioral controls and restoration
+
+Both independent mutations ran through the unchanged canonical `mutation_harness.py` in a
+separate clean worktree on signed implementation head
+`479cda6d120ec1c4d6b4f0720d39e96c8fe3d051`. An observation-only subprocess wrapper retained the
+harness's full actual Gradle stdout/stderr and command/status/timestamps; it returned the original
+process results unchanged. The harness performed every source mutation and finally-restoration.
+Each case independently verified exact restored bytes and file mode, fresh XML and a clean tree.
+
+| Mutated behavior | Intended measured RED | Exact restoration |
+| --- | --- | --- |
+| Filter `Migration7` out of the common builder's registration | `IosAppDatabaseTest.upgradesV6WithDuplicateTargets[iosSimulatorArm64]` fails on its first production DAO access with the required missing 6 → 7 migration path. The mutation compiled. | The same case passes once, zero skips/errors/failures. |
+| Choose another file when the canonical file already exists | The first construction still writes the canonical file; `IosAppDatabaseTest.tagSurvivesCloseAndReopen[iosSimulatorArm64]` fails at its second-handle sentinel equality with the expected row absent. The mutation compiled. | The same case passes once, zero skips/errors/failures. |
+
+Every RED and restored GREEN reports `44 actionable tasks: 44 executed`. The exact Native
+classname prefix, target suffix, failure type/message and source hashes/mode are retained in
+`build/kmp-7-20a-evidence/behavior-controls/`. These are executed behavioral failures, distinct
+from the initial interop compile failure and the synthetic validator inputs. Both temporary
+control worktrees were clean before removal; the implementation source was never hand-reverted.
+
+### Independent review and manual gaps
+
+The implementation PR records independent review against its exact published implementation
+head and GitHub verification for every new signed commit. The author does not supply a self-review
+attestation. Device-target linking is not physical-device execution. A production Apple
+application/DI runtime, real iOS backup and physical-device/App Store acceptance remain separate
+scopes; the maintainer owns merge.

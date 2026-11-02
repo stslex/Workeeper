@@ -44,8 +44,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   (`DispatchersBindingContainer`, `ResourceWrapperBindingContainer`, `ImageStorageFactory`,
   `TempFileProvider`), and `AndroidCameraPermission`, contributed to `AppScope`.
 - `core/data/database` — KMP Room module. `commonMain` owns `AppDatabase`, entities, DAOs,
-  type converters, and `migration/` (including `MigrationsRegistry`); `androidMain` owns
-  `AppDatabaseFactory` and Android snapshot I/O. Exported schemas live under
+  type converters, and `migration/` (including `MigrationsRegistry`), plus the common builder's
+  migration/callback policy. `androidMain` owns `AppDatabaseFactory` and Android snapshot I/O;
+  `iosMain` owns `buildIosAppDatabase`. Exported schemas live under
   `core/data/database/schemas/`.
 - `core/data/database-test` — `RepositoryTestEnv` and `InMemoryDatabaseProvider`, shared
   Android/JVM in-memory `AppDatabase` fixtures for repository and integration tests.
@@ -716,12 +717,25 @@ converters live next to the entities they serialize, e.g.
 `PlanSetsConverter` for `List<PlanSetDataModel>?`). The `version` on that annotation is
 the `APP_DATABASE_VERSION` constant, not a literal.
 
-The database is constructed by `buildAppDatabase(context)` in
-`core/data/database/.../AppDatabaseFactory.kt` — the only `Room.databaseBuilder` chain in
-the app. `BaseApplication` calls it and threads the result into `buildAppGraph(...)` as the
+Android constructs the database through `buildAppDatabase(context)` in
+`core/data/database/.../AppDatabaseFactory.kt`. `BaseApplication` calls it and threads the
+result into `buildAppGraph(...)` as the
 `appDatabase` bound instance; the 9 DAOs and `DbTransitionRunner` derive from it inside
 `DbCascadeBindingContainer`. The factory must live in this module because `MIGRATIONS` is
 `internal` to it.
+
+Apple callers use `buildIosAppDatabase()` off Main and own closing their instance. It resolves
+the actual user-domain Application Support directory, creates `Workeeper` idempotently, and uses
+`AppDatabase.NAME` (`app.db`) as the leaf. The module-local Apple dependency supplies the pinned
+bundled SQLite driver; iOS explicitly selects `Dispatchers.IO` for queries. The internal root-URL
+overload lets Native tests exercise the same builder in exclusively owned directories. Android
+keeps its existing location, driver, query-context default and generation/recovery ownership.
+
+The common `buildAppDatabase(builder)` overload in `AppDatabaseBuilder.kt` registers `MIGRATIONS`
+once and adds `reportReconciledTargets()` in `onOpen`. Room invokes that callback after the
+migration transaction commits, so it reports committed reconciliation. The future Apple host's
+DI/runtime binding remains a separate scope. See
+[Phase 7.20A](feature-specs/kmp-phase-7-20a-ios-room-database.md#production-contract).
 
 **Migration policy (release).** From schema version 5 onward, no destructive
 migrations. Every schema bump requires:
