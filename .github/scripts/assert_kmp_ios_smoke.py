@@ -1658,6 +1658,41 @@ EXPECTED.append({
 })
 
 
+EXPECTED.append({
+    "module": "app:common",
+    "results_dir": "app/common/build/test-results/iosSimulatorArm64Test",
+    "classname_prefix": KNOWN_SUITE_PREFIX,
+    "identities": [
+        *natives("io.github.stslex.workeeper.navigation.ResultChannelRegistryTest", [
+            "sameKeyHasOneChannelUnderContention",
+            "concurrentKeysRetainTheirPublishedFlows",
+            "navigationClearsValuesWithoutReplacingChannels",
+        ]),
+        *natives("io.github.stslex.workeeper.AppRootIosTest", [
+            "transitioningAndDeniedSkipGraphResolution",
+            "admittedRootResolvesOnceAndReleasesItsToken",
+            "abortedGenerationRestoresStackAndSuccessorStartsFresh",
+            "savedStackRoundTripsThroughTheProductionRoot",
+            "resultIsPublishedBeforeTheDestinationPops",
+            "bridgeUsesLatestRecoveryCallback",
+            "restartReachesHostWithoutACommandCollector",
+            "abandonedCompositionReleasesItsExactToken",
+        ]),
+    ],
+})
+
+
+def root_results_are_fresh() -> None:
+    from pathlib import Path
+    marker = Path("app/common/build/native-test-start")
+    results = Path("app/common/build/test-results/iosSimulatorArm64Test")
+    if not marker.is_file():
+        raise ModuleError("app:common: execution-start marker is missing")
+    stale = [str(path) for path in results.glob("TEST-*.xml") if path.stat().st_mtime_ns < marker.stat().st_mtime_ns]
+    if stale:
+        raise ModuleError(f"app:common: stale XML: {stale}")
+
+
 def settings_results_are_fresh() -> None:
     from pathlib import Path
     marker = Path("feature/settings/build/native-test-start")
@@ -1672,6 +1707,7 @@ def settings_results_are_fresh() -> None:
 def main() -> None:
     try:
         settings_results_are_fresh()
+        root_results_are_fresh()
     except ModuleError as error:
         failures = [str(error)]
         verified = []

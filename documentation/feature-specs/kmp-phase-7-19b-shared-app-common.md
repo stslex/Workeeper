@@ -1,6 +1,7 @@
 # KMP Phase 7.19B — share the application composition root
 
-Proposed for review. The discovery base is `dev` at
+Accepted in [specification PR #352](https://github.com/stslex/Workeeper/pull/352).
+The discovery base is `dev` at
 `1d87b60fb190ed74c96b44a56252727860dfcd28`, the merge of
 [the 7.19A implementation](https://github.com/stslex/Workeeper/pull/351).
 Phase 7.19A removed the direct `:app:common` dependency on `:feature:recovery`
@@ -208,3 +209,134 @@ separate implementation review and open the implementation PR into `dev`. The ma
 merges. Stop the dependent work for a failed P0, graph access before admission, loss
 of a result or risk to Android recovery behavior. Leave an unexecuted gate pending.
 The following discovery can target the iOS host once this shared root has run.
+
+
+## Implementation evidence
+
+Implementation entry: `origin/dev` at
+`8b7822488d613d3812abb1f41ce9eb41ba8ef22a`. The merged specification blob
+`8ab0a90dbf88259fed0fa194c0d42f5be71371c2` equals the specification PR head's
+blob. The only change since the 7.19A implementation merge was this specification.
+Implementation branch: `codex/kmp-7-19b-app-common`, in its own repository worktree.
+The implementation PR records the published head and GitHub verification of every
+implementation commit; merge remains the maintainer's action.
+
+Local receipts live under `build/kmp-7-19b-evidence/`: each validation has its full
+command, start time, actual exit code, log, copied fresh XML and exact identity set.
+All load-bearing Gradle commands use
+`--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`;
+batteries also use `--continue`. `clean` is preparation, not a green gate.
+
+### P0 dependency selection
+
+P0 completed before moving production sources. The disposable convention-based probe
+lives only in ignored `build/`; no probe module or settings change is part of the PR.
+It compiled the existing transition implementation, including `unveilIn`, physical
+`NavigationEvent.EDGE_*`, and the predictive-pop lambda. Its real non-empty NavDisplay
+scene used saveable then ViewModel decorators and the production saved-state configuration.
+
+| Check | Actual result |
+| --- | --- |
+| Android runtime entry and original host suites | PASS: `485 actionable tasks: 485 executed`; 37 cases, no failures/skips. |
+| Existing Google UI coordinates | Android compile passed. Both `iosSimulatorArm64CompileKlibraries` and `iosArm64CompileKlibraries` rejected `androidx.navigation3:navigation3-ui:1.1.6`: Native `kotlin-api` requested, no matching Apple variant. The full variant diagnostic and simulator dependency insight were retained before selecting the bounded fallback. |
+| Bounded JetBrains UI | PASS: `163 actionable tasks: 163 executed`; Android compiled, `NavDisplayP0Test.realSceneWithBothDecorators` executed on the simulator (1/1), and `iosArm64` linked a nonempty test executable. |
+| Selected runtime / decorator | Existing Google runtime `1.1.6` and Google Lifecycle decorator `2.11.0` resolve on all three targets; no decorator fallback or version change was needed. |
+| Selected UI variants | Android: Google `navigation3-ui:1.1.6`, `androidRuntimeElements-published`. Apple: JetBrains `navigation3-ui:1.1.1`, `iosSimulatorArm64ApiElements-published` / `iosArm64ApiElements-published`. |
+| Full phone runtime after conversion | All 376 baseline components retained. Only JetBrains UI `1.1.1` and navigation-event Compose `1.0.1` metadata wrappers were added; their Android variants contain no implementation files. No downgrade, duplicate implementation or unresolved component. |
+
+The fallback is one separate catalog alias. Kotlin, AGP, CMP, Metro, Google runtime,
+Lifecycle and the remaining catalog pins are unchanged. The first fresh-worktree baseline
+attempt lacked ignored local signing configuration; copying the existing ignored files
+resolved setup without changing tracked build configuration. The probe's first init-script
+attempt also needed restriction to the main build rather than included `build-logic`.
+These failed setup attempts are retained and are not dependency or runtime gate evidence.
+
+### Source, API and assets
+
+The original 13 production Kotlin files become 14 common, two Android and one iOS files,
+including the adapter, corner operation and registry. The 13 factory properties and all
+12 navigation registrations remain. Android keeps its original `App.kt` facade; the shared
+three-argument root uses `AppRoot.kt`. `BottomBarItem.titleRes` changes to `StringResource`;
+its only production caller resolves it inside composition. No out-of-bound production,
+core, schema, suppression, baseline or golden edit was needed.
+
+Both XML catalogs and all four original host files are byte-identical to entry. The 37
+original identities retain their assertions, telemetry capture and transition timings.
+Three common cases bring host coverage to 40. Native registers the specified ten cases
+plus the explicit additional identity
+`io.github.stslex.workeeper.AppRootIosTest.abandonedCompositionReleasesItsExactToken`:
+11 root cases. Native classnames use `iosSimulatorArm64Test.` and methods use
+`[iosSimulatorArm64]`, as pinned in the oracle before their output was read.
+
+### Negative controls
+
+| Mutation / invalid input | Observed discriminator |
+| --- | --- |
+| Eager graph read while refused | Fresh Native `transitioningAndDeniedSkipGraphResolution` RED; restored GREEN. |
+| Return a new channel on a registry hit | Fresh Native `sameKeyHasOneChannelUnderContention` RED; restored GREEN. |
+| Publish the result after popping | Fresh Native `resultIsPublishedBeforeTheDestinationPops` RED; restored GREEN. |
+| Capture the initial recovery callback | Fresh Native `bridgeUsesLatestRecoveryCallback` RED; restored GREEN. |
+| Remove the root simulator workflow row | Source topology RED naming the missing root row; exact bytes/mode restored. |
+| Missing, stale or incomplete root Native XML | The existing identity/freshness oracle rejected each isolated synthetic validator fixture; restored fixtures GREEN. These fixtures are not execution evidence. |
+
+Every behavioral RED and restored GREEN ran `338 actionable tasks: 338 executed`,
+with the exact failing/passing Native tuple and fresh XML retained. The safe harness
+and outer byte/mode assertions restored every mutation. Compile failures were not
+accepted as behavioral negatives. The harness self-test retained its intended alpha
+RED (`87 actionable tasks: 87 executed`) and documented toast-wiring GREEN
+(`486 actionable tasks: 486 executed`); the latter remains an existing coverage
+limitation. The restored host rerun also executed all 486 tasks and passed all 40
+root cases. Fresh XML and full logs for this final pair and restoration are retained.
+
+### Exit validation
+
+| Gate | Actual result |
+| --- | --- |
+| Repository assemble / lint / host tests, including explicit `:app:common:testAndroidHostTest` | PASS: `3057 actionable tasks: 3057 executed`; 3398 fresh XML cases, no failures/errors/skips. Root: 40 cases; the original 37-tuple digest remains `c20c35d302a5abdb468640e9ef955b41aed08c395f01f468951d8608b0047899`. |
+| Repository device-test compilation | PASS: `2157 actionable tasks: 2157 executed`. |
+| `verifyPaparazziDebug` and `:lint-rules:test` | PASS: `638 actionable tasks: 638 executed`; 1938 fresh XML cases, no failures/errors/skips. No golden was recorded or changed. |
+| Separate Detekt | PASS: `63 actionable tasks: 63 executed`. The initial attempt found one import-order issue in the added Native test; only that import order was corrected. |
+| Android Smoke and MVI device identity oracle | PASS: `2117 actionable tasks: 2117 executed`; 44 identities, no failures/errors, the same three baseline skips. The exact identity/skip multiset matches entry. Smoke XML was archived before Regression; the MVI oracle verified both required tuples. |
+| Android Regression | PASS: `2117 actionable tasks: 2117 executed`; 90 fresh XML identities, no failures/errors/skips. Exact entry multiset retained; all six 7.19A recovery/admission/DB-free identities occur once and pass. |
+| All 19 simulator test tasks and Native identity oracle | PASS: `554 actionable tasks: 554 executed`; 948 fresh XML cases, no failures/errors/skips. The oracle verifies all 19 modules, including every one of the 11 registered app/common tuples. The old 18 expectation dictionaries are unchanged. |
+| All 19 device-target links | PASS: `535 actionable tasks: 535 executed`; all 19 test executables are fresh and nonempty. |
+| Source topology, MVI host identities and privacy | PASS, including the separate composition-root manifest, Android adapter/admission contracts and the unchanged original host sources. |
+| Mockup shell gate and permanent known negative | PASS: working tree 11 checks passed; `f52462c7` failed five actual checks, including rendered pill and FAB checks. |
+
+The final receipt audit verifies execution-only summaries, fresh XML, original host
+and catalog bytes, exact Smoke/Regression identity and skip multisets, all six targeted
+Android regressions, the 19-module Native oracle, and the allowed-path/version-pin
+boundary. The 40-host tuple digest is
+`19a07734f2abde0a696c7139e10a6d6711298b26eb7e397efbe172ac6db3fe51`;
+the 11-Native tuple digest is
+`e2c090370261c93b1671acc117c58161b8409c0cf5bf14ed28f5ef095ab199eb`.
+
+### Independent review and limitations
+
+Independent source review approved the production changes and independently verified the
+original host/catalog bytes and the unchanged 18 Native expectation rows. It also checked
+the four Native RED/restored-GREEN pairs. Two coverage observations were accepted as
+`correct-and-new`: outgoing-slot removal was not observed, and token disposal did not prove
+abandonment. The generation test now inspects actual saveable output for removal of id 1
+after successor id 2; the additional registered abandoned-composition case checks exact
+token identity and one release when deferred resolution aborts before apply.
+The final independent evidence audit approved without actionable findings: it parsed
+the archived XML directly, verified freshness and identity multisets, checked all 19
+Native module oracles and fresh device binaries, and matched the final source digest.
+
+The admitted-root dialog assertion initially looked in merged semantics; the real title
+was in the unmerged tree. A subsequent run exposed asynchronous DataStore delivery beyond
+`waitForIdle`. Waiting for the actual unmerged text, while retaining `assertIsDisplayed`,
+passed the focused case. Neither failure was a production graph or dialog change.
+
+The local mockup render gate required installed Python 3.13 (the existing script
+requires Python 3.12 syntax) and installed Chrome with an isolated temporary profile.
+Python 3.9 and an incomplete cached Chrome failed before render execution; their
+receipts are retained separately and are not reported as executed render checks.
+
+Local Apple validation uses Xcode 27.0 (`27A266a`); CI retains Xcode 26.6. Android device
+validation uses `Pixel_6_API_34`, API 34, `arm64-v8a`. Native recreation captures actual
+Compose/Nav3 saveable state but is simulated root recreation. Device-target links are
+not physical-device runs. No iOS application, production Apple runtime/DI, real iOS backup
+or physical-device acceptance is supplied. iOS retains the explicit corner fallback;
+labels retain the shared primary-locale/English fallback documented for Settings.

@@ -163,6 +163,7 @@ androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime
 
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+cmp-navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version = "1.1.1" }
 androidx-savedstate = { group = "androidx.savedstate", name = "savedstate", version.ref = "savedstate" }
 androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
 

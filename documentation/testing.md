@@ -1686,6 +1686,22 @@ Linking `iosArm64` tests is binary evidence, never device test execution. See
 [Phase 7.18 evidence](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger)
 for executed gates, controls, review and remaining limits.
 
+### Shared application-root coverage
+
+`app/common` retains the four original Android-host suites and their 37 identities and
+assertions. Three common result-channel cases bring the host total to 40. Native registers
+those three cases plus the seven specified `AppRootIosTest` cases and the explicit additional
+`abandonedCompositionReleasesItsExactToken` case: 11 identities. The root tests mount real Home,
+image-viewer and app-dialogs entries using generated Metro factories; unused factories fail
+on unexpected construction. They cover admission, resolver count, token disposal/abandonment,
+same-ID restoration, outgoing-slot removal, successor reset, actual saveable-state recreation,
+result-before-pop ordering, the latest recovery callback and the iOS reinitialization host.
+
+Root Native XML must be newer than `app/common/build/native-test-start`. The existing Native
+job removes these results and creates the marker, retaining Settings' separate freshness check.
+All 19 simulator tasks and device links use forced execution flags. This is simulator root
+recreation and device-target linking, not physical-device or production iOS-host acceptance.
+
 ## Running tests
 
 From the project root:
@@ -1700,10 +1716,13 @@ From the project root:
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests of the 18 modules (macOS + Xcode), kept in one --continue invocation
+# Native Phase-7 tests of the 19 modules (macOS + Xcode), kept in one --continue invocation
 mkdir -p feature/settings/build
 rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
 touch feature/settings/build/native-test-start
+mkdir -p app/common/build
+rm -rf app/common/build/test-results/iosSimulatorArm64Test
+touch app/common/build/native-test-start
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
@@ -1722,11 +1741,12 @@ touch feature/settings/build/native-test-start
   :feature:live-workout:iosSimulatorArm64Test \
   :feature:app-dialogs:impl:iosSimulatorArm64Test \
   :feature:settings:iosSimulatorArm64Test \
+  :app:common:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 18/18.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 19/19.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1745,6 +1765,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:live-workout:linkDebugTestIosArm64 \
   :feature:app-dialogs:impl:linkDebugTestIosArm64 \
   :feature:settings:linkDebugTestIosArm64 \
+  :app:common:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 
 # Focused MVI device cases plus exact JUnit identities

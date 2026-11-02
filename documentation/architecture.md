@@ -19,7 +19,7 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `MainActivity`, and `di/AppGraph.kt`, `di/AppGraphBuilder.kt`, `di/AppGraphOwner.kt`. It
   depends on `app/common`, so the graph sits **above** the composition root and
   `@DependencyGraph(AppScope::class)` stays internal here.
-- `app/common` — the CMP-shaped composition root, extracted in KMP phase 4: `App.kt`,
+- `app/common` — the KMP Compose composition root: shared `AppRoot.kt`, Android adapter `App.kt`,
   `AppRootViewModel.kt`, `bottom_app_bar/BottomBarItem.kt`, `host/AppNavigationHost.kt`
   (plus `host/BottomBarNavigationListener.kt`, `host/ClearFocusOnDestinationChanged.kt`),
   `navigation/NavigatorEventBus.kt`, `navigation/NavigatorExt.kt`, the `bottom_bar_label_*`
@@ -995,7 +995,7 @@ class NavigatorEventBus(
     )
     override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
-    private val results = ConcurrentHashMap<String, MutableStateFlow<Any?>>()
+    private val results = ResultChannelRegistry()
 
     override fun result(key: String): StateFlow<Any?> = resultFlow(key)
 
@@ -1008,7 +1008,7 @@ class NavigatorEventBus(
     }
 
     private fun resultFlow(key: String): MutableStateFlow<Any?> =
-        results.getOrPut(key) { MutableStateFlow(null) }
+        results.channel(key)
 
     override fun navTo(screen: Screen) {
         consume(NavCommand.NavTo(screen))
@@ -1087,9 +1087,28 @@ untyped, and it is confined to this module for that reason —
 (next to `Navigator`) lets the bus, the bridge, and any test double share
 the same sealed surface without crossing the `app/app` module boundary.
 
+### Shared application root
+
+`:app:common` uses `convention.kmpComposeLibrary` for Android, `iosSimulatorArm64`
+and `iosArm64`. Android retains `App(onOpenRecovery)` in `androidMain/App.kt`.
+It passes the Application's generation holder and a deferred dependency resolver to
+`commonMain/AppRoot.kt`. The shared root resolves dependencies once inside the admitted
+region; transitioning and denied generations read no graph. The admission observer releases
+the exact token on both forgotten and abandoned paths. Same-ID readmission restores its saved
+stack; a successor removes the outgoing saved slot and uses its own owner and stack.
+
+The result registry atomically installs immutable map snapshots and returns the winning
+per-key channel. Navigation clears values while retaining channel identity. Clears do not
+promise an atomic snapshot across keys. Android keeps its window-corner implementation;
+iOS uses the explicit `AbsoluteRoundedCornerShape(AppDimension.Radius.big)` fallback.
+Bottom-bar labels are private Compose resources; the public `titleRes` is `StringResource`.
+The resource stack uses the primary locale, falling back to English when unsupported, as in
+Settings; it does not search later preferred locales. Apple production runtime/DI and an iOS
+application remain separate work. See [Phase 7.19B](feature-specs/kmp-phase-7-19b-shared-app-common.md).
+
 ### App/UI bridge: `NavigatorExt.NavigationEventBusSetup`
 
-`App.kt` owns the back stack. It is created with `rememberNavBackStack` —
+`AppRoot.kt` owns the back stack. It is created with `rememberNavBackStack` —
 the COMMON overload with an explicit `SavedStateConfiguration`, never the
 Android-only reflection one: the configuration
 (`screenSavedStateConfiguration`, `core/ui/navigation/.../ScreenSerialization.kt`)
@@ -1808,9 +1827,9 @@ plain functions taking it as a parameter — that is the module boundary, not a 
 
 ### Navigation host and shared element transitions
 
-`app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
+`app/common/src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
 composition-scoped `NavigatorHolder` (which wraps the back stack created by
-`rememberNavBackStack` in `App.kt`) and wraps the `NavDisplay` in a
+`rememberNavBackStack` in `AppRoot.kt`) and wraps the `NavDisplay` in a
 `SharedTransitionLayout` (Jetpack Compose
 `ExperimentalSharedTransitionApi`). The layout is the anchor a shared-element transition
 would attach to; **no graph receives the scope as a parameter.** Nothing in the app performs
