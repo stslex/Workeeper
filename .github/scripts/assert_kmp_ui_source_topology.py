@@ -8541,7 +8541,7 @@ def settings_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> l
     if set(re.findall(r'project\("([^"]+)"\)', common_block)) != expected_common:
         failures.append("feature:settings: common project ownership must stay within the seven approved edges")
     workflow = Path(".github/workflows/android_build_unified.yml").read_text()
-    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings app/common; do", '$linked/19 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
+    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database; do", '$linked/20 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
         if workflow.count(fragment) != 1:
             failures.append(f"feature:settings: Native workflow requires {fragment!r} exactly once")
     from assert_kmp_ios_smoke import EXPECTED, TARGET_SUFFIX
@@ -9934,12 +9934,56 @@ def check_composition_root() -> list[str]:
     for fragment in (
         ":app:common:iosSimulatorArm64Test", ":app:common:linkDebugTestIosArm64",
         "app/common/build/test-results/iosSimulatorArm64Test/", "app/common/build/native-test-start",
-        'echo "$linked/19 linked"',
+        'echo "$linked/20 linked"',
     ):
         if fragment not in workflow:
             failures.append(f"app:common: Native workflow is missing {fragment!r}")
-    if "app/common; do" not in workflow:
+    if "app/common core/data/database; do" not in workflow:
         failures.append("app:common: device binary check must include the root")
+    return failures
+
+
+
+def check_database_native_gate() -> list[str]:
+    from assert_kmp_ios_smoke import EXPECTED, KNOWN_SUITE_PREFIX, TARGET_SUFFIX
+    failures = []
+    workflow = Path(".github/workflows/android_build_unified.yml").read_text()
+    for fragment in (
+        ":core:data:database:iosSimulatorArm64Test",
+        ":core:data:database:linkDebugTestIosArm64",
+        "core/data/database/build/test-results/iosSimulatorArm64Test/",
+        "touch core/data/database/build/native-test-start",
+        "            core/data/database/build/native-test-start",
+        "app/common core/data/database; do",
+        'echo "$linked/20 linked"',
+        '[ -s "$binary" ]',
+        '[ "$binary" -nt core/data/database/build/device-link-start ]',
+        "WORKEEPER_DATABASE_TEST_SIMULATOR=$device",
+    ):
+        if workflow.count(fragment) != 1:
+            failures.append(f"core:data:database: Native workflow requires {fragment!r} exactly once")
+    methods = [
+        "defaultLocationUsesApplicationSupport", "tagSurvivesCloseAndReopen",
+        "upgradesV5ThroughV7", "upgradesV6WithDuplicateTargets",
+        "unsupportedVersionKeepsOriginalRow", "unusableDirectoryFailsWithoutFallback",
+        "childWritesRollBackTogether", "activeTagFlowObservesCommittedWrite",
+    ]
+    modules = {row["module"] for row in EXPECTED}
+    for task in ("iosSimulatorArm64Test", "linkDebugTestIosArm64"):
+        declared = re.findall(r"^\s+:([^\s]+):" + task + r"\s*$", workflow, re.MULTILINE)
+        if len(declared) != 20 or set(declared) != modules:
+            failures.append(f"Native workflow {task} must cover all twenty oracle modules exactly once")
+    loop = re.search(r"for module in (core/ui/kit.*?); do", workflow, re.DOTALL)
+    binaries = loop.group(1).replace("\\", "").split() if loop else []
+    if len(binaries) != 20 or {module.replace("/", ":") for module in binaries} != modules:
+        failures.append("Native device binary check must cover all twenty oracle modules exactly once")
+    rows = [row for row in EXPECTED if row["module"] == "core:data:database"]
+    wanted = [{"classname": "io.github.stslex.workeeper.core.data.database.IosAppDatabaseTest",
+               "name": method + TARGET_SUFFIX} for method in methods]
+    if len(EXPECTED) != 20 or len({row["module"] for row in EXPECTED}) != 20:
+        failures.append("Native oracle must retain exactly twenty distinct module rows")
+    if len(rows) != 1 or rows[0]["identities"] != wanted or rows[0]["classname_prefix"] != KNOWN_SUITE_PREFIX:
+        failures.append("core:data:database: Native oracle must register all eight exact identities once")
     return failures
 
 
@@ -9952,6 +9996,7 @@ def main() -> None:
     failures.extend(check_plan_editor_feature_contract())
     failures.extend(check_recovery_launch_boundary())
     failures.extend(check_composition_root())
+    failures.extend(check_database_native_gate())
     for entry in FEATURE_ENTRIES:
         failures.extend(check_feature_entry(entry))
     placeholder_failures, placeholder_walk = check_compose_resource_placeholders()

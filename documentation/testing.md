@@ -1699,8 +1699,32 @@ result-before-pop ordering, the latest recovery callback and the iOS reinitializ
 
 Root Native XML must be newer than `app/common/build/native-test-start`. The existing Native
 job removes these results and creates the marker, retaining Settings' separate freshness check.
-All 19 simulator tasks and device links use forced execution flags. This is simulator root
+All 20 simulator tasks and device links use forced execution flags. This is simulator root
 recreation and device-target linking, not physical-device or production iOS-host acceptance.
+
+### iOS production database
+
+The database module runs the eight exact `IosAppDatabaseTest` identities from
+[Phase 7.20A](feature-specs/kmp-phase-7-20a-ios-room-database.md#simulator-acceptance).
+Each opens the shipping bundled-driver factory on disk. Coverage includes the public default
+location, close/reopen, exported v5/v6 upgrades, unsupported-version refusal, unusable directories,
+child-write rollback through the production runner and invalidation on one continuously subscribed
+collector. Handles close before each test removes only its exclusively created directory.
+
+The default-path case requires a newly provisioned, booted test-only simulator UUID in
+`WORKEEPER_DATABASE_TEST_SIMULATOR`. The module forwards that ownership identity to the binary and
+selects that simulator; setup refuses a mismatched container or any existing default database
+directory before touching it. CI provisions and removes its own simulator. Local runs must supply
+an equally owned simulator; removing an existing application/container is never setup.
+
+The module's test-only generator embeds tracked v5/v6 exports byte-for-byte into the Native test
+binary. Pinned Room 3 `MigrationTestHelper` creates the historical files from those exports.
+Before production Room opens them, raw SQLite checks version, schema identity and the seeded row.
+Copies remain under `core/data/database/build/native-fixtures/`, with their JSON and source blob
+IDs. WAL-mode fixture copies can be inspected read-only with SQLite's `immutable=1` URI option.
+The Native oracle requires database XML newer than its own `native-test-start`, while retaining
+the independent Settings/root markers and every previous identity expectation. Device-target
+binaries establish linking; physical-device and production Apple-host acceptance remain pending.
 
 ## Running tests
 
@@ -1716,13 +1740,17 @@ From the project root:
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests of the 19 modules (macOS + Xcode), kept in one --continue invocation
+# Native Phase-7 tests of the 20 modules (macOS + Xcode), kept in one --continue invocation
 mkdir -p feature/settings/build
 rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
 touch feature/settings/build/native-test-start
 mkdir -p app/common/build
 rm -rf app/common/build/test-results/iosSimulatorArm64Test
 touch app/common/build/native-test-start
+mkdir -p core/data/database/build
+rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
+touch core/data/database/build/native-test-start
+# Set WORKEEPER_DATABASE_TEST_SIMULATOR to your newly provisioned, booted test-only UUID.
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
@@ -1742,11 +1770,12 @@ touch app/common/build/native-test-start
   :feature:app-dialogs:impl:iosSimulatorArm64Test \
   :feature:settings:iosSimulatorArm64Test \
   :app:common:iosSimulatorArm64Test \
+  :core:data:database:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 19/19.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 20/20, fresh and nonempty.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1766,6 +1795,7 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:app-dialogs:impl:linkDebugTestIosArm64 \
   :feature:settings:linkDebugTestIosArm64 \
   :app:common:linkDebugTestIosArm64 \
+  :core:data:database:linkDebugTestIosArm64 \
   --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 
 # Focused MVI device cases plus exact JUnit identities
