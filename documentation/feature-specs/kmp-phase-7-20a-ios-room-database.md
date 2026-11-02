@@ -199,9 +199,30 @@ The mockup shell gate passes all eleven checks; its permanent `f52462c7` negativ
 and reproduces check 7's exact `width=0px→0px` discriminator. Strict raw logs and actual statuses
 are under `mockup-controls-strict/`. No schema, golden, suppression or baseline changed.
 
-### Remaining acceptance
+### Behavioral controls and restoration
 
-Both independent behavioral mutation/restoration pairs and final independent head review are
-pending in this ledger. Their measured outcomes will be recorded before handoff. Device-target
-linking is not physical-device execution. A production Apple application/DI runtime, real iOS
-backup and physical-device/App Store acceptance remain separate scopes; the maintainer owns merge.
+Both independent mutations ran through the unchanged canonical `mutation_harness.py` in a
+separate clean worktree on signed implementation head
+`479cda6d120ec1c4d6b4f0720d39e96c8fe3d051`. An observation-only subprocess wrapper retained the
+harness's full actual Gradle stdout/stderr and command/status/timestamps; it returned the original
+process results unchanged. The harness performed every source mutation and finally-restoration.
+Each case independently verified exact restored bytes and file mode, fresh XML and a clean tree.
+
+| Mutated behavior | Intended measured RED | Exact restoration |
+| --- | --- | --- |
+| Filter `Migration7` out of the common builder's registration | `IosAppDatabaseTest.upgradesV6WithDuplicateTargets[iosSimulatorArm64]` fails on its first production DAO access with the required missing 6 → 7 migration path. The mutation compiled. | The same case passes once, zero skips/errors/failures. |
+| Choose another file when the canonical file already exists | The first construction still writes the canonical file; `IosAppDatabaseTest.tagSurvivesCloseAndReopen[iosSimulatorArm64]` fails at its second-handle sentinel equality with the expected row absent. The mutation compiled. | The same case passes once, zero skips/errors/failures. |
+
+Every RED and restored GREEN reports `44 actionable tasks: 44 executed`. The exact Native
+classname prefix, target suffix, failure type/message and source hashes/mode are retained in
+`build/kmp-7-20a-evidence/behavior-controls/`. These are executed behavioral failures, distinct
+from the initial interop compile failure and the synthetic validator inputs. Both temporary
+control worktrees were clean before removal; the implementation source was never hand-reverted.
+
+### Independent review and manual gaps
+
+The implementation PR records independent review against its exact published implementation
+head and GitHub verification for every new signed commit. The author does not supply a self-review
+attestation. Device-target linking is not physical-device execution. A production Apple
+application/DI runtime, real iOS backup and physical-device/App Store acceptance remain separate
+scopes; the maintainer owns merge.
