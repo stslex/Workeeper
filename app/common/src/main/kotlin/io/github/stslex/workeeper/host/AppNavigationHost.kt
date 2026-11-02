@@ -47,6 +47,7 @@ import io.github.stslex.workeeper.feature.past_session.di.PastSessionGraph
 import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
+import io.github.stslex.workeeper.feature.settings.di.SettingsGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
@@ -67,6 +68,7 @@ internal fun AppNavigationHost(
     singleTrainingGraphFactory: SingleTrainingGraph.Factory,
     exerciseGraphFactory: ExerciseGraph.Factory,
     liveWorkoutGraphFactory: LiveWorkoutGraph.Factory,
+    settingsGraphFactory: SettingsGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -185,6 +187,7 @@ internal fun AppNavigationHost(
                             .testTag("ImageViewerGraph"),
                     )
                     settingsGraph(
+                        factory = settingsGraphFactory,
                         modifier = standardModifier
                             .reportScreenPlace<Screen.Settings>()
                             .testTag("SettingsGraph"),

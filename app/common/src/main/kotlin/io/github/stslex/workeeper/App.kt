@@ -262,6 +262,7 @@ private fun AppGenerationContent(deps: AppRootDeps) {
                 singleTrainingGraphFactory = deps.singleTrainingGraphFactory,
                 exerciseGraphFactory = deps.exerciseGraphFactory,
                 liveWorkoutGraphFactory = deps.liveWorkoutGraphFactory,
+                settingsGraphFactory = deps.settingsGraphFactory,
             )
 
             // GUARD: no host-owned affordance here — the host may not place a control in a band

@@ -1266,9 +1266,7 @@ IMAGE_VIEWER_CATALOGS = {
     },
 }
 
-EXPECTED_APP_DEPS_READERS = {
-    Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
-}
+EXPECTED_APP_DEPS_READERS = {}
 
 FEATURE_PLAN_EDITOR_RESOURCES = {
     "core_ui_plan_editor_screen_title_format": ("Edit plan: %1$s", "План: %1$s"),
@@ -2113,6 +2111,9 @@ class FeatureEntry:
     # D6: the configuration of app:app's direct edge on the module. The default keeps every
     # earlier entry byte-identical.
     app_aggregation: str = "implementation"
+    platform_build_tokens: tuple = ()
+    expect_files: tuple = ()
+    remembered_route: str = ""
 
     @property
     def common_main(self) -> Path:
@@ -2393,7 +2394,7 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
             f"{module}: kotlin(test) must exist {kotlin_test_rule(entry.kotlin_test_count)}"
         )
     for forbidden in FEATURE_FORBIDDEN_BUILD_TOKENS:
-        if forbidden in build_source:
+        if forbidden in build_source and forbidden not in entry.platform_build_tokens:
             failures.append(
                 f"{module}: forbidden build dependency/configuration remains: {forbidden}"
             )
@@ -2444,7 +2445,9 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 failures.append(
                     f"{module}: {relative} contains forbidden platform/lookup API {token!r}"
                 )
-        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE):
+        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE) and (
+            path.relative_to(common_main).as_posix() not in entry.expect_files
+        ):
             failures.append(f"{module}: {relative} contains a forbidden expect/actual shim")
         if "@Preview(" in source and "ThemeMode" not in source:
             failures.append(f"{module}: {relative} previews must use portable ThemeMode")
@@ -2740,7 +2743,15 @@ def check_feature_entry(entry: FeatureEntry) -> list[str]:
                 graph_path,
                 [
                     f"factory: {graph_factory},",
-                    f"{entry.screen_registration}({entry.feature_class}(factory))",
+                    *(
+                        [
+                            f"navScreen<{entry.remembered_route}> {{",
+                            f"val feature = remember(factory) {{ {entry.feature_class}(factory) }}",
+                            "val processor = feature.processor()",
+                        ]
+                        if entry.remembered_route
+                        else [f"{entry.screen_registration}({entry.feature_class}(factory))"]
+                    ),
                 ],
             ),
         ]
@@ -8289,6 +8300,1488 @@ def check_module(name: str, manifest: dict) -> list[str]:
                 )
 
     return failures
+
+
+
+
+SETTINGS_ANDROID_BLOBS = {'domain/BackupInteractor.kt': '9025e75e4f3e3dcac33db691dcbd42cbedaa11e2',
+ 'domain/BackupInteractorImpl.kt': 'c80c51856723397cd2d8283896005664dfb51edd',
+ 'domain/mapper/BackupDomainMapper.kt': '95a539318f039e1c7a976489701c713f42b1efac',
+ 'domain/model/AccountDomain.kt': '2425fe6ad0638710e066786980d671f4e3140b47',
+ 'domain/model/BackupAuthDomain.kt': '7d4af5be9a401d1de04d3d7d54c444e8ee579dab',
+ 'domain/model/BackupSummaryDomain.kt': '0e888088260836fec90066d1974c114b81b4f54d',
+ 'domain/model/SignInOutcomeDomain.kt': 'f70a40eaffecba888612de24ef80e7969581107b',
+ 'domain/usecase/RestoreLatestBackupUseCase.kt': 'ba2f2310e8c407144758ee5db577218847c4fad0',
+ 'mvi/mapper/BackupPreferencesUiMapper.kt': '1fa623dc58acd18965b929bbd451771526d45437',
+ 'mvi/mapper/BackupUiMapper.kt': '9ca561d902d4017e10d77ebec31af6e7f2a2f4e9'}
+
+SETTINGS_PNG_BLOBS = {'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_dark.png': '686e2f876f9bc1db28874ff9f4b27a4041f3a426',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_light.png': 'fe996f6077a57d9ee0ab28a39610c8e32d330ede',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_dark.png': '96cdcd7ad31152c7caebd696b705269bda40e349',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_light.png': '958cd96d7fa4765cf22798df31bade59f0f7f2df',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_dark.png': '2f775d4d33042bb45298522d21d99ea7e514fb66',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_light.png': '38d8279de19d94b611d751e6f5f47acee41041e5',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_dark.png': 'cb74e7211a956431de1570018144965d35e20395',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_light.png': '420ef8c15eee0106c16b17637e96d5e014dd8fc9',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_dark.png': '261a4648352931c491e149a50d4028242274e751',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_light.png': '142319655e31d9b6253ded28ae202b9d4e2e3048',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_dark.png': '6f8260b7c31e943331b40082d6b216f3b81d7106',
+ 'io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_light.png': '2b8cc8c272668ab6ac9230788cd454f8706aabd8'}
+
+SETTINGS_CATALOG_HASHES = {'values': '7000bdad9431d90a349ce4fee8e5b3b940ca53d61d51aa6089e16936f10be7c3',
+ 'values-ru': '84cbcdf78caef2992f8ed3d2269be1d0298079f36c85b954d93db9cf031909e3'}
+
+SETTINGS_NATIVE_IDENTITIES = [['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'observeThemeMode maps stored string to ThemeMode'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'observeThemeMode returns SYSTEM for unknown stored value'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'setThemeMode forwards enum name to data store'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'observeStartCardMode maps stored string to the domain mode'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'observeStartCardMode returns WEEK for unknown stored value'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'setStartCardMode forwards the persistence encoding to the data store'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'the storage encoding and the WEEK default are pinned'],
+ ['io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest',
+  'observeArchivedCounts combines the two counts that already existed'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnArchiveClick emits Haptic ContextClick then consumes OpenArchive'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnGitHubClick emits Haptic ContextClick then ShowExternalLink GitHub url'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnLicenseClick emits Haptic ContextClick then ShowExternalLink license url'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnPrivacyPolicyClick emits Haptic ContextClick then ShowExternalLink privacy url'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnStartCardModeClick emits a haptic and opens the mode sheet'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnStartCardModeClick while the frequency picker is up replaces the dialog'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest',
+  'OnStartCardModeSheetDismiss hides the sheet and emits no haptic'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsInputHandlerTest',
+  'OnThemeChange emits ContextClick haptic and updates state'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsInputHandlerTest',
+  'OnStartCardModeChange closes the sheet and persists the MAPPED mode'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsNavigationHandlerTest',
+  'Back triggers popBack'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsNavigationHandlerTest',
+  'OpenArchive navigates to Screen Archive'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapperTest',
+  'every UI mode maps to its own domain twin'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapperTest',
+  'every domain mode maps to its own UI twin'],
+ ['io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapperTest',
+  'the mapping round-trips over the whole catalog'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsBackupAvailabilityTest',
+  'availableBackupInitializesAllThreeObservers'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsBackupAvailabilityTest',
+  'unavailableBackupInitializesNoObservers'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsUnavailableBackupTest',
+  'productionGraphConstructsSettingsWithUnavailableBackup'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsUnavailableBackupTest',
+  'allBackupActionsLeaveStateAndEventsUnchanged'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsUnavailableBackupTest',
+  'unavailableAuthLauncherNeverCallsBack'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsNativeSceneTest',
+  'settingsWithoutBackupKeepsGeneralActions'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsNativeSceneTest',
+  'unavailableBackupHidesSectionDialogsAndOverlay'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsNativeSceneTest',
+  'startCardModeWaitsForThePersistedPreference'],
+ ['io.github.stslex.workeeper.feature.settings.SettingsNativeSceneTest',
+  'sharedBackupContentRendersWithAnEnabledFixture']]
+
+def settings_blob(path: Path) -> str:
+    import hashlib
+    data = path.read_bytes()
+    return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+
+
+def settings_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> list[str]:
+    import hashlib
+    failures: list[str] = []
+    common = entry.common_main
+    android = entry.root / "src/androidMain/kotlin" / entry.package_dir
+    ios = entry.root / "src/iosMain/kotlin" / entry.package_dir
+    store = common_sources[common / "mvi/store/SettingsStoreImpl.kt"]
+    ui = common_sources[common / "ui/SettingsScreen.kt"]
+    required = {
+        "mvi/handler/SettingsBackupHandler.kt": ["internal interface SettingsBackupHandler : Handler<Action.Backup>", "val isAvailable: Boolean"],
+        "mvi/store/SettingsStoreImpl.kt": ["backupHandler: SettingsBackupHandler", "backupAvailable = backupHandler.isAvailable", "if (backupHandler.isAvailable)", "is Action.Backup -> backupHandler", "add(Action.Paging.Init)", "add(Action.Backup.ObserveAuth)", "add(Action.Backup.ObservePreferences)", "add(Action.Backup.ObserveRestoreState)"],
+        "ui/platform/SettingsAuthLauncher.kt": ["internal expect fun rememberSettingsAuthLauncher", "onResult: (SettingsAuthResult) -> Unit"],
+        "ui/platform/SettingsLinkLauncher.kt": ["internal expect fun rememberSettingsLinkLauncher"],
+    }
+    for relative, fragments in required.items():
+        source = common_sources[common / relative]
+        for fragment in fragments:
+            if compact(source).count(compact(fragment)) != 1:
+                failures.append(f"feature:settings: {relative} requires {fragment!r} exactly once")
+    if compact(ui).count("if(state.backupAvailable)") != 5:
+        failures.append("feature:settings: section, three backup dialogs and overlay each require availability guards")
+    for variant in ("is DialogState.RestoreConfirmation", "DialogState.SignOutConfirmation", "is DialogState.FrequencyPicker"):
+        if compact(f"{variant} -> if (state.backupAvailable)") not in compact(ui):
+            failures.append(f"feature:settings: backup dialog guard missing for {variant}")
+    if "DialogState.StartCardModePicker -> StartCardModeSheet(" not in ui:
+        failures.append("feature:settings: the ordinary start-card sheet must remain available")
+    for name in ("SettingsAuthRequest", "SettingsAuthResult"):
+        source = common_sources[common / f"mvi/model/{name}.kt"]
+        if compact(source).count(f"interface{name}") != 1 or re.search(r"\b(?:Any|Intent|IntentSender)\b", source):
+            failures.append(f"feature:settings: {name} must remain a public opaque marker")
+    contract = strip_kotlin_comments(common_sources[common / "mvi/store/SettingsStore.kt"])
+    if re.search(r"\bbackupAvailable\s*:\s*Boolean\s*=", contract):
+        failures.append("feature:settings: backupAvailable must be an explicit required initial argument")
+    graph = common_sources[common / "di/SettingsGraph.kt"]
+    if "BackupInteractor" in graph or "Context" in graph:
+        failures.append("feature:settings: common graph must not bind Android backup or Context")
+    unavailable = (ios / "mvi/handler/UnavailableSettingsBackupHandler.kt").read_text()
+    for fragment in ("internal object UnavailableSettingsBackupHandler : SettingsBackupHandler", "override val isAvailable: Boolean = false", "override fun invoke(action: Action.Backup) = Unit"):
+        if compact(unavailable).count(compact(fragment)) != 1:
+            failures.append(f"feature:settings: unavailable handler requires {fragment!r}")
+    if re.search(r"import .*?(?:core.data|android\.|java\.)|(?:class|object) UnavailableSettingsBackupHandler\s*\(", unavailable):
+        failures.append("feature:settings: unavailable handler must have no backend/platform dependencies")
+    binding = (ios / "di/SettingsBackupBindings.kt").read_text()
+    for fragment in ("@ContributesTo(SettingsScope::class)", "@Provides", "provideBackupHandler(): SettingsBackupHandler = UnavailableSettingsBackupHandler"):
+        if compact(binding).count(compact(fragment)) != 1:
+            failures.append(f"feature:settings: iOS production binding requires {fragment!r}")
+    android_binding = (android / "di/SettingsBackupBindings.kt").read_text()
+    for fragment in ("@ContributesTo(SettingsScope::class)", "BackupInteractorImpl.bindBackupInteractor: BackupInteractor", "provideBackupHandler(handler: BackupClickHandler): SettingsBackupHandler = handler"):
+        if compact(android_binding).count(compact(fragment)) != 1:
+            failures.append(f"feature:settings: Android production binding requires {fragment!r}")
+    for platform, filename, fragments in (
+        (android, "SettingsAuthLauncher.android.kt", ("StartIntentSenderForResult", "IntentSenderRequest.Builder", "onResult(SettingsAuthMapper.toResult(result.data))")),
+        (ios, "SettingsAuthLauncher.ios.kt", ("remember { SettingsAuthLauncher { } }",)),
+        (android, "SettingsLinkLauncher.android.kt", ("Intent.ACTION_VIEW", "Intent.FLAG_ACTIVITY_NEW_TASK", "runCatching { context.startActivity(intent) }")),
+        (ios, "SettingsLinkLauncher.ios.kt", ("LocalUriHandler.current", "handler.openUri(url)")),
+    ):
+        source = (platform / "ui/platform" / filename).read_text()
+        for fragment in fragments:
+            if compact(source).count(compact(fragment)) != 1:
+                failures.append(f"feature:settings: {filename} requires {fragment!r}")
+    for relative, expected in SETTINGS_ANDROID_BLOBS.items():
+        if settings_blob(android / relative) != expected:
+            failures.append(f"feature:settings: protected Android source bytes changed: {relative}")
+    actual_pngs = {p.name: settings_blob(p) for p in (entry.root / "src/androidHostTest/snapshots/images").glob("*.png")}
+    if actual_pngs != SETTINGS_PNG_BLOBS:
+        failures.append("feature:settings: complete 12-PNG basename/blob map changed; do not record goldens")
+    for locale, expected in SETTINGS_CATALOG_HASHES.items():
+        path = entry.root / "src/commonMain/composeResources" / locale / "strings.xml"
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            failures.append(f"feature:settings: {locale} catalog bytes differ beyond positional normalization")
+    build = (entry.root / "build.gradle.kts").read_text()
+    android_block = settings_dependency_block(build, "androidMain.dependencies")
+    expected_android = {":core:data:backup:api", ":core:data:database", ":feature:app-dialogs:api"}
+    edges = set(re.findall(r'project\("([^"]+)"\)', android_block))
+    if edges != expected_android:
+        failures.append(f"feature:settings: Android project ownership drift: {sorted(edges)}")
+    for label, block, expected in (
+        ("Android", android_block, {("implementation", "libs.androidx.compose.activity")}),
+        ("common", settings_dependency_block(build, "commonMain.dependencies"), {
+            ("api", "libs.cmp.ui"), ("api", "libs.coroutines.core"),
+            ("implementation", "libs.kotlinx.collections.immutable"),
+            ("implementation", "libs.cmp.animation"),
+            ("implementation", "libs.cmp.material.icons.extended"),
+        }),
+    ):
+        actual = re.findall(r"(implementation|api)\((libs\.[\w.]+)\)", block)
+        if len(actual) != len(expected) or set(actual) != expected:
+            failures.append(f"feature:settings: {label} external dependency ownership drift: {actual}")
+    expects = {
+        path.relative_to(common).as_posix(): declarations
+        for path, source in common_sources.items()
+        if (declarations := re.findall(
+            r"\b(?:expect|actual)\s+(?:fun|class|object)\s+(\w+)", strip_kotlin_comments(source)
+        ))
+    }
+    expected_expects = {
+        "ui/platform/SettingsAuthLauncher.kt": ["rememberSettingsAuthLauncher"],
+        "ui/platform/SettingsLinkLauncher.kt": ["rememberSettingsLinkLauncher"],
+    }
+    if expects != expected_expects or set(expects) != set(entry.expect_files):
+        failures.append("feature:settings: only the two local launcher expect declarations are permitted")
+    common_block = settings_dependency_block(build, "commonMain.dependencies")
+    expected_common = {":core:core", ":core:data:dataStore", ":core:data:exercise", ":core:ui:kit", ":core:ui:start-mode", ":core:ui:mvi", ":core:ui:navigation"}
+    if set(re.findall(r'project\("([^"]+)"\)', common_block)) != expected_common:
+        failures.append("feature:settings: common project ownership must stay within the seven approved edges")
+    workflow = Path(".github/workflows/android_build_unified.yml").read_text()
+    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings; do", '$linked/18 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
+        if workflow.count(fragment) != 1:
+            failures.append(f"feature:settings: Native workflow requires {fragment!r} exactly once")
+    from assert_kmp_ios_smoke import EXPECTED, TARGET_SUFFIX
+    rows = [row for row in EXPECTED if row["module"] == "feature:settings"]
+    actual = [
+        [identity["classname"], identity["name"].removesuffix(TARGET_SUFFIX)]
+        for row in rows for identity in row["identities"]
+    ]
+    if len(rows) != 1 or actual != SETTINGS_NATIVE_IDENTITIES:
+        failures.append("feature:settings: Native oracle must contain all 31 exact Settings identities once")
+    return failures
+
+
+def settings_dependency_block(source: str, anchor: str) -> str:
+    start = source.index("{", source.index(anchor))
+    depth = 1
+    end = start + 1
+    while depth and end < len(source):
+        depth += (source[end] == "{") - (source[end] == "}")
+        end += 1
+    return source[start:end]
+
+
+MODULES["feature:settings"] = {'root': Path('feature/settings'),
+ 'files': {'src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsPlatformAdaptersTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImplTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/TestPlatformInfo.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/golden/SettingsGoldenTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandlerTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/FakeSettingsHandlerStore.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupDateMapperTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupUiMapperTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/ui/SettingsStartCardModeSheetTest.kt',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_light.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_light.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_light.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_light.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_light.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_dark.png',
+           'src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_light.png',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsAndroidDeps.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsBackupBindings.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractor.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/mapper/BackupDomainMapper.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/AccountDomain.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/BackupAuthDomain.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/BackupSummaryDomain.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/SignInOutcomeDomain.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/usecase/RestoreLatestBackupUseCase.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupDateMapper.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupPreferencesUiMapper.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupUiMapper.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/SettingsAuthMapper.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/AndroidSettingsAuthHandles.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsAuthLauncher.android.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsLinkLauncher.android.kt',
+           'src/commonMain/composeResources/values-ru/strings.xml',
+           'src/commonMain/composeResources/values/strings.xml',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/about/AboutLinks.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsGraph.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsHandlerStore.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsHandlerStoreImpl.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsScope.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/SettingsInteractor.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/SettingsInteractorImpl.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/ArchivedCountsDomain.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/StartCardModeDomain.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/model/ThemeModeDomain.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsBackupHandler.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsClickHandler.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsInputHandler.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsNavigationHandler.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsPagingHandler.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/StartCardModeMapper.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/ThemeModeMapper.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/ArchivedCountsUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupAuthUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupErrorUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupInfoUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupOperationUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupPreferencesUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/BackupScheduleUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/RestoreProgressUi.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/SettingsAuthRequest.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/model/SettingsAuthResult.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/store/DialogState.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/store/SettingsStore.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/store/SettingsStoreImpl.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/SettingsGraph.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/SettingsScreen.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/AuthPausedBanner.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/FrequencyPickerBottomSheet.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/RestoreConfirmationDialog.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/RestoreProgressOverlay.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/SettingsBackupState.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/SettingsGroup.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/SettingsGroupRow.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/SignOutConfirmationDialog.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsAuthLauncher.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsLinkLauncher.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsBackupAvailabilityTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/domain/SettingsInteractorImplTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/RecordingSettingsHandlerStore.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/SettingsCommonDataStoreFake.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/SettingsRepositoryFakes.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/SettingsStoreFixture.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/TestPlatformInfo.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsClickHandlerTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsInputHandlerTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsNavigationHandlerTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/StartCardModeMapperTest.kt',
+           'src/iosMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsBackupBindings.kt',
+           'src/iosMain/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/UnavailableSettingsBackupHandler.kt',
+           'src/iosMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsAuthLauncher.ios.kt',
+           'src/iosMain/kotlin/io/github/stslex/workeeper/feature/settings/ui/platform/SettingsLinkLauncher.ios.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsNativeGraphFixture.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsNativeSceneTest.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsUnavailableBackupTest.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/fixtures/TestPlatformInfo.kt'},
+ 'kotlin_source_sets': {'androidDeviceTest',
+                        'androidHostTest',
+                        'androidMain',
+                        'commonMain',
+                        'commonTest',
+                        'iosMain',
+                        'iosTest'},
+ 'resource_dirs': {'src/commonMain/composeResources/values-ru', 'src/commonMain/composeResources/values'}}
+
+SETTINGS_ENTRY = FeatureEntry(
+    module='feature:settings',
+    short_name='settings',
+    root=Path('feature/settings'),
+    package_dir='io/github/stslex/workeeper/feature/settings',
+    build_fragments=('alias(libs.plugins.convention.kmpComposeLibrary)',
+ 'alias(libs.plugins.metro)',
+ 'alias(libs.plugins.paparazzi)',
+ 'packageOfResClass = "io.github.stslex.workeeper.feature.settings.resources"',
+ 'includeJavax()',
+ 'commonMain.dependencies',
+ 'androidMain.dependencies',
+ 'commonTest.dependencies',
+ 'iosTest.dependencies'),
+    kotlin_test_count=2,
+    catalog=(('string', 'feature_settings_title', 'Settings', 'Настройки'),
+ ('string', 'feature_settings_section_about', 'About', 'О приложении'),
+ ('string', 'feature_settings_section_appearance', 'Appearance', 'Оформление'),
+ ('string', 'feature_settings_section_data', 'Data', 'Данные'),
+ ('string', 'feature_settings_theme_row_title', 'Theme', 'Тема'),
+ ('string', 'feature_settings_start_card_row_title', 'Start card', 'Карточка старта'),
+ ('string', 'feature_settings_theme_system', 'System', 'Системная'),
+ ('string', 'feature_settings_theme_light', 'Light', 'Светлая'),
+ ('string', 'feature_settings_theme_dark', 'Dark', 'Тёмная'),
+ ('string', 'feature_settings_about_app_name', 'Workeeper', 'Workeeper'),
+ ('string', 'feature_settings_about_version_format', 'Version %1$s (%2$d)', 'Версия %1$s (%2$d)'),
+ ('string', 'feature_settings_about_license', 'GPLv3 license', 'Лицензия GPLv3'),
+ ('string', 'feature_settings_about_github', 'Source code', 'Исходный код'),
+ ('string', 'feature_settings_about_privacy', 'Privacy Policy', 'Политика конфиденциальности'),
+ ('string', 'feature_settings_archive_entry', 'Archive', 'Архив'),
+ ('string', 'feature_settings_backup_title', 'Backups', 'Резервные копии'),
+ ('string', 'feature_settings_backup_sign_in', 'Sign in to Google Drive', 'Войти в Google Drive'),
+ ('string', 'feature_settings_backup_sign_out', 'Sign out', 'Выйти из аккаунта'),
+ ('string', 'feature_settings_backup_create', 'Create backup now', 'Создать копию сейчас'),
+ ('string', 'feature_settings_backup_restore', 'Restore from backup', 'Восстановить из копии'),
+ ('string',
+  'feature_settings_backup_revert_last_restore_label',
+  'Revert last restore',
+  'Откатить последнее восстановление'),
+ ('string', 'feature_settings_backup_restore_title', 'Restore backup?', 'Восстановить резервную копию?'),
+ ('string',
+  'feature_settings_backup_restore_warning',
+  'Replaces your current data with the backup from %1$s (%2$s). This cannot be undone.',
+  'Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо.'),
+ ('string',
+  'feature_settings_backup_restore_impact',
+  'All current data will be replaced',
+  'Все текущие данные будут заменены'),
+ ('string', 'feature_settings_backup_restore_confirm', 'Restore', 'Восстановить'),
+ ('string', 'feature_settings_backup_restore_cancel', 'Cancel', 'Отмена'),
+ ('string', 'feature_settings_backup_created', 'Backup created', 'Резервная копия создана'),
+ ('string',
+  'feature_settings_backup_error_not_authenticated',
+  'Sign in to Drive first',
+  'Сначала войдите в Drive'),
+ ('string',
+  'feature_settings_backup_error_network_unavailable',
+  'No internet connection',
+  'Нет соединения с интернетом'),
+ ('string',
+  'feature_settings_backup_error_auth_revoked',
+  'Drive access revoked. Sign in again.',
+  'Доступ к Drive отозван. Войдите снова.'),
+ ('string',
+  'feature_settings_backup_error_missing_required_scope',
+  'Drive access wasn’t granted. Sign in again and allow Drive access — you’ll see the consent screen once '
+  'more.',
+  'Доступ к Google Drive не предоставлен. Войдите снова и разрешите доступ к Drive — экран согласия появится '
+  'ещё раз.'),
+ ('string',
+  'feature_settings_backup_error_storage_quota_exceeded',
+  'Drive storage is full',
+  'В Drive закончилось место'),
+ ('string',
+  'feature_settings_backup_error_corrupted_backup',
+  'Backup file is corrupted',
+  'Файл резервной копии повреждён'),
+ ('string',
+  'feature_settings_backup_error_backup_too_new',
+  'This backup is from a newer version of the app. Update Workeeper to restore it.',
+  'Эта резервная копия из более новой версии приложения. Обновите Workeeper, чтобы её восстановить.'),
+ ('string',
+  'feature_settings_backup_error_missing_migration_path',
+  'This backup is from an older version that this app build cannot migrate. Try updating the app or use a '
+  'newer backup.',
+  'Эта резервная копия из старой версии, которую эта сборка приложения не может мигрировать. Обновите '
+  'приложение или используйте более новую копию.'),
+ ('string', 'feature_settings_backup_error_io', 'Read/write error', 'Ошибка чтения или записи'),
+ ('string', 'feature_settings_backup_error_unknown', 'Something went wrong', 'Что-то пошло не так'),
+ ('string',
+  'feature_settings_backup_error_no_backups_found',
+  'No backups available',
+  'Нет доступных резервных копий'),
+ ('string', 'feature_settings_backup_sign_out_title', 'Sign out of Google Drive?', 'Выйти из Google Drive?'),
+ ('string',
+  'feature_settings_backup_sign_out_body',
+  'Auto-backups will stop. Existing backups in Drive will remain and can be restored after signing in again.',
+  'Автоматические резервные копии остановятся. Существующие копии в Drive сохранятся, их можно будет '
+  'восстановить после повторного входа.'),
+ ('string',
+  'feature_settings_backup_sign_out_impact',
+  'Auto-backups will stop',
+  'Автоматические резервные копии остановятся'),
+ ('string', 'feature_settings_backup_info_last_backup_never', 'Never backed up', 'Резервных копий ещё нет'),
+ ('string', 'feature_settings_backup_info_last_backup_format', 'last %1$s', 'последняя %1$s'),
+ ('string', 'feature_settings_backup_info_count_zero', 'No backups yet', 'Ещё нет резервных копий'),
+ ('string',
+  'feature_settings_backup_restore_in_progress',
+  'Restoring backup…',
+  'Восстановление резервной копии…'),
+ ('string',
+  'feature_settings_backup_restore_completed',
+  'Restore complete. Restarting app…',
+  'Восстановление завершено. Перезапуск приложения…'),
+ ('plurals',
+  'feature_settings_backup_info_count',
+  (('one', '%1$d backup'), ('other', '%1$d backups')),
+  (('one', '%1$d копия'), ('few', '%1$d копии'), ('many', '%1$d копий'), ('other', '%1$d копий'))),
+ ('string', 'feature_settings_backup_frequency_daily', 'Daily', 'Ежедневно'),
+ ('string', 'feature_settings_backup_frequency_weekly', 'Weekly', 'Еженедельно'),
+ ('string', 'feature_settings_backup_auto_row_title', 'Auto-backup', 'Автокопия'),
+ ('string', 'feature_settings_backup_auto_next_short', 'next %1$s', 'следующая %1$s'),
+ ('string', 'feature_settings_backup_auto_on', 'On', 'Вкл'),
+ ('string', 'feature_settings_backup_auto_off', 'Off', 'Выкл'),
+ ('string', 'feature_settings_backup_frequency_manual_only', 'Manual only', 'Только вручную'),
+ ('string',
+  'feature_settings_backup_frequency_picker_title',
+  'Backup frequency',
+  'Частота резервного копирования'),
+ ('string', 'feature_settings_backup_frequency_picker_save', 'Save', 'Сохранить'),
+ ('string',
+  'feature_settings_backup_allow_mobile_data_label',
+  'Allow on mobile data',
+  'Разрешить мобильные данные'),
+ ('string',
+  'feature_settings_backup_allow_mobile_data_caption',
+  'Backups will use mobile data when Wi-Fi unavailable',
+  'Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi'),
+ ('string', 'feature_settings_backup_ai_export_label', 'AI assistant snapshot', 'Снимок для ИИ-ассистента'),
+ ('string',
+  'feature_settings_backup_ai_export_caption',
+  'Saves a plain-text JSON copy of your workouts to a visible, shareable folder in your Google Drive (not '
+  'the hidden app backup) so an AI assistant you authorize can read it.',
+  'Сохраняет копию ваших тренировок в виде обычного текста (JSON) в видимую и доступную для общего доступа '
+  'папку в Google Drive (не в скрытую резервную копию), чтобы ИИ-ассистент, которому вы дали доступ, мог её '
+  'прочитать.'),
+ ('string',
+  'feature_settings_backup_ai_export_access_needed',
+  'Google Drive access is needed for AI export',
+  'Для экспорта в ИИ нужен доступ к Google Drive'),
+ ('string',
+  'feature_settings_backup_auto_paused_banner_title',
+  'Auto-backup paused',
+  'Авто-копирование приостановлено'),
+ ('string',
+  'feature_settings_backup_auto_paused_banner_body',
+  'Sign in to Google Drive again to resume.',
+  'Войдите в Google Drive снова, чтобы возобновить.'),
+ ('string', 'feature_settings_backup_auto_paused_banner_action', 'Sign in', 'Войти'),
+ ('string',
+  'feature_settings_backup_auto_enabled_default',
+  'Auto-backup enabled, daily',
+  'Авто-копирование включено, ежедневно'),
+ ('string', 'feature_settings_backup_auto_enabled_change_action', 'Change', 'Изменить'),
+ ('plurals',
+  'feature_settings_archive_exercise_count',
+  (('one', '%1$d exercise'), ('other', '%1$d exercises')),
+  (('one', '%1$d упражнение'),
+   ('few', '%1$d упражнения'),
+   ('many', '%1$d упражнений'),
+   ('other', '%1$d упражнения'))),
+ ('plurals',
+  'feature_settings_archive_training_count',
+  (('one', '%1$d training'), ('other', '%1$d trainings')),
+  (('one', '%1$d тренировка'),
+   ('few', '%1$d тренировки'),
+   ('many', '%1$d тренировок'),
+   ('other', '%1$d тренировки')))),
+    resource_prefix='feature_settings_',
+    payload_files=frozenset({'BackupAuthUi.kt',
+           'BackupInfoUi.kt',
+           'BackupOperationUi.kt',
+           'BackupPreferencesUi.kt',
+           'DialogState.kt',
+           'RestoreProgressUi.kt',
+           'SettingsStore.kt'}),
+    store_file='mvi/store/SettingsStore.kt',
+    state_fields=(('themeMode', 'ThemeMode'),
+ ('startCardMode', 'StartCardModeUi?'),
+ ('appVersion', 'String'),
+ ('appVersionCode', 'Int'),
+ ('backupAvailable', 'Boolean'),
+ ('backupAuth', 'BackupAuthUi'),
+ ('backupOperation', 'BackupOperationUi'),
+ ('dialogState', 'DialogState'),
+ ('backupInfo', 'BackupInfoUi'),
+ ('backupPreferences', 'BackupPreferencesUi?'),
+ ('restoreProgress', 'RestoreProgressUi'),
+ ('canRevertLastRestore', 'Boolean'),
+ ('archivedCounts', 'ArchivedCountsUi?')),
+    resource_wrapper_readers=frozenset(),
+    preview_subjects={},
+    preview_inventory={'ui/SettingsScreen.kt': ['name = "Light", showBackground = true',
+                          'name = "Dark", showBackground = true',
+                          'name = "Authenticated Light", showBackground = true',
+                          'name = "Authenticated Dark", showBackground = true',
+                          'name = "Restoring with dialog Light", showBackground = true',
+                          'name = "Restoring with dialog Dark", showBackground = true',
+                          'name = "Sign-out confirmation Light", showBackground = true',
+                          'name = "Sign-out confirmation Dark", showBackground = true',
+                          'name = "Restore in progress overlay Light", showBackground = true',
+                          'name = "Restore in progress overlay Dark", showBackground = true',
+                          'name = "Restore completed overlay Light", showBackground = true',
+                          'name = "Restore completed overlay Dark", showBackground = true']},
+    bare_previews={'ui/components/AuthPausedBanner.kt': 2,
+ 'ui/components/BackupSection.kt': 2,
+ 'ui/components/FrequencyPickerBottomSheet.kt': 2},
+    suppressions={'src/androidMain/kotlin/io/github/stslex/workeeper/feature/settings/domain/usecase/RestoreLatestBackupUseCase.kt': ['"ReturnCount"'],
+ 'src/commonMain/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt': ['"UNCHECKED_CAST"']},
+    test_names={'src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt': ['rendersScreenRootAndArchiveRow',
+                                                                                                    'backButtonEmitsBackNavigation'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsPlatformAdaptersTest.kt': ['authRequestPreservesIntentSenderIdentity',
+                                                                                                            'authResultPreservesIntentIdentity',
+                                                                                                            'cancelledAuthResultPreservesNull',
+                                                                                                            'androidHandlerRemainsAvailable'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImplTest.kt': ['createBackup '
+                                                                                                               'returns '
+                                                                                                               'the '
+                                                                                                               'binary '
+                                                                                                               'result '
+                                                                                                               'even '
+                                                                                                               'when '
+                                                                                                               'the '
+                                                                                                               'snapshot '
+                                                                                                               'runner '
+                                                                                                               'throws',
+                                                                                                               'requestDriveFileAccess '
+                                                                                                               'maps '
+                                                                                                               'NeedsResolution '
+                                                                                                               'from '
+                                                                                                               'backupAuth',
+                                                                                                               'isDriveFileGranted '
+                                                                                                               'reflects '
+                                                                                                               'the '
+                                                                                                               'backupAuth '
+                                                                                                               'grant '
+                                                                                                               'flow',
+                                                                                                               'signIn '
+                                                                                                               'Success '
+                                                                                                               'returns '
+                                                                                                               'SignInOutcomeDomain '
+                                                                                                               'Success',
+                                                                                                               'signIn '
+                                                                                                               'NeedsResolution '
+                                                                                                               'propagates '
+                                                                                                               'same '
+                                                                                                               'intentSender',
+                                                                                                               'signIn '
+                                                                                                               'Failure '
+                                                                                                               'propagates '
+                                                                                                               'same '
+                                                                                                               'BackupError',
+                                                                                                               'createBackup '
+                                                                                                               'happy '
+                                                                                                               'path '
+                                                                                                               'captures '
+                                                                                                               'snapshot '
+                                                                                                               'uploads '
+                                                                                                               'and '
+                                                                                                               'cleans '
+                                                                                                               'temp '
+                                                                                                               'file',
+                                                                                                               'createBackup '
+                                                                                                               'upload '
+                                                                                                               'failure '
+                                                                                                               'still '
+                                                                                                               'cleans '
+                                                                                                               'temp '
+                                                                                                               'file',
+                                                                                                               'createBackup '
+                                                                                                               'captureSnapshot '
+                                                                                                               'failure '
+                                                                                                               'short-circuits '
+                                                                                                               'and '
+                                                                                                               'cleans '
+                                                                                                               'temp '
+                                                                                                               'file',
+                                                                                                               'listLatestBackup '
+                                                                                                               'returns '
+                                                                                                               'first '
+                                                                                                               'ref '
+                                                                                                               'mapped '
+                                                                                                               'to '
+                                                                                                               'summary',
+                                                                                                               'listLatestBackup '
+                                                                                                               'returns '
+                                                                                                               'Success '
+                                                                                                               'null '
+                                                                                                               'when '
+                                                                                                               'no '
+                                                                                                               'backups',
+                                                                                                               'listLatestBackup '
+                                                                                                               'propagates '
+                                                                                                               'Failure',
+                                                                                                               'listBackups '
+                                                                                                               'maps '
+                                                                                                               'every '
+                                                                                                               'ref '
+                                                                                                               'to '
+                                                                                                               'summary '
+                                                                                                               'preserving '
+                                                                                                               'order',
+                                                                                                               'listBackups '
+                                                                                                               'returns '
+                                                                                                               'empty '
+                                                                                                               'list '
+                                                                                                               'when '
+                                                                                                               'no '
+                                                                                                               'backups',
+                                                                                                               'listBackups '
+                                                                                                               'propagates '
+                                                                                                               'Failure',
+                                                                                                               'restoreLatest '
+                                                                                                               'with '
+                                                                                                               'no '
+                                                                                                               'backups '
+                                                                                                               'returns '
+                                                                                                               'CorruptedBackup '
+                                                                                                               'and '
+                                                                                                               'skips '
+                                                                                                               'download',
+                                                                                                               'restoreLatest '
+                                                                                                               'with '
+                                                                                                               'backup '
+                                                                                                               'schema '
+                                                                                                               'newer '
+                                                                                                               'than '
+                                                                                                               'current '
+                                                                                                               'returns '
+                                                                                                               'BackupTooNew',
+                                                                                                               'restoreLatest '
+                                                                                                               'happy '
+                                                                                                               'path '
+                                                                                                               'claims '
+                                                                                                               'the '
+                                                                                                               'attempt '
+                                                                                                               'then '
+                                                                                                               'records '
+                                                                                                               'the '
+                                                                                                               'commit '
+                                                                                                               'and '
+                                                                                                               'cleans '
+                                                                                                               'temp '
+                                                                                                               'file',
+                                                                                                               'restoreLatest '
+                                                                                                               'never '
+                                                                                                               'reserves '
+                                                                                                               'the '
+                                                                                                               'rollback '
+                                                                                                               'snapshot '
+                                                                                                               'itself',
+                                                                                                               'a '
+                                                                                                               'second '
+                                                                                                               'restore '
+                                                                                                               'is '
+                                                                                                               'refused '
+                                                                                                               'while '
+                                                                                                               'an '
+                                                                                                               'attempt '
+                                                                                                               'is '
+                                                                                                               'unresolved',
+                                                                                                               'committed '
+                                                                                                               'without '
+                                                                                                               'a '
+                                                                                                               'durable '
+                                                                                                               'record '
+                                                                                                               'is '
+                                                                                                               'reported '
+                                                                                                               'as '
+                                                                                                               'FAILURE '
+                                                                                                               'never '
+                                                                                                               'success',
+                                                                                                               'restoreFromSnapshot '
+                                                                                                               'RejectedBeforeMutation '
+                                                                                                               'discards '
+                                                                                                               'only '
+                                                                                                               'its '
+                                                                                                               'Prepared '
+                                                                                                               'attempt',
+                                                                                                               'restoreFromSnapshot '
+                                                                                                               'FailedAfterMutation '
+                                                                                                               'leaves '
+                                                                                                               'the '
+                                                                                                               'attempt '
+                                                                                                               'unresolved',
+                                                                                                               'restore '
+                                                                                                               'compensation '
+                                                                                                               'journals '
+                                                                                                               'the '
+                                                                                                               'exact '
+                                                                                                               'N '
+                                                                                                               'ref '
+                                                                                                               'under '
+                                                                                                               'a '
+                                                                                                               'distinct '
+                                                                                                               'rollback '
+                                                                                                               'owner',
+                                                                                                               'restoreFromSnapshot '
+                                                                                                               'FatalNoGeneration '
+                                                                                                               'surfaces '
+                                                                                                               'an '
+                                                                                                               'Io '
+                                                                                                               'failure '
+                                                                                                               'and '
+                                                                                                               'deletes '
+                                                                                                               'nothing',
+                                                                                                               'restoreLatest '
+                                                                                                               'with '
+                                                                                                               'no '
+                                                                                                               'migration '
+                                                                                                               'path '
+                                                                                                               'returns '
+                                                                                                               'MissingMigrationPath',
+                                                                                                               'restoreLatest '
+                                                                                                               'with '
+                                                                                                               'equal '
+                                                                                                               'schema '
+                                                                                                               'versions '
+                                                                                                               'skips '
+                                                                                                               'migration '
+                                                                                                               'path '
+                                                                                                               'check',
+                                                                                                               'restoreLatest '
+                                                                                                               'download '
+                                                                                                               'failure '
+                                                                                                               'returns '
+                                                                                                               'early '
+                                                                                                               'with '
+                                                                                                               'no '
+                                                                                                               'compensation '
+                                                                                                               'and '
+                                                                                                               'cleans '
+                                                                                                               'temp '
+                                                                                                               'file',
+                                                                                                               'completeSignIn '
+                                                                                                               'maps '
+                                                                                                               'api '
+                                                                                                               'Success '
+                                                                                                               'of '
+                                                                                                               'Account '
+                                                                                                               'to '
+                                                                                                               'Success '
+                                                                                                               'of '
+                                                                                                               'Unit',
+                                                                                                               'completeSignIn '
+                                                                                                               'propagates '
+                                                                                                               'Failure',
+                                                                                                               'signOut '
+                                                                                                               'delegates '
+                                                                                                               'to '
+                                                                                                               'backupAuth',
+                                                                                                               'deleteAiExportSnapshots '
+                                                                                                               'delegates '
+                                                                                                               'to '
+                                                                                                               'the '
+                                                                                                               'snapshot '
+                                                                                                               'runner'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandlerTest.kt': ['ObserveAuth '
+                                                                                                                  'pushes '
+                                                                                                                  'auth '
+                                                                                                                  'state '
+                                                                                                                  'into '
+                                                                                                                  'State '
+                                                                                                                  'backupAuth',
+                                                                                                                  'ObserveAuth '
+                                                                                                                  'transition '
+                                                                                                                  'to '
+                                                                                                                  'Authenticated '
+                                                                                                                  'triggers '
+                                                                                                                  'LoadBackupList',
+                                                                                                                  'ObserveAuth '
+                                                                                                                  'transition '
+                                                                                                                  'to '
+                                                                                                                  'NotAuthenticated '
+                                                                                                                  'clears '
+                                                                                                                  'backupInfo',
+                                                                                                                  'SignIn '
+                                                                                                                  'Success '
+                                                                                                                  'flips '
+                                                                                                                  'operation '
+                                                                                                                  'to '
+                                                                                                                  'Idle '
+                                                                                                                  'and '
+                                                                                                                  'rehydrates '
+                                                                                                                  'auto-backup',
+                                                                                                                  'SignIn '
+                                                                                                                  'Success '
+                                                                                                                  'when '
+                                                                                                                  'not '
+                                                                                                                  'bootstrapped '
+                                                                                                                  'triggers '
+                                                                                                                  'bootstrap '
+                                                                                                                  '— '
+                                                                                                                  'snackbar '
+                                                                                                                  '+ '
+                                                                                                                  'one-time',
+                                                                                                                  'SignIn '
+                                                                                                                  'NeedsResolution '
+                                                                                                                  'emits '
+                                                                                                                  'AuthResolutionRequested '
+                                                                                                                  'with '
+                                                                                                                  'same '
+                                                                                                                  'intentSender',
+                                                                                                                  'ObservePreferences '
+                                                                                                                  'gates '
+                                                                                                                  'aiExportEnabled '
+                                                                                                                  'on '
+                                                                                                                  'the '
+                                                                                                                  'drive_file '
+                                                                                                                  'grant',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'off '
+                                                                                                                  'persists '
+                                                                                                                  'disabled '
+                                                                                                                  'then '
+                                                                                                                  'deletes '
+                                                                                                                  'exported '
+                                                                                                                  'snapshots',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'on '
+                                                                                                                  'with '
+                                                                                                                  'drive_file '
+                                                                                                                  'already '
+                                                                                                                  'granted '
+                                                                                                                  'persists '
+                                                                                                                  'enabled',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'on '
+                                                                                                                  'without '
+                                                                                                                  'grant '
+                                                                                                                  'emits '
+                                                                                                                  'AuthResolutionRequested '
+                                                                                                                  'and '
+                                                                                                                  'does '
+                                                                                                                  'not '
+                                                                                                                  'persist',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'grant '
+                                                                                                                  'succeeds '
+                                                                                                                  'via '
+                                                                                                                  'resolution '
+                                                                                                                  'persists '
+                                                                                                                  'enabled',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'grant '
+                                                                                                                  'declined '
+                                                                                                                  'shows '
+                                                                                                                  'access-needed '
+                                                                                                                  'snackbar '
+                                                                                                                  'and '
+                                                                                                                  'stays '
+                                                                                                                  'off',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'on '
+                                                                                                                  'marks '
+                                                                                                                  'the '
+                                                                                                                  'operation '
+                                                                                                                  'in-flight '
+                                                                                                                  'until '
+                                                                                                                  'the '
+                                                                                                                  'resolution '
+                                                                                                                  'completes',
+                                                                                                                  'ToggleAiExport '
+                                                                                                                  'ignores '
+                                                                                                                  'a '
+                                                                                                                  're-entrant '
+                                                                                                                  'enable '
+                                                                                                                  'while '
+                                                                                                                  'a '
+                                                                                                                  'grant '
+                                                                                                                  'is '
+                                                                                                                  'already '
+                                                                                                                  'in '
+                                                                                                                  'flight',
+                                                                                                                  'SignIn '
+                                                                                                                  'PartialGrant '
+                                                                                                                  'emits '
+                                                                                                                  'MISSING_REQUIRED_SCOPE '
+                                                                                                                  'and '
+                                                                                                                  'stays '
+                                                                                                                  'Idle',
+                                                                                                                  'HandleAuthResult '
+                                                                                                                  'Failure '
+                                                                                                                  'MissingRequiredScope '
+                                                                                                                  'emits '
+                                                                                                                  'MISSING_REQUIRED_SCOPE',
+                                                                                                                  'SignIn '
+                                                                                                                  'Failure '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError '
+                                                                                                                  'with '
+                                                                                                                  'mapped '
+                                                                                                                  'enum',
+                                                                                                                  'HandleAuthResult '
+                                                                                                                  'Failure '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError',
+                                                                                                                  'HandleAuthResult '
+                                                                                                                  'Success '
+                                                                                                                  'flips '
+                                                                                                                  'to '
+                                                                                                                  'Idle '
+                                                                                                                  'and '
+                                                                                                                  'rehydrates '
+                                                                                                                  'auto-backup',
+                                                                                                                  'HandleAuthResult '
+                                                                                                                  'Success '
+                                                                                                                  'when '
+                                                                                                                  'not '
+                                                                                                                  'bootstrapped '
+                                                                                                                  'triggers '
+                                                                                                                  'bootstrap',
+                                                                                                                  'RequestSignOut '
+                                                                                                                  'sets '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'SignOutConfirmation',
+                                                                                                                  'DismissSignOutConfirmation '
+                                                                                                                  'flips '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'Hidden',
+                                                                                                                  'ConfirmSignOut '
+                                                                                                                  'hides '
+                                                                                                                  'dialog '
+                                                                                                                  'and '
+                                                                                                                  'calls '
+                                                                                                                  'interactor '
+                                                                                                                  'signOut',
+                                                                                                                  'RequestSignOut '
+                                                                                                                  'while '
+                                                                                                                  'RestoreConfirmation '
+                                                                                                                  'is '
+                                                                                                                  'shown '
+                                                                                                                  'replaces '
+                                                                                                                  'dialog',
+                                                                                                                  'ConfirmSignOut '
+                                                                                                                  'Failure '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError '
+                                                                                                                  'and '
+                                                                                                                  'resets '
+                                                                                                                  'to '
+                                                                                                                  'Idle',
+                                                                                                                  'CreateBackup '
+                                                                                                                  'Success '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupCreated '
+                                                                                                                  'and '
+                                                                                                                  'resets '
+                                                                                                                  'to '
+                                                                                                                  'Idle',
+                                                                                                                  'CreateBackup '
+                                                                                                                  'Failure '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError',
+                                                                                                                  'RequestRestore '
+                                                                                                                  'Success '
+                                                                                                                  'null '
+                                                                                                                  'emits '
+                                                                                                                  'NO_BACKUPS_FOUND',
+                                                                                                                  'RequestRestore '
+                                                                                                                  'Success '
+                                                                                                                  'with '
+                                                                                                                  'summary '
+                                                                                                                  'sets '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'RestoreConfirmation',
+                                                                                                                  'RequestRestore '
+                                                                                                                  'Failure '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError',
+                                                                                                                  'DismissRestoreDialog '
+                                                                                                                  'flips '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'Hidden',
+                                                                                                                  'ConfirmRestore '
+                                                                                                                  'Success '
+                                                                                                                  'leaves '
+                                                                                                                  'process '
+                                                                                                                  'restart '
+                                                                                                                  'owned '
+                                                                                                                  'by '
+                                                                                                                  'the '
+                                                                                                                  'runtime',
+                                                                                                                  'ConfirmRestore '
+                                                                                                                  'Failure '
+                                                                                                                  'resets '
+                                                                                                                  'restoreProgress '
+                                                                                                                  'to '
+                                                                                                                  'Idle '
+                                                                                                                  'and '
+                                                                                                                  'emits '
+                                                                                                                  'ShowBackupError',
+                                                                                                                  'LoadBackupList '
+                                                                                                                  'Success '
+                                                                                                                  'populates '
+                                                                                                                  'backupInfo',
+                                                                                                                  'LoadBackupList '
+                                                                                                                  'Failure '
+                                                                                                                  'leaves '
+                                                                                                                  'backupInfo '
+                                                                                                                  'as-is '
+                                                                                                                  'and '
+                                                                                                                  'emits '
+                                                                                                                  'no '
+                                                                                                                  'error '
+                                                                                                                  'event',
+                                                                                                                  'interactor '
+                                                                                                                  'signIn '
+                                                                                                                  'invoked '
+                                                                                                                  'exactly '
+                                                                                                                  'once '
+                                                                                                                  'per '
+                                                                                                                  'SignIn',
+                                                                                                                  'OpenFrequencyPicker '
+                                                                                                                  'sets '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'FrequencyPicker '
+                                                                                                                  'carrying '
+                                                                                                                  'current '
+                                                                                                                  'prefs',
+                                                                                                                  'DismissFrequencyPicker '
+                                                                                                                  'flips '
+                                                                                                                  'dialogState '
+                                                                                                                  'to '
+                                                                                                                  'Hidden',
+                                                                                                                  'SaveFrequency '
+                                                                                                                  'Daily '
+                                                                                                                  'false '
+                                                                                                                  'updates '
+                                                                                                                  'repo '
+                                                                                                                  'and '
+                                                                                                                  'schedules '
+                                                                                                                  'periodic',
+                                                                                                                  'SaveFrequency '
+                                                                                                                  'preserves '
+                                                                                                                  'persisted '
+                                                                                                                  'non-sentinel '
+                                                                                                                  'fields '
+                                                                                                                  'in '
+                                                                                                                  'scheduled '
+                                                                                                                  'snapshot',
+                                                                                                                  'SaveFrequency '
+                                                                                                                  'ManualOnly '
+                                                                                                                  'cancels '
+                                                                                                                  'periodic '
+                                                                                                                  'and '
+                                                                                                                  'does '
+                                                                                                                  'not '
+                                                                                                                  'schedule',
+                                                                                                                  'UpdateFrequencyPickerSelection '
+                                                                                                                  'updates '
+                                                                                                                  'dialog '
+                                                                                                                  'selected '
+                                                                                                                  'fields '
+                                                                                                                  'without '
+                                                                                                                  'committing',
+                                                                                                                  'first-sign-in '
+                                                                                                                  'bootstrap '
+                                                                                                                  'sets '
+                                                                                                                  'defaults '
+                                                                                                                  'schedules '
+                                                                                                                  'periodic '
+                                                                                                                  'enqueues '
+                                                                                                                  'one-time '
+                                                                                                                  'emits '
+                                                                                                                  'snackbar',
+                                                                                                                  're-sign-in '
+                                                                                                                  'after '
+                                                                                                                  'bootstrap '
+                                                                                                                  'does '
+                                                                                                                  'NOT '
+                                                                                                                  'emit '
+                                                                                                                  'snackbar '
+                                                                                                                  'but '
+                                                                                                                  'does '
+                                                                                                                  'rehydrate '
+                                                                                                                  'periodic',
+                                                                                                                  're-sign-in '
+                                                                                                                  'clears '
+                                                                                                                  'AuthRevoked '
+                                                                                                                  'lastError',
+                                                                                                                  'ObservePreferences '
+                                                                                                                  'populates '
+                                                                                                                  'state '
+                                                                                                                  'backupPreferences '
+                                                                                                                  'with '
+                                                                                                                  'mapped '
+                                                                                                                  'data',
+                                                                                                                  'ConfirmSignOut '
+                                                                                                                  'cancels '
+                                                                                                                  'periodic '
+                                                                                                                  'before '
+                                                                                                                  'signing '
+                                                                                                                  'out',
+                                                                                                                  'ConfirmSignOut '
+                                                                                                                  'deletes '
+                                                                                                                  'snapshots '
+                                                                                                                  'before '
+                                                                                                                  'revoking '
+                                                                                                                  'via '
+                                                                                                                  'signOut',
+                                                                                                                  'ObserveRestoreState '
+                                                                                                                  'pipes '
+                                                                                                                  'the '
+                                                                                                                  'exact '
+                                                                                                                  'active '
+                                                                                                                  'undo '
+                                                                                                                  'into '
+                                                                                                                  'canRevertLastRestore',
+                                                                                                                  'ObserveRestoreState '
+                                                                                                                  'does '
+                                                                                                                  'not '
+                                                                                                                  'expose '
+                                                                                                                  'availability '
+                                                                                                                  'without '
+                                                                                                                  'an '
+                                                                                                                  'owned '
+                                                                                                                  'pointer',
+                                                                                                                  'RequestRevertLastRestore '
+                                                                                                                  'publishes '
+                                                                                                                  'UndoRestoreConfirmation '
+                                                                                                                  'with '
+                                                                                                                  'persisted '
+                                                                                                                  'date',
+                                                                                                                  'RequestRevertLastRestore '
+                                                                                                                  'is '
+                                                                                                                  'a '
+                                                                                                                  'no-op '
+                                                                                                                  'when '
+                                                                                                                  'no '
+                                                                                                                  'original '
+                                                                                                                  'date '
+                                                                                                                  'is '
+                                                                                                                  'persisted'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupDateMapperTest.kt': ['formatLastBackup '
+                                                                                                               'returns '
+                                                                                                               'Never '
+                                                                                                               'branch '
+                                                                                                               'for '
+                                                                                                               'null '
+                                                                                                               'epochMs',
+                                                                                                               'formatLastBackup '
+                                                                                                               'formats '
+                                                                                                               'relative '
+                                                                                                               'time '
+                                                                                                               'via '
+                                                                                                               'DateUtils '
+                                                                                                               'for '
+                                                                                                               'non-null '
+                                                                                                               'epochMs',
+                                                                                                               'formatBackupCount '
+                                                                                                               'zero '
+                                                                                                               'branch '
+                                                                                                               'uses '
+                                                                                                               'count_zero '
+                                                                                                               'string',
+                                                                                                               'formatBackupCount '
+                                                                                                               'negative '
+                                                                                                               'is '
+                                                                                                               'treated '
+                                                                                                               'as '
+                                                                                                               'zero',
+                                                                                                               'formatBackupCount '
+                                                                                                               'one '
+                                                                                                               'uses '
+                                                                                                               'plurals',
+                                                                                                               'formatBackupCount '
+                                                                                                               'many '
+                                                                                                               'uses '
+                                                                                                               'plurals',
+                                                                                                               'toInfo '
+                                                                                                               'with '
+                                                                                                               'empty '
+                                                                                                               'list '
+                                                                                                               'returns '
+                                                                                                               'Never '
+                                                                                                               'plus '
+                                                                                                               'zero '
+                                                                                                               'text',
+                                                                                                               'toInfo '
+                                                                                                               'with '
+                                                                                                               'non-empty '
+                                                                                                               'list '
+                                                                                                               'maps '
+                                                                                                               'latest '
+                                                                                                               'plus '
+                                                                                                               'count'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/BackupUiMapperTest.kt': ['BackupAuthDomain '
+                                                                                                             'NotAuthenticated '
+                                                                                                             'maps '
+                                                                                                             'to '
+                                                                                                             'NotAuthenticated',
+                                                                                                             'BackupAuthDomain '
+                                                                                                             'Authenticated '
+                                                                                                             'maps '
+                                                                                                             'email '
+                                                                                                             'and '
+                                                                                                             'displayName',
+                                                                                                             'BackupAuthDomain '
+                                                                                                             'Authenticated '
+                                                                                                             'allows '
+                                                                                                             'null '
+                                                                                                             'displayName',
+                                                                                                             'BackupError '
+                                                                                                             'exhaustive '
+                                                                                                             'mapping',
+                                                                                                             'toConfirmation '
+                                                                                                             'emits '
+                                                                                                             'non-empty '
+                                                                                                             'formatted '
+                                                                                                             'fields'],
+ 'src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/ui/SettingsStartCardModeSheetTest.kt': ['theSheetChecksNothingUntilThePreferenceIsKnown'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsBackupAvailabilityTest.kt': ['availableBackupInitializesAllThreeObservers',
+                                                                                                         'unavailableBackupInitializesNoObservers'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/domain/SettingsInteractorImplTest.kt': ['observeThemeMode '
+                                                                                                            'maps '
+                                                                                                            'stored '
+                                                                                                            'string '
+                                                                                                            'to '
+                                                                                                            'ThemeMode',
+                                                                                                            'observeThemeMode '
+                                                                                                            'returns '
+                                                                                                            'SYSTEM '
+                                                                                                            'for '
+                                                                                                            'unknown '
+                                                                                                            'stored '
+                                                                                                            'value',
+                                                                                                            'setThemeMode '
+                                                                                                            'forwards '
+                                                                                                            'enum '
+                                                                                                            'name '
+                                                                                                            'to '
+                                                                                                            'data '
+                                                                                                            'store',
+                                                                                                            'observeStartCardMode '
+                                                                                                            'maps '
+                                                                                                            'stored '
+                                                                                                            'string '
+                                                                                                            'to '
+                                                                                                            'the '
+                                                                                                            'domain '
+                                                                                                            'mode',
+                                                                                                            'observeStartCardMode '
+                                                                                                            'returns '
+                                                                                                            'WEEK '
+                                                                                                            'for '
+                                                                                                            'unknown '
+                                                                                                            'stored '
+                                                                                                            'value',
+                                                                                                            'setStartCardMode '
+                                                                                                            'forwards '
+                                                                                                            'the '
+                                                                                                            'persistence '
+                                                                                                            'encoding '
+                                                                                                            'to '
+                                                                                                            'the '
+                                                                                                            'data '
+                                                                                                            'store',
+                                                                                                            'the '
+                                                                                                            'storage '
+                                                                                                            'encoding '
+                                                                                                            'and '
+                                                                                                            'the '
+                                                                                                            'WEEK '
+                                                                                                            'default '
+                                                                                                            'are '
+                                                                                                            'pinned',
+                                                                                                            'observeArchivedCounts '
+                                                                                                            'combines '
+                                                                                                            'the '
+                                                                                                            'two '
+                                                                                                            'counts '
+                                                                                                            'that '
+                                                                                                            'already '
+                                                                                                            'existed'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsClickHandlerTest.kt': ['OnArchiveClick '
+                                                                                                               'emits '
+                                                                                                               'Haptic '
+                                                                                                               'ContextClick '
+                                                                                                               'then '
+                                                                                                               'consumes '
+                                                                                                               'OpenArchive',
+                                                                                                               'OnGitHubClick '
+                                                                                                               'emits '
+                                                                                                               'Haptic '
+                                                                                                               'ContextClick '
+                                                                                                               'then '
+                                                                                                               'ShowExternalLink '
+                                                                                                               'GitHub '
+                                                                                                               'url',
+                                                                                                               'OnLicenseClick '
+                                                                                                               'emits '
+                                                                                                               'Haptic '
+                                                                                                               'ContextClick '
+                                                                                                               'then '
+                                                                                                               'ShowExternalLink '
+                                                                                                               'license '
+                                                                                                               'url',
+                                                                                                               'OnPrivacyPolicyClick '
+                                                                                                               'emits '
+                                                                                                               'Haptic '
+                                                                                                               'ContextClick '
+                                                                                                               'then '
+                                                                                                               'ShowExternalLink '
+                                                                                                               'privacy '
+                                                                                                               'url',
+                                                                                                               'OnStartCardModeClick '
+                                                                                                               'emits '
+                                                                                                               'a '
+                                                                                                               'haptic '
+                                                                                                               'and '
+                                                                                                               'opens '
+                                                                                                               'the '
+                                                                                                               'mode '
+                                                                                                               'sheet',
+                                                                                                               'OnStartCardModeClick '
+                                                                                                               'while '
+                                                                                                               'the '
+                                                                                                               'frequency '
+                                                                                                               'picker '
+                                                                                                               'is '
+                                                                                                               'up '
+                                                                                                               'replaces '
+                                                                                                               'the '
+                                                                                                               'dialog',
+                                                                                                               'OnStartCardModeSheetDismiss '
+                                                                                                               'hides '
+                                                                                                               'the '
+                                                                                                               'sheet '
+                                                                                                               'and '
+                                                                                                               'emits '
+                                                                                                               'no '
+                                                                                                               'haptic'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsInputHandlerTest.kt': ['OnThemeChange '
+                                                                                                               'emits '
+                                                                                                               'ContextClick '
+                                                                                                               'haptic '
+                                                                                                               'and '
+                                                                                                               'updates '
+                                                                                                               'state',
+                                                                                                               'OnStartCardModeChange '
+                                                                                                               'closes '
+                                                                                                               'the '
+                                                                                                               'sheet '
+                                                                                                               'and '
+                                                                                                               'persists '
+                                                                                                               'the '
+                                                                                                               'MAPPED '
+                                                                                                               'mode'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsNavigationHandlerTest.kt': ['Back '
+                                                                                                                    'triggers '
+                                                                                                                    'popBack',
+                                                                                                                    'OpenArchive '
+                                                                                                                    'navigates '
+                                                                                                                    'to '
+                                                                                                                    'Screen '
+                                                                                                                    'Archive'],
+ 'src/commonTest/kotlin/io/github/stslex/workeeper/feature/settings/mvi/mapper/StartCardModeMapperTest.kt': ['every '
+                                                                                                             'UI '
+                                                                                                             'mode '
+                                                                                                             'maps '
+                                                                                                             'to '
+                                                                                                             'its '
+                                                                                                             'own '
+                                                                                                             'domain '
+                                                                                                             'twin',
+                                                                                                             'every '
+                                                                                                             'domain '
+                                                                                                             'mode '
+                                                                                                             'maps '
+                                                                                                             'to '
+                                                                                                             'its '
+                                                                                                             'own '
+                                                                                                             'UI '
+                                                                                                             'twin',
+                                                                                                             'the '
+                                                                                                             'mapping '
+                                                                                                             'round-trips '
+                                                                                                             'over '
+                                                                                                             'the '
+                                                                                                             'whole '
+                                                                                                             'catalog'],
+ 'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsNativeSceneTest.kt': ['settingsWithoutBackupKeepsGeneralActions',
+                                                                                               'unavailableBackupHidesSectionDialogsAndOverlay',
+                                                                                               'startCardModeWaitsForThePersistedPreference',
+                                                                                               'sharedBackupContentRendersWithAnEnabledFixture'],
+ 'src/iosTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsUnavailableBackupTest.kt': ['productionGraphConstructsSettingsWithUnavailableBackup',
+                                                                                                     'allBackupActionsLeaveStateAndEventsUnchanged',
+                                                                                                     'unavailableAuthLauncherNeverCallsBack']},
+    golden_test='src/androidHostTest/kotlin/io/github/stslex/workeeper/feature/settings/golden/SettingsGoldenTest.kt',
+    golden_methods=['screenSignedOut',
+ 'screenSignedIn',
+ 'screenThemeDark',
+ 'screenAuthPaused',
+ 'screenRestoreOverlayRestoring',
+ 'screenRestoreOverlayCompleted'],
+    device_test='src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt',
+    device_fragments=('@Smoke', 'class SettingsScreenTest'),
+    feature_class='SettingsFeature',
+    graph_interface='SettingsGraph',
+    graph_function='settingsGraph',
+    factory_accessor='settingsGraphFactory',
+    create_method='createSettingsGraph',
+    store_impl='SettingsStoreImpl',
+    store_accessor='settingsStore',
+    feature_file='di/SettingsFeature.kt',
+    graph_file='ui/SettingsGraph.kt',
+    identity_test=Path('app/app/src/test/kotlin/io/github/stslex/workeeper/di/SettingsExtensionIdentityTest.kt'),
+    identity_fragments=('private fun AppGraph.settingsExtension(): SettingsGraph = settingsGraphFactory.createSettingsGraph()',
+ '(extension as SettingsAndroidDeps).appContext'),
+    identity_names=['extension aggregates into the real parent graph',
+ 'store construction reaches the real inherited auth stack and stops only at Play Services',
+ 'both qualified dispatchers inherit distinctly across the extension boundary',
+ "the bare app Context is inherited from the parent's bound instance"],
+    identity_accessor=r'(?<!AppGraph)\.settingsExtension\(\)',
+    platform_build_tokens=('androidMain', 'mockk', 'robolectric'),
+    expect_files=('ui/platform/SettingsAuthLauncher.kt', 'ui/platform/SettingsLinkLauncher.kt'),
+    remembered_route='Screen.Settings',
+    extra_checks=(settings_contract,),
+)
+
+FEATURE_ENTRIES += (SETTINGS_ENTRY,)
 
 
 def main() -> None:

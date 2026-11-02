@@ -1496,7 +1496,7 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 | `feature/all-exercises` | `feature/all-exercises/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt`, `…/ExerciseFormBasicsTest.kt` |
-| `feature/settings` | `feature/settings/src/androidTest/.../SettingsScreenTest.kt` |
+| `feature/settings` | `feature/settings/src/androidDeviceTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt` |
 | `app/app` (`@Regression`, real graph) | `app/app/src/androidTest/.../app/ApplicationBottomBarTest.kt`, `ExerciseCreatePersistenceTest.kt`, `NavigationLifecycleRegressionTest.kt`, `RecoveryActivityDbFreeTest.kt`, `AllTrainingsExtensionDbVisibilityTest.kt` |
 
 ## Visual gate — Paparazzi screenshot goldens
@@ -1505,13 +1505,13 @@ Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:pl
 `:core:ui:start-mode` (KMP), `:feature:archive` (KMP), `:feature:all-trainings` (KMP),
 `:feature:all-exercises` (KMP), `:feature:past-session` (KMP), `:feature:home` (KMP),
 `:feature:exercise-chart` (KMP), `:feature:single-training` (KMP), `:feature:exercise` (KMP),
-`:feature:live-workout` (KMP), and `feature/settings`. Goldens
+`:feature:live-workout` (KMP), and `:feature:settings` (KMP). Goldens
 live in
 `src/test/snapshots/images/` in classic Android modules and in
 `src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`, `:core:ui:plan-editor`,
 `:core:ui:start-mode`, `:feature:archive`, `:feature:all-trainings`, `:feature:all-exercises`,
 `:feature:past-session`, `:feature:home`, `:feature:exercise-chart`,
-`:feature:single-training`, `:feature:exercise`, `:feature:live-workout`), and
+`:feature:single-training`, `:feature:exercise`, `:feature:live-workout`, `:feature:settings`), and
 are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
@@ -1666,6 +1666,26 @@ its own filter. "Paparazzi mode" is guessed from
 `*AndroidMain` spellings — which could in principle be wrong for a lifecycle task that pulls in a
 verify task without naming it; `assertGoldenLiveness` is what catches that case.
 
+### Settings shared-boundary coverage
+
+Settings preserves 120 original non-golden test identities: 22 run from `commonTest`, and 98
+remain Android-host tests. Two real-Store availability cases and four Android adapter cases
+bring its Android-host non-golden inventory to 126. Native runs the 22 ports, two availability
+cases, three unavailable-backup/production-graph cases and four production-scene cases: 31 exact
+identities. No mock backup backend is supplied to the Native parent. Its local dispatcher fixture
+uses the existing plain iOS annotations; Android retains both qualified identity accessors.
+The 12 golden PNGs move byte-identically to `androidHostTest`; two Settings Smoke identities and
+four app extension identity meanings remain. The app's 12 generation/dialog device identities
+are verified separately from these host and Native inventories.
+
+The Native oracle registers literal identities before XML is observed. Settings results must be
+newer than `feature/settings/build/native-test-start`; the existing job removes Settings results
+and creates that marker before execution, then uploads both. Local full Native runs must do the
+same preparation. Missing, stale, empty, skipped-only, duplicate or incomplete XML is a failure.
+Linking `iosArm64` tests is binary evidence, never device test execution. See
+[Phase 7.18 evidence](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger)
+for executed gates, controls, review and remaining limits.
+
 ## Running tests
 
 From the project root:
@@ -1680,7 +1700,10 @@ From the project root:
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests of the 17 modules (macOS + Xcode), kept in one --continue invocation
+# Native Phase-7 tests of the 18 modules (macOS + Xcode), kept in one --continue invocation
+mkdir -p feature/settings/build
+rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
+touch feature/settings/build/native-test-start
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
@@ -1698,11 +1721,12 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :feature:exercise:iosSimulatorArm64Test \
   :feature:live-workout:iosSimulatorArm64Test \
   :feature:app-dialogs:impl:iosSimulatorArm64Test \
-  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+  :feature:settings:iosSimulatorArm64Test \
+  --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 17/17.
+# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 18/18.
 ./gradlew :core:ui:kit:linkDebugTestIosArm64 \
   :core:ui:navigation:linkDebugTestIosArm64 \
   :core:ui:mvi:linkDebugTestIosArm64 \
@@ -1720,7 +1744,8 @@ python3 .github/scripts/assert_kmp_ios_smoke.py
   :feature:exercise:linkDebugTestIosArm64 \
   :feature:live-workout:linkDebugTestIosArm64 \
   :feature:app-dialogs:impl:linkDebugTestIosArm64 \
-  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+  :feature:settings:linkDebugTestIosArm64 \
+  --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
 
 # Focused MVI device cases plus exact JUnit identities
 ./gradlew :core:ui:mvi:connectedAndroidDeviceTest \

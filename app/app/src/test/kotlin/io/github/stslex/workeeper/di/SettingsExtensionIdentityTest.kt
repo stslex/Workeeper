@@ -2,9 +2,9 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.feature.settings.di.SettingsAndroidDeps
 import io.github.stslex.workeeper.feature.settings.di.SettingsGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -46,8 +46,7 @@ internal class SettingsExtensionIdentityTest {
             databaseReplacement = mockk(relaxed = true),
         )
 
-    private fun AppGraph.settingsExtension(): SettingsGraph = asContribution<SettingsGraph.Factory>()
-        .createSettingsGraph()
+    private fun AppGraph.settingsExtension(): SettingsGraph = settingsGraphFactory.createSettingsGraph()
 
     @Test
     fun `extension aggregates into the real parent graph`() {
@@ -113,7 +112,7 @@ internal class SettingsExtensionIdentityTest {
 
         assertSame(
             appContextMock,
-            extension.appContext,
+            (extension as SettingsAndroidDeps).appContext,
             "The unqualified Context must reach the extension as the parent factory's bound instance",
         )
     }
