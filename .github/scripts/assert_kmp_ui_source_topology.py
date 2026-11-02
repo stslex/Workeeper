@@ -12,6 +12,7 @@ Run from the repository root:
 """
 
 import re
+import hashlib
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -1223,6 +1224,40 @@ MODULES = {
     },
 }
 
+MODULES["app:common"] = {'files': {'src/androidHostTest/kotlin/io/github/stslex/workeeper/host/NavTransitionsTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavLogLabelsTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusLifecycleTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusTest.kt',
+           'src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/TestBus.android.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/App.kt',
+           'src/androidMain/kotlin/io/github/stslex/workeeper/host/DisplayCornerShape.kt',
+           'src/commonMain/composeResources/values-ru/strings.xml',
+           'src/commonMain/composeResources/values/strings.xml',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/AppRootViewModel.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppUiGenerations.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/host/BottomBarNavigationListener.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/host/ClearFocusOnDestinationChanged.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/host/DisplayCornerShape.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/host/NavTransitions.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/NavLogLabels.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBus.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/ResultChannelRegistry.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/navigation/ResultChannelRegistryTest.kt',
+           'src/iosMain/kotlin/io/github/stslex/workeeper/host/DisplayCornerShape.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/AppRootIosTest.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/AppRootNativeFixture.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/RootRepositories.kt',
+           'src/iosTest/kotlin/io/github/stslex/workeeper/navigation/TestBus.ios.kt'},
+ 'kotlin_source_sets': {'androidHostTest', 'iosMain', 'androidMain', 'iosTest', 'commonMain', 'commonTest'},
+ 'resource_dirs': {'src/commonMain/composeResources/values', 'src/commonMain/composeResources/values-ru'},
+ 'root': Path('app/common')}
+
+
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
 
 FORBIDDEN_IMPORT = re.compile(
@@ -1582,16 +1617,16 @@ def check_image_viewer_contract() -> list[str]:
         failures.append("feature:image-viewer: LocalPlatformContext import is missing")
 
     required_root_fragments = {
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
+        Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
             "val imageViewerGraphFactory: ImageViewerGraph.Factory",
         ],
         Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
             "override val imageViewerGraphFactory: ImageViewerGraph.Factory",
         ],
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
+        Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt"): [
             "if (admission.granted) {",
             "val deps = remember(currentPhase.id)",
-            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "resolveDeps()",
             "AppGenerationContent(deps, onOpenRecovery)",
             "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
             "commonDataStore = deps.commonDataStore",
@@ -1599,7 +1634,7 @@ def check_image_viewer_contract() -> list[str]:
             "imageViewerGraphFactory = deps.imageViewerGraphFactory",
         ],
         Path(
-            "app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
+            "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
         ): [
             "imageViewerGraphFactory: ImageViewerGraph.Factory",
             "imageViewerGraph(factory = imageViewerGraphFactory",
@@ -1635,9 +1670,9 @@ def check_image_viewer_contract() -> list[str]:
                 )
 
     app_source = Path(
-        "app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"
+        "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt"
     ).read_text(encoding="utf-8")
-    if app_source.count(".appRootDeps()") != 1:
+    if app_source.count("resolveDeps()") != 1:
         failures.append(
             "feature:image-viewer: the admitted composed region must resolve appRootDeps exactly once"
         )
@@ -1910,21 +1945,21 @@ def check_plan_editor_feature_contract() -> list[str]:
             )
 
     required_root_fragments = {
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
+        Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
             "val planEditorGraphFactory: PlanEditorGraph.Factory",
         ],
         Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
             "override val planEditorGraphFactory: PlanEditorGraph.Factory",
         ],
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
+        Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt"): [
             "if (admission.granted) {",
             "val deps = remember(currentPhase.id)",
-            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "resolveDeps()",
             "AppGenerationContent(deps, onOpenRecovery)",
             "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
             "planEditorGraphFactory = deps.planEditorGraphFactory",
         ],
-        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
+        Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
             "planEditorGraphFactory: PlanEditorGraph.Factory",
             "planEditorGraph(",
             "factory = planEditorGraphFactory",
@@ -1993,10 +2028,10 @@ def check_plan_editor_feature_contract() -> list[str]:
         if re.search(r"(?:factory|planEditorGraphFactory)\s*:\s*PlanEditorGraph\.Factory\s*[?=]", source):
             failures.append("feature:plan-editor: factory parameters must be required and non-null")
 
-    app_source = Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt").read_text(
+    app_source = Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt").read_text(
         encoding="utf-8"
     )
-    if app_source.count(".appRootDeps()") != 1:
+    if app_source.count("resolveDeps()") != 1:
         failures.append(
             "feature:plan-editor: admitted composed region must resolve appRootDeps exactly once"
         )
@@ -2128,19 +2163,19 @@ class FeatureEntry:
 
 
 APP_ROOT_DEPS_PATH = Path(
-    "app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"
+    "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"
 )
 APP_GRAPH_PATH = Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt")
-APP_PATH = Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt")
+APP_PATH = Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt")
 APP_NAVIGATION_HOST_PATH = Path(
-    "app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
+    "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
 )
 
 # The admitted composed region every feature factory is read from, once per generation.
 APP_ADMISSION_FRAGMENTS = (
     "if (admission.granted) {",
     "val deps = remember(currentPhase.id)",
-    "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+    "resolveDeps()",
     "AppGenerationContent(deps, onOpenRecovery)",
     "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
 )
@@ -8506,7 +8541,7 @@ def settings_contract(entry: FeatureEntry, common_sources: dict[Path, str]) -> l
     if set(re.findall(r'project\("([^"]+)"\)', common_block)) != expected_common:
         failures.append("feature:settings: common project ownership must stay within the seven approved edges")
     workflow = Path(".github/workflows/android_build_unified.yml").read_text()
-    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings; do", '$linked/18 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
+    for fragment in (":feature:settings:iosSimulatorArm64Test", ":feature:settings:linkDebugTestIosArm64", "feature/settings/build/test-results/iosSimulatorArm64Test/", "feature/live-workout feature/app-dialogs/impl feature/settings app/common; do", '$linked/19 linked', "touch feature/settings/build/native-test-start", "            feature/settings/build/native-test-start"):
         if workflow.count(fragment) != 1:
             failures.append(f"feature:settings: Native workflow requires {fragment!r} exactly once")
     from assert_kmp_ios_smoke import EXPECTED, TARGET_SUFFIX
@@ -9788,7 +9823,7 @@ def check_recovery_launch_boundary() -> list[str]:
     failures: list[str] = []
     app = strip_kotlin_comments(APP_PATH.read_text(encoding="utf-8"))
     bridge_path = Path(
-        "app/common/src/main/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt"
+        "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt"
     )
     bridge = strip_kotlin_comments(bridge_path.read_text(encoding="utf-8"))
     host = strip_kotlin_comments(Path(
@@ -9800,7 +9835,7 @@ def check_recovery_launch_boundary() -> list[str]:
         compact(admitted[0]).count(compact(fragment)) != 1
         for fragment in (
             "val deps = remember(currentPhase.id)",
-            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "resolveDeps()",
             "AppGenerationContent(deps, onOpenRecovery)",
         )
     ):
@@ -9808,7 +9843,7 @@ def check_recovery_launch_boundary() -> list[str]:
 
     for source, fragments, owner in (
         (app, (
-            "fun App(onOpenRecovery: () -> Unit)",
+            "fun App(generationsHolder: AppUiGenerationsHolder, resolveDeps: () -> AppRootDeps, onOpenRecovery: () -> Unit,)",
             "private fun AppGenerationContent(deps: AppRootDeps, onOpenRecovery: () -> Unit)",
             "NavigationEventBusSetup(navigatorHolder = holder, navigator = navigatorEventBus, "
             "results = navigatorEventBus, onOpenRecovery = onOpenRecovery,)",
@@ -9843,6 +9878,71 @@ def check_recovery_launch_boundary() -> list[str]:
     return failures
 
 
+
+ROOT_HOST_SOURCE_HASHES = {'app/common/src/androidHostTest/kotlin/io/github/stslex/workeeper/host/NavTransitionsTest.kt': '4931bce4279054d79cb8372743e11eee373caacfc82ea8fb4724667e51c16160',
+ 'app/common/src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavLogLabelsTest.kt': '11f0bba41d68907fd3c4c0c3486dc9a250823a17ebb0af5ab66c70b8702a73c1',
+ 'app/common/src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusLifecycleTest.kt': '0ac79b9e450b723fcc3e9e2fdb418b162ecf3c71efee64dfb4a5764b187fbf50',
+ 'app/common/src/androidHostTest/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusTest.kt': 'abc82817f1216f5f11d666e10092496487f820464782a626041038fb7a5b6a12'}
+
+
+def check_composition_root() -> list[str]:
+    failures = []
+    source = strip_kotlin_comments(APP_PATH.read_text())
+    adapter_path = Path("app/common/src/androidMain/kotlin/io/github/stslex/workeeper/App.kt")
+    adapter = strip_kotlin_comments(adapter_path.read_text())
+    for fragment in (
+        "fun App(onOpenRecovery: () -> Unit)",
+        "generationsHolder = application as AppUiGenerationsHolder,",
+        "resolveDeps = { (application as AppRootDepsHolder).appRootDeps() },",
+        "onOpenRecovery = onOpenRecovery,",
+    ):
+        if compact(adapter).count(compact(fragment)) != 1:
+            failures.append(f"app:common: Android adapter requires {fragment!r} once")
+    if source.count("resolveDeps()") != 1 or "LocalContext" in source or ".appRootDeps()" in source:
+        failures.append("app:common: shared root requires one deferred dependency read")
+    admitted = braced_call_bodies(source, "if (admission.granted)")
+    if len(admitted) != 1 or admitted[0].count("resolveDeps()") != 1:
+        failures.append("app:common: graph resolution must be inside admission")
+    for fragment in (
+        "SaveableStateProvider(currentPhase.id)", "key(currentPhase.id)",
+        "remember(currentPhase)", "remember(currentPhase.id)",
+        "LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner",
+        "token?.let(holder::releaseUiGeneration)",
+    ):
+        expected = 2 if fragment.startswith("token?") else 1
+        if compact(source).count(compact(fragment)) != expected:
+            failures.append(f"app:common: generation contract requires {fragment!r} {expected} time(s)")
+    for path, expected in ROOT_HOST_SOURCE_HASHES.items():
+        if hashlib.sha256(Path(path).read_bytes()).hexdigest() != expected:
+            failures.append(f"app:common: original host assertions changed: {path}")
+    host = APP_NAVIGATION_HOST_PATH.read_text()
+    decorators = "entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator(),)"
+    if compact(host).count(compact(decorators)) != 1:
+        failures.append("app:common: saveable and ViewModel decorators must retain their order")
+    shape = Path("app/common/src/commonMain/kotlin/io/github/stslex/workeeper/host/DisplayCornerShape.kt").read_text()
+    if "internal expect fun displayCornerShape(): Shape" not in shape:
+        failures.append("app:common: display-corner operation must remain common expect")
+    for locale in ("values", "values-ru"):
+        expected = {
+            "values": {"bottom_bar_label_home": "Home", "bottom_bar_label_trainings": "Trainings", "bottom_bar_label_exercises": "Exercises"},
+            "values-ru": {"bottom_bar_label_home": "Главная", "bottom_bar_label_trainings": "Тренировки", "bottom_bar_label_exercises": "Упражнения"},
+        }[locale]
+        catalog = Path(f"app/common/src/commonMain/composeResources/{locale}/strings.xml")
+        if read_strings(catalog) != expected:
+            failures.append(f"app:common: original label map changed: {locale}")
+    workflow = Path(".github/workflows/android_build_unified.yml").read_text()
+    for fragment in (
+        ":app:common:iosSimulatorArm64Test", ":app:common:linkDebugTestIosArm64",
+        "app/common/build/test-results/iosSimulatorArm64Test/", "app/common/build/native-test-start",
+        'echo "$linked/19 linked"',
+    ):
+        if fragment not in workflow:
+            failures.append(f"app:common: Native workflow is missing {fragment!r}")
+    if "app/common; do" not in workflow:
+        failures.append("app:common: device binary check must include the root")
+    return failures
+
+
 def main() -> None:
     failures: list[str] = []
     for name, manifest in MODULES.items():
@@ -9851,6 +9951,7 @@ def main() -> None:
     failures.extend(check_image_viewer_contract())
     failures.extend(check_plan_editor_feature_contract())
     failures.extend(check_recovery_launch_boundary())
+    failures.extend(check_composition_root())
     for entry in FEATURE_ENTRIES:
         failures.extend(check_feature_entry(entry))
     placeholder_failures, placeholder_walk = check_compose_resource_placeholders()

@@ -1,46 +1,64 @@
 plugins {
-    alias(libs.plugins.convention.composeLibrary)
-    // Metro aggregates across modules, so this module's bindings land in `:app:app`'s graph.
+    alias(libs.plugins.convention.kmpComposeLibrary)
     alias(libs.plugins.metro)
 }
 
-// includeJavax kept for batch consistency with every other Metro module in the repo.
+compose.resources {
+    packageOfResClass = "io.github.stslex.workeeper.app.common.resources"
+}
+
 metro {
     interop {
         includeJavax()
     }
 }
 
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            api(project(":core:core"))
+            implementation(project(":core:ui:kit"))
+            api(project(":core:ui:navigation"))
+            api(project(":core:data:dataStore"))
+            implementation(project(":core:ui:mvi"))
+            api(libs.coroutines.core)
+            api(libs.lifecycle.viewmodel)
+            implementation(libs.lifecycle.compose)
+            api(libs.cmp.runtime)
+            api(libs.cmp.ui)
+            api(libs.cmp.components.resources)
+            implementation(libs.cmp.animation)
+            implementation(libs.cmp.navigation3.ui)
+            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+            api(project(":feature:settings"))
+            api(project(":feature:all-trainings"))
+            api(project(":feature:all-exercises"))
+            api(project(":feature:past-session"))
+            api(project(":feature:home"))
+            api(project(":feature:exercise-chart"))
+            api(project(":feature:single-training"))
+            api(project(":feature:exercise"))
+            api(project(":feature:live-workout"))
+            api(project(":feature:archive"))
+            api(project(":feature:image-viewer"))
+            api(project(":feature:plan-editor"))
+            api(project(":feature:app-dialogs:impl"))
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.coroutine.test)
+        }
+        iosTest.dependencies {
+            implementation(project(":core:data:exercise"))
+            implementation(project(":core:data:backup:api"))
+            implementation(kotlin("test"))
+            implementation(libs.cmp.ui.test)
+        }
+    }
+}
+
 dependencies {
-    // Supplies the AppScope DI token and AppReinitializer (NavigatorEventBus.restartApp).
-    implementation(project(":core:core"))
-    implementation(project(":core:ui:kit"))
-    implementation(project(":core:ui:navigation"))
-    // api: AppRootDeps names CommonDataStore on its public surface.
-    api(project(":core:data:dataStore"))
-    // implementation: no core:ui:mvi type appears on this module's public surface.
-    implementation(project(":core:ui:mvi"))
-
-    // The Nav3 UI half and the ViewModel entry decorator are the host's dependencies only.
-    implementation(libs.androidx.navigation3.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.bundles.lifecycle)
-
-    // The twelve entry providers AppNavigationHost composes.
-    api(project(":feature:settings"))
-    api(project(":feature:all-trainings"))
-    api(project(":feature:all-exercises"))
-    api(project(":feature:past-session"))
-    api(project(":feature:home"))
-    api(project(":feature:exercise-chart"))
-    api(project(":feature:single-training"))
-    api(project(":feature:exercise"))
-    api(project(":feature:live-workout"))
-    api(project(":feature:archive"))
-    api(project(":feature:image-viewer"))
-    api(project(":feature:plan-editor"))
-
-    // `api`: AppRootDeps names AppDialogGraph.Factory; AppDialogHost is mounted as a sibling of
-    // AppNavigationHost.
-    api(project(":feature:app-dialogs:impl"))
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
 }

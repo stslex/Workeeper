@@ -123,7 +123,7 @@ ROOT = _repo_root()
 
 # `--rerun-tasks` defeats UP-TO-DATE, `--no-build-cache` defeats FROM-CACHE. Both are needed: they
 # are different mechanisms and either one alone leaves the other path open.
-_GRADLE_FLAGS = ["--rerun-tasks", "--no-build-cache"]
+_GRADLE_FLAGS = ["--rerun-tasks", "--no-build-cache", "--no-configuration-cache", "--console=plain"]
 
 _REUSE_MARKERS = ("UP-TO-DATE", "FROM-CACHE")
 
@@ -294,7 +294,7 @@ CASES: list[tuple[str, str, str, str, str]] = [
 # nothing exercises the `withTimeoutOrNull` in `App.kt` that consumes it. Telling the timeout that
 # the toast has no action changes what a user experiences and is caught by nothing — which is what
 # a real gate hole looks like, and why it is on the hand-check list instead of pretended otherwise.
-_APP_KT = "app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"
+_APP_KT = "app/common/src/commonMain/kotlin/io/github/stslex/workeeper/AppRoot.kt"
 
 _SELF_TEST = [
     (
@@ -310,7 +310,7 @@ _SELF_TEST = [
         _APP_KT,
         "hasAction = model.actionLabel != null,",
         "hasAction = false,",
-        ":app:common:testDebugUnitTest",
+        ":app:common:testAndroidHostTest",
         "GREEN",
     ),
 ]
