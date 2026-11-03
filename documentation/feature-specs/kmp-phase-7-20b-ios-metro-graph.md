@@ -378,3 +378,67 @@ The final audit retains all 963 Native and 3398 Android-host tuples and skip sta
 files and 456 golden PNGs. Source topology and privacy pass. Fresh device binaries and hashes
 are archived in `validation-binaries/` and `validation-binaries.json`; device linking remains
 distinct from device execution. Final-head CI, signatures and review are recorded in PR #357.
+
+### Additional CI diagnostics and bounded scene settling
+
+Run 956 on signed head `ef3135a85ad05518395ce8c525026627ee137790` executed all 963 Native
+identities again. The same LiveWorkout scene failed after 66.779 seconds with the default
+one-minute `UncompletedCoroutinesError`; all other cases, including the seven graph cases,
+passed. The queued-producer helper repair alone therefore did not resolve the hosted failure.
+The stdout still contained only the synchronous `waitForIdle` warning, without a phase receipt.
+Artifact `13220832773` was downloaded and verified against SHA-256
+`ea293808847f4a2de625968c8868c3598945059d88c6fc8460389fd36c13c9b6`.
+Its full log, XML and failure stack are in ignored `ci-956-native-failure/` under the follow-up
+evidence directory. The already-red run was cancelled during device linking to finalize logs;
+this run provides no green device-link claim.
+
+The Android job separately failed `WearDisabledPressGateTest` on `XL_ROUND/1.24`: the disabled
+hold changed 5653 pixels where zero are required. The unchanged focused case, full 360-case
+store suite and 48 profile exposures within one scene all passed locally; each invocation
+reported `106 actionable tasks: 106 executed`. The repeated exposures share a process and
+composition, and their PNG names are overwritten, so they are not 48 independent executions.
+The failing hosted PNGs were not uploaded. Independent source review found no reproduced Wear
+defect justifying a behavior, threshold or timeout change. No such change is made.
+
+The workflow now uploads failing host XML and Wear before/held captures, and uploads Native
+failure XML and freshness markers before device linking. The final Native artifact remains.
+Existing test commands, module coverage and job timeouts are unchanged. Native phase logging
+records monotonic elapsed time and the main-thread flag, including mount, input, sheet/dialog,
+settle and completion boundaries.
+
+Pinned CMP's Skiko render loop renders every 16 ms of composition-clock progress. The helper's
+unconditional 1000 ms advance rounds to 1008 ms, about 63 frames even for a quiet scene. A local
+traced Native debug scene reached 39040 ms of virtual clock. The helper now yields, advances one frame, and
+cooperatively awaits current idleness with auto-advance still enabled. Pending snapshots,
+layout and finite animations continue to run; a fixed second of idle rendering is unnecessary.
+The ten-round bound, 60-second budget, exact identities and all original assertions remain.
+Future timer events are outside this helper: the scene transitions are test-held State.
+This removes unconditional idle clock progress; its relationship to the hosted deadline still requires
+final-head CI evidence.
+
+Further local validation of the one-frame helper, Native debug test binaries on the same
+Apple-silicon/Xcode 27.0/iOS 26.5 host:
+
+| Gate | Executed result | Receipt |
+| --- | --- | --- |
+| 21-module Native suite and identity oracle | `584 actionable tasks: 584 executed`; 963 cases, 0 skips | `optimized-native/receipt.json` |
+| 21 fresh device-target links | `563 actionable tasks: 563 executed`; 0 cases, 0 skips | `optimized-device-links/receipt.json` |
+| Android build, Lint and host tests | `3149 actionable tasks: 3149 executed`; 3398 cases, 0 skips | `optimized-android/receipt.json` |
+| Separate Detekt | `64 actionable tasks: 64 executed`; 0 cases, 0 skips | `optimized-detekt/receipt.json` |
+
+All 963 Native and 3398 Android identities, including their module/task and skip states, match
+the preceding receipts. The 7 schema files and 456 PNGs remain byte-identical. All 21 fresh IOS
+executables are archived and hash-verified in `optimized-binaries/`; APFS clones preserve each
+file independently without duplicating unchanged data blocks. Source/MVI topology, MVI host
+identities and privacy pass. Workflow test commands and timeouts match the preceding head;
+actionlint retains only its unchanged pre-existing SC2129 diagnostic and is not claimed green.
+The local scene's final clock moves from 39040 to 15056 ms with all assertions retained; the
+individual XML times are receipts, not a controlled CPU benchmark or shipping-performance claim.
+
+The first local diagnostic full run is excluded: 948 cases passed but the owned simulator was
+Shutdown, so the database and app:ios cases could not spawn. Its failure receipt remains. The
+owned UUID/name were verified and only that simulator was booted before the successful repeat.
+The initial new artifact declaration also duplicated explicit freshness-marker lines rejected by
+the source-topology oracle. Using a diagnostic marker glob preserves the original explicit final
+artifact rows and returns the unchanged oracle to GREEN. These setup/declaration failures are
+separate from the hosted LiveWorkout timeout.

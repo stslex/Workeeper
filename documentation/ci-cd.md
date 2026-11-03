@@ -129,6 +129,12 @@ name and **runs** by execution. The two Wear flavors share test names, so on pul
 **tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
 Heap, `forkEvery` and timeouts are unchanged.
 
+If the unit-test step fails, `unit-test-failure-results` retains its JUnit XML and the Wear
+press gate's before/held PNGs. If Native tests or their identity oracle fail,
+`kmp-ios-kit-smoke-failure-results` uploads the simulator XML and freshness markers before
+device linking starts. The final `kmp-ios-kit-smoke-results` artifact still includes the full
+Native results and device executable after linking.
+
 For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores the build cache the latest `master` or `dev` push saved (pull-request runs save none) and executes whatever that cache does not cover.
 
 Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and

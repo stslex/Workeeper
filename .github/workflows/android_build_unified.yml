@@ -330,11 +330,22 @@ jobs:
       # steps above built stays UP-TO-DATE and every task this step owns executes, the shape of a
       # PR's first run. Every other trigger restores cached test results as before.
       - name: Run Unit Tests
+        id: unit_tests
         run: >
           bash .github/scripts/run_with_resource_samples.sh
           ./gradlew testDebugUnitTest --full-stacktrace
           ${{ github.event_name == 'pull_request' && '-PwearUnitTestFlavors=store' || '' }}
           ${{ github.event_name == 'workflow_dispatch' && inputs.execute_unit_tests && '--no-build-cache' || '' }}
+
+      - name: Upload failing unit test evidence
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-failure-results
+          path: |
+            **/build/test-results/**/*.xml
+            app/wear/build/reports/wear-press/
+          retention-days: 30
 
       # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
       # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
@@ -763,8 +774,19 @@ jobs:
       # so this step stays skipped too rather than masking that failure behind a
       # missing-results error. Cancellation also skips it.
       - name: Assert exact native test identities
+        id: native_identities
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
+
+      - name: Upload failing native test evidence before device linking
+        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmp-ios-kit-smoke-failure-results
+          path: |
+            **/build/test-results/iosSimulatorArm64Test/*.xml
+            **/build/native-test-start
+          retention-days: 30
 
       # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).

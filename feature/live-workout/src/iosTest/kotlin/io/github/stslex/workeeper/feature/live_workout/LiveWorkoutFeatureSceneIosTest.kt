@@ -164,19 +164,24 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import platform.Foundation.NSThread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.TimeSource
 import io.github.stslex.workeeper.core.ui.kit.resources.Res as KitRes
 import io.github.stslex.workeeper.feature.live_workout.resources.Res as LiveWorkoutRes
 
 class LiveWorkoutFeatureSceneIosTest {
+
+    private val traceStartedAt = TimeSource.Monotonic.markNow()
 
     /** Every read outside composition goes through this one real resolver: no fake here. */
     private val resolver = ComposeStringResolver()
 
     @Test
     fun resourcesScreenSheetsDialogsAndActionsRenderAndDispatch() = runComposeUiTest {
+        trace("catalog")
         // 1. The private EN catalog in file order through the real resolver, each read as stored;
         // the plurals also read filled, the count as the one format argument.
         assertEquals(EXPECTED_STORED, storedCatalog())
@@ -206,6 +211,7 @@ class LiveWorkoutFeatureSceneIosTest {
         )
 
         // 2. CommonHandler.resolveCopy's 31 reads, in its order: every field is its EN value verbatim.
+        trace("resolved copy")
         val copy = runBlocking {
             LiveWorkoutCopy(
                 trainingNamePlaceholder = resolver.getString(
@@ -276,6 +282,7 @@ class LiveWorkoutFeatureSceneIosTest {
         assertEquals(EXPECTED_COPY, copy)
 
         // 3. The launch reads with production's arguments, and every ErrorType's message in order.
+        trace("formatted copy")
         assertEquals(
             listOf("“Bench press” added", "Create “Curl”", "No exercises match “Curl”", "Session saved"),
             runBlocking {
@@ -310,6 +317,7 @@ class LiveWorkoutFeatureSceneIosTest {
         )
 
         // 4. The production mapper on Native: Push Day at 12:34 into the session.
+        trace("mapper")
         val loaded = pushDay().toState(nowMillis = STARTED_AT + ELAPSED_MILLIS, liveCopy = copy)
         assertEquals("Push Day", loaded.trainingNameLabel)
         assertEquals("12:34", loaded.elapsedDurationLabel)
@@ -360,6 +368,7 @@ class LiveWorkoutFeatureSceneIosTest {
         // two set rows; the screen routes its own sheets and dialogs.
         val shown = mutableStateOf<Shown>(Shown.Screen(loaded))
         val actions = mutableListOf<Action>()
+        trace("before setContent")
         setContent {
             AppTheme {
                 when (val current = shown.value) {
@@ -391,6 +400,7 @@ class LiveWorkoutFeatureSceneIosTest {
         }
 
         // 5. The loaded screen.
+        trace("loaded screen")
         settleUntilTag("LiveWorkoutScreen")
         onNodeWithTag("LiveWorkoutBackButton").assertContentDescriptionEquals("Back")
         onNodeWithTag("LiveWorkoutMenuButton").assertContentDescriptionEquals("More")
@@ -418,6 +428,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onNodeWithTag("LiveWorkoutFinishButton").assertTextEquals("Finish session")
 
         // The screen's 16 dispatching gestures.
+        trace("screen actions")
         onNodeWithTag("LiveWorkoutBackButton").performClick()
         onNodeWithTag("LiveWorkoutMenuButton").performClick()
         onNodeWithTag("LiveWorkoutTrainingNameLabel").performClick()
@@ -433,10 +444,12 @@ class LiveWorkoutFeatureSceneIosTest {
         onNodeWithTag("LiveSetRow_${PE_BENCH}_1_TypeChip").performClick()
         // 7.11's S5: SetText goes through the semantics action; the test-held State takes each
         // typed value as the Store's InputHandler writes it.
+        trace("weight input")
         onAllNodesWithContentDescription("weight, kilograms")[1].performTextReplacement("102.5")
         assertEquals(Action.Input.OnSetWeightChange(PE_BENCH, 1, 102.5), actions.last())
         shown.value = Shown.Screen(loaded.updateSetDraft(PE_BENCH, 1) { it.copy(weight = 102.5) })
         settleScene()
+        trace("repetitions input")
         onAllNodesWithContentDescription("repetitions")[1].performTextReplacement("6")
         assertEquals(Action.Input.OnSetRepsChange(PE_BENCH, 1, 6), actions.last())
         shown.value = Shown.Screen(
@@ -452,6 +465,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onNodeWithTag("LiveWorkoutFinishButton").performClick()
 
         // 6. The empty unnamed session: the placeholder name, no meta line, the empty state.
+        trace("empty session")
         val empty = pushDay().copy(trainingName = "", exercises = emptyList())
             .toState(nowMillis = STARTED_AT + ELAPSED_MILLIS, liveCopy = copy)
         shown.value = Shown.Screen(empty)
@@ -463,6 +477,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onNode(hasText("Add exercise")).performClick()
 
         // 7. All five sheets through the screen's own routing.
+        trace("sheets")
         shown.value = Shown.Screen(loaded.copy(bottomSheetState = BottomSheetState.SessionMenu))
         settleUntilTag("SessionMenu_Add")
         onNode(within("SessionMenu_Add", "Add exercise"), useUnmergedTree = true).assertIsDisplayed()
@@ -559,6 +574,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onNodeWithTag("ExercisePickerQueryField").performTextReplacement("Curls")
 
         // 8. All five dialogs through the screen's own routing.
+        trace("dialogs")
         shown.value = Shown.Screen(
             loaded.copy(
                 dialogState = DialogState.DeleteDialog(
@@ -656,6 +672,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onNode(hasText("Continue edit")).performClick()
 
         // 9. The retired LiveSetRowSemanticsTest's two rows: each field announces its unit.
+        trace("rows")
         val rowSwitch = CoroutineScope(currentCoroutineContext()).launch {
             shown.value = Shown.Rows
         }
@@ -665,6 +682,7 @@ class LiveWorkoutFeatureSceneIosTest {
         onAllNodesWithContentDescription("repetitions").assertCountEquals(2)
 
         // 10. Dispatch: production's actions, as one exact ordered list.
+        trace("ordered actions")
         assertEquals(
             listOf(
                 Action.Click.OnBackClick,
@@ -712,6 +730,11 @@ class LiveWorkoutFeatureSceneIosTest {
             ),
             actions,
         )
+        trace("all assertions complete")
+    }
+
+    private fun trace(message: String) {
+        println("LiveWorkout scene [${traceStartedAt.elapsedNow()}, main=${NSThread.isMainThread}]: $message")
     }
 
     /** What the one content slot shows; the test holds the state and production renders it. */
@@ -728,6 +751,7 @@ class LiveWorkoutFeatureSceneIosTest {
 
     /** Scrolls the screen's lazy list until a node matching [matcher] is composed. */
     private suspend fun ComposeUiTest.reveal(matcher: SemanticsMatcher) {
+        trace("reveal ${matcher.description}")
         onNode(hasScrollToNodeAction()).performScrollToNode(matcher)
         settleScene()
     }
@@ -742,12 +766,12 @@ class LiveWorkoutFeatureSceneIosTest {
     )
 
     private suspend fun ComposeUiTest.settleScene() {
+        trace("settle start at ${mainClock.currentTime}")
         // Let queued state producers run before driving Compose's separate clock.
         yield()
-        mainClock.autoAdvance = false
-        mainClock.advanceTimeBy(1_000)
-        mainClock.autoAdvance = true
+        mainClock.advanceTimeByFrame()
         awaitIdle()
+        trace("settle complete at ${mainClock.currentTime}")
     }
 
     /** Settles in bounded steps until a node matching the branch exists. */
@@ -882,7 +906,7 @@ class LiveWorkoutFeatureSceneIosTest {
         const val PE_PLANK = "pe-3"
         const val STARTED_AT = 1_000L
 
-        /** Ten virtual seconds: far beyond any transition the screen, its sheets and dialogs run. */
+        /** Each attempt starts queued scene work and awaits its current transitions. */
         const val MAX_SETTLE_STEPS = 10
 
         /** 12 minutes 34 seconds. */

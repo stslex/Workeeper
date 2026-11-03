@@ -917,14 +917,19 @@ the empty screen; all five sheets and all five dialogs through the screen's own 
 plan-editor's shared picker and kit's delete dialog among them; the retired
 `LiveSetRowSemanticsTest`'s two rows, each field announcing its unit; and production's 42 actions as
 one exact ordered list. Text goes through the `SetText` semantics action; the fields are controlled,
-so the test-held State takes each typed value, as the Store would. Settling is bounded: ten steps of
-one virtual second each. The v2 test body and composition have separate schedulers. Its suspend
-settle helper yields to queued state producers before advancing the composition clock, then uses
+so the test-held State takes each typed value, as the Store would. Settling is bounded to ten rounds.
+The v2 test body and composition have separate schedulers. Its suspend settle helper yields to
+queued state producers, advances one frame to start scene effects, then uses
 `awaitIdle()` so pending work can run without a synchronous idle spin. The final transition to
 the two-row scene is queued on the test body's coroutine context and must complete before its
 semantics assertions. Driving only the composition clock leaves that producer queued; the
 controlled original-helper run fails this assertion. The default 60-second test budget and all
 catalog, mapper, gesture and rendering assertions remain in place.
+The clock keeps auto-advancing while `awaitIdle()` drives current snapshots, layout and finite
+animations. Settling does not render a fixed second of frames for an already idle scene, and it
+does not wait for future timer events. These scene transitions come from test-held State. Phase
+receipts include monotonic elapsed time and the Native main-thread flag; a failed CI upload
+retains the XML before device linking so the last completed phase remains available.
 Together with the 226 portable cases, the live-workout Native XML contains
 exactly 227 passing cases in 19 suites with no skip, failure, or error.
 
