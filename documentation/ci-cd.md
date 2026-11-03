@@ -533,6 +533,14 @@ are selected. The artifact includes the graph XML, start marker and device execu
 twenty-one device binaries must be fresh and nonempty. See
 [Phase 7.20B](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#ci-evidence-and-stop-conditions).
 
+The installation-epoch proof adds six identities in `app:ios`. After the complete simulator suite,
+the job launches its public-path case in two separate Native processes on the same owned simulator.
+Both launches share a fresh run nonce and have distinct launch IDs and PIDs. The identity gate
+also validates their exact case, simulator UUIDs, canonical path and equal epoch-file digests.
+Filtered logs and receipts are uploaded from `app/ios/build/install-epoch-relaunch/` on success
+or failure, separately from full-suite XML. All 21 device executables must also report the IOS
+platform through `vtool`. See [Phase 7.20C](feature-specs/kmp-phase-7-20c-ios-install-epoch.md#verification-and-review).
+
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
 required-ruleset status, and

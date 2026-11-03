@@ -995,6 +995,23 @@ two State reads the gate pins (`app_dialogs_contract`); the Store and its graph,
 linked, never run. `AppDialogHostContentTest` moved to `androidDeviceTest` with its 10 `@Smoke`
 identities.
 
+#### Apple installation identity
+
+`IosInstallEpochSourceTest` adds six exact Native identities to the existing seven graph cases.
+It uses isolated roots for collisions, concurrent first use, invalid storage and abandoned candidates.
+The production public path runs only on an owned simulator whose UUID and sandbox are checked.
+The real graph case presents A's existing dialog preferences to an independently persisted B epoch,
+checks the cleared keys and preserved theme, then publishes and dismisses B's own dialog. It uses
+the process-cached DataStore provider and never copies or unlinks live preferences.
+
+`prove_ios_install_epoch_relaunch.py` runs the exact public-path case in two sequential Native
+processes using the same simulator executable. Its logs and JSON receipts live in
+`app/ios/build/install-epoch-relaunch/`, outside the full-suite XML. The Native oracle checks their
+freshness, invocations, exact passing case, run nonce, distinct launch IDs/PIDs, simulator identity,
+canonical path and equal file digests. These executions prove ordinary process-exit persistence;
+device links, physical-device execution, power-loss durability and actual backup transfer remain
+separate evidence. See [Phase 7.20C](feature-specs/kmp-phase-7-20c-ios-install-epoch.md#p0-and-native-acceptance).
+
 #### Shared string resolver
 
 `core:ui:kit`'s `ComposeStringResolver` is proven against kit's real catalog, outside

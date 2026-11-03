@@ -9995,6 +9995,8 @@ def check_apple_host_graph() -> list[str]:
         "src/iosMain/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraph.kt",
         "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosAppGraphTest.kt",
         "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosGraphFixture.kt",
+        "src/iosMain/kotlin/io/github/stslex/workeeper/app/ios/IosInstallEpochSource.kt",
+        "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosInstallEpochSourceTest.kt",
     }
     actual_files = {path.relative_to(root).as_posix() for path in root.glob("src/**/*.kt")}
     if actual_files != expected_files:
@@ -10048,9 +10050,36 @@ def check_apple_host_graph() -> list[str]:
     ]
     wanted = [{"classname": "io.github.stslex.workeeper.app.ios.IosAppGraphTest",
                "name": method + TARGET_SUFFIX} for method in methods]
+    epoch_methods = [
+        "publicSourceUsesExcludedInstallationDirectory", "independentCallersConvergeOnFirstUse",
+        "publicationKeepsAnExistingWinner", "invalidStorageIsPreserved",
+        "orphanCandidateIsNeverAdopted", "foreignEpochClearsOnlyRestoreDialogs",
+    ]
+    wanted += [{"classname": "io.github.stslex.workeeper.app.ios.IosInstallEpochSourceTest",
+                "name": method + TARGET_SUFFIX} for method in epoch_methods]
+    epoch_tests = (root / "src/iosTest/kotlin/io/github/stslex/workeeper/app/ios/IosInstallEpochSourceTest.kt").read_text()
+    if re.findall(r"@Test\s+fun (\w+)\(", epoch_tests) != epoch_methods:
+        failures.append("app:ios: installation epoch must retain all six exact test methods")
+    epoch_source = (root / "src/iosMain/kotlin/io/github/stslex/workeeper/app/ios/IosInstallEpochSource.kt").read_text()
+    for fragment in (
+        "fun buildIosInstallEpochSource(): InstallEpochSource", "withContext(Dispatchers.IO)",
+        "NSURLIsExcludedFromBackupKey", "resourceValuesForKeys", "O_NOFOLLOW", "O_EXCL", "linkat(", "fsync(",
+        'INSTALLATION_DIRECTORY = "WorkeeperInstallation"', 'INSTALL_EPOCH_FILE = "install_epoch"',
+    ):
+        if fragment not in epoch_source:
+            failures.append(f"app:ios: installation source requires {fragment!r}")
+    for fragment in (
+        "python3 .github/scripts/prove_ios_install_epoch_relaunch.py", "WORKEEPER_INSTALL_EPOCH_NONCE",
+        "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE", "app/ios/build/install-epoch-relaunch/",
+        "steps.epoch_relaunch.outcome == 'failure'",
+    ):
+        if fragment not in workflow:
+            failures.append(f"app:ios: relaunch workflow requires {fragment!r}")
+    if not Path(".github/scripts/prove_ios_install_epoch_relaunch.py").is_file():
+        failures.append("app:ios: relaunch helper is missing")
     rows = [row for row in EXPECTED if row["module"] == "app:ios"]
     if len(rows) != 1 or rows[0]["identities"] != wanted or rows[0]["classname_prefix"] != KNOWN_SUITE_PREFIX:
-        failures.append("app:ios: Native oracle must register the seven exact host identities once")
+        failures.append("app:ios: Native oracle must register the seven graph and six epoch identities once")
     factories = re.findall(r"val (\w+GraphFactory):", APP_ROOT_DEPS_PATH.read_text())
     if len(factories) != 13 or any(f"graph.{factory}." not in tests for factory in factories):
         failures.append("app:ios: tests must invoke all thirteen production factory accessors")

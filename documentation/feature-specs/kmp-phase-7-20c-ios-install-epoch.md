@@ -116,3 +116,101 @@ At the discovery ref #357 reported 963 Native cases across 21 modules. With an i
 **Edit boundary.** Apple production/tests under `app/ios`, the two validators, the scoped relaunch helper and its CI step/artifacts, this spec's evidence and focused architecture/testing/CI notes. Separate specifications own media/camera, date formatting, runtime replacement and recovery, Swift/Xcode packaging and App Store acceptance. Settings retains its unavailable iOS backup capability. Room, shared dialog policy, Android/Wear production, dependency pins, signing/release settings and privacy pages are outside the edit boundary.
 
 Implementation starts after this spec lands in `dev` and Ilya gives GO. Stop on an unsupported publication primitive, unsafe device ownership, inability to distinguish the two processes, an unexplained identity/skip change, schema/golden movement, new suppressions/baselines or a missing mandatory gate. Use signed Conventional Commits. Open one implementation PR into `dev`, then obtain independent review of its exact head. Ilya owns the merge.
+
+
+## Implementation evidence
+
+Recorded on 2026-11-03 against accepted entry `e85c5b3ee8f34ef28cdf440ba1ccc4c70fe352ce`.
+PR #358 was merged into dev; its head was `d1b4a2e495e34171c1116bcdf3ba274cfda3baaf`.
+The accepted spec blob matched dev exactly: `13b60709efa13de0061b81ee099855bc5dea67f5`.
+
+The isolated implementation worktree is `.claude/worktrees/kmp-7-20c-ios-install-epoch`.
+Receipts are relative to the ignored, run-owned archive
+`.claude/phase720c-evidence-20261103/`. Each JSON receipt retains the exact command,
+UTC start/end, elapsed time, exit code and raw log. Full Native, Android-host, Smoke and
+Regression XML and identity inventories are archived separately. Entry inventories came
+from the preceding implementation's actual XML/archived receipts; its source differs from
+the accepted entry only by this specification. Android host inventory includes all 65 custom
+`verifyEmulatorAcceptanceRunner` cases, not only directories whose names start with `test`.
+
+Host: Apple silicon, macOS 27.0, Xcode 27.0 (27A266a), JDK 21.0.11, Kotlin 2.4.10,
+Gradle 9.6.1. The owned simulator uses iOS 26.5; Android uses Pixel_6_API_34,
+API 34 / arm64-v8a. Long Native/Android gates ran on AC with an open lid.
+A closed-lid interruption returned 143 and was excluded: its XML was archived and all
+21 simulator tasks were restarted with fresh markers.
+
+### Executed local gates
+
+Every Gradle row used `--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`.
+The start/duration column is UTC and seconds. These are debug/test builds.
+
+| Gate | Gradle summary | Observation | UTC start; duration | Receipt |
+| --- | --- | --- | --- | --- |
+| Storage P0 simulator | `350 actionable tasks: 350 executed` | 5 passing cases; no skips | 12:43:24; 100.4s | `p0-owned-storage.json` |
+| Storage P0 device link | `349 actionable tasks: 349 executed` | debugTest IOS link; no device execution | 12:45:52; 78.7s | `p0-device-link.json` |
+| Focused storage/consumer | `350 actionable tasks: 350 executed` | 6 passing cases; no skips | 12:48:47; 68.7s | `focused-six.json` |
+| All 21 simulator tasks | `584 actionable tasks: 584 executed` | 969 passing cases; no skips; exact 963 retained + 6 added | 13:05:10; 349.8s | `native-full-resumed.json` |
+| All 21 device links | `563 actionable tasks: 563 executed` | 21/21 fresh nonempty IOS executables; archived and hash-checked | 13:12:08; 130.4s | `device-links-full.json` |
+| Android build, Lint and host tests | `3149 actionable tasks: 3149 executed` | 3398 cases; zero skips; exact entry identities retained | 13:15:07; 729.8s | `android-build-host.json` |
+| Device-test compilation | `2210 actionable tasks: 2210 executed` | Compilation only | 13:29:21; 229.1s | `android-device-compile.json` |
+| Paparazzi and lint-rules | `638 actionable tasks: 638 executed` | 1938 fresh passing cases; no skips | 13:33:10; 104.3s | `paparazzi-lint-rules.json` |
+| Separate Detekt | `64 actionable tasks: 64 executed` | No rewriting | 13:34:55; 33.4s | `detekt-full.json` |
+| Android Smoke | `2171 actionable tasks: 2171 executed` | 44 cases; the same 3 known skips; exact identities retained | 13:35:29; 336.3s | `smoke.json` |
+| Android Regression | `2171 actionable tasks: 2171 executed` | 90 cases; zero skips; exact identities retained | 13:41:05; 348.0s | `regression.json` |
+
+The complete Native oracle, MVI host/device oracles, source topology, MVI source topology,
+privacy gate and rendered mockup gate passed. The mockup reports 11 passed / 0 failed.
+See `native-oracle.json`, `mvi-host-oracle.json`, `smoke-oracle.json` and
+`exit-source-gates.json`. Both shipping release runtime trees are identical to entry,
+contain no `:app:ios` edge, and each dependency report states
+`5 actionable tasks: 5 executed`. All seven schema exports and 456 golden PNGs are
+byte-identical to entry; `final-input-comparison.json` records the comparisons.
+Actionlint has only its unchanged entry SC2129 diagnostic and is not claimed green.
+
+### Relaunch and controls
+
+The current run created the public-path token during P0. The final freshly linked executable
+then ran the public case in two sequential Native processes, one exact passing case per launch.
+Nonce `01a72767-c19d-4970-8878-086eef7fa02f` matched in both.
+PIDs were `4045` and `4061`; launch IDs were
+`2cc15eca-7b6c-4968-bd7f-744c4e030125` and
+`ea1165d3-eef6-4360-99c3-05cfdd462dbf`.
+Expected and actual simulator UUIDs matched
+`8FEB2A4D-2A76-4E43-A4CF-49C617C0C02C`.
+The canonical installation path was equal, and both file digests were
+`b43044f8c89fc1e55ae8a176ae800fa3189d37a5e5c21b01e0881fb6d5cd1b3c`.
+The first process exited before the second began. Receipts and filtered logs are in
+`native-relaunch-receipts/`, outside full XML; the simulator binary is IOSSIMULATOR,
+while all 21 device binaries report IOS.
+
+Two separate disposable worktrees executed the repository mutation harness. Every before,
+mutated and restored invocation reports `350 actionable tasks: 350 executed`, with one exact
+case per invocation. The mutated Gradle invocations exit 1; the harness exits 0 for expected RED.
+
+| Mutation | Intended executed failure | Restored observation | Receipts |
+| --- | --- | --- | --- |
+| Remove the incumbent before publication | `publicationKeepsAnExistingWinner` returns the new candidate instead of the incumbent | Exact bytes/mode restored; focused GREEN | `control-publisher-r2/`, `control-publisher-r2-*.json` |
+| Supply source A to graph B | `foreignEpochClearsOnlyRestoreDialogs` fails the foreign-dialog assertion after confirming B's distinct on-disk epoch | Exact bytes/mode restored; focused GREEN | `control-foreign/`, `control-foreign-*.json` |
+
+Raw commands, failures, XML and all three stage binaries were preserved before both clean
+control worktrees were removed without force. The original publisher control also produced
+the correct RED; its receipt collector initially matched escaped XML instead of the decoded
+message. That diagnostic remains in `control-publisher/`; the complete control was repeated
+with the corrected collector. No production change was needed.
+
+Synthetic complete validator fixtures passed. A missing new case, stale XML, a reused PID
+and a mismatched simulator UUID each failed; exact restoration passed again.
+See `validator-controls.json` and `check_validator_controls.py`. These fixture checks are
+separate from executed Native test counts. The previous twenty oracle dictionaries, seven
+graph identities/assertions and thirteen factory assertions remain intact.
+
+### Evidence boundaries
+
+Simulator execution proves storage, ordinary process-exit persistence and synthetic transfer
+of existing preferences to a new installation root. IOS device binaries prove linking.
+Physical-device execution, an installed Swift app relaunch, power-loss durability and actual
+iCloud/Finder/device-transfer behavior remain pending separate acceptance.
+
+The archive's `evidence-index.json` hashes the identity inventories, binary manifest,
+input comparisons, relaunch receipts and control results.
+Index SHA-256: `146a9f50f1838194caa46618bcc74159a912c6d5eeb6a869853df1b28b07b81e`.

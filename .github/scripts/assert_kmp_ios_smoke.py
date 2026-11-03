@@ -1711,6 +1711,13 @@ EXPECTED.append({
         "admittedRootShowsTrainingFromOwnedDatabase",
         "preferencesAndDialogsSurviveGraphRecreation",
         "generationLifetimesAreIndependent",
+    ]) + natives("io.github.stslex.workeeper.app.ios.IosInstallEpochSourceTest", [
+        "publicSourceUsesExcludedInstallationDirectory",
+        "independentCallersConvergeOnFirstUse",
+        "publicationKeepsAnExistingWinner",
+        "invalidStorageIsPreserved",
+        "orphanCandidateIsNeverAdopted",
+        "foreignEpochClearsOnlyRestoreDialogs",
     ]),
 })
 
@@ -1765,6 +1772,11 @@ def main() -> None:
         settings_results_are_fresh()
         root_results_are_fresh()
         database_results_are_fresh()
+        from prove_ios_install_epoch_relaunch import validate_relaunch
+        try:
+            print("  ok: " + validate_relaunch())
+        except (OSError, ValueError, KeyError, TypeError) as receipt_error:
+            raise ModuleError(str(receipt_error)) from receipt_error
     except ModuleError as error:
         failures = [str(error)]
         verified = []

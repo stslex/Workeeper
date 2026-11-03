@@ -711,7 +711,13 @@ jobs:
         run: |
           runtime="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; rs=[r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and ".iOS-" in r["identifier"]]; print(max(rs, key=lambda r: tuple(map(int, r["version"].split("."))))["identifier"])')"
           device="$(xcrun simctl create "Workeeper-database-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
-          echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device" >> "$GITHUB_ENV"
+          nonce="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+          {
+            echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device"
+            echo "WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
+            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
+            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH=full-suite"
+          } >> "$GITHUB_ENV"
           xcrun simctl boot "$device"
           xcrun simctl bootstatus "$device" -b
 
@@ -756,7 +762,7 @@ jobs:
           :core:data:database:iosSimulatorArm64Test
           :app:ios:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
-          --continue --full-stacktrace --console=plain
+          --no-parallel --continue --full-stacktrace --console=plain
 
       # An exit code is not evidence: the checked-in script structurally parses each module's
       # JUnit XML and independently requires one exact (classname, name) tuple per module —
@@ -773,19 +779,28 @@ jobs:
       # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
       # so this step stays skipped too rather than masking that failure behind a
       # missing-results error. Cancellation also skips it.
+      - name: Prove the installation epoch survives two Native processes
+        id: epoch_relaunch
+        if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
+        run: |
+          python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
+            --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" \
+            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE"
+
       - name: Assert exact native test identities
         id: native_identities
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
       - name: Upload failing native test evidence before device linking
-        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure') }}
+        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure' || steps.epoch_relaunch.outcome == 'failure') }}
         uses: actions/upload-artifact@v4
         with:
           name: kmp-ios-kit-smoke-failure-results
           path: |
             **/build/test-results/iosSimulatorArm64Test/*.xml
             **/build/native-test-start
+            app/ios/build/install-epoch-relaunch/
           retention-days: 30
 
       # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
@@ -838,6 +853,10 @@ jobs:
               feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do
             binary="$module/build/bin/iosArm64/debugTest/test.kexe"
             if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
+              if ! xcrun vtool -show-build "$binary" | awk '$1 == "platform" && $2 == "IOS" { ok=1 } END { exit !ok }'; then
+                missing+=("$module: platform is not IOS")
+                continue
+              fi
               linked=$((linked + 1))
             else
               missing+=("$module")
@@ -883,6 +902,7 @@ jobs:
             app/ios/build/test-results/iosSimulatorArm64Test/
             app/ios/build/native-test-start
             app/ios/build/bin/iosArm64/debugTest/test.kexe
+            app/ios/build/install-epoch-relaunch/
           retention-days: 30
 
       - name: Remove the owned database simulator
