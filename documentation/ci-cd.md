@@ -129,6 +129,12 @@ name and **runs** by execution. The two Wear flavors share test names, so on pul
 **tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
 Heap, `forkEvery` and timeouts are unchanged.
 
+If the unit-test step fails, `unit-test-failure-results` retains its JUnit XML and the Wear
+press gate's before/held PNGs. If Native tests or their identity oracle fail,
+`kmp-ios-kit-smoke-failure-results` uploads the simulator XML and freshness markers before
+device linking starts. The final `kmp-ios-kit-smoke-results` artifact still includes the full
+Native results and device executable after linking.
+
 For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores the build cache the latest `master` or `dev` push saved (pull-request runs save none) and executes whatever that cache does not cover.
 
 Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
@@ -460,14 +466,14 @@ portable tuples and
 exactly once, for exactly 227 target tuples. The app-dialogs feature validator requires all 43
 portable tuples and
 `io.github.stslex.workeeper.feature.app_dialogs.impl.AppDialogFeatureSceneIosTest.resourcesDatesVariantsAndChoicesRenderAndDispatch`
-exactly once, for exactly 44 target tuples. All twenty result directories upload under
+exactly once, for exactly 44 target tuples. All twenty-one result directories upload under
 `if: always()` regardless.
 
-The same twenty modules' iosArm64 (device) test binaries are then linked in one forced
+The same twenty-one modules' iosArm64 (device) test binaries are then linked in one forced
 invocation
 (`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
 started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
-each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/20 linked`, and fails naming every
+each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/21 linked`, and fails naming every
 module without a binary. Device tests are compiled and linked, never run: CI has no device. The
 Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
 `assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
@@ -514,10 +520,18 @@ fresh XML relative to `core/data/database/build/native-test-start`, and links
 `:core:data:database:linkDebugTestIosArm64`. The job provisions an exclusive test-only simulator,
 passes its UUID through `WORKEEPER_DATABASE_TEST_SIMULATOR`, and removes only that simulator at
 cleanup. The nineteen previous expectation rows and the Settings/root freshness markers remain.
-The binary check includes the database executable and requires all twenty `test.kexe` files to be
+The binary check includes the database executable and requires every listed `test.kexe` file to be
 nonempty and newer than `core/data/database/build/device-link-start`. Artifacts include database
 XML, both database markers and the synthetic pre-open fixture files with their schema/blob inputs.
 See [Phase 7.20A](feature-specs/kmp-phase-7-20a-ios-room-database.md#verification-and-stop-gates).
+
+The Apple Metro graph adds `:app:ios` as the twenty-first simulator/link module. Its seven exact
+identities and `app/ios/build/native-test-start` marker extend the existing Native oracle without
+changing the twenty previous expectation rows. The graph and database suites share the owned
+simulator; the graph test task uses `mustRunAfter` ordering after the database test task when both
+are selected. The artifact includes the graph XML, start marker and device executable. All
+twenty-one device binaries must be fresh and nonempty. See
+[Phase 7.20B](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#ci-evidence-and-stop-conditions).
 
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and

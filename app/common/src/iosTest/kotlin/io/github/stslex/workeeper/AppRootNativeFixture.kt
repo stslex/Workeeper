@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.platform.AppReinitializationHost
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
@@ -29,7 +31,6 @@ import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepositoryImpl
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepositoryImpl
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsGraph
@@ -89,9 +90,9 @@ internal interface AppRootNativeParent {
             @Provides tags: TagRepository,
             @Provides resources: ResourceWrapper,
             @Provides lifetime: AppScopeLifetime,
-            @Provides dispatchers: StoreDispatchers,
             @Provides analytics: AnalyticsHolder,
-            @Provides dispatcher: CoroutineDispatcher,
+            @Provides @MainImmediateDispatcher mainImmediateDispatcher: CoroutineDispatcher,
+            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
             @Provides reinitializer: AppReinitializer,
             @Provides storeFactory: DataStoreProviderFactory,
             @Provides epoch: InstallEpochSource,
@@ -118,9 +119,9 @@ internal class AppRootNativeFixture : AppRootDeps, AppReinitializationHost {
         tags = RootTagRepository(),
         resources = RootResources(),
         lifetime = lifetime,
-        dispatchers = StoreDispatchers(Dispatchers.Main, Dispatchers.Main.immediate),
         analytics = AnalyticsHolder(),
-        dispatcher = Dispatchers.Main,
+        mainImmediateDispatcher = Dispatchers.Main.immediate,
+        defaultDispatcher = Dispatchers.Main,
         reinitializer = AppReinitializer(this),
         storeFactory = stores,
         epoch = object : InstallEpochSource {

@@ -330,11 +330,22 @@ jobs:
       # steps above built stays UP-TO-DATE and every task this step owns executes, the shape of a
       # PR's first run. Every other trigger restores cached test results as before.
       - name: Run Unit Tests
+        id: unit_tests
         run: >
           bash .github/scripts/run_with_resource_samples.sh
           ./gradlew testDebugUnitTest --full-stacktrace
           ${{ github.event_name == 'pull_request' && '-PwearUnitTestFlavors=store' || '' }}
           ${{ github.event_name == 'workflow_dispatch' && inputs.execute_unit_tests && '--no-build-cache' || '' }}
+
+      - name: Upload failing unit test evidence
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-failure-results
+          path: |
+            **/build/test-results/**/*.xml
+            app/wear/build/reports/wear-press/
+          retention-days: 30
 
       # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
       # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
@@ -562,7 +573,7 @@ jobs:
   # the image-viewer, plan-editor, archive, all-trainings, all-exercises, past-session, home,
   # exercise-chart, single-training, exercise, live-workout and app-dialogs features' Phase-7
   # Native tests on the iOS simulator, then a checked-in script requires every exact per-module
-  # XML identity. A second forced invocation links the same nineteen modules' iosArm64 device
+  # XML identity. A second forced invocation links the same twenty-one modules' iosArm64 device
   # test binaries and a check requires each executable; device tests are compiled and linked,
   # never run.
   # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
@@ -588,10 +599,13 @@ jobs:
       - name: Select Xcode 26.6 and assert the simulator runtime
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
-          xcodebuild -version
-          xcodebuild -version | grep -q "Xcode 26.6"
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          grep -q "Xcode 26.6" <<< "$xcode_version"
           # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
-          xcrun simctl list runtimes | tee /dev/stderr | grep -q "iOS"
+          simulator_runtimes="$(xcrun simctl list runtimes)"
+          printf '%s\n' "$simulator_runtimes"
+          grep -q "iOS" <<< "$simulator_runtimes"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -712,6 +726,9 @@ jobs:
           mkdir -p core/data/database/build
           rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
           touch core/data/database/build/native-test-start
+          mkdir -p app/ios/build
+          rm -rf app/ios/build/test-results/iosSimulatorArm64Test
+          touch app/ios/build/native-test-start
 
       - name: Run native shared UI, feature and application root tests
         id: native_tests
@@ -737,6 +754,7 @@ jobs:
           :feature:settings:iosSimulatorArm64Test
           :app:common:iosSimulatorArm64Test
           :core:data:database:iosSimulatorArm64Test
+          :app:ios:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -756,10 +774,21 @@ jobs:
       # so this step stays skipped too rather than masking that failure behind a
       # missing-results error. Cancellation also skips it.
       - name: Assert exact native test identities
+        id: native_identities
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
-      # The device half of the target pair: the same twenty modules' iosArm64 test binaries,
+      - name: Upload failing native test evidence before device linking
+        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmp-ios-kit-smoke-failure-results
+          path: |
+            **/build/test-results/iosSimulatorArm64Test/*.xml
+            **/build/native-test-start
+          retention-days: 30
+
+      # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).
       - name: Mark fresh device links
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
@@ -790,6 +819,7 @@ jobs:
           :feature:settings:linkDebugTestIosArm64
           :app:common:linkDebugTestIosArm64
           :core:data:database:linkDebugTestIosArm64
+          :app:ios:linkDebugTestIosArm64
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -805,7 +835,7 @@ jobs:
               core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive \
               feature/all-trainings feature/all-exercises feature/past-session feature/home \
               feature/exercise-chart feature/single-training feature/exercise \
-              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database; do
+              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do
             binary="$module/build/bin/iosArm64/debugTest/test.kexe"
             if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
               linked=$((linked + 1))
@@ -813,7 +843,7 @@ jobs:
               missing+=("$module")
             fi
           done
-          echo "$linked/20 linked"
+          echo "$linked/21 linked"
           if [ "${#missing[@]}" -ne 0 ]; then
             echo "::error::missing, empty or stale iosArm64 test binary for: ${missing[*]}"
             exit 1
@@ -850,6 +880,9 @@ jobs:
             core/data/database/build/native-test-start
             core/data/database/build/device-link-start
             core/data/database/build/native-fixtures/
+            app/ios/build/test-results/iosSimulatorArm64Test/
+            app/ios/build/native-test-start
+            app/ios/build/bin/iosArm64/debugTest/test.kexe
           retention-days: 30
 
       - name: Remove the owned database simulator
