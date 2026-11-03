@@ -54,7 +54,14 @@ internal class IosGraphFixture {
 
     val database = runBlocking(Dispatchers.IO) { buildIosAppDatabase() }
 
-    fun graph(lifetime: AppScopeLifetime = AppScopeLifetime()): IosAppGraph {
+    fun graph(
+        lifetime: AppScopeLifetime = AppScopeLifetime(),
+        installEpochSource: InstallEpochSource = object : InstallEpochSource {
+            override suspend fun installEpoch() = InstallEpoch(
+                RestoreOwnerId("00000000-0000-4000-8000-000000007020"),
+            )
+        },
+    ): IosAppGraph {
         if (lifetime !in lifetimes) lifetimes += lifetime
         return buildIosAppGraph(
             database = database,
@@ -64,11 +71,7 @@ internal class IosGraphFixture {
                 override fun isGranted() = false
             },
             resources = TestResources,
-            installEpochSource = object : InstallEpochSource {
-                override suspend fun installEpoch() = InstallEpoch(
-                    RestoreOwnerId("00000000-0000-4000-8000-000000007020"),
-                )
-            },
+            installEpochSource = installEpochSource,
             reinitializationHost = restartHost,
         ) as IosAppGraph
     }

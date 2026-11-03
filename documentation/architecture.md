@@ -35,6 +35,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   navigator. Its Apple dependencies live in `iosMain`; the shipped Android apps have no edge to it.
   The caller supplies its database, generation lifetime and five required host services. See
   [Phase 7.20B ownership](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#production-graph-and-ownership).
+  `buildIosInstallEpochSource()` supplies the installation identity independently of graph lifetimes.
+  It resolves Application Support off Main and stores the epoch in the excluded sibling
+  `WorkeeperInstallation/install_epoch`. Complete synced candidates publish exclusively; existing
+  invalid storage fails without replacement. The host still passes the source explicitly.
+  See [Phase 7.20C](feature-specs/kmp-phase-7-20c-ios-install-epoch.md#storage-and-ownership).
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
