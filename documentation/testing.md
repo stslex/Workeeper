@@ -918,7 +918,14 @@ plan-editor's shared picker and kit's delete dialog among them; the retired
 `LiveSetRowSemanticsTest`'s two rows, each field announcing its unit; and production's 42 actions as
 one exact ordered list. Text goes through the `SetText` semantics action; the fields are controlled,
 so the test-held State takes each typed value, as the Store would. Settling is bounded: ten steps of
-one virtual second each. Together with the 226 portable cases, the live-workout Native XML contains
+one virtual second each. The v2 test body and composition have separate schedulers. Its suspend
+settle helper yields to queued state producers before advancing the composition clock, then uses
+`awaitIdle()` so pending work can run without a synchronous idle spin. The final transition to
+the two-row scene is queued on the test body's coroutine context and must complete before its
+semantics assertions. Driving only the composition clock leaves that producer queued; the
+controlled original-helper run fails this assertion. The default 60-second test budget and all
+catalog, mapper, gesture and rendering assertions remain in place.
+Together with the 226 portable cases, the live-workout Native XML contains
 exactly 227 passing cases in 19 suites with no skip, failure, or error.
 
 What this does not cover: RU values render only in `SessionStateGoldenTest.exerciseBodyweightRu`,

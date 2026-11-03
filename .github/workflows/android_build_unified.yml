@@ -588,10 +588,13 @@ jobs:
       - name: Select Xcode 26.6 and assert the simulator runtime
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
-          xcodebuild -version
-          xcodebuild -version | grep -q "Xcode 26.6"
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          grep -q "Xcode 26.6" <<< "$xcode_version"
           # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
-          xcrun simctl list runtimes | tee /dev/stderr | grep -q "iOS"
+          simulator_runtimes="$(xcrun simctl list runtimes)"
+          printf '%s\n' "$simulator_runtimes"
+          grep -q "iOS" <<< "$simulator_runtimes"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4

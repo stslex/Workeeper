@@ -321,3 +321,60 @@ The public graph is ready for a separately specified host. Swift/Xcode packaging
 and date services, durable installation identity, production generation replacement/recovery,
 iOS backup and physical-device/App Store acceptance remain separate work. Same-process
 preferences/dialog recreation does not establish process-death or production runtime replacement.
+
+### Native CI timeout follow-up
+
+The follow-up starts from published head `12d2de8a98fc69e79634a2d48bf9ed74cf65d2a3`.
+The first Native CI attempt never acquired a hosted macOS arm64 runner. Attempt 2 executed
+`584 actionable tasks: 584 executed`: 962 of 963 cases passed, including all seven new graph
+cases. The only failure was the unchanged
+`LiveWorkoutFeatureSceneIosTest.resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`:
+`UncompletedCoroutinesError: After waiting for 1m, the test body did not run to completion`.
+Its XML reports 76.582 seconds and stdout contains `waitForIdle has not finished`.
+All 21 device links passed separately (`563 actionable tasks: 563 executed`). The artifact ZIP
+SHA-256 was checked against GitHub before extraction. Raw log, XML and binary are retained under
+`build/kmp-7-20b-evidence/ci-attempt-2/`.
+
+The isolated scene passed with both Native standalone modes. A complete LiveWorkout/Exercise
+parallel run with graph linking also passed. A controlled Main dispatcher alone did not reproduce
+the timeout. These attempts do not establish an OS, standalone-mode or cross-process cause.
+
+The pinned CMP 1.11.1 source separates the v2 test-body scheduler from its composition scheduler.
+The old settle helper advanced only the latter and synchronously called `waitForIdle`, without
+yielding the test body. A deterministic regression queues the existing final transition to the
+two-row scene on the test body's coroutine context. With the original helper all ten settle steps
+return without running that producer, and the new completion assertion fails. This compiled
+control reports `131 actionable tasks: 131 executed` and the intended `AssertionError`; the
+canonical mutation harness then restores exact source bytes and mode. This reproduces the
+unserviced scheduler work, not the exact CI wall-clock timeout or its platform/load trigger.
+
+The helper and its callers now suspend, yield to queued producers, advance the same bounded
+composition clock, and use `awaitIdle`. The queued transition and completion assertion remain
+in the scene test. All original catalog, plural, mapper, rendering and 42 ordered-action assertions
+remain. The original default 60-second budget, ten settle steps, Native identities, suppressions,
+baselines and goldens are unchanged.
+
+A separate preflight issue was visible as an Xcode `Broken pipe` exception: `grep -q` could close
+the pipe while `xcodebuild` was still writing. The preflight now captures each command's complete
+output before checking it. It retains Xcode 26.6, simulator-runtime checks and failure propagation.
+Synthetic shell controls accept valid output and reject a wrong version, absent runtime and a
+failing runtime command; they are not Native execution evidence.
+
+Follow-up receipts are under ignored `build/kmp-7-20b-timeout-evidence/`. They retain full commands,
+actual exit codes, UTC start/end timestamps and fresh XML. Before `clean`, all earlier evidence,
+Native binaries and database fixtures were moved aside; 2541 files were byte-verified after
+restoration. Clean is preparation, not an executed test gate. The mandatory validations below
+all report execution-only summaries.
+
+| Gate | Executed result | Duration | Receipt |
+| --- | --- | --- | --- |
+| Focused scene with queued-state regression | `131 actionable tasks: 131 executed`; 1 cases / 0 skips | 55s | `fixed-single/receipt.json` |
+| 21-module Native suite and oracle | `584 actionable tasks: 584 executed`; 963 cases / 0 skips | 134s | `validation-native/receipt.json` |
+| 21 device-target links | `563 actionable tasks: 563 executed`; 0 cases / 0 skips | 130s | `validation-device-links/receipt.json` |
+| Android build / Lint / host tests | `3149 actionable tasks: 3149 executed`; 3398 cases / 0 skips | 734s | `validation-android/receipt.json` |
+| Separate Detekt | `64 actionable tasks: 64 executed`; 0 cases / 0 skips | 32s | `validation-detekt/receipt.json` |
+
+The final audit retains all 963 Native and 3398 Android-host tuples and skip states, seven schema
+files and 456 golden PNGs. Source topology and privacy pass. Fresh device binaries and hashes
+are archived in `validation-binaries/` and `validation-binaries.json`; device linking remains
+distinct from device execution. Final-head CI, signatures and review are recorded in PR #357.

@@ -159,9 +159,14 @@ import io.github.stslex.workeeper.feature.live_workout.ui.LiveWorkoutScreen
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import io.github.stslex.workeeper.core.ui.kit.resources.Res as KitRes
 import io.github.stslex.workeeper.feature.live_workout.resources.Res as LiveWorkoutRes
 
@@ -651,8 +656,11 @@ class LiveWorkoutFeatureSceneIosTest {
         onNode(hasText("Continue edit")).performClick()
 
         // 9. The retired LiveSetRowSemanticsTest's two rows: each field announces its unit.
-        shown.value = Shown.Rows
+        val rowSwitch = CoroutineScope(currentCoroutineContext()).launch {
+            shown.value = Shown.Rows
+        }
         settleUntilAbsent("LiveWorkoutScreen")
+        assertTrue(rowSwitch.isCompleted, "The settle helper must run queued test-coroutine state changes")
         onNodeWithContentDescription("weight, kilograms").assertExists()
         onAllNodesWithContentDescription("repetitions").assertCountEquals(2)
 
@@ -719,7 +727,7 @@ class LiveWorkoutFeatureSceneIosTest {
         hasText(text) and hasAnyAncestor(hasTestTag(tag))
 
     /** Scrolls the screen's lazy list until a node matching [matcher] is composed. */
-    private fun ComposeUiTest.reveal(matcher: SemanticsMatcher) {
+    private suspend fun ComposeUiTest.reveal(matcher: SemanticsMatcher) {
         onNode(hasScrollToNodeAction()).performScrollToNode(matcher)
         settleScene()
     }
@@ -733,15 +741,17 @@ class LiveWorkoutFeatureSceneIosTest {
         isDone = false,
     )
 
-    private fun ComposeUiTest.settleScene() {
+    private suspend fun ComposeUiTest.settleScene() {
+        // Let queued state producers run before driving Compose's separate clock.
+        yield()
         mainClock.autoAdvance = false
         mainClock.advanceTimeBy(1_000)
         mainClock.autoAdvance = true
-        waitForIdle()
+        awaitIdle()
     }
 
     /** Settles in bounded steps until a node matching the branch exists. */
-    private fun ComposeUiTest.settleUntil(matcher: SemanticsMatcher) {
+    private suspend fun ComposeUiTest.settleUntil(matcher: SemanticsMatcher) {
         repeat(MAX_SETTLE_STEPS) {
             settleScene()
             if (onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
@@ -750,10 +760,10 @@ class LiveWorkoutFeatureSceneIosTest {
         }
     }
 
-    private fun ComposeUiTest.settleUntilTag(tag: String) = settleUntil(hasTestTag(tag))
+    private suspend fun ComposeUiTest.settleUntilTag(tag: String) = settleUntil(hasTestTag(tag))
 
     /** Settles in bounded steps until no node carries [tag]. */
-    private fun ComposeUiTest.settleUntilAbsent(tag: String) {
+    private suspend fun ComposeUiTest.settleUntilAbsent(tag: String) {
         repeat(MAX_SETTLE_STEPS) {
             settleScene()
             if (onAllNodes(hasTestTag(tag), useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
