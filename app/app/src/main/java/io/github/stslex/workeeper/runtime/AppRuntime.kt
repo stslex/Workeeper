@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModelStore
 import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
+import io.github.stslex.workeeper.app.common.runtime.UiAdmissionGate
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -168,7 +169,7 @@ internal class AppRuntime(
 
     /** Releases exactly one admitted region; idempotent and ABA-safe. */
     fun releaseUiGeneration(token: AppUiAdmissionToken) {
-        (token as? UiAdmissionGate.Token)?.let(uiGate::release)
+        uiGate.release(token)
     }
 
     fun uiAttachmentCount(id: Int): Int = uiGate.admittedCount(id)

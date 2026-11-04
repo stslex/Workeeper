@@ -73,3 +73,81 @@ For the full exit, use the [7.20D verification commands](kmp-phase-7-20d-ios-dat
 Prove the updated validators accept a complete fresh fixture and reject a missing new identity or stale XML in the touched modules. Keep the [source topology](../../.github/scripts/assert_kmp_ui_source_topology.py) checks narrow. Reuse entry receipts only for identical relevant input blobs, tooling and task selection. Record actual Gradle summaries, identity additions, skips, mutation diagnostics and residuals. Empty, cached or up-to-date target outputs do not discharge a gate.
 
 Implementation starts after this specification is merged into `dev` and Ilya gives explicit GO. Stop on entry drift affecting this contract, a different P0 outcome, a new public host policy or dependency, changed UI/schema/golden bytes, unexpected identities, or a failed mandatory gate. Preserve the failing command and evidence. Deliver the implementation through a separate PR with signed, GitHub-verified Conventional Commits and an independent review of its exact head. Ilya owns merge.
+
+## Implementation evidence
+
+Recorded on 2026-11-04 from accepted entry `30de4a4b4dcef2611411dd6897968755b697d680`,
+after #362 merged and explicit maintainer GO. The reviewed head was
+`ccabb0a6daa969c7a0df13e4099a8e4756d950b9`; its spec blob and the entry blob both
+equal `6db42dc38abf33fd4c6bf44f2ce0c4c4cfa3e153`.
+Raw commands, real exits, input hashes, XML and binaries are retained outside the
+implementation worktree in the ignored main-checkout-relative archive
+`.claude/worktrees/phase720e-evidence-20261104TKgWbS6/`.
+Entry receipts from #361 matched all 2,361 relevant inputs per invocation and the
+local toolchain. Complete exit identity/status multisets retain those entry cases
+and add exactly the four approved Native identities and three Android host identities.
+
+Host: Apple silicon, macOS 27.0, Xcode 27.0 (27A266a), JDK 21.0.11,
+Kotlin/Native 2.4.10, Gradle 9.6.1 and iOS 26.5. Gates used debug/test builds,
+AC power and explicitly authorized closed-lid operation. Gradle used the existing
+synthetic signing fixture with a verified relative path; Git SSH signing was checked
+separately. The owned full-run simulator was `6E4191EF-3BD1-43E8-B724-276DA811AD4D`;
+connected tests used the sole `emulator-5562`, `Workeeper_phase720e_API34`, API 34/arm64.
+
+P0 first passed the six original JVM cases, then compiled and executed the disposable
+foreign-release witness with expected 1 / actual 0. Removing that witness preserved
+the original bytes and restored all six green. Each invocation reported
+`597 actionable tasks: 597 executed`. The original six assertions, identities,
+timeouts and 500-round race remain unchanged apart from imports and the opaque token type.
+See `p0-acceptance.json` and the separately archived P0 XML/logs.
+
+| Gate | Exact Gradle summary | Fresh observation |
+| --- | --- | --- |
+| Original focused JVM cases | `597 actionable tasks: 597 executed` | Six pass, zero skips |
+| Focused common Android host | `486 actionable tasks: 486 executed` | Three pass, zero skips |
+| Focused common Native | `339 actionable tasks: 339 executed` | Three pass, zero skips |
+| Focused mounted root | `350 actionable tasks: 350 executed` | One exact passing identity |
+| All 21 simulator suites | `584 actionable tasks: 584 executed` | 975 retained + 4 new = 979, zero skips |
+| All 21 device links | `563 actionable tasks: 563 executed` | 21 fresh nonempty IOS executables |
+| Android build, Lint and host | `3149 actionable tasks: 3149 executed` | 3,398 retained + 3 new = 3,401, zero skips |
+| Instrumented-test compilation | `2210 actionable tasks: 2210 executed` | Repository-wide compilation passes |
+| Paparazzi and lint-rules | `638 actionable tasks: 638 executed` | 1,938 retained cases, zero skips |
+| Separate Detekt | `64 actionable tasks: 64 executed` | Baselines and suppressions unchanged |
+| Connected Smoke | `2171 actionable tasks: 2171 executed` | 44 cases: 41 pass, three retained skips |
+| Connected Regression | `2171 actionable tasks: 2171 executed` | 90 retained cases, zero skips |
+| Each phone release runtime tree | `5 actionable tasks: 5 executed` | Dev and Store resolved sections match entry |
+
+All Gradle rows use the four forced-execution flags from the verification block.
+The full Native multiset contains 14 cases in `app:common` and 20 in `app:ios`.
+Both deterministic race orderings and 64 rounds on independent Default workers pass
+on Android host and Native. Smoke's only skips are `pendingFeatureRewrite` in
+`AllExercisesScreenTest`, `AllTrainingsScreenTest` and `ArchiveScreenTest`.
+Fresh Smoke XML and its MVI device identity check were archived before Regression.
+Both MVI identity oracles pass.
+
+Both behavioral controls have separate focused GREEN, compiled/executed intended
+assertion RED, exact byte/mode restoration and restored GREEN receipts. The foreign
+release mutant fails expected 1 / actual 0 in the common case; the untracked-token
+fixture mutant fails the mounted-root outstanding-count assertion with the same values.
+The respective Gradle summaries remain 486/486 and 350/350 executed throughout.
+See `control-release/`, `control-fixture/` and `controls-acceptance.json`.
+
+The ordered epoch helper passed two separate exited Native processes before the
+Native oracle, with matching owned path and digest and nonce
+`71a609a1-819c-4e01-bee7-242cd50df107`. Those observations and filtered controls add
+zero cases to the 979 full-suite count. All 42 simulator/device executables are archived.
+Disposable validator copies accept the complete fresh fixture, reject each of the four
+missing identities and stale XML in both touched modules, then accept exact restoration.
+
+Both source-topology scripts, privacy and the measured mockup positive pass.
+The historical `--target f52462c7` negative exits 1 with check 7 failing at
+`width=0px→0px`; the positive reports 11 passed, zero failed. All seven tracked Room
+schema exports, 456 golden PNGs and Detekt/Lint baselines match entry byte-for-byte.
+See `final-input-comparison.json`, `validator-controls.json` and `mockup-controls.json`.
+
+The first focused root attempt compiled but could not launch because its owned
+simulator was shut down. Its failed receipt contains no executed root case and remains
+archived separately. Explicitly booting the same simulator restored the exact focused
+case without source changes; the subsequent full run used a newly owned simulator.
+Simulator execution and IOS target linking are the platform evidence here.
+Physical iOS acceptance and a signed installed application remain separate scope.

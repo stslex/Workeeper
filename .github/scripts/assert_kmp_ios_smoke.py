@@ -1668,6 +1668,11 @@ EXPECTED.append({
             "concurrentKeysRetainTheirPublishedFlows",
             "navigationClearsValuesWithoutReplacingChannels",
         ]),
+        *natives("io.github.stslex.workeeper.app.common.runtime.SharedUiAdmissionGateTest", [
+            "foreignAndRepeatedReleaseCannotSpendAnotherGrant",
+            "retireWaitsForTheLastGrantAndReopenIsAbaSafe",
+            "racingAdmissionCannotOutliveSuccessfulRetirement",
+        ]),
         *natives("io.github.stslex.workeeper.AppRootIosTest", [
             "transitioningAndDeniedSkipGraphResolution",
             "admittedRootResolvesOnceAndReleasesItsToken",
@@ -1711,6 +1716,7 @@ EXPECTED.append({
         "admittedRootShowsTrainingFromOwnedDatabase",
         "preferencesAndDialogsSurviveGraphRecreation",
         "generationLifetimesAreIndependent",
+        "mountedRootHoldsAdmissionUntilDisposal",
     ]) + natives("io.github.stslex.workeeper.app.ios.IosInstallEpochSourceTest", [
         "publicSourceUsesExcludedInstallationDirectory",
         "independentCallersConvergeOnFirstUse",

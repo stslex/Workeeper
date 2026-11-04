@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
+import io.github.stslex.workeeper.app.common.runtime.UiAdmissionGate
 import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -94,7 +96,7 @@ internal class UiAdmissionGateTest {
         repeat(500) { iteration ->
             val id = iteration + 100
             val held = requireNotNull(gate.admit(id))
-            val racerToken = AtomicReference<UiAdmissionGate.Token?>(null)
+            val racerToken = AtomicReference<AppUiAdmissionToken?>(null)
             // Both sides wait on the SAME start signal so the window they race for is tight.
             val start = CountDownLatch(1)
             val racer = thread {
