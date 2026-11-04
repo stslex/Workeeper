@@ -1718,6 +1718,13 @@ EXPECTED.append({
         "invalidStorageIsPreserved",
         "orphanCandidateIsNeverAdopted",
         "foreignEpochClearsOnlyRestoreDialogs",
+    ]) + natives("io.github.stslex.workeeper.app.ios.IosResourceWrapperTest", [
+        "absoluteDatesUseLocaleZoneAndEpochMilliseconds",
+        "relativeTimeUsesSuppliedNowAndMinutePrecision",
+        "relativeDaysAndAbsoluteFallbackUseLocalCalendar",
+        "oneWrapperTracksSettingsAcrossCallers",
+        "androidResourceIdsFailExplicitly",
+        "admittedRootRendersPublishedDialogDates",
     ]),
 })
 

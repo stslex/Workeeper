@@ -144,3 +144,199 @@ Archive fresh XML and binaries before subsequent runs, with raw commands, timest
 **Edit boundary.** Apple host implementation, its tests/fixture, the two existing validators and focused documentation/evidence. Media/camera, restart and recovery coordination, Swift/Xcode packaging, actual backup/restore, Room, shared feature logic, Android/Wear production and build pins are separate work. Simulator rendering and device linking have separate receipts. Physical-device behavior and a signed iOS application remain later acceptance.
 
 Start implementation only after this specification lands on `dev` and Ilya gives GO. Stop on failed ownership, a reachable integer-ID method, a new shared API requirement, a changed schema/golden, unexpected identity drift, or an unexecuted mandatory gate. Report the exact failing input and command. Deliver one implementation PR with verified signed Conventional Commits, independent review on its exact head and the remaining manual gates. Ilya owns merge.
+
+## Implementation evidence
+
+Recorded on 2026-11-04 (Moscow) from accepted entry
+`10454130f4c10f644dce6ba8cf66cc78a2cb3e31`. PR #360 was merged into `dev`;
+its final reviewed head was `f0dae92ef9a268516aea9651074530081b6da46d`.
+The reviewed and entry spec blobs both equal `226678acbf4bd11b04718e03b41395235bacec9f`.
+
+The implementation worktree is `.claude/worktrees/kmp-7-20d-ios-date-formatting`.
+Raw receipts live in the separate ignored, main-checkout-relative archive
+`.claude/worktrees/phase720d-evidence-20261104/`. Each command receipt records its
+arguments, UTC times, elapsed time, real exit code, log and relevant environment.
+Input manifests and archived XML preserve source identities and raw Foundation output.
+The entry's relevant production, test and build sources match the Phase 7.20C
+implementation `f710fbc47` exactly; its archived inventories and release dependency
+reports supplied the entry comparison.
+
+Host: Apple silicon, macOS 27.0, Xcode 27.0 (27A266a), JVM 21.0.11,
+Kotlin/Native 2.4.10 and Gradle 9.6.1. Simulator runtime: iOS 26.5.
+The owned full-run simulator was `45887E5F-ED4D-451E-B026-2857915C79E9`.
+Long gates ran on AC; the maintainer explicitly authorized continuing with the lid closed.
+Measurements below describe debug/test builds.
+
+### Apple contract and P0
+
+`buildIosResourceWrapper()` reads the current Foundation locale/zone identifiers on
+each call and constructs call-local Gregorian calendars and formatters. A controlled
+internal settings supplier exercises one wrapper from Main and synchronized concurrent
+workers across EN/UTC and RU/Los Angeles. Integer lookups throw distinct
+`UnsupportedOperationException` diagnostics. The graph still requires the resource
+argument and borrows the caller's database and generation lifetime.
+
+The audit covered 827 tracked Apple/common production Kotlin files. Ten date calls in
+seven features were found; the two Android-ID methods had no reachable calls, aliases
+or callable references. The only production `DEPRECATION` suppression covers
+`SetRepositoryImpl.getLastFinishedSet`'s deprecated DAO call and has no resource lookup.
+No probe-error suppression was found in production sources or build flags.
+See `apple-production-call-sites.txt`, `apple-call-site-audit.md` and `entry-inputs.json`.
+
+The disposable interface probe compiled both real production closures. Both injected
+typed calls failed at their two distinct source sites on both targets with
+`Android ID probe`. Original interface bytes and mode were restored before recompiling;
+the clean probe worktree was removed. Compiler controls contribute zero Native cases.
+
+| Gate | Exact Gradle summary | Observation | Receipt |
+| --- | --- | --- | --- |
+| Annotated production closures | `346 actionable tasks: 346 executed` | Simulator and device compile | `p0-id-clean.json` |
+| Injected ID calls | `346 actionable tasks: 346 executed` | Exit 1; four intended site/target diagnostics | `p0-id-injected.json` |
+| Byte-restored closures | `346 actionable tasks: 346 executed` | Both targets compile | `p0-id-restored.json` |
+| Foundation P0 | `350 actionable tasks: 350 executed` | Five exact passing cases; no skips | `p0-foundation-main-workers.json` |
+| P0 device link | `349 actionable tasks: 349 executed` | IOS executable, deployment target 15.0 | `p0-device-link.json`, `p0-device-platform.json` |
+| Final focused contract/root | `350 actionable tasks: 350 executed` | All six cases pass on the new full-run simulator | `exit-focused-six.json` |
+| Final focused device link | `349 actionable tasks: 349 executed` | Includes the root/dialog case | `exit-focused-device.json` |
+| All 21 simulator tasks | `584 actionable tasks: 584 executed` | 975 passing cases; zero skips/failures/errors | `native-full.json`, `native-oracle.json` |
+| All 21 device links | `563 actionable tasks: 563 executed` | 21 fresh, nonempty IOS executables | `native-device-links.json`, `native-device-platforms.txt` |
+
+All Gradle rows use the four forced-execution flags from the verification block.
+The full identity comparison is exactly 969 retained plus six added, with 19 in `app:ios`.
+The other twenty oracle dictionaries and the original thirteen host identities are unchanged.
+Both distinctly owned synthetic dialogs render their independently expected medium-date
+bodies through the admitted root, exclude the other and former fixed date, and disappear
+before the next publication. Teardown disposes UI/owners, joins lifetimes and closes the database.
+
+The first development concurrency harness explicitly queued Main work while the Native
+runner occupied that thread. Its sampled stack and terminated receipt are retained in
+`p0-foundation-process.sample.txt` and `p0-foundation-execution.json`; that attempt is invalid
+as passing evidence. Direct Main-thread assertions plus synchronized Default workers passed
+on rerun. Initial category-import compile diagnostics are also retained and count as no tests.
+
+### Independent controls and relaunch
+
+| Mutation | Executed RED | Restored GREEN | Archive |
+| --- | --- | --- | --- |
+| Force UTC only for day/month | Los Angeles expects July 21 and receives July 22 | Exact bytes/mode restored; the absolute case passes | `control-utc/`, `control-utc-green-before.*`, `control-utc-green-restored.*` |
+| Fix the medium date only at graph injection | Rendered body assertion fails; the standalone absolute case still passes in the same invocation | Exact fixture bytes/mode restored; both cases pass | `control-fixture/`, `control-fixture-green-before.*`, `control-fixture-green-restored.*` |
+
+Every before, mutated and restored Gradle invocation reports
+`350 actionable tasks: 350 executed`. The harness requires the intended compiled assertion
+failure; each stage has separate raw logs, XML and executable archives.
+Filtered controls contribute no additional full-suite cases.
+
+The ordered relaunch helper ran before the Native oracle. Two sequential exited processes
+passed the exact public installation-source case on the same owned simulator with nonce
+`f1a91f64-e206-47b1-9ec9-6188e092ab1c`; their canonical path and file digest match.
+These two executions remain separate from the 975 full-suite cases.
+See `native-epoch-relaunch.json` and `native-relaunch-receipts/`.
+
+The validator's copied complete fresh fixture passes. Removing each of the six new methods
+individually fails, backdating the new XML fails, and exact restoration passes.
+The fixture rebinds only its copied executable invocation path; original execution receipts
+remain intact. These fixture checks add zero Native execution cases.
+See `validator-controls.json` and `validator-registration-comparison.json`.
+
+### Initial stop-gate state
+
+The initial mandatory Android build/Lint/host command exited 1 during application-plugin
+configuration with `ci-smoke.jks is inValid`, reporting
+`4 actionable tasks: 4 executed`. No load-bearing Android target ran.
+See `setup-failure-20261104T053859Z-98907e/android-build-host.json` and its log.
+
+The task-created synthetic signing key had been moved into the ignored evidence directory,
+and its ignored local `keystore.properties` used an absolute `storeFile`. The existing
+`Project.getFile` constructs `File(rootProject.projectDir, path)`, which joins that value
+beneath the root. The real key exists; the incorrectly joined path does not.
+A read-only JVM reproduction proves that the relative value
+`../phase720d-evidence-20261104/build-fixtures/ci-smoke.jks` resolves to the existing fixture.
+See `signing-fixture-resolution.log`. At this initial checkpoint the local correction had
+not yet been applied; the build helper was unchanged.
+
+At this initial checkpoint, work stopped under the failed/unexecuted mandatory-gate rule.
+Android build/Lint/host,
+device-test compilation, Paparazzi/lint-rules, separate full Detekt, Smoke, Regression,
+exit source gates and both exit release-runtime comparisons remained unexecuted.
+No implementation commit, push, PR, independent final-head review or final-head CI existed.
+The six-file implementation diff and complete Native receipts are retained for resumption.
+All seven schemas and 456 golden PNGs still match entry byte-for-byte.
+Both owned iOS simulators were removed after their test processes exited; the task-owned
+Android emulator was stopped and its AVD retained.
+
+Simulator execution and IOS device linking are the completed platform evidence.
+Physical-device behavior and an installed signed iOS application remain separate acceptance.
+
+
+### Resumed Android and source verification
+
+The maintainer authorized the local fixture correction and resumed the retained worktree.
+Only the existing `storeFile` entry in the ignored, task-owned `keystore.properties`
+changed to the relative path demonstrated above. Other properties and permissions were
+preserved; the synthetic key and all local signing configuration remain outside Git.
+The Gradle helper and build pins are unchanged.
+
+The first configured host run exited 1 after `3149 actionable tasks: 3149 executed`.
+Its exact entry set contained 3,398 host cases: 3,380 passed and 18 failed, all in
+`TrainingRepositoryImplDbTest`. Every failure was Robolectric temporary-directory
+creation raising `java.nio.file.FileSystemException: No space left on device`.
+The exercise task emitted 222 cases. The complete failure remains in
+`android-failure-enospc-20261104T055423Z-a2b3f5/`; the original configuration failure
+remains in `setup-failure-20261104T053859Z-98907e/`. Both archive mappings preserve
+relative paths, hashes, modes and timestamps.
+
+After a read-only audit and maintainer-managed space reclamation, all six implementation
+hashes, each 2,361-file Native input manifest, 19 critical artifacts, 42 executable hashes,
+Native XML, relaunch receipts, mutation controls and freshness markers matched again.
+The completed Native evidence above therefore carries forward unchanged. No iOS
+simulator was recreated. See `post-cleanup-checkpoint-verification.json` and
+`pre-browser-resume-checkpoint-verification.json`.
+
+The full Android retry used the original receipt runner and unchanged parallelism.
+Available capacity for worker temp, build and evidence was sampled every five seconds
+on their shared APFS container, starting before Gradle and ending after its real exit.
+It started at 74.64 GiB, reached a sampled minimum of 61.76 GiB and ended at 71.18 GiB;
+the explicit 8 GiB reserve was not breached. These are sampled debug/test-run readings.
+All former 18 failures are individually recorded as passing in
+`android-host-retry-acceptance.json`.
+
+| Gate | Exact Gradle summary | Fresh result | Receipt |
+| --- | --- | --- | --- |
+| Android build, Lint and host tests | `3149 actionable tasks: 3149 executed` | 3,398 cases, zero skips/failures/errors; exact entry identities | `android-build-host.json` |
+| Instrumented-test compilation | `2210 actionable tasks: 2210 executed` | Repository-wide compilation passes | `android-device-compile.json` |
+| Paparazzi and custom rule tests | `638 actionable tasks: 638 executed` | 1,938 cases, zero skips/failures/errors; exact entry identities | `paparazzi-lint-rules.json` |
+| Separate Detekt | `64 actionable tasks: 64 executed` | Pass; suppressions and baselines unchanged | `detekt-full.json` |
+| Connected Smoke | `2171 actionable tasks: 2171 executed` | 44 cases: 41 passed, three known skips; zero failures/errors | `smoke.json` |
+| Connected Regression | `2171 actionable tasks: 2171 executed` | 90 cases, zero skips/failures/errors; exact entry identities | `regression.json` |
+| Dev release runtime | `5 actionable tasks: 5 executed` | Resolved tree identical to entry | `runtime-dev.json` |
+| Store release runtime | `5 actionable tasks: 5 executed` | Resolved tree identical to entry | `runtime-store.json` |
+
+All rows use the four forced-execution flags from the verification block. Connected
+runs used the sole verified `emulator-5554`, owned `Workeeper_phase720d_API34`, API 34,
+arm64-v8a, after completed boot. The AVD was stopped afterward and its contents retained.
+Smoke's only skips are `pendingFeatureRewrite` in `AllExercisesScreenTest`,
+`AllTrainingsScreenTest` and `ArchiveScreenTest`. Fresh Smoke XML and identities were
+archived before Regression in `smoke-xml.tar` and
+`smoke-canonical-xml-archive.json`. Both MVI identity oracles exit 0.
+
+Both source-topology scripts and the privacy gate exit 0. The first rendered mockup
+attempt exited 1 because no browser was on PATH, leaving checks 7/8 unmeasured.
+Its full artifact set remains in
+`source-failure-mockup-browser-20261104T121341Z-d3f5b7/`, with verified archive mapping.
+The maintainer then authorized a temporary `chromium` wrapper outside Git, forwarding
+all arguments to the installed Google Chrome 155.0.8059.86. Only the mockup commands
+received its PATH prefix; no package, global PATH or gate source changed.
+
+The CI negative control `--target f52462c7` exits 1 with check 7 failing on measured
+`width=0px→0px`. The retained-worktree gate with `--base 10454130f4c10f644dce6ba8cf66cc78a2cb3e31 -v`
+exits 0: 11 passed, zero failed. Check 7 measures `width=129px→129px`, and check 8
+measures radius `18px→28px`, stable fill and the glyph change. See
+`mockup-ci-negative.json`, `source-mockup.json`, `mockup-browser-controls.json` and
+`mockup-chromium-resolution.json`.
+
+Final comparison confirms all seven Room schema hashes and 456 golden hashes unchanged.
+Both release-runtime sections are identical to their measured entry trees: 2,277 lines,
+SHA-256 `a5599c742c8c786951de31b9819fb682cd5a4f7cf981c5ccb1d6883601546c72`.
+Other entry production/test/build inputs are unchanged apart from the admitted fixture
+replacement. See `final-input-comparison.json`. Final-head independent review and CI
+are reported at handoff. Physical iOS hardware behavior and an installed signed iOS
+application remain separate acceptance; Ilya owns merge.
