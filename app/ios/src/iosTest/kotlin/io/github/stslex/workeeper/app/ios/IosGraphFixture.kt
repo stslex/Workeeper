@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.platform.AppReinitializationHost
 import io.github.stslex.workeeper.core.core.platform.CameraPermission
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
 import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpochSource
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
@@ -70,7 +69,7 @@ internal class IosGraphFixture {
             cameraPermission = object : CameraPermission {
                 override fun isGranted() = false
             },
-            resources = TestResources,
+            resources = buildIosResourceWrapper(),
             installEpochSource = installEpochSource,
             reinitializationHost = restartHost,
         ) as IosAppGraph
@@ -123,14 +122,4 @@ private object UnusedImages : ImageStorage {
     override suspend fun deleteImage(path: String): Nothing = error("Unused image deletion")
     override suspend fun lastModified(path: String): Nothing = error("Unused image metadata")
     override suspend fun cleanupTempFiles(): Nothing = error("Unused image cleanup")
-}
-
-private object TestResources : ResourceWrapper {
-    override fun getString(id: Int, vararg args: Any): Nothing = error("Unexpected Android resource")
-    override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): Nothing = error(
-        "Unexpected Android plural",
-    )
-    override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long) = "just now"
-    override fun formatMediumDate(timestamp: Long) = "Nov 2, 2026"
-    override fun formatDayMonth(timestamp: Long) = "Nov 2"
 }
