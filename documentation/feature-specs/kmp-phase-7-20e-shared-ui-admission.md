@@ -174,3 +174,11 @@ with three expected skips, and Regression passes 90. Both original behavioral
 mutants and the complete, missing-identity and stale-XML validator controls were
 executed again. The seven schemas, 456 goldens, baselines and both resolved
 release classpaths match entry.
+
+Owner cleanup dispatches directly to the UI thread. A probe with a throwing idle
+wait reproduced the skipped owner callback and verified the direct dispatch.
+The Apple mutation control passed again on the same owned simulator. A fresh
+Native exit retained 979 identities and 21 IOS links with the same executed
+summaries. The combined Android gate was repeated because Lint also compiles the
+Apple test source. Its 3,401 host cases and executed summary match the earlier
+exit. Detekt and both topology scripts pass on the final test source.

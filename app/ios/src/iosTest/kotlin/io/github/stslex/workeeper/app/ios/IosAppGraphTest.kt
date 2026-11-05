@@ -335,7 +335,7 @@ class IosAppGraphTest {
             }
         } finally {
             try {
-                runOnIdle { owner.clear() }
+                runOnUiThread { owner.clear() }
             } finally {
                 withContext(NonCancellable) { fixture.close() }
             }
