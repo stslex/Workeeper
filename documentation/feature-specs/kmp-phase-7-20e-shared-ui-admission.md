@@ -151,3 +151,26 @@ archived separately. Explicitly booting the same simulator restored the exact fo
 case without source changes; the subsequent full run used a newly owned simulator.
 Simulator execution and IOS target linking are the platform evidence here.
 Physical iOS acceptance and a signed installed application remain separate scope.
+
+### Review follow-up
+
+Retirement now preserves its committed result when the deadline fires before the
+timed block returns. The cancellation case records the result inside the child.
+The mounted-root case checks its final grant count after owner and fixture cleanup.
+
+A deterministic JVM probe using Kotlin 2.4.10 and coroutines 1.11.0 fires the
+deadline after the retirement CAS. The call returns true and the next admission
+refuses. The cancellation case rejects a scratch mutant that returns false after
+caller cancellation. The fixture mutant fails its original grant-count assertion.
+The restored case opens a fixture and passes on the same owned simulator.
+
+The forced follow-up runs match every identity and status from the implementation
+exit. Native passes 979 cases with `584 actionable tasks: 584 executed`, followed
+by the two-process epoch proof and identity oracle. Device linking reports
+`563 actionable tasks: 563 executed` and 21 fresh IOS executables. Android
+build, Lint and host report `3149 actionable tasks: 3149 executed` and 3,401
+passing cases. Paparazzi and lint-rules retain 1,938 cases. Smoke retains 44 cases
+with three expected skips, and Regression passes 90. Both original behavioral
+mutants and the complete, missing-identity and stale-XML validator controls were
+executed again. The seven schemas, 456 goldens, baselines and both resolved
+release classpaths match entry.

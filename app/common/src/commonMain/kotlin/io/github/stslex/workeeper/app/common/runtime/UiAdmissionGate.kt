@@ -58,10 +58,11 @@ class UiAdmissionGate(private val logger: Logger) {
         }
     }
 
-    /** Waits for zero admissions and atomically retires the id; timeout leaves it admittable. */
-    suspend fun awaitRetired(id: Int, timeoutMillis: Long): Boolean =
+    /** Waits for zero admissions and atomically retires the id. */
+    suspend fun awaitRetired(id: Int, timeoutMillis: Long): Boolean {
+        // The deadline can fire after the CAS but before the timed block returns.
+        var retired = false
         withTimeoutOrNull(timeoutMillis) {
-            var retired = false
             while (!retired) {
                 state.first { s -> s.live[id].isNullOrEmpty() || id in s.retired }
                 val after = state.updateAndGet { s ->
@@ -73,7 +74,9 @@ class UiAdmissionGate(private val logger: Logger) {
                 }
                 retired = id in after.retired
             }
-        } != null
+        }
+        return retired
+    }
 
     /** Reopens admission for an aborted transition's outgoing id. */
     fun reopen(id: Int) {

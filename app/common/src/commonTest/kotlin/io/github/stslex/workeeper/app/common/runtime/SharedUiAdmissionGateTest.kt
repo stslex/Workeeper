@@ -10,11 +10,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -53,13 +53,14 @@ class SharedUiAdmissionGateTest {
         val gate = UiAdmissionGate(Log.tag("SharedUiAdmissionGateTest"))
         val first = assertNotNull(gate.admit(1))
         val last = assertNotNull(gate.admit(1))
-        val waiter = async(start = CoroutineStart.UNDISPATCHED) {
-            gate.awaitRetired(1, timeoutMillis = 10_000)
+        val observed = CompletableDeferred<Result<Boolean>>()
+        val waiter = launch(start = CoroutineStart.UNDISPATCHED) {
+            observed.complete(runCatching { gate.awaitRetired(1, timeoutMillis = 10_000) })
         }
         assertFalse(waiter.isCompleted)
         waiter.cancel()
-        assertFailsWith<CancellationException> { waiter.await() }
         waiter.join()
+        assertTrue(observed.await().exceptionOrNull() is CancellationException)
         assertEquals(2, gate.admittedCount(1))
         val afterCancel = assertNotNull(gate.admit(1))
         gate.release(afterCancel)
