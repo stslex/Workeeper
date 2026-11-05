@@ -59,10 +59,10 @@ manual dispatch, or inside the production deploy — never on a PR.
    `gradle.properties` and `.github/properties/gradle-convention-ci.properties` to
    `build-logic/gradle.properties`. These override local memory settings for CI.
 7. **Restore the Kotlin/Native toolchain** (`~/.konan`, ~1 GB) with `actions/cache/restore@v4`.
-   A script step computes the key `konan-<RUNNER_OS>-kotlin-<kotlin>-<targets>` from the catalog's
-   `kotlin = "<v>"` line and the native `kmpExtension.<target>()` calls in
-   `KmpLibraryConventionPlugin.configureTargets()` (sorted, joined with `-`), and fails when either
-   is empty. The restore falls back to the newest entry with the same Kotlin version. The key names
+   Both jobs compute `konan-<RUNNER_OS>-kotlin-<kotlin>-<targets>` from the version catalog and
+   `gradle/kmp-native-targets.txt`. The convention configures targets from the same list.
+   `verifyKmpNativeTargets` compares the list with the evaluated targets after cache restore.
+   The restore falls back to the newest entry with the same Kotlin version. The key names
    the target set because Kotlin/Native writes per-target content into `~/.konan` (the commonized
    platform libraries and, on macOS, per-dependency compiler caches) and an exact hit is never
    saved again; it does not hash the whole catalog, which holds `versionCode` and would re-key the
@@ -77,13 +77,18 @@ manual dispatch, or inside the production deploy — never on a PR.
 ```bash
 bash .github/scripts/run_with_resource_samples.sh ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
-python3 .github/scripts/assert_mvi_source_topology.py
 python3 .github/scripts/assert_kmp_ui_source_topology.py
+python3 -m unittest discover -s .github/scripts -p 'test_kmp_native_*.py'
+./gradlew -p build-logic :convention:check --rerun-tasks --no-build-cache --no-configuration-cache
+./gradlew :verifyKmpMigrationContracts verifyKmpNativeTargets --rerun-tasks --no-build-cache --no-configuration-cache
 ./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
-./gradlew :lint-rules:test --full-stacktrace       # the custom detekt rules, before detekt consumes them
-./gradlew detekt --full-stacktrace
+./gradlew :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache
+python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
+./gradlew detekt --rerun-tasks --no-build-cache --no-configuration-cache
 python3 documentation/personal_data_gate.py -v     # no real names/emails in tracked files
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+mkdir -p build/kmp-verification
+touch build/kmp-verification/mvi-host-test-start
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 python3 .github/scripts/assert_mvi_host_identities.py
 ./gradlew --stop; pkill -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon'   # frees the build daemons' memory (F01)
@@ -359,7 +364,11 @@ property of the workflow.
 ## KMP iOS kit smoke job
 
 The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
-required context for the Phase-7 native tests. One forced Gradle invocation executes the
+required context for the Phase-7 Native tests. After cache restore, Gradle exports the
+configured task paths, XML locations and binary locations for the independently required
+module roster. The simulator and device steps validate that export before constructing their
+task arrays. See the [ownership map](feature-specs/kmp-verification-ownership.md).
+One forced Gradle invocation executes the
 `iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene and the
 `StringResolver` catalog reads),
 `:core:ui:navigation` (all 12 routes through the production serialization registry),
@@ -401,7 +410,8 @@ an ephemeral throwaway JKS with `keytool` (the repository configuration reads si
 at configuration time; no production secret is used).
 
 After Gradle, `.github/scripts/assert_kmp_ios_smoke.py` parses each module's JUnit XML
-structurally. Per module it requires: the result directory exists with at least one parseable
+structurally. Every report must be as recent as the run's start marker. Per module it requires
+that the result directory exists with at least one parseable
 `TEST-*.xml` and at least one `<testsuite>`; the declared aggregate `tests` equals the number of
 parsed `<testcase>` elements and is at least one; aggregate `skipped` / `failures` / `errors` are
 zero and no case carries a `<failure>`, `<error>` or `<skipped>` child; and the expected
@@ -469,15 +479,10 @@ portable tuples and
 exactly once, for exactly 44 target tuples. All twenty-one result directories upload under
 `if: always()` regardless.
 
-The same twenty-one modules' iosArm64 (device) test binaries are then linked in one forced
-invocation
-(`:<module>:linkDebugTestIosArm64`, the simulator command's order and flags) under the same
-started-not-skipped condition. A shell assertion bound to that step's id (`device_link`) requires
-each module's `build/bin/iosArm64/debugTest/test.kexe`, prints `N/21 linked`, and fails naming every
-module without a binary. Device tests are compiled and linked, never run: CI has no device. The
-Linux `Build with Gradle` step compiles every KMP module's iosArm64 klib through the
-`assembleDebug → assemble` alias; Kotlin/Native cannot link Apple binaries on Linux, so linking
-happens only here.
+The device-link invocation uses the same 21 modules in the same order. The binary oracle checks
+every evaluated device output for a nonempty executable newer than the link start marker and
+an `IOS` platform from `xcrun vtool`. The Linux build still compiles KMP klibs. The macOS job
+executes simulator suites and links device binaries.
 
 Both jobs' `~/.konan` caches use the computed key from [setup step 7](#setup-steps); with iosArm64
 declared it is `konan-<os>-kotlin-<kotlin>-iosArm64-iosSimulatorArm64`. The target token matters
@@ -497,41 +502,15 @@ device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59�
 an upper estimate since those runs also had a cold Gradle home. That attempt's whole job, link
 included, took 55.2 min; warm with the link it took 10m35s (attempt 2).
 
-Settings extends this same stable job to eighteen modules. It runs
-`:feature:settings:iosSimulatorArm64Test`, requires all 31 literal Settings identities, links
-`:feature:settings:linkDebugTestIosArm64`, includes its `test.kexe` in the 18-module binary check,
-and uploads Settings XML with its execution-start marker. Settings freshness failures still
-report every module through the existing identity parser. The previous seventeen expectation
-rows remain unchanged. This configuration describes CI ownership; actual run outcomes are
-recorded in [Phase 7.18](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger).
-
-The application root extends the same job to nineteen modules. It runs
-`:app:common:iosSimulatorArm64Test`, requires 11 literal root identities (three common,
-seven specified iOS cases and the additional abandoned-composition case), and links
-`:app:common:linkDebugTestIosArm64`. The binary check includes `app/common`; artifacts include
-root XML and `app/common/build/native-test-start`. The root and Settings markers independently
-reject stale XML. The previous 18 expectation rows and task pairs remain intact. Executed
-outcomes and limitations are recorded in
-[Phase 7.19B](feature-specs/kmp-phase-7-19b-shared-app-common.md#implementation-evidence).
-
-The database factory extends this same stable job to twenty modules. It runs
-`:core:data:database:iosSimulatorArm64Test`, requires all eight literal database identities and
-fresh XML relative to `core/data/database/build/native-test-start`, and links
-`:core:data:database:linkDebugTestIosArm64`. The job provisions an exclusive test-only simulator,
-passes its UUID through `WORKEEPER_DATABASE_TEST_SIMULATOR`, and removes only that simulator at
-cleanup. The nineteen previous expectation rows and the Settings/root freshness markers remain.
-The binary check includes the database executable and requires every listed `test.kexe` file to be
-nonempty and newer than `core/data/database/build/device-link-start`. Artifacts include database
-XML, both database markers and the synthetic pre-open fixture files with their schema/blob inputs.
-See [Phase 7.20A](feature-specs/kmp-phase-7-20a-ios-room-database.md#verification-and-stop-gates).
-
-The Apple Metro graph adds `:app:ios` as the twenty-first simulator/link module. Its seven exact
-identities and `app/ios/build/native-test-start` marker extend the existing Native oracle without
-changing the twenty previous expectation rows. The graph and database suites share the owned
-simulator; the graph test task uses `mustRunAfter` ordering after the database test task when both
-are selected. The artifact includes the graph XML, start marker and device executable. All
-twenty-one device binaries must be fresh and nonempty. See
-[Phase 7.20B](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#ci-evidence-and-stop-conditions).
+The shared Native marker covers Settings, the application root, the database and the Apple Metro
+graph along with the other 17 modules. The job owns one test-only simulator and passes its UUID
+through `WORKEEPER_DATABASE_TEST_SIMULATOR`. When both are selected, the graph suite runs after
+the database suite. Artifact uploads include the evaluated result paths and the database's
+synthetic pre-open fixtures. The phase evidence records the original additions and controls.
+[Settings](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger) ·
+[Application root](feature-specs/kmp-phase-7-19b-shared-app-common.md#implementation-evidence) ·
+[Database](feature-specs/kmp-phase-7-20a-ios-room-database.md#verification-and-stop-gates) ·
+[Apple graph](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#ci-evidence-and-stop-conditions)
 
 The installation-epoch proof adds six identities in `app:ios`. After the complete simulator suite,
 the job launches its public-path case in two separate Native processes on the same owned simulator.

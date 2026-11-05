@@ -13,6 +13,7 @@ EXPECTED = [
     {
         "module": "core:ui:mvi (androidDeviceTest)",
         "results_dir": "core/ui/mvi/build/outputs/androidTest-results/connected/androidMain",
+        "freshness_marker": "build/kmp-verification/mvi-device-test-start",
         "identities": [
             {
                 "classname": f"{MVI_PACKAGE}.AppFeatureScopeTest",

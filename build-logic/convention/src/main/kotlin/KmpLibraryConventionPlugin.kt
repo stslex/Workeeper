@@ -14,8 +14,11 @@ import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 
 /**
  * Kotlin Multiplatform library convention: targets, CI task aliases, JUnit 5, detekt sources
@@ -41,6 +44,44 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureHostTests()
             registerCiAliases()
             configureDetektSources(kmpExtension)
+            if (path == ":core:ui:mvi") {
+                configureMviDetektScope(kmpExtension)
+            }
+            registerSourceOwnership(kmpExtension)
+            registerKmpDependencyEdges()
+            registerVerificationExport()
+            if (path == ":app:common") {
+                rootProject.pluginManager.apply(KmpVerificationConventionPlugin::class.java)
+            }
+        }
+    }
+
+    private fun Project.registerVerificationExport() {
+        val module = path
+        if (module.removePrefix(":") !in readKmpManifest(KMP_NATIVE_IDENTITIES) ||
+            providers.systemProperty("os.name").get() != "Mac OS X"
+        ) return
+        val root = rootProject.layout.projectDirectory.asFile
+        tasks.register("exportKmpProjectVerificationModel", ExportKmpProjectVerificationModel::class.java) {
+            group = "verification"
+            dependsOn("verifyKmpNativeTargets")
+            val simulator = tasks.named("iosSimulatorArm64Test", KotlinNativeSimulatorTest::class.java).get()
+            val link = tasks.named("linkDebugTestIosArm64", KotlinNativeLink::class.java).get()
+            check(simulator.enabled && simulator.reports.junitXml.required.get() && link.enabled) {
+                "$module: simulator test, JUnit results and device-link coverage must be enabled"
+            }
+            check(simulator.targetName == "iosSimulatorArm64" && link.processTests &&
+                link.binary.target.name == "iosArm64"
+            ) {
+                "$module: expected a simulator execution and an IOS device test link"
+            }
+            modulePath.set(module)
+            simulatorTask.set(simulator.path)
+            simulatorResults.set(simulator.reports.junitXml.outputLocation.get().asFile.relativeTo(root).invariantSeparatorsPath)
+            simulatorBinary.set(simulator.executable.relativeTo(root).invariantSeparatorsPath)
+            deviceLinkTask.set(link.path)
+            deviceBinary.set(link.outputFile.get().relativeTo(root).invariantSeparatorsPath)
+            output.set(layout.buildDirectory.file("kmp-verification/module.json"))
         }
     }
 
@@ -75,13 +116,26 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureLintOptions(lint)
         }
 
-        // GUARD: both jobs' Kotlin/Native cache key in android_build_unified.yml is parsed from
-        // the literal kmpExtension.<target>() calls in this function. A native target declared
-        // any other way (the lambda form kmpExtension.iosArm64 { }, a loop, a helper, a variable)
-        // is invisible to that parse, so the key would omit it and its ~/.konan content would
-        // never be saved.
-        kmpExtension.iosArm64()
-        kmpExtension.iosSimulatorArm64()
+        val requiredNativeTargets = providers.fileContents(
+            rootProject.layout.projectDirectory.file("gradle/kmp-native-targets.txt"),
+        ).asText.get().lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+        require(requiredNativeTargets.isNotEmpty() &&
+            requiredNativeTargets.size == requiredNativeTargets.toSet().size
+        ) {
+            "gradle/kmp-native-targets.txt must contain a nonempty, unique target list"
+        }
+        for (name in requiredNativeTargets) {
+            when (name) {
+                "iosArm64" -> kmpExtension.iosArm64()
+                "iosSimulatorArm64" -> kmpExtension.iosSimulatorArm64()
+                else -> error("Unsupported Native target $name in gradle/kmp-native-targets.txt")
+            }
+        }
+        tasks.register("verifyKmpNativeTargets", VerifyKmpNativeTargets::class.java) {
+            group = "verification"
+            requiredTargets.set(requiredNativeTargets)
+            configuredTargets.set(kmpExtension.targets.withType<KotlinNativeTarget>().names)
+        }
     }
 
     private fun Project.configureCompilerOptions() {
