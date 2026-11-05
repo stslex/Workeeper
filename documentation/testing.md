@@ -1051,8 +1051,9 @@ executed.
 launch-failure recording contracts; `androidHostTest` for the clean JVM ABI, the real Android
 Firebase-provider seam and the Store-tag wiring of a launch failure;
 `iosTest` for the production Compose processor scene; and `androidDeviceTest` for the two
-`@Smoke` lifetime/retention cases. The legacy `src/test` and `src/androidTest` directories must
-remain empty.
+`@Smoke` lifetime and retention cases. The Gradle model checks tracked source membership and
+the Android aliases. `MviSharedPlatformRule` checks the platform import and retired lifetime
+boundaries in the production Detekt invocation. See the [verification ownership map](feature-specs/kmp-verification-ownership.md).
 
 The identity gates parse JUnit XML structurally rather than accepting a Gradle exit code or module
 total. They require twenty exact Android-host identities, fourteen exact MVI Native identities,
@@ -1708,10 +1709,9 @@ The 12 golden PNGs move byte-identically to `androidHostTest`; two Settings Smok
 four app extension identity meanings remain. The app's 12 generation/dialog device identities
 are verified separately from these host and Native inventories.
 
-The Native oracle registers literal identities before XML is observed. Settings results must be
-newer than `feature/settings/build/native-test-start`; the existing job removes Settings results
-and creates that marker before execution, then uploads both. Local full Native runs must do the
-same preparation. Missing, stale, empty, skipped-only, duplicate or incomplete XML is a failure.
+The [Native identity manifest](../gradle/kmp-native-identities.json) records required cases before
+execution. The oracle rejects missing, stale, empty, skipped, duplicate or incomplete XML using
+the shared run marker and each module's evaluated result directory.
 Linking `iosArm64` tests is binary evidence, never device test execution. See
 [Phase 7.18 evidence](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger)
 for executed gates, controls, review and remaining limits.
@@ -1727,10 +1727,9 @@ on unexpected construction. They cover admission, resolver count, token disposal
 same-ID restoration, outgoing-slot removal, successor reset, actual saveable-state recreation,
 result-before-pop ordering, the latest recovery callback and the iOS reinitialization host.
 
-Root Native XML must be newer than `app/common/build/native-test-start`. The existing Native
-job removes these results and creates the marker, retaining Settings' separate freshness check.
-All 21 simulator tasks and device links use forced execution flags. This is simulator root
-recreation and device-target linking, not physical-device or production iOS-host acceptance.
+Root and Settings XML use the shared Native run marker. All 21 simulator tasks and device
+links use forced execution flags. This evidence covers simulator root recreation and device
+linking.
 
 ### iOS production database
 
@@ -1752,9 +1751,9 @@ binary. Pinned Room 3 `MigrationTestHelper` creates the historical files from th
 Before production Room opens them, raw SQLite checks version, schema identity and the seeded row.
 Copies remain under `core/data/database/build/native-fixtures/`, with their JSON and source blob
 IDs. WAL-mode fixture copies can be inspected read-only with SQLite's `immutable=1` URI option.
-The Native oracle requires database XML newer than its own `native-test-start`, while retaining
-the independent Settings/root markers and every previous identity expectation. Device-target
-binaries establish linking; physical-device and production Apple-host acceptance remain pending.
+The database XML and the other 20 module results must be fresh relative to the shared Native
+run marker. Device-target binaries establish linking. Physical-device and production Apple-host
+acceptance remain separate.
 
 ### Apple Metro graph
 
@@ -1765,8 +1764,7 @@ consumers, the shared navigator/restart host, admission, an active DAO sentinel 
 Home → Trainings, preference/dialog graph recreation, and independent generation lifetimes.
 The database comes from the public iOS factory off Main. Host service recordings stay in `iosTest`.
 
-The Native oracle requires fresh XML relative to `app/ios/build/native-test-start`. The graph suite
-uses the owned `WORKEEPER_DATABASE_TEST_SIMULATOR`, verifies its process UUID and sandbox before
+The Native oracle checks graph XML against the shared run marker. The graph suite uses the owned `WORKEEPER_DATABASE_TEST_SIMULATOR`, verifies its process UUID and sandbox before
 default-path writes, and must run after the database suite when both tasks are selected. DataStore
 keeps ownership of its live `Documents/datastore` files across same-process graph recreation.
 The caller disposes UI/owners, joins each lifetime, then closes its borrowed database. The separate
@@ -1784,68 +1782,31 @@ From the project root:
 ./gradlew testDebugUnitTest
 
 # Shared MVI Android-host tests plus exact JUnit identities
+mkdir -p build/kmp-verification
+touch build/kmp-verification/mvi-host-test-start
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
 python3 .github/scripts/assert_mvi_host_identities.py
 
-# Native Phase-7 tests of the 20 modules (macOS + Xcode), kept in one --continue invocation
-mkdir -p feature/settings/build
-rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
-touch feature/settings/build/native-test-start
-mkdir -p app/common/build
-rm -rf app/common/build/test-results/iosSimulatorArm64Test
-touch app/common/build/native-test-start
-mkdir -p core/data/database/build
-rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
-touch core/data/database/build/native-test-start
-# Set WORKEEPER_DATABASE_TEST_SIMULATOR to your newly provisioned, booted test-only UUID.
-./gradlew :core:ui:kit:iosSimulatorArm64Test \
-  :core:ui:navigation:iosSimulatorArm64Test \
-  :core:ui:mvi:iosSimulatorArm64Test \
-  :core:ui:start-mode:iosSimulatorArm64Test \
-  :core:ui:plan-editor:iosSimulatorArm64Test \
-  :feature:image-viewer:iosSimulatorArm64Test \
-  :feature:plan-editor:iosSimulatorArm64Test \
-  :feature:archive:iosSimulatorArm64Test \
-  :feature:all-trainings:iosSimulatorArm64Test \
-  :feature:all-exercises:iosSimulatorArm64Test \
-  :feature:past-session:iosSimulatorArm64Test \
-  :feature:home:iosSimulatorArm64Test \
-  :feature:exercise-chart:iosSimulatorArm64Test \
-  :feature:single-training:iosSimulatorArm64Test \
-  :feature:exercise:iosSimulatorArm64Test \
-  :feature:live-workout:iosSimulatorArm64Test \
-  :feature:app-dialogs:impl:iosSimulatorArm64Test \
-  :feature:settings:iosSimulatorArm64Test \
-  :app:common:iosSimulatorArm64Test \
-  :core:data:database:iosSimulatorArm64Test \
-  --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
+# Native tests for the 21 required modules on macOS
+G=(--rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain)
+./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel "${G[@]}"
+: "${WORKEEPER_DATABASE_TEST_SIMULATOR:?owned test simulator required}"
+export WORKEEPER_INSTALL_EPOCH_NONCE="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+export SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE="$WORKEEPER_INSTALL_EPOCH_NONCE"
+export SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH=full-suite
+bash .github/scripts/run_kmp_native.sh simulator
+epoch_binary="$(python3 .github/scripts/kmp_native_model.py epoch-binary)"
+python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
+  --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE" \
+  --binary "$epoch_binary" --marker build/kmp-verification/native-test-start
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
-# The same modules' iosArm64 (device) test binaries (macOS): compiled and linked, never run.
-# Each lands at <module>/build/bin/iosArm64/debugTest/test.kexe, which CI requires 20/20, fresh and nonempty.
-./gradlew :core:ui:kit:linkDebugTestIosArm64 \
-  :core:ui:navigation:linkDebugTestIosArm64 \
-  :core:ui:mvi:linkDebugTestIosArm64 \
-  :core:ui:start-mode:linkDebugTestIosArm64 \
-  :core:ui:plan-editor:linkDebugTestIosArm64 \
-  :feature:image-viewer:linkDebugTestIosArm64 \
-  :feature:plan-editor:linkDebugTestIosArm64 \
-  :feature:archive:linkDebugTestIosArm64 \
-  :feature:all-trainings:linkDebugTestIosArm64 \
-  :feature:all-exercises:linkDebugTestIosArm64 \
-  :feature:past-session:linkDebugTestIosArm64 \
-  :feature:home:linkDebugTestIosArm64 \
-  :feature:exercise-chart:linkDebugTestIosArm64 \
-  :feature:single-training:linkDebugTestIosArm64 \
-  :feature:exercise:linkDebugTestIosArm64 \
-  :feature:live-workout:linkDebugTestIosArm64 \
-  :feature:app-dialogs:impl:linkDebugTestIosArm64 \
-  :feature:settings:linkDebugTestIosArm64 \
-  :app:common:linkDebugTestIosArm64 \
-  :core:data:database:linkDebugTestIosArm64 \
-  --rerun-tasks --no-build-cache --no-configuration-cache --console=plain --continue
+# Link the same 21 modules for IOS devices and inspect the fresh executables.
+bash .github/scripts/run_kmp_native.sh device
+python3 .github/scripts/kmp_native_model.py check-device
 
 # Focused MVI device cases plus exact JUnit identities
+touch build/kmp-verification/mvi-device-test-start
 ./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
   -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
   --rerun-tasks --no-build-cache --no-configuration-cache

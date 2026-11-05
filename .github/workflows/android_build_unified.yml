@@ -122,42 +122,10 @@ jobs:
       # and the prefix restore still hands that run the same Kotlin version's compiler. Only
       # master and dev pushes save (this job's last step): a PR's entry is visible to that PR
       # alone, and on a full cache it evicts the entries every PR restores. The macOS job runs
-      # the same script; keep the two copies identical.
+      # the same script.
       - name: Compute the Kotlin/Native cache key
         id: konan_key
-        run: |
-          set -euo pipefail
-          export LC_ALL=C
-          catalog=gradle/libs.versions.toml
-          convention=build-logic/convention/src/main/kotlin/KmpLibraryConventionPlugin.kt
-          kotlin_lines="$(grep -E '^kotlin = "[^"]+"$' "$catalog" || true)"
-          kotlin_count="$(printf '%s' "$kotlin_lines" | grep -c . || true)"
-          if [ "$kotlin_count" -ne 1 ]; then
-            echo "::error::kotlin is empty or ambiguous: expected exactly one 'kotlin = \"<v>\"' line in $catalog, found $kotlin_count"
-            exit 1
-          fi
-          kotlin="$(printf '%s\n' "$kotlin_lines" | sed -E 's/^kotlin = "([^"]+)"$/\1/')"
-          targets="$(awk '
-            /fun Project\.configureTargets\(/ { inside = 1 }
-            inside {
-              gsub(/"([^"\\]|\\.)*"/, "\"\"")
-              sub(/\/\/.*/, "")
-              print
-              depth += gsub(/\{/, "{") - gsub(/\}/, "}")
-              if (depth > 0) opened = 1
-              if (opened && depth == 0) exit
-            }' "$convention" \
-            | grep -oE 'kmpExtension\.(ios|macos|tvos|watchos|linux|mingw|androidNative)[A-Z][A-Za-z0-9]*\(\)' \
-            | sed -E 's/^kmpExtension\.([A-Za-z0-9]+)\(\)$/\1/' \
-            | sort -u | tr '\n' '-' || true)"
-          targets="${targets%-}"
-          if [ -z "$targets" ]; then
-            echo "::error::targets is empty: no native kmpExtension.<target>() call in configureTargets() of $convention"
-            exit 1
-          fi
-          echo "key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}" >> "$GITHUB_OUTPUT"
-          echo "prefix=konan-${RUNNER_OS}-kotlin-${kotlin}-" >> "$GITHUB_OUTPUT"
-          echo "kotlin=${kotlin} targets=${targets} key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}"
+        run: python3 .github/scripts/kmp_native_cache_key.py
 
       - name: Restore Kotlin/Native toolchain
         id: konan
@@ -170,6 +138,17 @@ jobs:
 
       - name: Assert shared KMP UI source-set topology
         run: python3 .github/scripts/assert_kmp_ui_source_topology.py
+
+      - name: Run convention functional tests
+        run: |
+          ./gradlew -p build-logic :convention:check \
+            --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+
+      - name: Verify KMP source ownership and Native cache inputs
+        run: |
+          python3 -m unittest discover -s .github/scripts -p 'test_kmp_native_*.py'
+          ./gradlew :verifyKmpMigrationContracts verifyKmpNativeTargets \
+            --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 
       - name: Build with Gradle
         run: >
@@ -212,9 +191,6 @@ jobs:
       # outright here rather than argued for from cache keys.
       - name: Assemble Wear release variant
         run: ./gradlew :app:wear:assembleStoreRelease --rerun-tasks --no-build-cache --full-stacktrace
-
-      - name: Assert MVI source-set topology
-        run: python3 .github/scripts/assert_mvi_source_topology.py
 
       # The un-suppressible half of the Wear transport privacy gate. Detekt owns the fast half
       # (ForbiddenImport + WearDataLayerApiRule, both in the pre-commit hook), but detekt honours
@@ -271,10 +247,13 @@ jobs:
       # MVI/Metro/typography invariants was therefore unverified on every PR. Must run before
       # `detekt`, since detekt is what consumes the jar these tests cover.
       - name: Run custom detekt rule tests
-        run: ./gradlew :lint-rules:test --full-stacktrace
+        run: ./gradlew :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+
+      - name: Test JUnit evidence validation
+        run: python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
 
       - name: Run detekt
-        run: ./gradlew detekt --full-stacktrace
+        run: ./gradlew detekt --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 
       # A real email address and a real name shipped as fixture data and RENDERED INTO COMMITTED
       # PNGs, through the reviews that landed the settings rebuild. Individually obvious,
@@ -289,19 +268,16 @@ jobs:
 
       - name: Run forced MVI Android-host tests
         id: mvi_host_tests
-        continue-on-error: true
-        run: >
-          ./gradlew :core:ui:mvi:testAndroidHostTest
-          --rerun-tasks --no-build-cache --no-configuration-cache
-          --full-stacktrace --console=plain
+        run: |
+          mkdir -p build/kmp-verification
+          touch build/kmp-verification/mvi-host-test-start
+          ./gradlew :core:ui:mvi:testAndroidHostTest \
+            --rerun-tasks --no-build-cache --no-configuration-cache \
+            --full-stacktrace --console=plain
 
       - name: Assert exact MVI Android-host identities
         if: ${{ !cancelled() && steps.mvi_host_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_mvi_host_identities.py
-
-      - name: Propagate forced MVI Android-host Gradle failure
-        if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
-        run: exit 1
 
       # The build steps above leave the Gradle daemon (-Xmx8g) and two Kotlin daemons (-Xmx4g each,
       # one per compiler version: build-logic's and the project's) holding the heap they grew. In
@@ -643,39 +619,7 @@ jobs:
       # are rebuilt on every run until the Kotlin version or the target set changes.
       - name: Compute the Kotlin/Native cache key
         id: konan_key
-        run: |
-          set -euo pipefail
-          export LC_ALL=C
-          catalog=gradle/libs.versions.toml
-          convention=build-logic/convention/src/main/kotlin/KmpLibraryConventionPlugin.kt
-          kotlin_lines="$(grep -E '^kotlin = "[^"]+"$' "$catalog" || true)"
-          kotlin_count="$(printf '%s' "$kotlin_lines" | grep -c . || true)"
-          if [ "$kotlin_count" -ne 1 ]; then
-            echo "::error::kotlin is empty or ambiguous: expected exactly one 'kotlin = \"<v>\"' line in $catalog, found $kotlin_count"
-            exit 1
-          fi
-          kotlin="$(printf '%s\n' "$kotlin_lines" | sed -E 's/^kotlin = "([^"]+)"$/\1/')"
-          targets="$(awk '
-            /fun Project\.configureTargets\(/ { inside = 1 }
-            inside {
-              gsub(/"([^"\\]|\\.)*"/, "\"\"")
-              sub(/\/\/.*/, "")
-              print
-              depth += gsub(/\{/, "{") - gsub(/\}/, "}")
-              if (depth > 0) opened = 1
-              if (opened && depth == 0) exit
-            }' "$convention" \
-            | grep -oE 'kmpExtension\.(ios|macos|tvos|watchos|linux|mingw|androidNative)[A-Z][A-Za-z0-9]*\(\)' \
-            | sed -E 's/^kmpExtension\.([A-Za-z0-9]+)\(\)$/\1/' \
-            | sort -u | tr '\n' '-' || true)"
-          targets="${targets%-}"
-          if [ -z "$targets" ]; then
-            echo "::error::targets is empty: no native kmpExtension.<target>() call in configureTargets() of $convention"
-            exit 1
-          fi
-          echo "key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}" >> "$GITHUB_OUTPUT"
-          echo "prefix=konan-${RUNNER_OS}-kotlin-${kotlin}-" >> "$GITHUB_OUTPUT"
-          echo "kotlin=${kotlin} targets=${targets} key=konan-${RUNNER_OS}-kotlin-${kotlin}-${targets}"
+        run: python3 .github/scripts/kmp_native_cache_key.py
 
       - name: Restore Kotlin/Native toolchain
         id: konan
@@ -704,8 +648,18 @@ jobs:
             echo "keyPassword=ci-smoke-pass"
           } > keystore.properties
 
-      # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
-      # identity script needs both modules' XML to say which tuple broke.
+      - name: Export verified Native task and result paths
+        id: native_plan
+        run: |
+          ./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel verifyKmpNativeTargets \
+            --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+          results="$(python3 .github/scripts/kmp_native_model.py result-paths)"
+          binary="$(python3 .github/scripts/kmp_native_model.py epoch-binary)"
+          {
+            printf 'results<<EOF\n%s\nEOF\n' "$results"
+            printf 'epoch_binary=%s\n' "$binary"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Provision an owned database simulator
         shell: bash
         run: |
@@ -721,48 +675,9 @@ jobs:
           xcrun simctl boot "$device"
           xcrun simctl bootstatus "$device" -b
 
-      - name: Prepare fresh Settings, application-root and database native evidence
-        run: |
-          mkdir -p feature/settings/build
-          rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
-          touch feature/settings/build/native-test-start
-          mkdir -p app/common/build
-          rm -rf app/common/build/test-results/iosSimulatorArm64Test
-          touch app/common/build/native-test-start
-          mkdir -p core/data/database/build
-          rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
-          touch core/data/database/build/native-test-start
-          mkdir -p app/ios/build
-          rm -rf app/ios/build/test-results/iosSimulatorArm64Test
-          touch app/ios/build/native-test-start
-
       - name: Run native shared UI, feature and application root tests
         id: native_tests
-        run: >
-          ./gradlew
-          :core:ui:kit:iosSimulatorArm64Test
-          :core:ui:navigation:iosSimulatorArm64Test
-          :core:ui:mvi:iosSimulatorArm64Test
-          :core:ui:start-mode:iosSimulatorArm64Test
-          :core:ui:plan-editor:iosSimulatorArm64Test
-          :feature:image-viewer:iosSimulatorArm64Test
-          :feature:plan-editor:iosSimulatorArm64Test
-          :feature:archive:iosSimulatorArm64Test
-          :feature:all-trainings:iosSimulatorArm64Test
-          :feature:all-exercises:iosSimulatorArm64Test
-          :feature:past-session:iosSimulatorArm64Test
-          :feature:home:iosSimulatorArm64Test
-          :feature:exercise-chart:iosSimulatorArm64Test
-          :feature:single-training:iosSimulatorArm64Test
-          :feature:exercise:iosSimulatorArm64Test
-          :feature:live-workout:iosSimulatorArm64Test
-          :feature:app-dialogs:impl:iosSimulatorArm64Test
-          :feature:settings:iosSimulatorArm64Test
-          :app:common:iosSimulatorArm64Test
-          :core:data:database:iosSimulatorArm64Test
-          :app:ios:iosSimulatorArm64Test
-          --rerun-tasks --no-build-cache --no-configuration-cache
-          --no-parallel --continue --full-stacktrace --console=plain
+        run: bash .github/scripts/run_kmp_native.sh simulator
 
       # An exit code is not evidence: the checked-in script structurally parses each module's
       # JUnit XML and independently requires one exact (classname, name) tuple per module —
@@ -782,10 +697,14 @@ jobs:
       - name: Prove the installation epoch survives two Native processes
         id: epoch_relaunch
         if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
+        env:
+          EPOCH_BINARY: ${{ steps.native_plan.outputs.epoch_binary }}
         run: |
           python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
             --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" \
-            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE"
+            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE" \
+            --binary "$EPOCH_BINARY" \
+            --marker build/kmp-verification/native-test-start
 
       - name: Assert exact native test identities
         id: native_identities
@@ -798,75 +717,22 @@ jobs:
         with:
           name: kmp-ios-kit-smoke-failure-results
           path: |
-            **/build/test-results/iosSimulatorArm64Test/*.xml
-            **/build/native-test-start
+            ${{ steps.native_plan.outputs.results }}
+            build/kmp-verification/model.json
+            build/kmp-verification/native-test-start
             app/ios/build/install-epoch-relaunch/
           retention-days: 30
 
       # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
       # forced like the simulator step, compiled and linked but never run (no device here).
-      - name: Mark fresh device links
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
-        run: touch core/data/database/build/device-link-start
-
       - name: Link the iOS device test binaries
         id: device_link
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
-        run: >
-          ./gradlew
-          :core:ui:kit:linkDebugTestIosArm64
-          :core:ui:navigation:linkDebugTestIosArm64
-          :core:ui:mvi:linkDebugTestIosArm64
-          :core:ui:start-mode:linkDebugTestIosArm64
-          :core:ui:plan-editor:linkDebugTestIosArm64
-          :feature:image-viewer:linkDebugTestIosArm64
-          :feature:plan-editor:linkDebugTestIosArm64
-          :feature:archive:linkDebugTestIosArm64
-          :feature:all-trainings:linkDebugTestIosArm64
-          :feature:all-exercises:linkDebugTestIosArm64
-          :feature:past-session:linkDebugTestIosArm64
-          :feature:home:linkDebugTestIosArm64
-          :feature:exercise-chart:linkDebugTestIosArm64
-          :feature:single-training:linkDebugTestIosArm64
-          :feature:exercise:linkDebugTestIosArm64
-          :feature:live-workout:linkDebugTestIosArm64
-          :feature:app-dialogs:impl:linkDebugTestIosArm64
-          :feature:settings:linkDebugTestIosArm64
-          :app:common:linkDebugTestIosArm64
-          :core:data:database:linkDebugTestIosArm64
-          :app:ios:linkDebugTestIosArm64
-          --rerun-tasks --no-build-cache --no-configuration-cache
-          --continue --full-stacktrace --console=plain
+        run: bash .github/scripts/run_kmp_native.sh device
 
-      # An exit code is not evidence: each module's executable must exist where Kotlin/Native
-      # links it. Runs whenever the link step started, so a red link still names every module
-      # that produced no binary.
       - name: Assert the device test binaries
         if: ${{ !cancelled() && steps.device_link.outcome != 'skipped' }}
-        run: |
-          missing=()
-          linked=0
-          for module in core/ui/kit core/ui/navigation core/ui/mvi core/ui/start-mode \
-              core/ui/plan-editor feature/image-viewer feature/plan-editor feature/archive \
-              feature/all-trainings feature/all-exercises feature/past-session feature/home \
-              feature/exercise-chart feature/single-training feature/exercise \
-              feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do
-            binary="$module/build/bin/iosArm64/debugTest/test.kexe"
-            if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
-              if ! xcrun vtool -show-build "$binary" | awk '$1 == "platform" && $2 == "IOS" { ok=1 } END { exit !ok }'; then
-                missing+=("$module: platform is not IOS")
-                continue
-              fi
-              linked=$((linked + 1))
-            else
-              missing+=("$module")
-            fi
-          done
-          echo "$linked/21 linked"
-          if [ "${#missing[@]}" -ne 0 ]; then
-            echo "::error::missing, empty or stale iosArm64 test binary for: ${missing[*]}"
-            exit 1
-          fi
+        run: python3 .github/scripts/kmp_native_model.py check-device
 
       - name: Upload native test results
         uses: actions/upload-artifact@v4
@@ -874,33 +740,11 @@ jobs:
         with:
           name: kmp-ios-kit-smoke-results
           path: |
-            core/ui/kit/build/test-results/iosSimulatorArm64Test/
-            core/ui/navigation/build/test-results/iosSimulatorArm64Test/
-            core/ui/mvi/build/test-results/iosSimulatorArm64Test/
-            core/ui/start-mode/build/test-results/iosSimulatorArm64Test/
-            core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
-            feature/image-viewer/build/test-results/iosSimulatorArm64Test/
-            feature/plan-editor/build/test-results/iosSimulatorArm64Test/
-            feature/archive/build/test-results/iosSimulatorArm64Test/
-            feature/all-trainings/build/test-results/iosSimulatorArm64Test/
-            feature/all-exercises/build/test-results/iosSimulatorArm64Test/
-            feature/past-session/build/test-results/iosSimulatorArm64Test/
-            feature/home/build/test-results/iosSimulatorArm64Test/
-            feature/exercise-chart/build/test-results/iosSimulatorArm64Test/
-            feature/single-training/build/test-results/iosSimulatorArm64Test/
-            feature/exercise/build/test-results/iosSimulatorArm64Test/
-            feature/live-workout/build/test-results/iosSimulatorArm64Test/
-            feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/
-            feature/settings/build/test-results/iosSimulatorArm64Test/
-            feature/settings/build/native-test-start
-            app/common/build/test-results/iosSimulatorArm64Test/
-            app/common/build/native-test-start
-            core/data/database/build/test-results/iosSimulatorArm64Test/
-            core/data/database/build/native-test-start
-            core/data/database/build/device-link-start
+            ${{ steps.native_plan.outputs.results }}
+            build/kmp-verification/model.json
+            build/kmp-verification/native-test-start
+            build/kmp-verification/device-link-start
             core/data/database/build/native-fixtures/
-            app/ios/build/test-results/iosSimulatorArm64Test/
-            app/ios/build/native-test-start
             app/ios/build/bin/iosArm64/debugTest/test.kexe
             app/ios/build/install-epoch-relaunch/
           retention-days: 30

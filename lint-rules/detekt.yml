@@ -730,6 +730,8 @@ mvi-architecture:
     active: true
   MviStoreStateRule:
     active: true
+  MviSharedPlatformRule:
+    active: true
   KoinScopeRule:
     active: false  # Disabled: Project uses Metro DI (not Koin)
   MetroScopeRule:

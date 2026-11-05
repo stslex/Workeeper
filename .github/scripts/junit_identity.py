@@ -40,8 +40,9 @@ stripped and then full equality is required — an `endswith()` would accept a
 foreign package, and stripping repeatedly would accept a doubled prefix.
 """
 
-import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 COUNT_ATTRIBUTES = ("tests", "skipped", "failures", "errors")
 
@@ -112,15 +113,24 @@ def identify(case: ET.Element, prefix: str) -> str:
 def check_module(expected: dict) -> str:
     """Verify one module's result directory; return the verified summary line.
 
-    `expected` keys: `module`, `results_dir`, `identities` (list of {classname, name}) and the
-    optional `classname_prefix` (default none).
+    `expected` keys: `module`, `results_dir`, `identities` (list of {classname, name}),
+    optional `classname_prefix` and optional `freshness_marker` created before execution.
     """
     module = expected["module"]
     results_dir = Path(expected["results_dir"])
     prefix = expected.get("classname_prefix", "")
-    identities = expected["identities"]
+    identities = [(row["classname"], row["name"]) for row in expected["identities"]]
     if not identities:
         raise ModuleError(f"{module}: no expected identities configured; that is not a gate")
+    if len(identities) != len(set(identities)):
+        raise ModuleError(f"{module}: duplicate identities in the required inventory")
+
+    marker = expected.get("freshness_marker")
+    if marker is not None:
+        marker = Path(marker)
+        if not marker.is_file():
+            raise ModuleError(f"{module}: execution-start marker {marker} is missing")
+        started_ns = marker.stat().st_mtime_ns
 
     if not results_dir.is_dir():
         raise ModuleError(f"{module}: result directory {results_dir} does not exist")
@@ -133,9 +143,13 @@ def check_module(expected: dict) -> str:
     suites_seen = 0
     for xml_file in xml_files:
         try:
+            if marker is not None and xml_file.stat().st_mtime_ns < started_ns:
+                raise ModuleError(f"{module}: stale XML {xml_file.name} predates {marker}")
             root = ET.parse(xml_file).getroot()
         except ET.ParseError as error:
-            raise ModuleError(f"{module}: {xml_file.name} is not parseable XML: {error}")
+            raise ModuleError(f"{module}: {xml_file.name} is not parseable XML: {error}") from error
+        except OSError as error:
+            raise ModuleError(f"{module}: cannot read {xml_file.name}: {error}") from error
         for suite in suites_of(root, module, xml_file):
             suites_seen += 1
             # Only this suite's OWN testcase children, so a wrapper cannot double-count.
@@ -177,18 +191,17 @@ def check_module(expected: dict) -> str:
                     f"{module}: testcase {identify(case, prefix)} carries a <{child.tag}> element"
                 )
 
+    actual_identities = Counter(
+        (normalize_classname(case.get("classname", ""), prefix), case.get("name", ""))
+        for case in testcases
+    )
     missing = []
-    for wanted in identities:
-        matches = [
-            case
-            for case in testcases
-            if normalize_classname(case.get("classname", ""), prefix) == wanted["classname"]
-            and case.get("name", "") == wanted["name"]
-        ]
-        if len(matches) != 1:
+    for classname, name in identities:
+        matches = actual_identities[(classname, name)]
+        if matches != 1:
             missing.append(
-                f"expected exactly one testcase with classname={wanted['classname']!r} "
-                f"name={wanted['name']!r}, found {len(matches)}"
+                f"expected exactly one testcase with classname={classname!r} "
+                f"name={name!r}, found {matches}"
             )
     if missing:
         found = sorted(identify(case, prefix) for case in testcases)
@@ -203,10 +216,16 @@ def check_module(expected: dict) -> str:
     )
 
 
-def run_gate(gate_name: str, expected_modules: list[dict]) -> None:
+def run_gate(
+    gate_name: str, expected_modules: list[dict], *, preflight_failures: tuple[str, ...] = (),
+) -> None:
     """Check every configured module, then print or raise a single combined verdict."""
+    modules = [expected["module"] for expected in expected_modules]
+    if not modules or len(modules) != len(set(modules)):
+        raise SystemExit(f"{gate_name} FAILED: expected a nonempty, unique module inventory")
+
     verified: list[str] = []
-    failures: list[str] = []
+    failures = list(preflight_failures)
     for expected in expected_modules:
         try:
             verified.append(check_module(expected))

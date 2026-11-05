@@ -36,6 +36,9 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                     }
                 }
             }
+            if (path == ":app:app") {
+                registerKmpDependencyEdges()
+            }
         }
     }
 }

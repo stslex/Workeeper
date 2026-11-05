@@ -90,10 +90,12 @@ def validate_relaunch(directory: Path = RESULTS, marker: Path = MARKER, binary: 
     return "two exited Native processes, two exact passing cases, matching owned path and digest"
 
 
-def run(simulator: str, nonce: str, output: Path) -> None:
+def run(
+    simulator: str, nonce: str, output: Path, binary: Path = BINARY, marker: Path = MARKER,
+) -> None:
     require(simulator == os.environ.get("WORKEEPER_DATABASE_TEST_SIMULATOR"), "caller does not own the simulator")
-    require(BINARY.is_file() and BINARY.stat().st_size > 0, "simulator executable is missing or empty")
-    require(MARKER.is_file(), "execution marker is missing")
+    require(binary.is_file() and binary.stat().st_size > 0, "simulator executable is missing or empty")
+    require(marker.is_file(), "execution marker is missing")
     output.mkdir(parents=True, exist_ok=False)
     started = time.time_ns()
     (output / "run.json").write_text(json.dumps({
@@ -107,10 +109,10 @@ def run(simulator: str, nonce: str, output: Path) -> None:
             "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE": nonce,
             "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH": launch,
         })
-        command = ["xcrun", "simctl", "spawn", simulator, str(BINARY.resolve()),
+        command = ["xcrun", "simctl", "spawn", simulator, str(binary.resolve()),
                    f"--ktest_filter={IDENTITY}", "--ktest_logger=GTEST"]
         row = {"launch": launch, "started_ns": time.time_ns(), "command": command,
-               "binary_sha256": digest(BINARY), "identity": IDENTITY}
+               "binary_sha256": digest(binary), "identity": IDENTITY}
         log_path = output / f"launch-{index}.log"
         with log_path.open("w") as log:
             result = subprocess.run(command, env=environment, stdout=log, stderr=subprocess.STDOUT, timeout=120)
@@ -120,7 +122,7 @@ def run(simulator: str, nonce: str, output: Path) -> None:
         require(result.returncode == 0, f"launch {index} failed; see {log_path}")
         row["storage"] = exact_case(log_path.read_text())
         (output / f"launch-{index}.json").write_text(json.dumps(row, indent=2) + "\n")
-    print(validate_relaunch(output))
+    print(validate_relaunch(output, marker=marker, binary=binary))
 
 
 def main() -> None:
@@ -128,8 +130,10 @@ def main() -> None:
     parser.add_argument("--simulator", required=True)
     parser.add_argument("--nonce", required=True)
     parser.add_argument("--output", type=Path, default=RESULTS)
+    parser.add_argument("--binary", type=Path, default=BINARY)
+    parser.add_argument("--marker", type=Path, default=MARKER)
     args = parser.parse_args()
-    run(args.simulator, args.nonce, args.output)
+    run(args.simulator, args.nonce, args.output, args.binary, args.marker)
 
 
 if __name__ == "__main__":

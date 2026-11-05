@@ -4,6 +4,11 @@ plugins {
 
 group = "io.github.stslex.workeeper.buildlogic"
 
+val testPluginClasspath by configurations.creating {
+    isCanBeConsumed = false
+    attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+}
+
 dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
@@ -14,9 +19,26 @@ dependencies {
     compileOnly(libs.cmp.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
     compileOnly(libs.detekt.gradle)
+
+    testImplementation(gradleTestKit())
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.launcher)
+    testPluginClasspath(libs.kotlin.gradlePlugin)
+    testPluginClasspath(libs.android.gradlePlugin)
+    testPluginClasspath(libs.detekt.gradle)
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+        systemProperty("workeeper.repository", rootProject.projectDir.parentFile.absolutePath)
+        systemProperty("workeeper.gradleInstallation", gradle.gradleHomeDir!!.absolutePath)
+    }
+    pluginUnderTestMetadata {
+        pluginClasspath.from(testPluginClasspath)
+    }
+
     validatePlugins {
         enableStricterValidation = true
         failOnWarning = true

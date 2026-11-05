@@ -20,6 +20,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MviStoreExtensionRule(config),
             MviHandlerConstructorRule(config),
             MviStoreStateRule(config),
+            MviSharedPlatformRule(config),
             MetroScopeRule(config),
             ContributesBindingScopeRule(config),
             ContributesToScopeRule(config),

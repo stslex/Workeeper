@@ -28,6 +28,10 @@ smoke_exit_status() {
 main() {
   set +e
 
+  if ! mkdir -p build/kmp-verification || ! touch build/kmp-verification/mvi-device-test-start; then
+    return 1
+  fi
+
   adb logcat > logcat-smoke.txt &
 
   run_smoke_gradle
