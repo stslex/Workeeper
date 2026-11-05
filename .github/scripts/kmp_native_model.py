@@ -10,6 +10,7 @@ SIMULATOR_START = Path("build/kmp-verification/native-test-start")
 DEVICE_START = Path("build/kmp-verification/device-link-start")
 IDENTITIES = Path(__file__).resolve().parents[2] / "gradle/kmp-native-identities.json"
 OUTPUT_FIELDS = ("simulatorResults", "simulatorBinary", "deviceBinary")
+UPLOAD_ESCAPES = str.maketrans({char: f"\\{char}" for char in "\\*?[]"})
 
 
 def unique_object(pairs: list[tuple[str, object]]) -> dict:
@@ -63,6 +64,11 @@ def mark_start(path: Path) -> None:
     path.touch()
 
 
+def upload_pattern(path: str) -> str:
+    # upload-artifact parses glob syntax on the macOS runner, even for one exact path.
+    return "./" + Path(path).as_posix().translate(UPLOAD_ESCAPES)
+
+
 def check_device_links(rows: list[dict], marker: Path = DEVICE_START) -> None:
     if not marker.is_file():
         raise ValueError(f"device-link start marker is missing: {marker}")
@@ -93,7 +99,7 @@ def check_device_links(rows: list[dict], marker: Path = DEVICE_START) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=(
-        "simulator-tasks", "device-tasks", "result-paths", "epoch-binary",
+        "simulator-tasks", "device-tasks", "result-upload-patterns", "epoch-binary", "apple-device-upload-pattern",
         "mark-simulator", "mark-device", "check-device",
     ))
     args = parser.parse_args()
@@ -105,13 +111,18 @@ def main() -> None:
             mark_start(DEVICE_START)
         elif args.command == "check-device":
             check_device_links(rows)
-        elif args.command == "epoch-binary":
-            print(next(row["simulatorBinary"] for row in rows if row["module"] == ":app:ios"))
+        elif args.command in ("epoch-binary", "apple-device-upload-pattern"):
+            apple_host = next(row for row in rows if row["module"] == ":app:ios")
+            if args.command == "epoch-binary":
+                print(apple_host["simulatorBinary"])
+            else:
+                print(upload_pattern(apple_host["deviceBinary"]))
+        elif args.command == "result-upload-patterns":
+            print("\n".join(upload_pattern(row["simulatorResults"]) for row in rows))
         else:
             field = {
                 "simulator-tasks": "simulatorTask",
                 "device-tasks": "deviceLinkTask",
-                "result-paths": "simulatorResults",
             }[args.command]
             print("\n".join(row[field] for row in rows))
     except (OSError, ValueError, StopIteration) as error:

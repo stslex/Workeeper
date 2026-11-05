@@ -653,11 +653,13 @@ jobs:
         run: |
           ./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel verifyKmpNativeTargets \
             --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
-          results="$(python3 .github/scripts/kmp_native_model.py result-paths)"
+          results="$(python3 .github/scripts/kmp_native_model.py result-upload-patterns)"
           binary="$(python3 .github/scripts/kmp_native_model.py epoch-binary)"
+          device_upload_pattern="$(python3 .github/scripts/kmp_native_model.py apple-device-upload-pattern)"
           {
             printf 'results<<EOF\n%s\nEOF\n' "$results"
             printf 'epoch_binary=%s\n' "$binary"
+            printf 'device_upload_pattern=%s\n' "$device_upload_pattern"
           } >> "$GITHUB_OUTPUT"
 
       - name: Provision an owned database simulator
@@ -745,7 +747,7 @@ jobs:
             build/kmp-verification/native-test-start
             build/kmp-verification/device-link-start
             core/data/database/build/native-fixtures/
-            app/ios/build/bin/iosArm64/debugTest/test.kexe
+            ${{ steps.native_plan.outputs.device_upload_pattern }}
             app/ios/build/install-epoch-relaunch/
           retention-days: 30
 

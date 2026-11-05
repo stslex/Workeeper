@@ -2,6 +2,7 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -127,16 +128,81 @@ class KmpNativeTargetsTest {
         assertExecuted(result, TaskOutcome.SUCCESS, "verifyKmpDependencyEdges")
     }
 
+    @Test
+    fun aggregateRequiresCompletePoliciesWithoutRegisteringUncoveredVerifiers() {
+        val sourceOwners = listOf("covered", "feature:app-dialogs:api")
+        val dependencyOwners = sourceOwners + "app:app"
+        val projects = dependencyOwners + "uncovered"
+        val gradleDir = setupFixture(projects)
+        fixture.resolve("build.gradle.kts").writeText(
+            """
+            plugins { id("workeeper.kmp.library") apply false }
+            apply<KmpVerificationConventionPlugin>()
+            """.trimIndent(),
+        )
+        git("init", "--quiet")
+        for (project in projects) {
+            val dir = fixture.resolve(project.replace(':', '/')).apply { mkdirs() }
+            dir.resolve("build.gradle.kts").writeText(
+                """
+                plugins { id("workeeper.kmp.library") }
+                dependencies.add("commonMainApi", "org.example:protected:1.0")
+                """.trimIndent(),
+            )
+            dir.resolve("src/commonMain/kotlin/Sample.kt").apply {
+                parentFile.mkdirs()
+                writeText("package fixture\n")
+            }
+        }
+        git("add", ".")
+        gradleDir.resolve("kmp-native-identities.json").writeText("""{"covered": {}}""")
+        val source = gradleDir.resolve("kmp-migration-source-sets.json")
+        val edges = gradleDir.resolve("kmp-migration-edges.json")
+        val sourcePolicy = """["commonMain"]"""
+        val edgePolicy = """{"required": {"commonMainApi": ["org.example:protected"]}, "forbidden": {}}"""
+        fun policy(owners: List<String>, row: String) = owners.joinToString(",", "{", "}") { "\"$it\": $row" }
+        source.writeText(policy(sourceOwners, sourcePolicy))
+        edges.writeText(policy(dependencyOwners, edgePolicy))
+
+        val discovery = gradle("tasks", "--all").build()
+        assertExecuted(discovery, TaskOutcome.SUCCESS, "tasks")
+        assertTrue(discovery.output.contains("covered:verifyKmpSourceOwnership"), discovery.output)
+        assertTrue(discovery.output.contains("covered:verifyKmpDependencyEdges"), discovery.output)
+        assertFalse(discovery.output.contains("uncovered:verifyKmpSourceOwnership"), discovery.output)
+        assertFalse(discovery.output.contains("uncovered:verifyKmpDependencyEdges"), discovery.output)
+
+        for ((manifest, changed, diagnostic) in listOf(
+            Triple(edges, policy(dependencyOwners - "app:app", edgePolicy), "missing=[app:app] (1)"),
+            Triple(source, policy(sourceOwners - "feature:app-dialogs:api", sourcePolicy),
+                "missing=[feature:app-dialogs:api] (1)"),
+            Triple(edges, policy(dependencyOwners + "uncovered", edgePolicy), "extra=[uncovered] (1)"),
+        )) {
+            val original = manifest.readBytes()
+            try {
+                manifest.writeText(changed)
+                val result = gradle(":verifyKmpMigrationContracts").buildAndFail()
+                assertTrue(result.output.contains(diagnostic), result.output)
+            } finally {
+                manifest.writeBytes(original)
+                assertTrue(original.contentEquals(manifest.readBytes()))
+            }
+        }
+
+        val restored = gradle(":verifyKmpMigrationContracts").build()
+        for (project in sourceOwners) {
+            assertExecuted(restored, TaskOutcome.SUCCESS, "$project:verifyKmpSourceOwnership")
+        }
+        for (project in dependencyOwners) {
+            assertExecuted(restored, TaskOutcome.SUCCESS, "$project:verifyKmpDependencyEdges")
+        }
+    }
+
     private fun runner(
         configuration: String,
         task: String = "verifyKmpNativeTargets",
         sources: List<String> = emptyList(),
     ): GradleRunner {
-        val repository = File(System.getProperty("workeeper.repository"))
-        val gradleDir = fixture.resolve("gradle").apply { mkdir() }
-        for (filename in listOf("libs.versions.toml", "kmp-native-targets.txt")) {
-            repository.resolve("gradle/$filename").copyTo(gradleDir.resolve(filename))
-        }
+        val gradleDir = setupFixture()
         gradleDir.resolve("kmp-migration-source-sets.json").writeText("""{"": ["commonMain"]}""")
         gradleDir.resolve("kmp-native-identities.json").writeText("""{"required:module": {}}""")
         gradleDir.resolve("kmp-migration-edges.json").writeText(
@@ -151,6 +217,24 @@ class KmpNativeTargetsTest {
                 }
             }
             git("add", "--", *sources.toTypedArray())
+        }
+        fixture.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("workeeper.kmp.library")
+            }
+
+            $configuration
+            """.trimIndent(),
+        )
+        return gradle(task)
+    }
+
+    private fun setupFixture(projects: List<String> = emptyList()): File {
+        val repository = File(System.getProperty("workeeper.repository"))
+        val gradleDir = fixture.resolve("gradle").apply { mkdir() }
+        for (filename in listOf("libs.versions.toml", "kmp-native-targets.txt")) {
+            repository.resolve("gradle/$filename").copyTo(gradleDir.resolve(filename))
         }
         fixture.resolve("settings.gradle.kts").writeText(
             """
@@ -169,32 +253,26 @@ class KmpNativeTargetsTest {
             }
             rootProject.name = "kmp-verification-fixture"
             include(":lint-rules")
+            ${projects.joinToString("\n") { "include(\":$it\")" }}
             """.trimIndent(),
         )
         fixture.resolve("lint-rules").mkdir()
-        fixture.resolve("build.gradle.kts").writeText(
-            """
-            plugins {
-                id("workeeper.kmp.library")
-            }
+        return gradleDir
+    }
 
-            $configuration
-            """.trimIndent(),
-        )
-        return GradleRunner.create()
+    private fun gradle(vararg arguments: String): GradleRunner =
+        GradleRunner.create()
             .withProjectDir(fixture)
             .withGradleInstallation(File(System.getProperty("workeeper.gradleInstallation")))
             .withPluginClasspath()
             .withArguments(
-                task,
+                *arguments,
                 "--rerun-tasks",
                 "--no-build-cache",
                 "--no-configuration-cache",
                 "--full-stacktrace",
                 "--console=plain",
             )
-    }
-
     private fun git(vararg args: String) {
         val process = ProcessBuilder("git", *args)
             .directory(fixture)

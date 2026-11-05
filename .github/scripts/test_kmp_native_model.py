@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+from io import StringIO
 import json
 import os
 from pathlib import Path
@@ -6,7 +8,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from kmp_native_model import check_device_links, load_model
+from kmp_native_model import check_device_links, load_model, main
 
 
 class KmpNativeModelTest(unittest.TestCase):
@@ -79,6 +81,61 @@ class KmpNativeModelTest(unittest.TestCase):
                 check_device_links(rows, marker)
             inspect.return_value = CompletedProcess([], 0, stdout="platform IOS\n")
             check_device_links(rows, marker)
+
+    def test_apple_upload_path_matches_the_verified_device_binary(self):
+        self.manifest.write_text('{"app:ios":{"example.Test":["case"]}}', encoding="utf-8")
+        apple_host = dict(
+            self.row,
+            module=":app:ios",
+            simulatorTask=":app:ios:iosSimulatorArm64Test",
+            deviceLinkTask=":app:ios:linkDebugTestIosArm64",
+            simulatorResults="app/ios/build/test-results",
+            simulatorBinary="app/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe",
+        )
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+        marker = Path("device-start")
+        marker.touch()
+        os.utime(marker, ns=(2_000_000_000, 2_000_000_000))
+        def select(command):
+            selection = StringIO()
+            with (
+                patch("sys.argv", ["kmp_native_model.py", command]),
+                patch("kmp_native_model.load_model", side_effect=lambda: load_model(self.model)),
+                redirect_stdout(selection),
+            ):
+                main()
+            return selection.getvalue().rstrip("\n")
+
+        for build_dir, pattern_dir in (
+            ("build", "build"),
+            ("relocated-build", "relocated-build"),
+            ("ci[26]", r"ci\[26\]"),
+            (r"literal*?\dir", r"literal\*\?\\dir"),
+        ):
+            with self.subTest(build_dir=build_dir):
+                build = f"app/ios/{build_dir}"
+                pattern = f"./app/ios/{pattern_dir}"
+                suffix = "/bin/iosArm64/debugTest/test.kexe"
+                binary = Path(build + suffix)
+                results = build + "/test-results"
+                rows = [dict(apple_host, deviceBinary=binary.as_posix(), simulatorResults=results)]
+                self.model.write_text(json.dumps(rows), encoding="utf-8")
+                self.assertEqual(pattern + suffix, select("apple-device-upload-pattern"))
+                self.assertEqual(pattern + "/test-results", select("result-upload-patterns"))
+                xml = Path(results) / "TEST-example.Test.xml"
+                xml.parent.mkdir(parents=True)
+                xml.write_text("<testsuite/>", encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "No such file"):
+                    check_device_links(load_model(self.model), marker)
+                binary.parent.mkdir(parents=True)
+                binary.write_bytes(b"fixture")
+                os.utime(binary, ns=(3_000_000_000, 3_000_000_000))
+                with patch("kmp_native_model.subprocess.run") as inspect:
+                    inspect.return_value = CompletedProcess([], 0, stdout="platform IOS\n")
+                    check_device_links(load_model(self.model), marker)
+                    self.assertEqual(binary.as_posix(), inspect.call_args.args[0][-1])
 
 
 if __name__ == "__main__":

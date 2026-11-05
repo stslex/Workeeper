@@ -44,6 +44,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureHostTests()
             registerCiAliases()
             configureDetektSources(kmpExtension)
+            if (path == ":core:ui:mvi") {
+                configureMviDetektScope(kmpExtension)
+            }
             registerSourceOwnership(kmpExtension)
             registerKmpDependencyEdges()
             registerVerificationExport()
@@ -55,6 +58,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
 
     private fun Project.registerVerificationExport() {
         val module = path
+        if (module.removePrefix(":") !in readKmpManifest(KMP_NATIVE_IDENTITIES) ||
+            providers.systemProperty("os.name").get() != "Mac OS X"
+        ) return
         val root = rootProject.layout.projectDirectory.asFile
         tasks.register("exportKmpProjectVerificationModel", ExportKmpProjectVerificationModel::class.java) {
             group = "verification"

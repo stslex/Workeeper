@@ -12,18 +12,20 @@ internal const val KMP_DEPENDENCY_EDGES = "gradle/kmp-migration-edges.json"
 
 internal fun Project.registerKmpDependencyEdges() {
     val module = path.removePrefix(":")
+    val inventory = readKmpManifest(KMP_DEPENDENCY_EDGES)
+    if (module !in inventory) return
+    val policy = inventory[module] as? Map<*, *>
+        ?: error("Invalid required dependency policy for $module in $KMP_DEPENDENCY_EDGES")
     val verifier = tasks.register("verifyKmpDependencyEdges", VerifyKmpDependencyEdges::class.java) {
         group = "verification"
     }
     afterEvaluate {
-        verifier.configure { captureDependencyEdges(module, this) }
+        verifier.configure { captureDependencyEdges(policy, this) }
     }
 }
 
-private fun Project.captureDependencyEdges(module: String, verifier: VerifyKmpDependencyEdges) {
+private fun Project.captureDependencyEdges(policy: Map<*, *>, verifier: VerifyKmpDependencyEdges) {
     with(verifier) {
-        val policy = readKmpManifest(KMP_DEPENDENCY_EDGES)[module] as? Map<*, *>
-            ?: error("Required dependency policy for $module is missing")
         val required = policy.configurations("required")
         val forbidden = policy.configurations("forbidden")
         requiredEdges.set(required)

@@ -43,9 +43,11 @@ python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
 
 The export uses the independently reviewed [Native identity roster](../../gradle/kmp-native-identities.json).
 Each row maps one required module to its evaluated simulator task, JUnit XML directory,
-simulator executable, device-link task and device executable. A missing module, duplicate row
-or missing terminal task fails the export or the consumer. The [test commands](../testing.md#running-tests)
-use the same launcher and result checks as CI.
+simulator executable, device-link task and device executable. The workflow selects the
+`:app:ios` device executable and simulator result directories for upload from that same
+validated model. It escapes these paths so the artifact action matches them literally.
+A missing module, duplicate row or missing terminal task fails the export or the consumer.
+The [test commands](../testing.md#running-tests) use the same launcher and result checks as CI.
 
 The [Native target input](../../gradle/kmp-native-targets.txt) feeds the KMP convention and both
 CI cache lookups. Gradle compares the input with configured targets after cache restore.
@@ -55,7 +57,18 @@ The [source-set roster](../../gradle/kmp-migration-source-sets.json) describes w
 have tracked Kotlin in the selected projects. Verification checks file membership in actual
 compilations, so a legitimate configured custom root passes. The dependency task inspects direct
 declarations in the required configurations without resolving the runtime graphs.
+The aggregate requires source policies for the Native roster plus `:feature:app-dialogs:api`.
+It requires dependency policies for those projects plus `:app:app`. Both policy rosters
+must match before verification is scheduled. Other convention consumers can list their tasks
+without a migration policy.
 
 The Gradle source checks, `MviSharedPlatformRule`, the existing MVI ABI tests and the executed
-identity gates replace `assert_mvi_source_topology.py`. Phase 7.3 references to the script describe
-the original verification.
+identity gates replace `assert_mvi_source_topology.py`. Detekt uses the evaluated MVI compilation
+inputs to classify custom shared and test roots. Kotlin suppression annotations cannot bypass
+this rule. Phase 7.3 references to the script describe the original verification.
+
+Use `--no-daemon` for Detekt mutation controls after changing the rule JAR. Detekt 1.23.8 can
+reuse a daemon classloader when the JAR contents change at the same path.
+
+Publication requires a completed Xcode 26.6 baseline with device-link and binary verification
+for the exact PR #363 source. The local Xcode 27.0 receipts are supplementary.

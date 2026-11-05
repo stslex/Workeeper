@@ -3,18 +3,23 @@ package io.github.stslex.workeeper.lint_rules
 
 import io.gitlab.arturbosch.detekt.api.CodeSmell
 import io.gitlab.arturbosch.detekt.api.Config
+import io.gitlab.arturbosch.detekt.api.Context
 import io.gitlab.arturbosch.detekt.api.Debt
 import io.gitlab.arturbosch.detekt.api.Entity
+import io.gitlab.arturbosch.detekt.api.Finding
 import io.gitlab.arturbosch.detekt.api.Issue
 import io.gitlab.arturbosch.detekt.api.Rule
+import io.gitlab.arturbosch.detekt.api.RuleSetId
 import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import org.jetbrains.kotlin.psi.KtTypeAlias
+import java.io.File
 
-class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config) {
+class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config, RequiredFindings()) {
 
     override val issue = Issue(
         id = javaClass.simpleName,
@@ -23,15 +28,22 @@ class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config) {
         debt = Debt.TWENTY_MINS,
     )
 
+    private val sharedProduction by lazy { configuredFiles("sharedProductionFiles") }
+    private val sharedTest by lazy { configuredFiles("sharedTestFiles") }
+    private val production by lazy { configuredFiles("productionFiles") }
+    private val tests by lazy { configuredFiles("testFiles") }
+
+    // The required migration check must still visit files with @file:Suppress.
+    override fun visitCondition(root: KtFile): Boolean = active
+
     override fun visitImportDirective(importDirective: KtImportDirective) {
         super.visitImportDirective(importDirective)
-        val path = importDirective.containingKtFile.virtualFilePath
+        val path = importDirective.modelPath()
         val imported = importDirective.importedFqName?.asString() ?: return
-        val sourceSet = path.mviSourceSet()
-        if (sourceSet in SHARED_PRODUCTION && PLATFORM_PACKAGES.any(imported::startsWith)) {
+        if (path in sharedProduction && PLATFORM_PACKAGES.any(imported::startsWith)) {
             finding(importDirective, "Shared MVI imports platform API `$imported`.")
         }
-        if (sourceSet in SHARED_SOURCE_SETS && imported == APP_DEPS_HOLDER) {
+        if (imported == APP_DEPS_HOLDER && isShared(path)) {
             finding(importDirective, "AppDepsHolder belongs to the Android MVI source set.")
         }
     }
@@ -47,13 +59,16 @@ class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config) {
     }
 
     private fun checkLookupDeclaration(declaration: KtNamedDeclaration) {
-        val path = declaration.containingKtFile.virtualFilePath
-        when {
-            declaration.name == "StoreGenerationDeps" && !TestSourceSets.isTestFile(path) ->
-                finding(declaration, "StoreGenerationDeps is retired. Inject the generation lifetime directly.")
-
-            declaration.name == "AppDepsHolder" && path.mviSourceSet() in SHARED_SOURCE_SETS ->
+        when (declaration.name) {
+            "StoreGenerationDeps" -> {
+                val path = declaration.modelPath()
+                if (path in production || path !in tests && !TestSourceSets.isTestFile(path)) {
+                    finding(declaration, "StoreGenerationDeps is retired. Inject the generation lifetime directly.")
+                }
+            }
+            "AppDepsHolder" -> if (isShared(declaration.modelPath())) {
                 finding(declaration, "AppDepsHolder belongs to the Android MVI source set.")
+            }
         }
     }
 
@@ -61,15 +76,27 @@ class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config) {
         report(CodeSmell(issue, Entity.from(element), message))
     }
 
-    private fun String.mviSourceSet(): String? {
-        val location = substringAfter("/core/ui/mvi/src/", "")
-        return location.substringBefore('/').takeIf { it.isNotEmpty() }
-    }
+    private fun configuredFiles(key: String): Set<String> = valueOrDefault(key, emptyList<String>()).toSet()
+
+    private fun KtElement.modelPath(): String = File(containingKtFile.virtualFilePath).absoluteFile.normalize().path
+
+    private fun isShared(path: String): Boolean = path in sharedProduction || path in sharedTest
 
     private companion object {
         const val APP_DEPS_HOLDER = "io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder"
-        val SHARED_PRODUCTION = setOf("commonMain", "iosMain")
-        val SHARED_SOURCE_SETS = SHARED_PRODUCTION + setOf("commonTest", "iosTest")
         val PLATFORM_PACKAGES = listOf("android.", "androidx.activity.", "java.", "javax.", "com.google.firebase.")
     }
+}
+
+// This rule reports a migration invariant even when its declaration has a suppression annotation.
+private class RequiredFindings : Context {
+
+    private val reported = mutableListOf<Finding>()
+    override val findings: List<Finding> get() = reported.toList()
+
+    override fun report(finding: Finding, aliases: Set<String>, ruleSetId: RuleSetId?) {
+        reported.add(finding)
+    }
+
+    override fun clearFindings() = reported.clear()
 }

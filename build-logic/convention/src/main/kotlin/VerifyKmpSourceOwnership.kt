@@ -20,6 +20,10 @@ internal fun Project.readKmpManifest(relativePath: String): Map<*, *> =
 
 internal fun Project.registerSourceOwnership(kmp: KotlinMultiplatformExtension) {
     val module = path.removePrefix(":")
+    val policy = readKmpManifest(KMP_SOURCE_OWNERSHIP)
+    if (module !in policy) return
+    val expected = policy[module] as? List<*>
+        ?: error("Invalid required source sets for $module in $KMP_SOURCE_OWNERSHIP")
     val directory = layout.projectDirectory.asFile
     val buildDirectory = layout.buildDirectory
     val tracked = providers.exec {
@@ -32,8 +36,6 @@ internal fun Project.registerSourceOwnership(kmp: KotlinMultiplatformExtension) 
     tasks.register("verifyKmpSourceOwnership", VerifyKmpSourceOwnership::class.java) {
         group = "verification"
         dependsOn("verifyKmpNativeTargets")
-        val expected = readKmpManifest(KMP_SOURCE_OWNERSHIP)[module] as? List<*>
-            ?: error("Required source sets for $module are missing from $KMP_SOURCE_OWNERSHIP")
         requiredSourceSets.set(expected.map { it as String })
         trackedFiles.set(tracked)
 
