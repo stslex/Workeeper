@@ -32,6 +32,7 @@ concurrency:
 jobs:
   # Main build job - runs linting, unit tests, and build
   build:
+    if: ${{ github.ref != 'refs/heads/codex/ci-native-device-baseline' }}
     name: Build and Unit Tests
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -436,6 +437,7 @@ jobs:
   # So every run is a clean, executed build; `--no-build-cache` keeps it that way if a cache is
   # ever added back.
   release-bundles:
+    if: ${{ github.ref != 'refs/heads/codex/ci-native-device-baseline' }}
     name: Release bundle identity
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -568,22 +570,13 @@ jobs:
           grep -q '^G5 FAIL' swap-control.txt || { echo "::error::swap control failed without G5"; exit 1; }
           echo "swap control failed as required"
 
-  # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
-  # Gradle invocation executes the kit, navigation, MVI, start-mode and plan-editor UI modules' and
-  # the image-viewer, plan-editor, archive, all-trainings, all-exercises, past-session, home,
-  # exercise-chart, single-training, exercise, live-workout and app-dialogs features' Phase-7
-  # Native tests on the iOS simulator, then a checked-in script requires every exact per-module
-  # XML identity. A second forced invocation links the same twenty-one modules' iosArm64 device
-  # test binaries and a check requires each executable; device tests are compiled and linked,
-  # never run.
-  # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
-  # secrets. See
-  # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
+  # Link all twenty-one iOS device test binaries for the pinned source.
+  # The separately retained simulator run supplies execution and epoch evidence.
   kmp-ios-kit-smoke:
-    name: KMP iOS kit smoke
+    name: KMP iOS device baseline
     runs-on: macos-26
-    # This isolated baseline dispatch gives the pinned source 150 minutes for the full Native gate.
-    timeout-minutes: 150
+    # This isolated dispatch records device linking for the pinned source.
+    timeout-minutes: 120
 
     steps:
       - name: Checkout branch
@@ -598,11 +591,15 @@ jobs:
           source_tree="$(git rev-parse 'HEAD^{tree}')"
           test "$source_head" = 6422ca7fc7d1d3b73665678ad91be83ba9995593
           test "$source_tree" = 04fca07ce321fa527d4e572d12339fda815061e8
+          test "$GITHUB_WORKFLOW_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=1 origin "$GITHUB_WORKFLOW_SHA"
+          workflow_sha256="$(git show "$GITHUB_WORKFLOW_SHA:.github/workflows/android_build_unified.yml" | shasum -a 256 | cut -d ' ' -f 1)"
           mkdir -p build
           {
             printf 'GITHUB_WORKFLOW_SHA=%s\n' "$GITHUB_WORKFLOW_SHA"
             printf 'GITHUB_SHA=%s\n' "$GITHUB_SHA"
             printf 'GITHUB_WORKFLOW_REF=%s\n' "$GITHUB_WORKFLOW_REF"
+            printf 'WORKFLOW_SHA256=%s\n' "$workflow_sha256"
             printf 'SOURCE_HEAD=%s\n' "$source_head"
             printf 'SOURCE_TREE=%s\n' "$source_tree"
             printf 'GITHUB_RUN_ID=%s\n' "$GITHUB_RUN_ID"
@@ -615,7 +612,7 @@ jobs:
           xcode_version="$(xcodebuild -version)"
           printf '%s\n' "$xcode_version"
           grep -q "Xcode 26.6" <<< "$xcode_version"
-          # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
+          # Keep the parent baseline's runtime availability check for the pinned Xcode.
           simulator_runtimes="$(xcrun simctl list runtimes)"
           printf '%s\n' "$simulator_runtimes"
           grep -q "iOS" <<< "$simulator_runtimes"
@@ -717,114 +714,29 @@ jobs:
             echo "keyPassword=ci-smoke-pass"
           } > keystore.properties
 
-      # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
-      # identity script needs both modules' XML to say which tuple broke.
-      - name: Provision an owned database simulator
-        shell: bash
+      - name: Record device toolchain inputs
         run: |
-          runtime="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; rs=[r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and ".iOS-" in r["identifier"]]; print(max(rs, key=lambda r: tuple(map(int, r["version"].split("."))))["identifier"])')"
-          device="$(xcrun simctl create "Workeeper-database-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
-          nonce="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+          set -euo pipefail
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          sdk_build="$(xcrun --sdk iphoneos --show-sdk-build-version)"
+          test -n "$sdk_version"
+          test -n "$sdk_build"
           {
-            echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device"
-            echo "WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
-            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
-            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH=full-suite"
-          } >> "$GITHUB_ENV"
-          xcrun simctl boot "$device"
-          xcrun simctl bootstatus "$device" -b
+            xcodebuild -version
+            printf 'iphoneos SDK version=%s\n' "$sdk_version"
+            printf 'iphoneos SDK build=%s\n' "$sdk_build"
+            java -version
+            shasum -a 256 gradle/libs.versions.toml gradle/wrapper/gradle-wrapper.properties \
+              gradle/wrapper/gradle-wrapper.jar gradle.properties build-logic/gradle.properties
+          } 2>&1 | tee build/kmp-native-device-toolchain.txt
 
-      - name: Prepare fresh Settings, application-root and database native evidence
-        run: |
-          mkdir -p feature/settings/build
-          rm -rf feature/settings/build/test-results/iosSimulatorArm64Test
-          touch feature/settings/build/native-test-start
-          mkdir -p app/common/build
-          rm -rf app/common/build/test-results/iosSimulatorArm64Test
-          touch app/common/build/native-test-start
-          mkdir -p core/data/database/build
-          rm -rf core/data/database/build/test-results/iosSimulatorArm64Test
-          touch core/data/database/build/native-test-start
-          mkdir -p app/ios/build
-          rm -rf app/ios/build/test-results/iosSimulatorArm64Test
-          touch app/ios/build/native-test-start
-
-      - name: Run native shared UI, feature and application root tests
-        id: native_tests
-        run: >
-          ./gradlew
-          :core:ui:kit:iosSimulatorArm64Test
-          :core:ui:navigation:iosSimulatorArm64Test
-          :core:ui:mvi:iosSimulatorArm64Test
-          :core:ui:start-mode:iosSimulatorArm64Test
-          :core:ui:plan-editor:iosSimulatorArm64Test
-          :feature:image-viewer:iosSimulatorArm64Test
-          :feature:plan-editor:iosSimulatorArm64Test
-          :feature:archive:iosSimulatorArm64Test
-          :feature:all-trainings:iosSimulatorArm64Test
-          :feature:all-exercises:iosSimulatorArm64Test
-          :feature:past-session:iosSimulatorArm64Test
-          :feature:home:iosSimulatorArm64Test
-          :feature:exercise-chart:iosSimulatorArm64Test
-          :feature:single-training:iosSimulatorArm64Test
-          :feature:exercise:iosSimulatorArm64Test
-          :feature:live-workout:iosSimulatorArm64Test
-          :feature:app-dialogs:impl:iosSimulatorArm64Test
-          :feature:settings:iosSimulatorArm64Test
-          :app:common:iosSimulatorArm64Test
-          :core:data:database:iosSimulatorArm64Test
-          :app:ios:iosSimulatorArm64Test
-          --rerun-tasks --no-build-cache --no-configuration-cache
-          --no-parallel --continue --full-stacktrace --console=plain
-
-      # An exit code is not evidence: the checked-in script structurally parses each module's
-      # JUnit XML and independently requires one exact (classname, name) tuple per module —
-      # a repo-wide total or substring match would accept two kit tests and zero navigation
-      # tests, or a classname from one case paired with a method name from another. Counts are
-      # validated PER <testsuite> before any module total is formed, so two malformed suites
-      # cannot cancel out into a consistent-looking aggregate. It allows additional PASSING
-      # cases, so a module can grow a second native test without edits here.
-      #
-      # The condition runs it whenever the Gradle step actually STARTED, which covers three
-      # outcomes: a red TEST run leaves XML and the script names the module and tuple that
-      # broke, which Gradle's exit code cannot; a compile or simulator-boot failure leaves no
-      # XML and the script says the results are missing, which is the honest answer; and a
-      # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
-      # so this step stays skipped too rather than masking that failure behind a
-      # missing-results error. Cancellation also skips it.
-      - name: Prove the installation epoch survives two Native processes
-        id: epoch_relaunch
-        if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
-        run: |
-          python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
-            --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" \
-            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE"
-
-      - name: Assert exact native test identities
-        id: native_identities
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
-        run: python3 .github/scripts/assert_kmp_ios_smoke.py
-
-      - name: Upload failing native test evidence before device linking
-        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure' || steps.epoch_relaunch.outcome == 'failure') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: kmp-ios-kit-smoke-failure-results
-          path: |
-            **/build/test-results/iosSimulatorArm64Test/*.xml
-            **/build/native-test-start
-            app/ios/build/install-epoch-relaunch/
-          retention-days: 30
-
-      # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
-      # forced like the simulator step, compiled and linked but never run (no device here).
       - name: Mark fresh device links
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
-        run: touch core/data/database/build/device-link-start
+        run: |
+          mkdir -p core/data/database/build
+          touch core/data/database/build/device-link-start
 
       - name: Link the iOS device test binaries
         id: device_link
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: >
           ./gradlew
           :core:ui:kit:linkDebugTestIosArm64
@@ -855,8 +767,13 @@ jobs:
       # links it. Runs whenever the link step started, so a red link still names every module
       # that produced no binary.
       - name: Assert the device test binaries
-        if: ${{ !cancelled() && steps.device_link.outcome != 'skipped' }}
+        if: ${{ !cancelled() && (steps.device_link.outcome == 'success' || steps.device_link.outcome == 'failure') }}
         run: |
+          set -eo pipefail
+          marker=core/data/database/build/device-link-start
+          receipt=core/data/database/build/device-link-inspection.jsonl
+          test -f "$marker"
+          : > "$receipt"
           missing=()
           linked=0
           for module in core/ui/kit core/ui/navigation core/ui/mvi core/ui/start-mode \
@@ -865,11 +782,33 @@ jobs:
               feature/exercise-chart feature/single-training feature/exercise \
               feature/live-workout feature/app-dialogs/impl feature/settings app/common core/data/database app/ios; do
             binary="$module/build/bin/iosArm64/debugTest/test.kexe"
-            if [ -s "$binary" ] && [ "$binary" -nt core/data/database/build/device-link-start ]; then
-              if ! xcrun vtool -show-build "$binary" | awk '$1 == "platform" && $2 == "IOS" { ok=1 } END { exit !ok }'; then
+            if [ -f "$binary" ] && [ -s "$binary" ] && [ "$binary" -nt "$marker" ]; then
+              if ! inspection="$(xcrun vtool -show-build "$binary" 2>&1)" ||
+                 ! printf '%s\n' "$inspection" | awk '$1 == "platform" && $2 == "IOS" { ok=1 } END { exit !ok }'; then
+                printf '%s\n' "$inspection"
                 missing+=("$module: platform is not IOS")
                 continue
               fi
+              python3 - "$module" "$binary" "$marker" "$inspection" >> "$receipt" <<'PYTHON'
+          import hashlib
+          import json
+          from pathlib import Path
+          import sys
+
+          module, binary_name, marker_name, inspection = sys.argv[1:]
+          binary = Path(binary_name)
+          info = binary.stat()
+          marker_mtime_ns = Path(marker_name).stat().st_mtime_ns
+          digest = hashlib.sha256()
+          with binary.open("rb") as stream:
+              for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                  digest.update(chunk)
+          print(json.dumps({
+              "module": module, "path": binary_name, "size": info.st_size,
+              "mtime_ns": info.st_mtime_ns, "marker_mtime_ns": marker_mtime_ns,
+              "sha256": digest.hexdigest(), "vtool": inspection,
+          }))
+          PYTHON
               linked=$((linked + 1))
             else
               missing+=("$module")
@@ -881,50 +820,18 @@ jobs:
             exit 1
           fi
 
-      - name: Upload native test results
+      - name: Upload device baseline evidence
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: kmp-ios-kit-smoke-results
+          name: kmp-ios-device-baseline-results
           path: |
-            core/ui/kit/build/test-results/iosSimulatorArm64Test/
-            core/ui/navigation/build/test-results/iosSimulatorArm64Test/
-            core/ui/mvi/build/test-results/iosSimulatorArm64Test/
-            core/ui/start-mode/build/test-results/iosSimulatorArm64Test/
-            core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
-            feature/image-viewer/build/test-results/iosSimulatorArm64Test/
-            feature/plan-editor/build/test-results/iosSimulatorArm64Test/
-            feature/archive/build/test-results/iosSimulatorArm64Test/
-            feature/all-trainings/build/test-results/iosSimulatorArm64Test/
-            feature/all-exercises/build/test-results/iosSimulatorArm64Test/
-            feature/past-session/build/test-results/iosSimulatorArm64Test/
-            feature/home/build/test-results/iosSimulatorArm64Test/
-            feature/exercise-chart/build/test-results/iosSimulatorArm64Test/
-            feature/single-training/build/test-results/iosSimulatorArm64Test/
-            feature/exercise/build/test-results/iosSimulatorArm64Test/
-            feature/live-workout/build/test-results/iosSimulatorArm64Test/
-            feature/app-dialogs/impl/build/test-results/iosSimulatorArm64Test/
-            feature/settings/build/test-results/iosSimulatorArm64Test/
-            feature/settings/build/native-test-start
-            app/common/build/test-results/iosSimulatorArm64Test/
-            app/common/build/native-test-start
-            core/data/database/build/test-results/iosSimulatorArm64Test/
-            core/data/database/build/native-test-start
-            core/data/database/build/device-link-start
-            core/data/database/build/native-fixtures/
-            app/ios/build/test-results/iosSimulatorArm64Test/
-            app/ios/build/native-test-start
-            app/ios/build/bin/iosArm64/debugTest/test.kexe
-            app/ios/build/install-epoch-relaunch/
             build/kmp-native-provenance.txt
+            build/kmp-native-device-toolchain.txt
+            core/data/database/build/device-link-start
+            core/data/database/build/device-link-inspection.jsonl
+            app/ios/build/bin/iosArm64/debugTest/test.kexe
           retention-days: 30
-
-      - name: Remove the owned database simulator
-        if: always() && env.WORKEEPER_DATABASE_TEST_SIMULATOR != ''
-        shell: bash
-        run: |
-          xcrun simctl shutdown "$WORKEEPER_DATABASE_TEST_SIMULATOR" || true
-          xcrun simctl delete "$WORKEEPER_DATABASE_TEST_SIMULATOR"
 
       # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.
       - name: Save Kotlin/Native toolchain
