@@ -582,19 +582,32 @@ jobs:
   kmp-ios-kit-smoke:
     name: KMP iOS kit smoke
     runs-on: macos-26
-    # GUARD: 120 minutes, not the Linux jobs' 60 (maintainer decision, 2026-10-05). PR runs never
-    # save ~/.konan, so every run of a PR that changes the Kotlin version starts without it.
-    # Without the device link this job took 33.7–39.8 min cold (runs 37241235866, 37198040443);
-    # the device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min
-    # together, an upper estimate since those runs also had a cold Gradle home. That attempt's
-    # whole job, link included, took 55.2 min. Warm with the link: 10m35s (attempt 2).
-    timeout-minutes: 120
+    # This isolated baseline dispatch gives the pinned source 150 minutes for the full Native gate.
+    timeout-minutes: 150
 
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: 6422ca7fc7d1d3b73665678ad91be83ba9995593
+
+      - name: Assert pinned Native checkout and record provenance
+        run: |
+          set -euo pipefail
+          source_head="$(git rev-parse HEAD)"
+          source_tree="$(git rev-parse 'HEAD^{tree}')"
+          test "$source_head" = 6422ca7fc7d1d3b73665678ad91be83ba9995593
+          test "$source_tree" = 04fca07ce321fa527d4e572d12339fda815061e8
+          mkdir -p build
+          {
+            printf 'GITHUB_WORKFLOW_SHA=%s\n' "$GITHUB_WORKFLOW_SHA"
+            printf 'GITHUB_SHA=%s\n' "$GITHUB_SHA"
+            printf 'GITHUB_WORKFLOW_REF=%s\n' "$GITHUB_WORKFLOW_REF"
+            printf 'SOURCE_HEAD=%s\n' "$source_head"
+            printf 'SOURCE_TREE=%s\n' "$source_tree"
+            printf 'GITHUB_RUN_ID=%s\n' "$GITHUB_RUN_ID"
+            printf 'GITHUB_RUN_ATTEMPT=%s\n' "$GITHUB_RUN_ATTEMPT"
+          } | tee build/kmp-native-provenance.txt
 
       - name: Select Xcode 26.6 and assert the simulator runtime
         run: |
@@ -903,6 +916,7 @@ jobs:
             app/ios/build/native-test-start
             app/ios/build/bin/iosArm64/debugTest/test.kexe
             app/ios/build/install-epoch-relaunch/
+            build/kmp-native-provenance.txt
           retention-days: 30
 
       - name: Remove the owned database simulator
