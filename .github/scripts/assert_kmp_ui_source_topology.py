@@ -1237,6 +1237,7 @@ MODULES["app:common"] = {'files': {'src/androidHostTest/kotlin/io/github/stslex/
            'src/commonMain/kotlin/io/github/stslex/workeeper/AppRootViewModel.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/app/common/di/AppUiGenerations.kt',
+           'src/commonMain/kotlin/io/github/stslex/workeeper/app/common/runtime/UiAdmissionGate.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/host/BottomBarNavigationListener.kt',
@@ -1248,6 +1249,7 @@ MODULES["app:common"] = {'files': {'src/androidHostTest/kotlin/io/github/stslex/
            'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt',
            'src/commonMain/kotlin/io/github/stslex/workeeper/navigation/ResultChannelRegistry.kt',
            'src/commonTest/kotlin/io/github/stslex/workeeper/navigation/ResultChannelRegistryTest.kt',
+           'src/commonTest/kotlin/io/github/stslex/workeeper/app/common/runtime/SharedUiAdmissionGateTest.kt',
            'src/iosMain/kotlin/io/github/stslex/workeeper/host/DisplayCornerShape.kt',
            'src/iosTest/kotlin/io/github/stslex/workeeper/AppRootIosTest.kt',
            'src/iosTest/kotlin/io/github/stslex/workeeper/AppRootNativeFixture.kt',
@@ -10049,6 +10051,7 @@ def check_apple_host_graph() -> list[str]:
         "navigatorIsSharedAndRestartReachesHost", "unadmittedRootSkipsGraphResolution",
         "admittedRootShowsTrainingFromOwnedDatabase", "preferencesAndDialogsSurviveGraphRecreation",
         "generationLifetimesAreIndependent",
+        "mountedRootHoldsAdmissionUntilDisposal",
     ]
     wanted = [{"classname": "io.github.stslex.workeeper.app.ios.IosAppGraphTest",
                "name": method + TARGET_SUFFIX} for method in methods]
@@ -10094,7 +10097,7 @@ def check_apple_host_graph() -> list[str]:
         failures.append("app:ios: relaunch helper is missing")
     rows = [row for row in EXPECTED if row["module"] == "app:ios"]
     if len(rows) != 1 or rows[0]["identities"] != wanted or rows[0]["classname_prefix"] != KNOWN_SUITE_PREFIX:
-        failures.append("app:ios: Native oracle must register seven graph, six epoch and six date identities once")
+        failures.append("app:ios: Native oracle must register eight graph, six epoch and six date identities once")
     factories = re.findall(r"val (\w+GraphFactory):", APP_ROOT_DEPS_PATH.read_text())
     if len(factories) != 13 or any(f"graph.{factory}." not in tests for factory in factories):
         failures.append("app:ios: tests must invoke all thirteen production factory accessors")

@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -145,15 +146,14 @@ class IosAppGraphTest {
         try {
             onNodeWithTag("AppTransitioning").assertIsDisplayed()
             assertEquals(0, resolves)
+            assertTrue(generations.gate.awaitRetired(1, timeoutMillis = 1_000))
             runOnIdle {
-                generations.allow = false
                 generations.appUiPhases.value = AppUiPhase.Generation(1, owner)
             }
             waitForIdle()
             assertEquals(0, resolves)
             onNodeWithTag("HomeGraph").assertDoesNotExist()
             runOnIdle {
-                generations.allow = true
                 generations.appUiPhases.value = AppUiPhase.Generation(2, owner)
             }
             waitForIdle()
@@ -275,6 +275,74 @@ class IosAppGraphTest {
             runOnIdle { owner.clear() }
             fixture.close()
         }
+    }
+
+    @Test
+    fun mountedRootHoldsAdmissionUntilDisposal() = runComposeUiTest {
+        val owner = GraphTestOwner()
+        val fixture = IosGraphFixture()
+        val generations: GraphTestGenerations
+        val remainingGrants: Int
+        try {
+            val graph = fixture.graph()
+            generations = GraphTestGenerations(owner)
+            val visible = mutableStateOf(true)
+            var resolves = 0
+            try {
+                setContent {
+                    if (visible.value) App(
+                        generations,
+                        {
+                            resolves++
+                            graph
+                        },
+                        {},
+                    )
+                }
+                onNodeWithTag("HomeGraph").assertIsDisplayed()
+                assertEquals(1, resolves)
+                assertEquals(1, generations.gate.admittedCount(1), "mounted root must hold its issuing gate's grant")
+                assertFalse(generations.gate.awaitRetired(1, timeoutMillis = 50))
+                assertEquals(1, generations.gate.admittedCount(1))
+
+                runOnIdle { generations.appUiPhases.value = AppUiPhase.Transitioning }
+                onNodeWithTag("AppTransitioning").assertIsDisplayed()
+                waitForIdle()
+                assertEquals(0, generations.gate.admittedCount(1))
+                assertSame(generations.admitted.single(), generations.released.single())
+                assertTrue(generations.gate.awaitRetired(1, timeoutMillis = 1_000))
+
+                runOnIdle { generations.appUiPhases.value = AppUiPhase.Generation(1, owner) }
+                waitForIdle()
+                onNodeWithTag("HomeGraph").assertDoesNotExist()
+                assertEquals(1, resolves, "a retired publication must resolve no graph dependencies")
+                assertEquals(1, generations.admitted.size)
+                assertEquals(0, generations.gate.admittedCount(1))
+
+                runOnIdle { generations.appUiPhases.value = AppUiPhase.Transitioning }
+                waitForIdle()
+                runOnIdle {
+                    generations.gate.reopen(1)
+                    generations.appUiPhases.value = AppUiPhase.Generation(1, owner)
+                }
+                onNodeWithTag("HomeGraph").assertIsDisplayed()
+                assertEquals(2, resolves, "same-ID reopening must resolve the graph exactly once more")
+                assertEquals(1, generations.gate.admittedCount(1))
+            } finally {
+                runOnIdle { visible.value = false }
+                waitForIdle()
+                remainingGrants = generations.gate.admittedCount(1)
+            }
+        } finally {
+            try {
+                runOnUiThread { owner.clear() }
+            } finally {
+                withContext(NonCancellable) { fixture.close() }
+            }
+        }
+        assertEquals(0, remainingGrants)
+        assertEquals(2, generations.admitted.size)
+        assertEquals(generations.admitted, generations.released)
     }
 }
 
