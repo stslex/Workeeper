@@ -21,6 +21,8 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MviHandlerConstructorRule(config),
             MviStoreStateRule(config),
             MviSharedPlatformRule(config),
+            KmpSharedContractsRule(config),
+            KmpDeclarationContractsRule(config),
             MetroScopeRule(config),
             ContributesBindingScopeRule(config),
             ContributesToScopeRule(config),

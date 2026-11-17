@@ -30,4 +30,20 @@ done <<< "$task_list"
 test "${#tasks[@]}" -gt 0
 python3 .github/scripts/kmp_native_model.py "$marker"
 
-exec ./gradlew "${tasks[@]}" "${flags[@]}"
+set +e
+./gradlew "${tasks[@]}" "${flags[@]}" 2>&1 | tee "build/kmp-verification/$1-gradle.log"
+process_exits=("${PIPESTATUS[@]}")
+set -e
+python3 - "$1" "${process_exits[@]}" "${tasks[@]}" "${flags[@]}" <<'RECEIPT'
+import json
+from pathlib import Path
+import sys
+
+role, gradle_exit, log_exit, *arguments = sys.argv[1:]
+exit_code = int(gradle_exit) or int(log_exit)
+Path(f"build/kmp-verification/{role}-execution.json").write_text(json.dumps({
+    "role": role, "exit_code": exit_code, "gradle_exit": int(gradle_exit),
+    "log_exit": int(log_exit), "arguments": arguments,
+}, indent=2) + "\n")
+sys.exit(exit_code)
+RECEIPT

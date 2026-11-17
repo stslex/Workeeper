@@ -8,11 +8,15 @@ class KmpVerificationConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             require(this == rootProject) { "Apply KMP verification to the root project" }
+            pluginManager.apply(KmpResourceVerificationPlugin::class.java)
             tasks.register("verifyKmpMigrationContracts") {
+                dependsOn("verifyKmpResourceContracts")
                 group = "verification"
                 val sourceOwners = nativeModules() + "feature:app-dialogs:api"
                 val dependencyOwners = sourceOwners + "app:app"
                 checkCoverage(KMP_SOURCE_OWNERSHIP, sourceOwners)
+                checkCoverage(KMP_DECLARATION_CONTRACTS, sourceOwners)
+                checkCoverage(KMP_PREVIEW_SUBJECTS, sourceOwners)
                 checkCoverage(KMP_DEPENDENCY_EDGES, dependencyOwners)
                 for (name in sourceOwners) {
                     val module = ":$name"

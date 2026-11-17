@@ -418,10 +418,10 @@ introduces races. The boundary: if you're calling a mapper, `ResourceWrapper`,
 
 `updateStateImmediate`'s lambda is `suspend` and is not atomic, so a resolver suspending inside it
 could lose a concurrent update; that is one more reason the copy resolves before it. For the shared
-feature entries, `assert_kmp_ui_source_topology.py` fails a `stringResolver` or `resourceWrapper`
-reference inside a handler's `updateState { … }` or `updateStateImmediate { … }` lambda (decision
-D3 of [kmp-phase-7-12-home-feature.md](feature-specs/kmp-phase-7-12-home-feature.md)), beside its
-older check for resource reads there.
+feature entries, `KmpSharedContractsRule` checks resource/date work and supported helper calls
+inside `updateState { … }` and `updateStateImmediate { … }` lambdas. Its inputs come from evaluated
+shared compilations, including custom roots. Handler tests separately assert read/write ordering
+and suspended-copy coherence; see [verification ownership](feature-specs/kmp-verification-ownership.md#implemented-owners).
 
 A synchronous gesture path cannot suspend, so the copy it needs is resolved earlier, with the load,
 and kept in State: exercise-chart's scrub assembles its readout from `readoutCopy` (decision D3 of
@@ -429,9 +429,10 @@ and kept in State: exercise-chart's scrub assembles its readout from `readoutCop
 live-workout keeps its templates in State too, and fills them inside the lambda with kit's pure
 `fillTemplate`, a string transform of State like the exempt transforms above (Phase 7.16 D5).
 
-A State lambda also calls no function of its own file that resolves copy: for the shared feature
-entries the topology gate follows same-file calls from each lambda, transitively (decision D5 of
-[kmp-phase-7-14-single-training-feature.md](feature-specs/kmp-phase-7-14-single-training-feature.md)).
+A State lambda also calls no local helper that resolves copy. `KmpSharedContractsRule` follows
+supported lexical helper calls transitively; executed handler tests retain the copy/read/write
+ordering and suspended-copy behavior. See
+[verification ownership](feature-specs/kmp-verification-ownership.md#implemented-owners).
 
 ## Per-feature MVI layout
 
@@ -2278,8 +2279,9 @@ module — typically `core/ui/kit` for UI verbs:
 Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions" vs Russian
 forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
 Write every placeholder positionally (`%1$d`, `%1$s`): Compose resources fill only that form and
-render a bare `%d` literally, and `assert_kmp_ui_source_topology.py` rejects anything else in a
-`commonMain/composeResources` catalog. That rules out `%,d` too, so past-session groups its
+render a bare `%d` literally. `VerifyKmpResourceContracts`, under `:verifyKmpMigrationContracts`,
+checks placeholder types and positions in evaluated common Compose-resource inputs, including
+custom directories. That rules out `%,d` too, so past-session groups its
 tonnage in the mapper, with a separator from its own catalog
 (`feature_past_session_tonnage_group_separator`), to keep `4,820` in en and `4 820` in ru. The
 numerals of `ChartReadoutMapper.formatGrouped` keep design-system.md's pinned NBSP.

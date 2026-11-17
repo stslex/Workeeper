@@ -75,10 +75,12 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
         run: |
-          echo "storeFile=keystore.jks" >> keystore.properties
-          echo "keyAlias=$KEYSTORE_KEY_ALIAS" >> keystore.properties
-          echo "storePassword=$KEYSTORE_STORE_PASSWORD" >> keystore.properties
-          echo "keyPassword=$KEYSTORE_KEY_PASSWORD" >> keystore.properties
+          {
+            echo "storeFile=keystore.jks"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } >> keystore.properties
 
       - name: Create Google Services Config file
         env:
@@ -135,9 +137,6 @@ jobs:
           key: ${{ steps.konan_key.outputs.key }}
           restore-keys: |
             ${{ steps.konan_key.outputs.prefix }}
-
-      - name: Assert shared KMP UI source-set topology
-        run: python3 .github/scripts/assert_kmp_ui_source_topology.py
 
       - name: Run convention functional tests
         run: |
@@ -544,33 +543,42 @@ jobs:
           grep -q '^G5 FAIL' swap-control.txt || { echo "::error::swap control failed without G5"; exit 1; }
           echo "swap control failed as required"
 
-  # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
-  # Gradle invocation executes the kit, navigation, MVI, start-mode and plan-editor UI modules' and
-  # the image-viewer, plan-editor, archive, all-trainings, all-exercises, past-session, home,
-  # exercise-chart, single-training, exercise, live-workout and app-dialogs features' Phase-7
-  # Native tests on the iOS simulator, then a checked-in script requires every exact per-module
-  # XML identity. A second forced invocation links the same twenty-one modules' iosArm64 device
-  # test binaries and a check requires each executable; device tests are compiled and linked,
-  # never run.
-  # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
-  # secrets. See
-  # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
-  kmp-ios-kit-smoke:
-    name: KMP iOS kit smoke
+  native-source:
+    name: Resolve Native source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      tree: ${{ steps.source.outputs.tree }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Resolve the intended checkout once
+        id: source
+        run: |
+          {
+            echo "sha=$(git rev-parse HEAD)"
+            echo "tree=$(git rev-parse 'HEAD^{tree}')"
+          } >> "$GITHUB_OUTPUT"
+
+  kmp-ios-simulator:
+    name: KMP iOS simulator
+    needs: native-source
     runs-on: macos-26
-    # GUARD: 120 minutes, not the Linux jobs' 60 (maintainer decision, 2026-10-05). PR runs never
-    # save ~/.konan, so every run of a PR that changes the Kotlin version starts without it.
-    # Without the device link this job took 33.7–39.8 min cold (runs 37241235866, 37198040443);
-    # the device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min
-    # together, an upper estimate since those runs also had a cold Gradle home. That attempt's
-    # whole job, link included, took 55.2 min. Warm with the link: 10m35s (attempt 2).
     timeout-minutes: 120
+    env:
+      NATIVE_SOURCE_SHA: ${{ needs.native-source.outputs.sha }}
+      NATIVE_SOURCE_TREE: ${{ needs.native-source.outputs.tree }}
+    outputs:
+      artifact_id: ${{ steps.native_evidence.outputs.artifact-id }}
+      artifact_digest: ${{ steps.native_evidence.outputs.artifact-digest }}
 
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ needs.native-source.outputs.sha }}
 
       - name: Select Xcode 26.6 and assert the simulator runtime
         run: |
@@ -582,6 +590,160 @@ jobs:
           simulator_runtimes="$(xcrun simctl list runtimes)"
           printf '%s\n' "$simulator_runtimes"
           grep -q "iOS" <<< "$simulator_runtimes"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # The device sibling is the only eligible macOS cache writer. No earlier step may touch
+      # ~/.gradle, because that would prevent setup-gradle from restoring it.
+      # GUARD: v5 is the last major whose caching is MIT. v6's default provider (`enhanced`) is
+      # the proprietary gradle-actions-caching component under Gradle's Terms of Use, and v6's
+      # `basic` provider has no restore keys, cleanup or deduplication, so it reproduces the
+      # per-key setup-java cache this replaced. Moving to v6 is a maintainer decision.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      # Same rationale as the Linux job's ~/.konan cache; macOS downloads its own K/N toolchain.
+      # GUARD: same key script as the build job's, whose GUARD explains the key; keep the two
+      # copies identical. Here the target token also covers linking, which writes per-dependency
+      # compiler caches per target under klib/cache/ next to the commonized platform libraries.
+      # This job only restores. The device sibling retains eligible master/dev cache writes.
+      # The shared key and dependency-cache behavior are documented in documentation/ci-cd.md.
+      - name: Compute the Kotlin/Native cache key
+        id: konan_key
+        run: python3 .github/scripts/kmp_native_cache_key.py
+
+      - name: Restore Kotlin/Native toolchain
+        id: konan
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan_key.outputs.key }}
+          restore-keys: |
+            ${{ steps.konan_key.outputs.prefix }}
+
+      # Repository configuration reads a signing keystore at configuration time. This job holds
+      # no production secret by design: an ephemeral throwaway JKS satisfies configuration and
+      # signs nothing that leaves the runner. GUARD: the convention resolves storeFile against
+      # the repository root even for absolute paths (java.io.File(parent, "/abs") concatenates),
+      # so the keystore must sit in the workspace and be referenced relatively.
+      - name: Configure ephemeral signing material
+        run: |
+          keytool -genkeypair -alias ci-smoke -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-smoke-pass -keypass ci-smoke-pass \
+            -dname "CN=kmp-ios-kit-smoke" -keystore "$RUNNER_TEMP/ci-smoke.jks"
+          cp "$RUNNER_TEMP/ci-smoke.jks" ci-smoke.jks
+          {
+            echo "storeFile=ci-smoke.jks"
+            echo "keyAlias=ci-smoke"
+            echo "storePassword=ci-smoke-pass"
+            echo "keyPassword=ci-smoke-pass"
+          } > keystore.properties
+
+      - name: Export verified Native task and result paths
+        run: |
+          ./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel verifyKmpNativeTargets \
+            --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+
+      - name: Record source and toolchain provenance
+        run: python3 .github/scripts/kmp_native_evidence.py start simulator
+
+      - name: Provision an owned database simulator
+        shell: bash
+        run: |
+          runtime="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; rs=[r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and ".iOS-" in r["identifier"]]; print(max(rs, key=lambda r: tuple(map(int, r["version"].split("."))))["identifier"])')"
+          device="$(xcrun simctl create "Workeeper-database-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
+          nonce="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+          {
+            echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device"
+            echo "WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
+            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
+            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH=full-suite"
+          } >> "$GITHUB_ENV"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+
+      - name: Run native shared UI, feature and application root tests
+        id: native_tests
+        run: bash .github/scripts/run_kmp_native.sh simulator
+
+      - name: Prove the installation epoch survives two Native processes
+        if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
+        run: |
+          python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
+            --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" \
+            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE" \
+            --binary "$(python3 .github/scripts/kmp_native_model.py epoch-binary)" \
+            --output "$(python3 .github/scripts/kmp_native_model.py epoch-results)" \
+            --marker build/kmp-verification/native-test-start
+
+      - name: Observe real Native epoch synchronization
+        if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
+        run: |
+          python3 .github/scripts/prove_ios_install_epoch_sync.py \
+            --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR"
+
+      - name: Validate and collect simulator evidence
+        id: native_receipt
+        if: always()
+        run: python3 .github/scripts/kmp_native_evidence.py collect simulator
+
+      - name: Upload simulator evidence
+        id: native_evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmp-ios-simulator-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.native_receipt.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove the owned database simulator
+        if: always() && env.WORKEEPER_DATABASE_TEST_SIMULATOR != ''
+        shell: bash
+        run: |
+          xcrun simctl shutdown "$WORKEEPER_DATABASE_TEST_SIMULATOR" || true
+          xcrun simctl delete "$WORKEEPER_DATABASE_TEST_SIMULATOR"
+
+
+  kmp-ios-device:
+    name: KMP iOS device links
+    needs: native-source
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      NATIVE_SOURCE_SHA: ${{ needs.native-source.outputs.sha }}
+      NATIVE_SOURCE_TREE: ${{ needs.native-source.outputs.tree }}
+    outputs:
+      artifact_id: ${{ steps.native_evidence.outputs.artifact-id }}
+      artifact_digest: ${{ steps.native_evidence.outputs.artifact-digest }}
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.native-source.outputs.sha }}
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          grep -q "Xcode 26.6" <<< "$xcode_version"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -649,114 +811,30 @@ jobs:
           } > keystore.properties
 
       - name: Export verified Native task and result paths
-        id: native_plan
         run: |
           ./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel verifyKmpNativeTargets \
             --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
-          results="$(python3 .github/scripts/kmp_native_model.py result-upload-patterns)"
-          binary="$(python3 .github/scripts/kmp_native_model.py epoch-binary)"
-          device_upload_pattern="$(python3 .github/scripts/kmp_native_model.py apple-device-upload-pattern)"
-          {
-            printf 'results<<EOF\n%s\nEOF\n' "$results"
-            printf 'epoch_binary=%s\n' "$binary"
-            printf 'device_upload_pattern=%s\n' "$device_upload_pattern"
-          } >> "$GITHUB_OUTPUT"
 
-      - name: Provision an owned database simulator
-        shell: bash
-        run: |
-          runtime="$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; rs=[r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and ".iOS-" in r["identifier"]]; print(max(rs, key=lambda r: tuple(map(int, r["version"].split("."))))["identifier"])')"
-          device="$(xcrun simctl create "Workeeper-database-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
-          nonce="$(python3 -c 'import uuid; print(uuid.uuid4())')"
-          {
-            echo "WORKEEPER_DATABASE_TEST_SIMULATOR=$device"
-            echo "WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
-            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_NONCE=$nonce"
-            echo "SIMCTL_CHILD_WORKEEPER_INSTALL_EPOCH_LAUNCH=full-suite"
-          } >> "$GITHUB_ENV"
-          xcrun simctl boot "$device"
-          xcrun simctl bootstatus "$device" -b
+      - name: Record source and toolchain provenance
+        run: python3 .github/scripts/kmp_native_evidence.py start device
 
-      - name: Run native shared UI, feature and application root tests
-        id: native_tests
-        run: bash .github/scripts/run_kmp_native.sh simulator
-
-      # An exit code is not evidence: the checked-in script structurally parses each module's
-      # JUnit XML and independently requires one exact (classname, name) tuple per module —
-      # a repo-wide total or substring match would accept two kit tests and zero navigation
-      # tests, or a classname from one case paired with a method name from another. Counts are
-      # validated PER <testsuite> before any module total is formed, so two malformed suites
-      # cannot cancel out into a consistent-looking aggregate. It allows additional PASSING
-      # cases, so a module can grow a second native test without edits here.
-      #
-      # The condition runs it whenever the Gradle step actually STARTED, which covers three
-      # outcomes: a red TEST run leaves XML and the script names the module and tuple that
-      # broke, which Gradle's exit code cannot; a compile or simulator-boot failure leaves no
-      # XML and the script says the results are missing, which is the honest answer; and a
-      # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
-      # so this step stays skipped too rather than masking that failure behind a
-      # missing-results error. Cancellation also skips it.
-      - name: Prove the installation epoch survives two Native processes
-        id: epoch_relaunch
-        if: ${{ !cancelled() && steps.native_tests.outcome == 'success' }}
-        env:
-          EPOCH_BINARY: ${{ steps.native_plan.outputs.epoch_binary }}
-        run: |
-          python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
-            --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" \
-            --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE" \
-            --binary "$EPOCH_BINARY" \
-            --marker build/kmp-verification/native-test-start
-
-      - name: Assert exact native test identities
-        id: native_identities
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
-        run: python3 .github/scripts/assert_kmp_ios_smoke.py
-
-      - name: Upload failing native test evidence before device linking
-        if: ${{ !cancelled() && (steps.native_tests.outcome == 'failure' || steps.native_identities.outcome == 'failure' || steps.epoch_relaunch.outcome == 'failure') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: kmp-ios-kit-smoke-failure-results
-          path: |
-            ${{ steps.native_plan.outputs.results }}
-            build/kmp-verification/model.json
-            build/kmp-verification/native-test-start
-            app/ios/build/install-epoch-relaunch/
-          retention-days: 30
-
-      # The device half of the target pair: the same twenty-one modules' iosArm64 test binaries,
-      # forced like the simulator step, compiled and linked but never run (no device here).
       - name: Link the iOS device test binaries
-        id: device_link
-        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: bash .github/scripts/run_kmp_native.sh device
 
-      - name: Assert the device test binaries
-        if: ${{ !cancelled() && steps.device_link.outcome != 'skipped' }}
-        run: python3 .github/scripts/kmp_native_model.py check-device
-
-      - name: Upload native test results
-        uses: actions/upload-artifact@v4
+      - name: Validate and collect device evidence
+        id: native_receipt
         if: always()
-        with:
-          name: kmp-ios-kit-smoke-results
-          path: |
-            ${{ steps.native_plan.outputs.results }}
-            build/kmp-verification/model.json
-            build/kmp-verification/native-test-start
-            build/kmp-verification/device-link-start
-            core/data/database/build/native-fixtures/
-            ${{ steps.native_plan.outputs.device_upload_pattern }}
-            app/ios/build/install-epoch-relaunch/
-          retention-days: 30
+        run: python3 .github/scripts/kmp_native_evidence.py collect device
 
-      - name: Remove the owned database simulator
-        if: always() && env.WORKEEPER_DATABASE_TEST_SIMULATOR != ''
-        shell: bash
-        run: |
-          xcrun simctl shutdown "$WORKEEPER_DATABASE_TEST_SIMULATOR" || true
-          xcrun simctl delete "$WORKEEPER_DATABASE_TEST_SIMULATOR"
+      - name: Upload device evidence
+        id: native_evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmp-ios-device-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.native_receipt.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 30
 
       # Last on purpose: every Kotlin/Native task in this job has written to ~/.konan by now.
       - name: Save Kotlin/Native toolchain
@@ -765,3 +843,31 @@ jobs:
         with:
           path: ~/.konan
           key: ${{ steps.konan_key.outputs.key }}
+
+  kmp-ios-kit-smoke:
+    name: KMP iOS kit smoke
+    needs: [native-source, kmp-ios-simulator, kmp-ios-device]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NATIVE_NEEDS: ${{ toJSON(needs) }}
+      NATIVE_SOURCE_SHA: ${{ needs.native-source.outputs.sha }}
+      NATIVE_SOURCE_TREE: ${{ needs.native-source.outputs.tree }}
+      NATIVE_EVENT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.native-source.outputs.sha || github.sha }}
+      - name: Retrieve exact child archives without changing workflow permissions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await require('./.github/scripts/download_kmp_native_evidence.cjs').download();
+            } catch (error) {
+              core.setFailed(error.message.startsWith('Native artifact transport:')
+                ? error.message : 'Native artifact transport failed; no valid archive was accepted');
+            }
+      - name: Require both successful jobs and verify archived evidence
+        run: python3 .github/scripts/kmp_native_evidence.py aggregate

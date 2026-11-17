@@ -352,8 +352,9 @@ through both Android-host and iOS-simulator test hierarchies. Its unchanged RU P
 two PNGs live in `androidHostTest`; `iosTest` renders the production
 `AppTheme { StartCardModeSheetContent(...) }` scene with the production CMP resources and verifies
 the title, all four names, selected-only check semantics, and one real row callback. Generated
-`Res` accessors remain internal to the leaf. The exact source/resource/test layout is enforced by
-`.github/scripts/assert_kmp_ui_source_topology.py`.
+`Res` accessors remain internal to the leaf. `:verifyKmpMigrationContracts` owns evaluated source
+membership and resource contracts; Detekt owns portable declarations, and fresh JUnit identities
+prove execution. See [verification ownership](feature-specs/kmp-verification-ownership.md).
 
 #### Shared plan-editor UI
 
@@ -517,7 +518,7 @@ kit's catalog has no plural, and Android host has no route to this module's plur
 feature's build may not take Robolectric, and its generated `Res` is private, so neither kit nor
 app can read the catalog). On Android the delegation runs in production and in the app journeys
 whenever a row has stats, with no text assertion; the RU plural forms are pinned statically by
-the topology gate's catalog check only.
+`VerifyKmpResourceContracts` under `:verifyKmpMigrationContracts` only.
 
 The 52 all-exercises goldens moved byte-identical to `androidHostTest`; their fixtures carry
 fixed strings, so neither the mapper nor the resolver reaches a golden. Android keeps the two
@@ -543,11 +544,11 @@ reaches and fail fast on every other one.
 Copy outside composition resolves through the injected `StringResolver`, so 13 identities run
 through it: the nine mapper identities that call `toUi` and four `CommonHandlerTest` identities.
 The mapper and CommonHandler suites each fake it strictly and in-file. The fake switches on the
-generated resource objects, returns the strings the old `ResourceWrapper` stubs returned plus the
-EN separator `,`, and throws on any other resource and on any read that does not pass exactly the
-arguments production passes. Both suites keep an in-file `ResourceWrapper` reduced to the session
-date (`formatMediumDate`, the module's one `ResourceWrapper` read); every other member throws.
-Every fixture tonnage there is under 1,000, so no host identity depends on the grouping. The module
+generated resource objects and rejects unapproved resources or argument shapes. The mapper fixture
+returns distinct supplied values for every key, including a nonbreaking-space separator; its
+existing weighted-tonnage identity asserts two grouping positions in 1,234,567. Both suites keep
+an in-file `ResourceWrapper` reduced to the session date (`formatMediumDate`, the module's one
+`ResourceWrapper` read); every other member throws. The module
 has no `core:data:database` edge, not even in tests (decision D3 of
 [kmp-phase-7-11-past-session-feature.md](feature-specs/kmp-phase-7-11-past-session-feature.md)):
 the repository fakes override the one member whose return type names `PlanSetDataModel` as
@@ -567,11 +568,10 @@ exact ordered list. The set fields are controlled, so the test-held State takes 
 as the Store would. Together with the 40 portable cases, the past-session Native XML contains
 exactly 41 passing cases with no skip, failure, or error.
 
-What this does not cover: RU values execute in no test (the topology gate pins them statically,
-and the prepared catalog's separator records were checked once); on Android host the grouping runs
-only through the strict fake, so the scene is the only executed guard of `groupThousands`, and no
-executed test notices a hardcoded EN separator, which the topology gate's copy contract catches by
-counting the resolver reads; the overflow gate runs on Android host only; and `OnSetReorder`,
+RU catalog selection does not execute in a locale-switched scene; `VerifyKmpResourceContracts`
+protects its logical values. The portable mapper identity separately proves that grouping uses the
+supplied separator, and the EN Native scene exercises the real catalog and production grouping.
+The overflow gate runs on Android host only; `OnSetReorder`,
 `OnDragStarted`, `OnSheetDismiss` and `OnSetTypeChange` have no scene path (`OnSetTypeChange` has
 no UI path at all).
 
@@ -632,9 +632,9 @@ three picker callbacks as exact ordered lists. Together with the 70 portable cas
 mode-label case, the home Native XML contains exactly 72 passing cases with no skip, failure, or
 error.
 
-What this does not cover: RU values execute in no test (the topology gate pins them statically);
+What this does not cover: RU values execute in no test (`VerifyKmpResourceContracts` protects their logical values);
 the hoisted active-session and picker mappings (finding F1) execute in no unit identity, because no
-handler identity collects those flows — the topology gate's State-lambda check pins their shape, and
+handler identity collects those flows — `KmpSharedContractsRule` guards their State-lambda resource boundary, and
 the device journeys that return to Home with a session in progress execute them; the mode sheet,
 the conflict dialog, the graph's sheet and dialog wiring and the append tails have no scene path
 (`HomePagingTailKindTest` covers the tails as a selector); and the relative time runs only through
@@ -696,9 +696,11 @@ as one exact ordered list, two presses at the canvas's edges included. Together 
 portable cases, the exercise-chart Native XML contains exactly 69 passing cases with no skip,
 failure, or error.
 
-What this does not cover: RU values execute in no test (the topology gate pins them statically);
-the scrub that lands between a load's read of `prior` and its write (finding F1) is raced by no
-identity; the haptic's delivery and the picker sheet's dismissal gestures have no scene path; the
+The existing chart coherence identity changes selection during data loading and while copy
+resolution is suspended, and its Store/resolver fixtures reject copy work inside State updates.
+
+What this does not cover: RU values execute in no test (`VerifyKmpResourceContracts` protects their logical values);
+the haptic's delivery and the picker sheet's dismissal gestures have no scene path; the
 parity identities run on the Android host only; the day-month date runs only through stubs
 off-device; and the DST identities cover `America/New_York` at its 2026 transitions only.
 
@@ -901,8 +903,11 @@ the real `ExternalSessionWrites`.
 The module's one production `core:data:database` edge is read by the domain mapper alone. The
 interactor suite's repository fakes spell `PlanSetDataModel` and `SetTypeDataModel`, its only names
 from that module; `core:data:database-test` is one `androidHostTest` edge, read by
-`ExerciseDoneRuleTest` alone; and no shared source set names `java.*`. The topology gate's
-`live_workout_dependency_contract` pins all four.
+`ExerciseDoneRuleTest` alone; and no shared source set names `java.*`. Gradle owns the evaluated
+dependency edges. `KmpSharedContractsRule` and `KmpDatabaseReaders` enforce the supported shared API
+and reviewed database-reader declarations, including evaluated host-test inputs and canonical
+aliases. The database symbol catalog comes from evaluated database and fixture sources; it is
+independent of the consumer's portability classification.
 
 The exact Native identity
 `io.github.stslex.workeeper.feature.live_workout.LiveWorkoutFeatureSceneIosTest.resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`
@@ -1799,6 +1804,8 @@ epoch_binary="$(python3 .github/scripts/kmp_native_model.py epoch-binary)"
 python3 .github/scripts/prove_ios_install_epoch_relaunch.py \
   --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR" --nonce "$WORKEEPER_INSTALL_EPOCH_NONCE" \
   --binary "$epoch_binary" --marker build/kmp-verification/native-test-start
+python3 .github/scripts/prove_ios_install_epoch_sync.py \
+  --simulator "$WORKEEPER_DATABASE_TEST_SIMULATOR"
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
 # Link the same 21 modules for IOS devices and inspect the fresh executables.

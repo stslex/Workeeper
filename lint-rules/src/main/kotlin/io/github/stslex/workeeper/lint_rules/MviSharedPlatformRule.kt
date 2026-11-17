@@ -89,7 +89,7 @@ class MviSharedPlatformRule(config: Config = Config.empty) : Rule(config, Requir
 }
 
 // This rule reports a migration invariant even when its declaration has a suppression annotation.
-private class RequiredFindings : Context {
+internal class RequiredFindings : Context {
 
     private val reported = mutableListOf<Finding>()
     override val findings: List<Finding> get() = reported.toList()

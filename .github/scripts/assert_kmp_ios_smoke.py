@@ -26,6 +26,8 @@ three distinct outcomes:
   real failure upstream.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 import re
 
@@ -73,7 +75,7 @@ def load_expected() -> list[dict]:
 EXPECTED = load_expected()
 
 
-def main() -> None:
+def main(invocation_root: str | None = None) -> None:
     try:
         models = {row["module"].removeprefix(":"): row for row in load_model()}
     except (OSError, ValueError) as error:
@@ -81,7 +83,11 @@ def main() -> None:
     relaunch_failures = ()
     try:
         binary = Path(models["app:ios"]["simulatorBinary"])
-        print("  ok: " + validate_relaunch(marker=SIMULATOR_START, binary=binary))
+        directory = Path(models["app:ios"]["buildDirectory"]) / "install-epoch-relaunch"
+        print("  ok: " + validate_relaunch(
+            directory=directory, marker=SIMULATOR_START, binary=binary,
+            invocation_binary=str(Path(invocation_root) / binary) if invocation_root else None,
+        ))
     except (OSError, ValueError, KeyError, TypeError) as error:
         relaunch_failures = (str(error),)
     expected_modules = [

@@ -1,0 +1,103 @@
+{
+  "app:common": [],
+  "app:ios": [],
+  "core:data:database": [],
+  "core:ui:kit": [],
+  "core:ui:mvi": [],
+  "core:ui:navigation": [],
+  "core:ui:plan-editor": [
+    "io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet",
+    "io.github.stslex.workeeper.core.ui.plan_editor.TypeToggle"
+  ],
+  "core:ui:start-mode": [
+    "io.github.stslex.workeeper.core.ui.start_mode.StartCardModeSheetContent"
+  ],
+  "feature:all-exercises": [
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.ColdOpenError",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.ColdOpenLoading",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.ExerciseRow",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.ExercisesEmptyState",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.FilteredEmptyState",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.SelectionEmptyState",
+    "io.github.stslex.workeeper.feature.all_exercises.ui.components.TagFilterRow"
+  ],
+  "feature:all-trainings": [
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenError",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenLoading",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.FilteredEmptyState",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.SelectionEmptyState",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow",
+    "io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState"
+  ],
+  "feature:app-dialogs:api": [],
+  "feature:app-dialogs:impl": [
+    "io.github.stslex.workeeper.feature.app_dialogs.impl.ui.RestoreFailureDialog",
+    "io.github.stslex.workeeper.feature.app_dialogs.impl.ui.RestoreSuccessDialog",
+    "io.github.stslex.workeeper.feature.app_dialogs.impl.ui.UndoRestoreConfirmationDialog",
+    "io.github.stslex.workeeper.feature.app_dialogs.impl.ui.UndoRestoreSuccessDialog"
+  ],
+  "feature:archive": [
+    "io.github.stslex.workeeper.feature.archive.ui.ArchiveScreen",
+    "io.github.stslex.workeeper.feature.archive.ui.components.ArchivedItemRow"
+  ],
+  "feature:exercise": [
+    "io.github.stslex.workeeper.feature.exercise.ui.ExerciseDetailScreen",
+    "io.github.stslex.workeeper.feature.exercise.ui.ExerciseEditScreen",
+    "io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDescriptionBlock",
+    "io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent",
+    "io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow",
+    "io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceSheetContent",
+    "io.github.stslex.workeeper.feature.exercise.ui.components.PlanInfoSheetContent"
+  ],
+  "feature:exercise-chart": [
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseHeader",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheetContent",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs",
+    "io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow"
+  ],
+  "feature:home": [
+    "io.github.stslex.workeeper.feature.home.ui.HomeScreen",
+    "io.github.stslex.workeeper.feature.home.ui.components.ActiveSessionBanner",
+    "io.github.stslex.workeeper.feature.home.ui.components.HomeStartCard",
+    "io.github.stslex.workeeper.feature.home.ui.components.RecentSessionRow",
+    "io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet"
+  ],
+  "feature:image-viewer": [],
+  "feature:live-workout": [
+    "io.github.stslex.workeeper.feature.live_workout.ui.LiveWorkoutScreen",
+    "io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog",
+    "io.github.stslex.workeeper.feature.live_workout.ui.components.LiveExerciseCard",
+    "io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRow",
+    "io.github.stslex.workeeper.feature.live_workout.ui.components.LiveWorkoutHeader"
+  ],
+  "feature:past-session": [
+    "io.github.stslex.workeeper.feature.past_session.ui.PastSessionScreen",
+    "io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog",
+    "io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard",
+    "io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader",
+    "io.github.stslex.workeeper.feature.past_session.ui.components.PastSetEditRow"
+  ],
+  "feature:plan-editor": [
+    "io.github.stslex.workeeper.feature.plan_editor.ui.PlanEditorScreen"
+  ],
+  "feature:settings": [
+    "io.github.stslex.workeeper.feature.settings.ui.SettingsScreen",
+    "io.github.stslex.workeeper.feature.settings.ui.components.AuthPausedBanner",
+    "io.github.stslex.workeeper.feature.settings.ui.components.BackupSection",
+    "io.github.stslex.workeeper.feature.settings.ui.components.FrequencyPickerBottomSheet"
+  ],
+  "feature:single-training": [
+    "io.github.stslex.workeeper.feature.single_training.ui.TrainingDetailScreen",
+    "io.github.stslex.workeeper.feature.single_training.ui.components.ExercisePickerSheet",
+    "io.github.stslex.workeeper.feature.single_training.ui.components.TrainingDetailMenuSheetContent",
+    "io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseCard",
+    "io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseReadCard",
+    "io.github.stslex.workeeper.feature.single_training.ui.components.TrainingHistoryRow"
+  ]
+}

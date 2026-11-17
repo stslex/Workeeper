@@ -39,7 +39,10 @@ def exact_case(log: str) -> dict:
     return json.loads(lines[0])
 
 
-def validate_relaunch(directory: Path = RESULTS, marker: Path = MARKER, binary: Path = BINARY) -> str:
+def validate_relaunch(
+    directory: Path = RESULTS, marker: Path = MARKER, binary: Path = BINARY,
+    invocation_binary: str | None = None,
+) -> str:
     require(marker.is_file(), "full-suite freshness marker is missing")
     manifest_path = directory / "run.json"
     manifest = json.loads(manifest_path.read_text())
@@ -67,7 +70,7 @@ def validate_relaunch(directory: Path = RESULTS, marker: Path = MARKER, binary: 
         require(row["identity"] == IDENTITY, "incorrect filtered identity")
         require(row["binary_sha256"] == digest(binary), "launch used a different executable")
         require(row["log_sha256"] == digest(log_path), "launch log changed")
-        require(row["command"] == ["xcrun", "simctl", "spawn", simulator, str(binary.resolve()),
+        require(row["command"] == ["xcrun", "simctl", "spawn", simulator, invocation_binary or str(binary.resolve()),
                                    f"--ktest_filter={IDENTITY}", "--ktest_logger=GTEST"], "incorrect launch invocation")
         observed = exact_case(log_path.read_text())
         require(row["storage"] == observed, "receipt does not match the Native observation")

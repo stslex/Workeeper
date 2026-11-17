@@ -102,13 +102,22 @@ internal class ClickHandlerTest {
 
     /** The buzz after this dialog's confirm is `Confirm`, not `LongPress` (spec §26). */
     @Test
-    fun `OnConfirmPermanentDelete with pending clears state and emits Confirm haptic`() {
+    fun `OnConfirmPermanentDelete with pending clears state and emits Confirm haptic`() = runTest {
         stateFlow.value = stateFlow.value.copy(
             pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
         )
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
         assertEquals(null, stateFlow.value.pendingPermanentDelete)
         assertTrue(store.events.any { it is Event.Haptic && it.type == HapticFeedbackType.Confirm })
+        assertTrue(interactor.permanentDeletes.isEmpty())
+        val launch = store.launches.single()
+        launch.runAction(this)
+        launch.runOnSuccess(this)
+        assertEquals(listOf("uuid-1"), interactor.permanentDeletes)
+        assertEquals(
+            listOf(Event.ShowPermanentDeleteSuccess("localized-delete")),
+            store.events.filterIsInstance<Event.ShowPermanentDeleteSuccess>(),
+        )
     }
 
     /** The FAB morph fires nothing; the top bar's archive routes here too, so both are covered. */
@@ -171,7 +180,10 @@ internal class ClickHandlerTest {
         assertNull(stateFlow.value.pendingBulkDelete)
         // Pure success surfaces a snackbar, never the blocked dialog.
         assertNull(stateFlow.value.blockedArchiveDialog)
-        assertEquals(1, store.events.count { it is Event.ShowBulkDeleteSuccess })
+        assertEquals(
+            listOf(Event.ShowBulkDeleteSuccess("localized-archive:2")),
+            store.events.filterIsInstance<Event.ShowBulkDeleteSuccess>(),
+        )
     }
 
     @Test
@@ -440,9 +452,9 @@ private class FakeAllExercisesHandlerStore(
     ): Job = error("Flow.launch must not be used by ClickHandler")
 }
 
-/** Records [bulkArchive] and answers it with [bulkArchiveResult]; every other member fails fast. */
 private class RecordingAllExercisesInteractor : AllExercisesInteractor {
 
+    val permanentDeletes = mutableListOf<String>()
     val bulkArchiveCalls = mutableListOf<Set<String>>()
     var bulkArchiveResult = BulkArchiveResult(archivedCount = 0, blocked = emptyList())
 
@@ -466,8 +478,9 @@ private class RecordingAllExercisesInteractor : AllExercisesInteractor {
     override suspend fun canPermanentlyDelete(uuid: String): Nothing =
         error("canPermanentlyDelete must not be used by ClickHandler")
 
-    override suspend fun permanentlyDelete(uuid: String): Nothing =
-        error("permanentlyDelete is only reached by a launch no identity runs")
+    override suspend fun permanentlyDelete(uuid: String) {
+        permanentDeletes += uuid
+    }
 
     override suspend fun getExercise(uuid: String): Nothing =
         error("getExercise must not be used by ClickHandler")
@@ -488,22 +501,18 @@ private class RecordingAllExercisesInteractor : AllExercisesInteractor {
         error("canBulkPermanentDelete must not be used by ClickHandler")
 }
 
-/**
- * The strict resolver: the relaxed mock's `""` for the four resources [ClickHandler] reads, and
- * only with the arguments production passes. Any other resource or argument shape throws.
- */
 private class ClickHandlerStringResolver : StringResolver {
 
     override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String =
         when (resource) {
             Res.string.feature_all_exercises_permanent_delete_success -> {
                 check(formatArgs.isEmpty()) { "permanent_delete_success takes no arguments" }
-                ""
+                "localized-delete"
             }
 
             Res.string.feature_all_exercises_blocked_archive_used_in_format -> {
                 check(formatArgs.size == 1) { "used_in_format takes exactly one argument" }
-                ""
+                "localized-used-in:${formatArgs.single()}"
             }
 
             else -> error("ClickHandler must not read $resource")
@@ -518,8 +527,8 @@ private class ClickHandlerStringResolver : StringResolver {
             "a plural read passes its quantity as its one format argument; got ${formatArgs.toList()}"
         }
         return when (resource) {
-            Res.plurals.feature_all_exercises_bulk_archive_success -> ""
-            Res.plurals.feature_all_exercises_blocked_archive_more -> ""
+            Res.plurals.feature_all_exercises_bulk_archive_success -> "localized-archive:$quantity"
+            Res.plurals.feature_all_exercises_blocked_archive_more -> "localized-more:$quantity"
             else -> error("ClickHandler must not read $resource")
         }
     }

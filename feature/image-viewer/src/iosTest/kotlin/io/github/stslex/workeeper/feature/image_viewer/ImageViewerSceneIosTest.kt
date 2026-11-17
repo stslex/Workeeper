@@ -3,13 +3,23 @@
 
 package io.github.stslex.workeeper.feature.image_viewer
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import coil3.PlatformContext
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePainter
+import coil3.compose.AsyncImagePreviewHandler
+import coil3.compose.LocalAsyncImagePreviewHandler
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.request.crossfadeMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
@@ -22,6 +32,8 @@ import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.getString
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class ImageViewerSceneIosTest {
 
@@ -83,6 +95,38 @@ class ImageViewerSceneIosTest {
             ),
             actions,
         )
+    }
+
+    @Test
+    @OptIn(ExperimentalCoilApi::class)
+    fun actualImageRequestRetainsModelContextAndCrossfade() = runComposeUiTest {
+        val state = mutableStateOf(State.create("request-first", editable = false))
+        val requests = mutableListOf<ImageRequest>()
+        lateinit var platformContext: PlatformContext
+        val observer = AsyncImagePreviewHandler { _, request ->
+            requests += request
+            AsyncImagePainter.State.Empty
+        }
+        setContent {
+            platformContext = LocalPlatformContext.current
+            CompositionLocalProvider(
+                LocalInspectionMode provides true,
+                LocalAsyncImagePreviewHandler provides observer,
+            ) {
+                AppTheme { ImageViewerScreen(state = state.value, consume = {}) }
+            }
+        }
+        settleScene()
+        assertTrue(requests.isNotEmpty(), "The production AsyncImage must construct a request")
+        assertEquals("request-first", requests.last().data)
+        assertSame(platformContext, requests.last().context)
+        assertEquals(200, requests.last().crossfadeMillis)
+
+        state.value = State.create("request-second", editable = false)
+        settleScene()
+        assertEquals("request-second", requests.last().data)
+        assertSame(platformContext, requests.last().context)
+        assertEquals(200, requests.last().crossfadeMillis)
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.settleScene() {

@@ -47,6 +47,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             if (path == ":core:ui:mvi") {
                 configureMviDetektScope(kmpExtension)
             }
+            configureKmpContractScope(kmpExtension)
             registerSourceOwnership(kmpExtension)
             registerKmpDependencyEdges()
             registerVerificationExport()
@@ -75,6 +76,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             ) {
                 "$module: expected a simulator execution and an IOS device test link"
             }
+            moduleBuildDirectory.set(layout.buildDirectory.get().asFile.relativeTo(root).invariantSeparatorsPath)
             modulePath.set(module)
             simulatorTask.set(simulator.path)
             simulatorResults.set(simulator.reports.junitXml.outputLocation.get().asFile.relativeTo(root).invariantSeparatorsPath)

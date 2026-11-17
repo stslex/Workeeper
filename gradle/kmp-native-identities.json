@@ -14,11 +14,20 @@
   },
   "core:ui:mvi": {
     "io.github.stslex.workeeper.core.ui.mvi.StoreGenerationJoinTest": [
-      "aStoreJobStartedViaLaunchDefaultIsJoinedByTheGenerationLifetime"
+      "aStoreJobStartedViaLaunchDefaultIsJoinedByTheGenerationLifetime",
+      "ordinaryDisposalCancelsStoreJobsWithoutEndingTheGeneration",
+      "onClearedDisposesTheStoreExactlyOnce",
+      "actionsAfterDisposalAreRejected",
+      "theStoreJobIsALiveDescendantOfTheInjectedGeneration"
     ],
     "io.github.stslex.workeeper.core.ui.mvi.NavigationResultContractTest": [
       "each produced result is delivered exactly once per cycle",
-      "clear returns the destination to no-result so re-entry sees nothing"
+      "clear returns the destination to no-result so re-entry sees nothing",
+      "a destination that has produced nothing reads as null",
+      "a produced result reads back at the type the destination declares",
+      "false is a result and is distinct from no result",
+      "a destination and its variant do not share a result channel",
+      "every reader of a destination observes the same sequence"
     ],
     "io.github.stslex.workeeper.core.ui.mvi.StoreEventPressureTest": [
       "everyEventSubmittedUnderBufferPressureIsObservedExactlyOnce"
@@ -41,16 +50,59 @@
   "core:ui:start-mode": {
     "io.github.stslex.workeeper.core.ui.start_mode.StartModeSceneIosTest": [
       "sheetRendersMigratedCatalogAndDispatchesSelection"
+    ],
+    "io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeCatalogTest": [
+      "the catalog lists four modes in the ruled sheet order with default first"
     ]
   },
   "core:ui:plan-editor": {
     "io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorSceneIosTest": [
       "readOnlyCopyAndEditableAddRenderAndDispatch"
+    ],
+    "io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducerTest": [
+      "OnAddSet on empty draft appends a default WORK set",
+      "OnAddSet copies reps and weight from previous set but cycles type back to WORK",
+      "OnSetRemove drops the row at the given index",
+      "OnSetRemove at index 0 drops the head row",
+      "OnSetRemove at last index drops the tail row",
+      "OnSetRemove with out-of-bounds index returns the draft unchanged",
+      "OnSetRemove with negative index returns the draft unchanged",
+      "OnSetRemove on an empty draft is a no-op",
+      "OnSetTypeChange updates the type of the row at the given index",
+      "OnSetTypeChange with out-of-bounds index returns the draft unchanged",
+      "OnSetWeightChange updates the weight of the row at the given index",
+      "OnSetWeightChange with null weight clears the weight on that row",
+      "OnSetWeightChange with out-of-bounds index returns the draft unchanged",
+      "OnSetRepsChange updates the reps of the row at the given index",
+      "OnSetRepsChange clamps negative reps to zero",
+      "OnSetRepsChange with out-of-bounds index returns the draft unchanged",
+      "OnDismiss returns the draft unchanged",
+      "OnSave returns the draft unchanged",
+      "OnAddSet on empty draft uses the same default reps when isWeighted is false"
     ]
   },
   "feature:image-viewer": {
     "io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest": [
-      "resourcesBranchesAndActionsRenderAndDispatch"
+      "resourcesBranchesAndActionsRenderAndDispatch",
+      "actualImageRequestRetainsModelContextAndCrossfade"
+    ],
+    "io.github.stslex.workeeper.feature.image_viewer.mvi.handler.NavigationHandlerTest": [
+      "Back triggers popBack",
+      "BackWithRequest pops ExerciseImage with the exact request name"
+    ],
+    "io.github.stslex.workeeper.feature.image_viewer.mvi.handler.CommonHandlerTest": [
+      "Init is a no-op because state is already from initial",
+      "TransformChange writes the absolute scale and offsets to State"
+    ],
+    "io.github.stslex.workeeper.feature.image_viewer.mvi.handler.ClickHandlerTest": [
+      "a non-editable route cannot open the verbs sheet",
+      "an editable route opens the verbs sheet",
+      "Replace pops with a REPLACE request and closes the sheet in the same transition",
+      "Remove pops with a REMOVE request",
+      "OnBackClick emits ContextClick haptic and consumes Navigation Back",
+      "OnDoubleTap from MIN_SCALE jumps to DOUBLE_TAP_TARGET_SCALE and resets offsets",
+      "OnDoubleTap from any scale above MIN_SCALE collapses to MIN_SCALE and resets offsets",
+      "OnDoubleTap emits ContextClick haptic"
     ]
   },
   "feature:plan-editor": {
@@ -183,8 +235,8 @@
       "OpenCreate navigates to Screen Training with null uuid"
     ],
     "io.github.stslex.workeeper.feature.all_trainings.mvi.store.StartBlankGateTest": [
-      "no workout running — the drawn pair is whole",
-      "a workout is running — the blank-start CTA withdraws",
+      "no workout running \u2014 the drawn pair is whole",
+      "a workout is running \u2014 the blank-start CTA withdraws",
       "before the first emission the CTA is withheld not offered"
     ],
     "io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsClearanceTest": [
@@ -240,7 +292,7 @@
       "OnCancelPermanentDelete clears pending delete",
       "OnConfirmPermanentDelete with no pending is no-op",
       "OnConfirmPermanentDelete with pending clears state and emits Confirm haptic",
-      "OnBulkDelete fires no haptic — the morph is silent",
+      "OnBulkDelete fires no haptic \u2014 the morph is silent",
       "OnTagFilterToggle fires no haptic",
       "OnBulkDeleteConfirm emits Confirm haptic",
       "OnBulkDelete with selection opens confirm dialog",
@@ -389,7 +441,7 @@
       "LAGGING_GROUPS maps idle stats to calendar days in repository order",
       "LAGGING_GROUPS with no tagged history is NoTaggedHistory",
       "FORGOTTEN_TRAINING carries days idle and composition",
-      "FORGOTTEN_TRAINING never run keeps daysIdle null — HD1's most forgotten thing",
+      "FORGOTTEN_TRAINING never run keeps daysIdle null \u2014 HD1's most forgotten thing",
       "FORGOTTEN_TRAINING with no templates is NoTemplates"
     ],
     "io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCaseTest": [
@@ -511,7 +563,7 @@
       "OnPickerItemSelect to different exercise clears emptyReason and triggers load",
       "OnScrub to a new index moves the readout and ticks the haptic",
       "OnScrub can read both sessions completed on the same day",
-      "OnScrub to the current index is a no-op — the haptic is a tick per CROSSED point",
+      "OnScrub to the current index is a no-op \u2014 the haptic is a tick per CROSSED point",
       "OnScrub outside the point range is ignored",
       "OnEmptyCtaClick consumes OpenHome navigation",
       "OnBack consumes PopBack navigation"
@@ -525,7 +577,7 @@
       "a response whose metric no longer matches the live state is dropped",
       "a response that still matches the live state is applied",
       "loadChart with empty result sets NO_DATA_FOR_EXERCISE",
-      "loadChart with a single point is sub-threshold — empty state no readout",
+      "loadChart with a single point is sub-threshold \u2014 empty state no readout",
       "loadChart with two same-day sessions plots and scrubs the later session",
       "default state preset is ALL",
       "a throwing recents read resolves to LOAD_FAILED instead of loading forever",
@@ -565,8 +617,8 @@
   },
   "feature:single-training": {
     "io.github.stslex.workeeper.feature.single_training.mvi.handler.ClickHandlerTest": [
-      "OnSaveClick with blank name flips nameError — reachable",
-      "OnSaveClick with empty exercises emits ShowSaveError — reachable",
+      "OnSaveClick with blank name flips nameError \u2014 reachable",
+      "OnSaveClick with empty exercises emits ShowSaveError \u2014 reachable",
       "OnSaveClick with a name and exercises raises neither error",
       "OnEditClick flips into Edit mode",
       "OnPickerConfirm opens the first inserted card only",
@@ -619,7 +671,7 @@
     "io.github.stslex.workeeper.feature.single_training.mvi.handler.CommonHandlerTest": [
       "a load that throws clears isLoading or the route is composed on nothing forever",
       "a training that is not there clears isLoading too",
-      "the История count is the total not the visible page",
+      "the \u0418\u0441\u0442\u043e\u0440\u0438\u044f count is the total not the visible page",
       "a create route never loads so it is never withheld and it opens clean",
       "Init resolves the editor's constant copy into State"
     ],
@@ -644,7 +696,7 @@
       "OnTypeToggle to WEIGHTLESS with no weights switches immediately and asks nothing",
       "OnTypeChangeConfirm commits the switch and clears the weights it warned about",
       "OnTypeChangeDismiss leaves both the type and the weights alone",
-      "OnSaveClick with blank name sets nameError without saving — reachable",
+      "OnSaveClick with blank name sets nameError without saving \u2014 reachable",
       "OnSaveClick with a name does not set nameError and proceeds",
       "OnEditClick flips mode to Edit and snapshots current state",
       "OnDetailMenuClick opens the detail-menu sheet",
@@ -740,7 +792,7 @@
       "confirming deletes nothing while the snackbar lives",
       "back is consumed only after the snackbar is queued with the real undo label",
       "the window closing commits the delete",
-      "undo — or a process death inside the window — leaves the row",
+      "undo \u2014 or a process death inside the window \u2014 leaves the row",
       "the commit outlives the screen that scheduled it",
       "the queued delete carries the message and the undo label Init resolved"
     ],
@@ -841,7 +893,7 @@
       "OnExerciseHeaderClick toggles expansion for DONE exercises",
       "OnExerciseHeaderClick toggles SKIPPED cards like any other",
       "OnExerciseHeaderClick expands exactly the tapped card and touches nothing else",
-      "OnExerciseHeaderClick collapse is pure — sets statuses and siblings untouched",
+      "OnExerciseHeaderClick collapse is pure \u2014 sets statuses and siblings untouched",
       "OnDeleteSessionMenuClick shows DeleteDialog",
       "OnFinishClick on logged session shows FinishSession dialog with requiresName when name is blank",
       "OnFinishClick on empty session shows EmptyFinish dialog",
@@ -1026,7 +1078,7 @@
     "io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapperTest": [
       "mapper marks the lowest-position non-skipped non-done exercise as CURRENT",
       "mapper marks skipped rows as SKIPPED and walks past them for CURRENT",
-      "first entry expands exactly the first card — even a completed one",
+      "first entry expands exactly the first card \u2014 even a completed one",
       "withExpansionCarriedFrom keeps the previous open set pruned to live cards",
       "withExpansionCarriedFrom keeps the first-card init when nothing was loaded before",
       "REPRO a weighted plan set with no weight renders reps-only never a fake zero",
@@ -1088,8 +1140,8 @@
       "foreign install epoch clears transferred restore dialogs before resolution",
       "dismiss clears only the named variant's flags",
       "dismiss the only pending variant emits null",
-      "dedup is per-variant — pending RestoreFailure does not block RestoreSuccess publish",
-      "publish then dismiss then publish same variant succeeds — the flag was cleared"
+      "dedup is per-variant \u2014 pending RestoreFailure does not block RestoreSuccess publish",
+      "publish then dismiss then publish same variant succeeds \u2014 the flag was cleared"
     ],
     "io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolverTest": [
       "no flag set resolves to null",
@@ -1114,7 +1166,7 @@
     ],
     "io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.ChooseHandlerTest": [
       "Choose emits the choice to the observer",
-      "Choose does NOT dismiss the dialog — the consumer is responsible"
+      "Choose does NOT dismiss the dialog \u2014 the consumer is responsible"
     ],
     "io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.mapper.AppDialogDateMapperTest": [
       "a restore success labels the date its backup was restored",
@@ -1123,7 +1175,7 @@
     ],
     "io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImplTest": [
       "emit delivers the choice to a live subscriber",
-      "late subscriber does NOT receive past emissions — replay = 0 and no persisted-choice replay",
+      "late subscriber does NOT receive past emissions \u2014 replay = 0 and no persisted-choice replay",
       "acknowledgeReaction delegates to repository dismiss",
       "multiple subscribers all receive the same emission",
       "emit with no subscriber buffers up to capacity without suspending"
@@ -1241,6 +1293,11 @@
       "oneWrapperTracksSettingsAcrossCallers",
       "androidResourceIdsFailExplicitly",
       "admittedRootRendersPublishedDialogDates"
+    ],
+    "io.github.stslex.workeeper.app.ios.FeatureGraphOwnershipIosTest": [
+      "allThirteenProductionFeaturesRetainTheirSuppliedFactoryStore",
+      "rootMountsEverySuppliedFactoryAndRoute",
+      "productionGraphsDispatchSystemBackOnlyWhileIntercepting"
     ]
   }
 }

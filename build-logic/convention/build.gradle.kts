@@ -27,6 +27,7 @@ dependencies {
     testPluginClasspath(libs.kotlin.gradlePlugin)
     testPluginClasspath(libs.android.gradlePlugin)
     testPluginClasspath(libs.detekt.gradle)
+    testPluginClasspath(libs.cmp.gradlePlugin)
 }
 
 tasks {

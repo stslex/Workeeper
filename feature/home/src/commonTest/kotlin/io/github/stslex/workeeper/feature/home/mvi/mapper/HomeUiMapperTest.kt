@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.core.utils.DateTimeUtil
 import io.github.stslex.workeeper.core.ui.kit.strings.StringResolver
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartCardReadoutDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
@@ -75,23 +76,23 @@ internal class HomeUiMapperTest {
         override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String {
             if (resource == Res.string.feature_home_recent_stats_format) {
                 check(formatArgs.size == 2) { "recent_stats_format takes exactly two arguments" }
-                return "${formatArgs[0]} · ${formatArgs[1]}"
+                return "stats:${formatArgs[0]}|${formatArgs[1]}"
             }
             check(formatArgs.isEmpty()) { "$resource takes no arguments; got ${formatArgs.toList()}" }
             return when (resource) {
-                Res.string.feature_home_recent_adhoc_label -> "Ad-hoc workout"
-                Res.string.feature_home_start_week_day_mon -> "Mo"
-                Res.string.feature_home_start_week_day_tue -> "Tu"
-                Res.string.feature_home_start_week_day_wed -> "We"
-                Res.string.feature_home_start_week_day_thu -> "Th"
-                Res.string.feature_home_start_week_day_fri -> "Fr"
-                Res.string.feature_home_start_week_day_sat -> "Sa"
-                Res.string.feature_home_start_week_day_sun -> "Su"
-                Res.string.feature_home_start_empty_sessions -> "No workouts yet"
-                Res.string.feature_home_start_empty_tags -> "No tagged exercises"
-                Res.string.feature_home_picker_empty -> "No templates yet"
-                Res.string.feature_home_start_never_run -> "never yet"
-                Res.string.feature_home_start_groups_footnote -> "days since the group's last workout"
+                Res.string.feature_home_recent_adhoc_label -> "localized-adhoc"
+                Res.string.feature_home_start_week_day_mon -> "localized-Mo"
+                Res.string.feature_home_start_week_day_tue -> "localized-Tu"
+                Res.string.feature_home_start_week_day_wed -> "localized-We"
+                Res.string.feature_home_start_week_day_thu -> "localized-Th"
+                Res.string.feature_home_start_week_day_fri -> "localized-Fr"
+                Res.string.feature_home_start_week_day_sat -> "localized-Sa"
+                Res.string.feature_home_start_week_day_sun -> "localized-Su"
+                Res.string.feature_home_start_empty_sessions -> "localized-no-workouts"
+                Res.string.feature_home_start_empty_tags -> "localized-no-tags"
+                Res.string.feature_home_picker_empty -> "localized-no-templates"
+                Res.string.feature_home_start_never_run -> "localized-never"
+                Res.string.feature_home_start_groups_footnote -> "localized-footnote"
                 else -> error("Unexpected string resource: $resource")
             }
         }
@@ -103,27 +104,27 @@ internal class HomeUiMapperTest {
         ): String = when (resource) {
             Res.plurals.feature_home_recent_exercises_count -> {
                 checkCount(resource, quantity, formatArgs)
-                if (quantity == 1) "$quantity exercise" else "$quantity exercises"
+                if (quantity == 1) "exercise-one:$quantity" else "exercise-many:$quantity"
             }
 
             Res.plurals.feature_home_recent_sets_count -> {
                 checkCount(resource, quantity, formatArgs)
-                if (quantity == 1) "$quantity set" else "$quantity sets"
+                if (quantity == 1) "set-one:$quantity" else "set-many:$quantity"
             }
 
             Res.plurals.feature_home_start_week_sessions_count -> {
                 checkUnitWord(resource, formatArgs)
-                if (quantity == 1) "workout" else "workouts"
+                if (quantity == 1) "localized-workout" else "localized-workouts"
             }
 
             Res.plurals.feature_home_start_days_count -> {
                 checkUnitWord(resource, formatArgs)
-                if (quantity == 1) "day" else "days"
+                if (quantity == 1) "localized-day" else "localized-days"
             }
 
             Res.plurals.feature_home_start_days_idle_count -> {
                 checkCount(resource, quantity, formatArgs)
-                if (quantity == 1) "$quantity day" else "$quantity days"
+                if (quantity == 1) "day-one:$quantity" else "day-many:$quantity"
             }
 
             else -> error("Unexpected plural resource: $resource")
@@ -159,13 +160,23 @@ internal class HomeUiMapperTest {
             setCount = 2,
         ).toRecentItem(nowMillis = nowMillis, resourceWrapper = resources, stringResolver = strings)
 
-        assertEquals("Ad-hoc workout", item.trainingName)
+        assertEquals("localized-adhoc", item.trainingName)
+        val active = ActiveSessionWithStatsDomain(
+            sessionUuid = "active-1",
+            trainingUuid = "training-1",
+            trainingName = "Ignored for adhoc",
+            isAdhoc = true,
+            startedAt = 0L,
+            totalCount = 2,
+            doneCount = 1,
+        ).toUi(nowMillis = nowMillis, stringResolver = strings)
+        assertEquals("localized-adhoc", active.trainingName)
         assertEquals(
             "rel:${5 * MINUTE_IN_MILLIS}@$nowMillis",
             item.finishedAtRelativeLabel,
         )
         assertEquals(formatElapsedDuration(5 * MINUTE_IN_MILLIS), item.durationLabel)
-        assertEquals("1 exercise · 2 sets", item.statsLabel)
+        assertEquals("stats:exercise-one:1|set-many:2", item.statsLabel)
     }
 
     @Test
@@ -185,7 +196,7 @@ internal class HomeUiMapperTest {
 
         assertEquals("Push Day", item.trainingName)
         assertEquals(formatElapsedDuration(15 * MINUTE_IN_MILLIS), item.durationLabel)
-        assertEquals("3 exercises · 1 set", item.statsLabel)
+        assertEquals("stats:exercise-many:3|set-one:1", item.statsLabel)
     }
 
     @Test
@@ -208,14 +219,14 @@ internal class HomeUiMapperTest {
         ).toPickerItems(nowMillis = nowMillis, resourceWrapper = resources, stringResolver = strings)
 
         assertEquals("Push Day", items[0].name)
-        assertEquals("4 exercises", items[0].exerciseCountLabel)
+        assertEquals("exercise-many:4", items[0].exerciseCountLabel)
         assertEquals(
             "rel:$HOUR_IN_MILLIS@$nowMillis",
             items[0].lastSessionRelativeLabel,
         )
 
         assertEquals("Leg Day", items[1].name)
-        assertEquals("2 exercises", items[1].exerciseCountLabel)
+        assertEquals("exercise-many:2", items[1].exerciseCountLabel)
         assertNull(items[1].lastSessionRelativeLabel)
     }
 
@@ -227,8 +238,19 @@ internal class HomeUiMapperTest {
         ).toUi(strings)
 
         assertEquals("3", week.sessionsCountLabel)
-        assertEquals("workouts", week.sessionsUnitLabel)
-        assertEquals(listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"), week.days.map { it.label })
+        assertEquals("localized-workouts", week.sessionsUnitLabel)
+        assertEquals(
+            listOf(
+                "localized-Mo",
+                "localized-Tu",
+                "localized-We",
+                "localized-Th",
+                "localized-Fr",
+                "localized-Sa",
+                "localized-Su",
+            ),
+            week.days.map { it.label },
+        )
         assertEquals(
             listOf(true, false, true, false, true, false, false),
             week.days.map { it.isFilled },
@@ -255,7 +277,7 @@ internal class HomeUiMapperTest {
         ).toUi(strings)
 
         assertEquals("1", week.sessionsCountLabel)
-        assertEquals("workout", week.sessionsUnitLabel)
+        assertEquals("localized-workout", week.sessionsUnitLabel)
         assertEquals(
             listOf(false, false, false, false, false, false, true),
             week.days.map { it.isFilled },
@@ -274,8 +296,8 @@ internal class HomeUiMapperTest {
         ).toUi(strings) as StartCardBodyUi.DaysSince
 
         assertEquals("4", body.daysCountLabel)
-        assertEquals("days", body.daysUnitLabel)
-        assertEquals("Ноги · ${DateTimeUtil.formatMillis(0L)}", body.anchorLabel)
+        assertEquals("localized-days", body.daysUnitLabel)
+        assertEquals("stats:Ноги|${DateTimeUtil.formatMillis(0L)}", body.anchorLabel)
     }
 
     @Test
@@ -287,8 +309,8 @@ internal class HomeUiMapperTest {
             lastFinishedAt = 0L,
         ).toUi(strings) as StartCardBodyUi.DaysSince
 
-        assertEquals("day", body.daysUnitLabel)
-        assertEquals("Ad-hoc workout · ${DateTimeUtil.formatMillis(0L)}", body.anchorLabel)
+        assertEquals("localized-day", body.daysUnitLabel)
+        assertEquals("stats:localized-adhoc|${DateTimeUtil.formatMillis(0L)}", body.anchorLabel)
     }
 
     @Test
@@ -304,7 +326,7 @@ internal class HomeUiMapperTest {
         assertEquals(listOf("спина", "грудь", "ноги"), body.rows.map { it.name })
         assertEquals(listOf(1f, 0.5f, 0f), body.rows.map { it.barFraction })
         assertEquals(listOf("14", "7", "0"), body.rows.map { it.daysCountLabel })
-        assertEquals("days since the group's last workout", body.footnoteLabel)
+        assertEquals("localized-footnote", body.footnoteLabel)
     }
 
     @Test
@@ -329,7 +351,7 @@ internal class HomeUiMapperTest {
 
         assertEquals("t1", body.trainingUuid)
         assertEquals("Спина и бицепс", body.trainingName)
-        assertEquals("21 days · 6 exercises", body.metaLabel)
+        assertEquals("stats:day-many:21|exercise-many:6", body.metaLabel)
     }
 
     @Test
@@ -341,21 +363,21 @@ internal class HomeUiMapperTest {
             exerciseCount = 3,
         ).toUi(strings) as StartCardBodyUi.Forgotten
 
-        assertEquals("never yet · 3 exercises", body.metaLabel)
+        assertEquals("stats:localized-never|exercise-many:3", body.metaLabel)
     }
 
     @Test
     fun `each empty readout carries its own mode's copy`() = runTest {
         assertEquals(
-            "No workouts yet",
+            "localized-no-workouts",
             (StartCardReadoutDomain.NoSessions.toUi(strings) as StartCardBodyUi.Empty).message,
         )
         assertEquals(
-            "No tagged exercises",
+            "localized-no-tags",
             (StartCardReadoutDomain.NoTaggedHistory.toUi(strings) as StartCardBodyUi.Empty).message,
         )
         assertEquals(
-            "No templates yet",
+            "localized-no-templates",
             (StartCardReadoutDomain.NoTemplates.toUi(strings) as StartCardBodyUi.Empty).message,
         )
     }

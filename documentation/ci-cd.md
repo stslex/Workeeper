@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch` | Three jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux), `Release bundle identity` (both release bundles and the bundle identity gate on each, plus its swap control; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature, archive feature, all-trainings feature, all-exercises feature, past-session feature, home feature, exercise-chart feature, single-training feature, exercise feature, live-workout feature, app-dialogs feature, Settings feature, and application-root Native tests plus exact identities on `macos-26`, then links the same nineteen modules' iosArm64 test binaries, never run). Gates PRs. |
+| `android_build_unified.yml` | push to `master` or `dev` (skipped when every changed file is Markdown), every `pull_request`, `workflow_dispatch`, `workflow_call` | Android build/tests and release bundle identity remain independent. Native source resolution feeds separate simulator and device-link jobs; the required `KMP iOS kit smoke` aggregate validates both. Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -67,7 +67,7 @@ manual dispatch, or inside the production deploy — never on a PR.
    platform libraries and, on macOS, per-dependency compiler caches) and an exact hit is never
    saved again; it does not hash the whole catalog, which holds `versionCode` and would re-key the
    toolchain on every release. The job's last step saves the entry, only on a `master` or `dev`
-   push that missed the exact key. The `KMP iOS kit smoke` job runs the same script and save rule.
+   push that missed the exact key. The Native device job runs the same script and save rule; its simulator sibling only restores.
    The key carries no dependency fingerprint, so after a dependency bump on the same Kotlin version
    and target set the macOS job rebuilds the bumped dependencies' compiler caches on every run
    until the Kotlin version or the target set changes.
@@ -77,7 +77,6 @@ manual dispatch, or inside the production deploy — never on a PR.
 ```bash
 bash .github/scripts/run_with_resource_samples.sh ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
-python3 .github/scripts/assert_kmp_ui_source_topology.py
 python3 -m unittest discover -s .github/scripts -p 'test_kmp_native_*.py'
 ./gradlew -p build-logic :convention:check --rerun-tasks --no-build-cache --no-configuration-cache
 ./gradlew :verifyKmpMigrationContracts verifyKmpNativeTargets --rerun-tasks --no-build-cache --no-configuration-cache
@@ -363,168 +362,85 @@ property of the workflow.
 
 ## KMP iOS kit smoke job
 
-The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
-required context for the Phase-7 Native tests. After cache restore, Gradle exports the
-configured task paths, XML locations and binary locations for the independently required
-module roster. The simulator and device steps validate that export before constructing their
-task arrays. See the [ownership map](feature-specs/kmp-verification-ownership.md).
-One forced Gradle invocation executes the
-`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene and the
-`StringResolver` catalog reads),
-`:core:ui:navigation` (all 12 routes through the production serialization registry),
-`:core:ui:mvi` (lifetime/event/navigation/processor contracts and launch-failure recording),
-`:core:ui:start-mode`
-(production sheet composition, migrated resources, selected-state semantics, and callback),
-`:core:ui:plan-editor` (common reducer coverage plus the production read-only-to-editable scene),
-`:feature:image-viewer` (12 common handler cases plus the production resource, branch, Coil, and
-action scene), `:feature:plan-editor` (all 42 portable cases plus the production resource,
-branch, and action scene), `:feature:archive` (all 25 portable cases plus the production
-resource, paging-branch, and action scene), `:feature:all-trainings` (all 49 portable cases
-plus the production resource, mapper and snackbar copy, paging-branch, selection, and action
-scene), `:feature:all-exercises` (all 66 portable cases plus the production scene: the
-catalog and mapper copy through the real `StringResolver`, paging branches, selection, the three
-dialogs, and dispatch), `:feature:past-session` (all 40 portable cases plus the production
-scene: the catalog and the totals copy through the real `StringResolver`, grouped tonnage
-included, the three phases, the session sheet, both dialogs, and dispatch), `:feature:home`
-(all 70 portable cases, the iOS mode-label case, and the production scene: the catalog and the
-readout, row, picker and banner copy through the real `StringResolver`, the loading, banner,
-start-card and list states, the empty region, the training picker, and dispatch),
-`:feature:exercise-chart` (all 68 portable cases plus the production scene: the catalog and the
-readout, footer and grouping copy through the real `StringResolver`, the loading, plot, weightless
-and four empty states, the picker, and dispatch, canvas presses included),
-`:feature:single-training` (all 62 portable cases plus the production scene: the catalog and the
-handlers' formatted copy through the real `StringResolver`, the read screen, the editor, the
-exercise picker, the menu, and dispatch, text input included), `:feature:exercise` (all 142
-portable cases plus the production scene: the catalog and the handlers' copy through the real
-`StringResolver`, the read screen, the editor, the three sheets, and dispatch, text input
-included), and `:feature:live-workout` (all 226 portable cases plus the production scene: its
-catalog, the load's copy and the launch reads through the real `StringResolver`, the production
-mapper, the screen with its five sheets and five dialogs, the set rows' field labels, and
-dispatch, text input included), and `:feature:app-dialogs:impl` (all 43 portable cases plus the
-production scene: its catalog through the real `StringResolver`, the production date mapper,
-every dialog from test-held state with the failure body for all twelve codes, and dispatch).
-It uses `--continue` so one module's failure cannot mask whether the others ran. The job selects
-`/Applications/Xcode_26.6.app` explicitly, asserts
-`xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
-an ephemeral throwaway JKS with `keytool` (the repository configuration reads signing material
-at configuration time; no production secret is used).
+`KMP iOS kit smoke` is the stable required aggregate in the unified workflow. It depends on
+source resolution and two independent execution jobs:
 
-After Gradle, `.github/scripts/assert_kmp_ios_smoke.py` parses each module's JUnit XML
-structurally. Every report must be as recent as the run's start marker. Per module it requires
-that the result directory exists with at least one parseable
-`TEST-*.xml` and at least one `<testsuite>`; the declared aggregate `tests` equals the number of
-parsed `<testcase>` elements and is at least one; aggregate `skipped` / `failures` / `errors` are
-zero and no case carries a `<failure>`, `<error>` or `<skipped>` child; and the expected
-normalized `(classname, name)` tuple occurs **exactly once**. Additional *passing* cases are
-allowed, so a module can grow a second native test without editing the script — nothing weakens,
-because every extra case must still pass and still be counted, and a suite declaring more cases
-than it emitted is inconsistent XML rather than evidence. A repo-wide total or a substring match
-could not vouch for a test that vanished; a classname from one case paired with a method name
-from another cannot forge an identity.
+| Job | Runner and budget | Required work |
+| --- | --- | --- |
+| `Resolve Native source` | Ubuntu 24.04, 10 minutes | Resolve the event SHA, or explicit reusable-workflow ref, once to an immutable SHA and tree |
+| `KMP iOS simulator` | macOS 26, 120 minutes | All 21 evaluated simulator tasks, exact identities, two-process epoch persistence and real syscall synchronization observation |
+| `KMP iOS device links` | macOS 26, 120 minutes | All 21 evaluated device-link tasks and fresh, nonempty IOS executable inspection |
+| `KMP iOS kit smoke` | Ubuntu 24.04, 15 minutes | Require successful children and independently verify their archived evidence |
 
-The assertion step is bound to the Gradle step's id (`native_tests`) and runs on
-`!cancelled() && steps.native_tests.outcome != 'skipped'` — that is, whenever the Native Gradle
-step actually **started**, red or green. A red native run from a *test* failure is the case where
-the per-module XML matters most, and reporting only Gradle's exit code there would not say which
-module or which tuple broke; a red run from a compile or simulator-boot failure produces no XML,
-and the script says so plainly. It is skipped when the job is cancelled, and when the Gradle step
-never ran because an earlier setup step (checkout, Xcode selection, JDK, signing material) failed —
-asserting there would bury the real setup failure under a misleading `result directory … does not
-exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
-the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, plan-editor feature,
-archive feature, all-trainings feature, all-exercises feature, past-session feature, home
-feature, exercise-chart feature, single-training feature, exercise feature, live-workout feature,
-or app-dialogs feature verdict.
-The kit validator
-requires two tuples,
-`io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest.sheetLayoutRendersMigratedStringFontAndIcon`
-and
-`io.github.stslex.workeeper.core.ui.kit.strings.ComposeStringResolverIosTest.resolvesTheEnglishCatalog`,
-each exactly once. The image-viewer validator requires
-`io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
-exactly once. The plan-editor feature validator requires all 42 portable tuples and
-`io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
-exactly once, for exactly 43 target tuples. The archive feature validator requires all 25
-portable tuples and
-`io.github.stslex.workeeper.feature.archive.ArchiveFeatureSceneIosTest.resourcesPagingBranchesAndActionsRenderAndDispatch`
-exactly once, for exactly 26 target tuples. The all-trainings feature validator requires all 49
-portable tuples and
-`io.github.stslex.workeeper.feature.all_trainings.AllTrainingsFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
-exactly once, for exactly 50 target tuples. The all-exercises feature validator requires all 66
-portable tuples and
-`io.github.stslex.workeeper.feature.all_exercises.AllExercisesFeatureSceneIosTest.resourcesPagingBranchesSelectionAndActionsRenderAndDispatch`
-exactly once, for exactly 67 target tuples. The past-session feature validator requires all 40
-portable tuples and
-`io.github.stslex.workeeper.feature.past_session.PastSessionFeatureSceneIosTest.resourcesTotalsPhasesSheetDialogsAndActionsRenderAndDispatch`
-exactly once, for exactly 41 target tuples. The home feature validator requires all 70 portable
-tuples,
-`io.github.stslex.workeeper.feature.home.ui.components.HomeStartCardModeLabelTest.theHeadNamesNoModeUntilOneIsKnown`
-and
-`io.github.stslex.workeeper.feature.home.HomeFeatureSceneIosTest.resourcesReadoutsListPickerAndActionsRenderAndDispatch`
-exactly once each, for exactly 72 target tuples. The exercise-chart feature validator requires all
-68 portable tuples and
-`io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartFeatureSceneIosTest.resourcesReadoutFooterStatesPickerAndActionsRenderAndDispatch`
-exactly once, for exactly 69 target tuples. The single-training feature validator requires all 62
-portable tuples and
-`io.github.stslex.workeeper.feature.single_training.SingleTrainingFeatureSceneIosTest.resourcesDetailEditorPickerAndMenuRenderAndDispatch`
-exactly once, for exactly 63 target tuples. The exercise feature validator requires all 142
-portable tuples and
-`io.github.stslex.workeeper.feature.exercise.ExerciseFeatureSceneIosTest.resourcesDetailEditorSheetsAndActionsRenderAndDispatch`
-exactly once, for exactly 143 target tuples. The live-workout feature validator requires all 226
-portable tuples and
-`io.github.stslex.workeeper.feature.live_workout.LiveWorkoutFeatureSceneIosTest.resourcesScreenSheetsDialogsAndActionsRenderAndDispatch`
-exactly once, for exactly 227 target tuples. The app-dialogs feature validator requires all 43
-portable tuples and
-`io.github.stslex.workeeper.feature.app_dialogs.impl.AppDialogFeatureSceneIosTest.resourcesDatesVariantsAndChoicesRenderAndDispatch`
-exactly once, for exactly 44 target tuples. All twenty-one result directories upload under
-`if: always()` regardless.
+The children each check out the resolved SHA, select Xcode 26.6 and JDK 21, restore the existing
+Gradle/Kotlin Native caches, configure ephemeral signing material, and export the verified
+Gradle model. They use their own checkout and outputs. Device linking generates its schema
+fixtures through its compilation dependencies and never boots or consumes a simulator.
+The simulator job alone owns and deletes a test simulator. Neither job signs an Apple bundle,
+builds an Xcode app, or publishes a framework.
 
-The device-link invocation uses the same 21 modules in the same order. The binary oracle checks
-every evaluated device output for a nonempty executable newer than the link start marker and
-an `IOS` platform from `xcrun vtool`. The Linux build still compiles KMP klibs. The macOS job
-executes simulator suites and links device binaries.
+The [Native identity roster](../gradle/kmp-native-identities.json) independently supplies the
+required modules and exact cases. The evaluated model supplies each module's build directory,
+test/link task, JUnit directory and simulator/device executable. The launcher forces execution
+with `--rerun-tasks --no-build-cache --no-configuration-cache --continue --full-stacktrace
+--console=plain`; simulator execution also uses `--no-parallel`. It saves the complete Gradle log,
+actual process exits and arguments. Acceptance requires one nonzero `N actionable tasks: N
+executed` summary and an executed terminal for every selected module.
 
-Both jobs' `~/.konan` caches use the computed key from [setup step 7](#setup-steps); with iosArm64
-declared it is `konan-<os>-kotlin-<kotlin>-iosArm64-iosSimulatorArm64`. The target token matters
-because Kotlin/Native writes per-target content into that directory: the commonized platform
-libraries for the two iOS targets under `klib/commonized/<version>/(ios_arm64, ios_simulator_arm64)`,
-and on macOS the per-dependency compiler caches the device link writes under
-`klib/cache/ios_arm64-gSTATIC-user-pl/` (about 1.1 GB for 70 dependencies, measured locally). Only
-`master` and `dev` pushes save the key. Until the first `dev` push after the device target landed
-saves it, pull-request runs restore the older iosSimulatorArm64-only entry through the
-`konan-<os>-kotlin-<kotlin>-` prefix, so on every pull-request run the Linux job runs the commonizer
-and the macOS job builds the ios_arm64 compiler caches cold.
+The XML oracle parses every report, checks freshness against the launch marker, reconciles
+suite counts with actual cases, rejects failures/skips/errors/duplicate identities, and requires
+every roster identity exactly once. Additional passing cases are counted. The epoch proof runs
+the exact public-storage case in two sequential Native processes and checks distinct PIDs and
+launch IDs, a shared fresh nonce, owned simulator paths, off-Main storage and matching file
+hashes. The sync proof injects a test-only Darwin interposer into a separate isolated Native
+storage case. It observes actual `openat`, `write`, `fsync`, `linkat` and `unlinkat` operations.
+The candidate must be created as an empty regular file with exclusive creation and symlink
+protection. The trace binds its path and device/inode identity, requires every candidate write
+before synchronization and publication, and rejects later writes through the canonical path.
+Directory synchronization must complete between publication and cleanup and again after cleanup.
+The production implementation is not replaced by a test model.
+See the [ownership map](feature-specs/kmp-verification-ownership.md) and
+[installation-epoch contract](feature-specs/kmp-phase-7-20c-ios-install-epoch.md#verification-and-review).
 
-The job's timeout is 120 minutes, against 60 for the Linux jobs. Pull-request runs never save
-`~/.konan`, so every run of a pull request that changes the Kotlin version starts without it.
-Without the device link the job took 33.7–39.8 min cold (runs 37241235866 and 37198040443); the
-device link step took 25.8 min cold in run 37120302556 (attempt 1), so about 59–66 min together,
-an upper estimate since those runs also had a cold Gradle home. That attempt's whole job, link
-included, took 55.2 min; warm with the link it took 10m35s (attempt 2).
+Each child records source SHA/tree, event SHA, workflow SHA/ref, source workflow hash,
+repository/run/attempt, toolchain and configuration hashes, task summary, markers and a file
+inventory with sizes, timestamps and SHA-256 digests. Artifact names include role, run and
+producer attempt. The simulator archive contains every model-derived XML result, each required
+pre-open fixture file, all relaunch/sync receipts and logs, the observer library and the Apple-host
+simulator executable. The device archive contains all 21 binary inspection records and the
+Apple-host device executable: the other 20 binaries are inspected, not archived. Each required
+file is checked individually before upload. Failure collection retains existing model-derived
+XML, fixture, epoch and sync diagnostics even when a required file is missing.
 
-The shared Native marker covers Settings, the application root, the database and the Apple Metro
-graph along with the other 17 modules. The job owns one test-only simulator and passes its UUID
-through `WORKEEPER_DATABASE_TEST_SIMULATOR`. When both are selected, the graph suite runs after
-the database suite. Artifact uploads include the evaluated result paths and the database's
-synthetic pre-open fixtures. The phase evidence records the original additions and controls.
-[Settings](feature-specs/kmp-phase-7-18-settings-feature.md#12-exit-evidence-ledger) ·
-[Application root](feature-specs/kmp-phase-7-19b-shared-app-common.md#implementation-evidence) ·
-[Database](feature-specs/kmp-phase-7-20a-ios-room-database.md#verification-and-stop-gates) ·
-[Apple graph](feature-specs/kmp-phase-7-20b-ios-metro-graph.md#ci-evidence-and-stop-conditions)
+The aggregate runs under `always()`. Cancelled, failed, skipped or missing children cannot
+succeed. Its JavaScript action uses the runner's artifact transport credentials internally to
+retrieve the exact uploaded artifact IDs; credentials are never forwarded to signed storage
+URLs. The raw archive SHA-256 must match both the upload output and public GitHub artifact
+metadata. The aggregate verifies the artifact's run and event head, exact path inventory and
+file hashes, then replays the Gradle, model, XML, epoch and sync validators from the extracted
+archive. It rejects unsafe archive paths and links. Model-derived upload patterns preserve
+literal bracket paths; matcher escaping alone does not establish support for filenames rejected
+by the artifact service.
 
-The installation-epoch proof adds six identities in `app:ios`. After the complete simulator suite,
-the job launches its public-path case in two separate Native processes on the same owned simulator.
-Both launches share a fresh run nonce and have distinct launch IDs and PIDs. The identity gate
-also validates their exact case, simulator UUIDs, canonical path and equal epoch-file digests.
-Filtered logs and receipts are uploaded from `app/ios/build/install-epoch-relaunch/` on success
-or failure, separately from full-suite XML. All 21 device executables must also report the IOS
-platform through `vtool`. See [Phase 7.20C](feature-specs/kmp-phase-7-20c-ios-install-epoch.md#verification-and-review).
+The intended checkout SHA is distinct from the event SHA and workflow SHA. On pull requests,
+the event SHA is the tested merge commit; REST artifact metadata identifies the PR head. A
+reusable workflow may explicitly select another source ref. Each identity is checked in its
+own role. A targeted retry can reuse a successful sibling's earlier attempt only when its
+receipt belongs to the same run/source/workflow and the producer's actual attempt has a unique
+successful job. A future or inconsistent attempt fails.
 
-The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
-[kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
-required-ruleset status, and
-[kmp-phase-7-2-navigation.md](feature-specs/kmp-phase-7-2-navigation.md) §9 for the expanded
-payload and §19 for the hardening evidence.
+Global workflow permissions, events, concurrency and unrelated checks are unchanged. The cache
+key remains `konan-<os>-kotlin-<version>-<sorted targets>` with the existing restore prefix. Only
+master/dev push runs may write caches. Within the macOS pair, only the device job may write;
+the simulator reads caches, avoiding competing writers for the same toolchain key.
+
+Local commands and owned simulator setup are in [Running tests](testing.md#running-tests).
+The helper controls run with `python3 -m unittest discover -s .github/scripts -p
+'test_kmp_native_*.py'`. They exercise child status, provenance, digest, archive structure,
+individual missing files, task execution, complete simulator replay and device inspection,
+including an earlier successful producer attempt. Real Native mutation controls separately
+establish that omitted or misordered synchronization fails and an equivalent helper extraction
+passes. Hosted Xcode 26.6 execution remains required; local Xcode 27 evidence is supplementary.
 
 ## UI test workflow
 

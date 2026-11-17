@@ -24,6 +24,7 @@ class KmpNativeModelTest(unittest.TestCase):
         self.model = self.root / "model.json"
         self.row = {
             "module": ":sample:module",
+            "buildDirectory": "sample/module/build",
             "simulatorTask": ":sample:module:iosSimulatorArm64Test",
             "deviceLinkTask": ":sample:module:linkDebugTestIosArm64",
             "simulatorResults": "sample/module/build/results",

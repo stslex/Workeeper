@@ -28,6 +28,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.resources.Res
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_error_training_name_save_failed
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineDispatcher
@@ -503,6 +505,10 @@ internal class ClickHandlerTest {
 
     @Test
     fun processTrainingNameSubmit_dbFailure_revertsState() = runTest {
+        stringResolver.answer(
+            Res.string.feature_live_workout_error_training_name_save_failed,
+            value = "localized-name-failed",
+        )
         interactor.onCall("updateTrainingName", "training-1", "New Name") {
             throw IllegalStateException("rename failed")
         }
@@ -528,6 +534,7 @@ internal class ClickHandlerTest {
         // After the throw, State reverts so the header cannot show an unaccepted value.
         assertEquals("Old Name", store.state.value.trainingName)
         assertEquals("Old Name", store.state.value.trainingNameLabel)
+        assertEquals(listOf(Event.ShowError("localized-name-failed")), store.events.filterIsInstance<Event.ShowError>())
     }
 
     @Test

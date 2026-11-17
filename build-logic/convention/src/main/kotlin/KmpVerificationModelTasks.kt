@@ -20,6 +20,9 @@ abstract class ExportKmpProjectVerificationModel : DefaultTask() {
     abstract val modulePath: Property<String>
 
     @get:Input
+    abstract val moduleBuildDirectory: Property<String>
+
+    @get:Input
     abstract val simulatorTask: Property<String>
 
     @get:Input
@@ -41,6 +44,7 @@ abstract class ExportKmpProjectVerificationModel : DefaultTask() {
     fun export() {
         val model = linkedMapOf(
             "module" to modulePath.get(),
+            "buildDirectory" to moduleBuildDirectory.get(),
             "simulatorTask" to simulatorTask.get(),
             "simulatorResults" to simulatorResults.get(),
             "simulatorBinary" to simulatorBinary.get(),

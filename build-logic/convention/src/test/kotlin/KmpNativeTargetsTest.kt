@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -134,6 +135,9 @@ class KmpNativeTargetsTest {
         val dependencyOwners = sourceOwners + "app:app"
         val projects = dependencyOwners + "uncovered"
         val gradleDir = setupFixture(projects)
+        gradleDir.resolve("kmp-resource-contracts.json").writeText(
+            """{"modules": {}, "removedKeys": [], "assetGroups": []}""",
+        )
         fixture.resolve("build.gradle.kts").writeText(
             """
             plugins { id("workeeper.kmp.library") apply false }
@@ -162,6 +166,8 @@ class KmpNativeTargetsTest {
         val edgePolicy = """{"required": {"commonMainApi": ["org.example:protected"]}, "forbidden": {}}"""
         fun policy(owners: List<String>, row: String) = owners.joinToString(",", "{", "}") { "\"$it\": $row" }
         source.writeText(policy(sourceOwners, sourcePolicy))
+        gradleDir.resolve("kmp-declaration-contracts.json").writeText(policy(sourceOwners, "[]"))
+        gradleDir.resolve("kmp-preview-subjects.json").writeText(policy(sourceOwners, "[]"))
         edges.writeText(policy(dependencyOwners, edgePolicy))
 
         val discovery = gradle("tasks", "--all").build()
@@ -176,6 +182,8 @@ class KmpNativeTargetsTest {
             Triple(source, policy(sourceOwners - "feature:app-dialogs:api", sourcePolicy),
                 "missing=[feature:app-dialogs:api] (1)"),
             Triple(edges, policy(dependencyOwners + "uncovered", edgePolicy), "extra=[uncovered] (1)"),
+            Triple(gradleDir.resolve("kmp-declaration-contracts.json"), policy(sourceOwners - "covered", "[]"),
+                "missing=[covered] (1)"),
         )) {
             val original = manifest.readBytes()
             try {
@@ -197,6 +205,43 @@ class KmpNativeTargetsTest {
         }
     }
 
+    @Test
+    fun intermediateSharedAndCustomRootsKeepTheirStructuralScope() {
+        val result = runner(
+            configuration = """
+                kotlin.sourceSets {
+                    val neutral = create("neutralMain") {
+                        dependsOn(getByName("commonMain"))
+                        kotlin.srcDir("custom/neutral")
+                    }
+                    getByName("androidMain").dependsOn(neutral)
+                    getByName("iosArm64Main").dependsOn(neutral)
+                    getByName("iosSimulatorArm64Main").dependsOn(neutral)
+                    getByName("iosArm64Main").kotlin.srcDir("custom/apple")
+                    getByName("androidHostTest").kotlin.srcDir("custom/host")
+                }
+            """.trimIndent(),
+            task = "writeKmpContractScope",
+            sources = listOf(
+                "src/commonMain/kotlin/Shared.kt", "custom/neutral/Neutral.kt",
+                "custom/apple/Apple.kt", "custom/host/Host.kt",
+            ),
+        ).build()
+        assertExecuted(result, TaskOutcome.SUCCESS, "writeKmpContractScope")
+        val config = JsonSlurper().parse(fixture.resolve("build/kmp-verification/contracts-detekt-scope.yml")) as Map<*, *>
+        val rules = config["mvi-architecture"] as Map<*, *>
+        val scope = rules["KmpSharedContractsRule"] as Map<*, *>
+        val portable = scope["commonProductionFiles"] as List<*>
+        val native = scope["nativeProductionFiles"] as List<*>
+        assertTrue("custom/neutral/Neutral.kt" in portable)
+        assertTrue("src/commonMain/kotlin/Shared.kt" in portable)
+        assertFalse("custom/apple/Apple.kt" in portable)
+        assertTrue("custom/apple/Apple.kt" in native)
+        assertTrue("custom/host/Host.kt" in scope["allFiles"] as List<*>)
+        assertFalse("custom/host/Host.kt" in portable)
+        assertEquals("", scope["modulePath"])
+    }
+
     private fun runner(
         configuration: String,
         task: String = "verifyKmpNativeTargets",
@@ -204,6 +249,8 @@ class KmpNativeTargetsTest {
     ): GradleRunner {
         val gradleDir = setupFixture()
         gradleDir.resolve("kmp-migration-source-sets.json").writeText("""{"": ["commonMain"]}""")
+        gradleDir.resolve("kmp-declaration-contracts.json").writeText("""{"": []}""")
+        gradleDir.resolve("kmp-preview-subjects.json").writeText("""{"": []}""")
         gradleDir.resolve("kmp-native-identities.json").writeText("""{"required:module": {}}""")
         gradleDir.resolve("kmp-migration-edges.json").writeText(
             """{"": {"required": {"commonMainApi": ["org.example:protected"]}, "forbidden": {}}}""",

@@ -27,6 +27,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.resources.feature_exerc
 import io.github.stslex.workeeper.feature.exercise_chart.resources.feature_exercise_chart_readout_sets
 import io.github.stslex.workeeper.feature.exercise_chart.resources.feature_exercise_chart_unit_kg
 import io.github.stslex.workeeper.feature.exercise_chart.resources.feature_exercise_chart_unit_reps
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.PluralStringResource
@@ -48,6 +50,7 @@ import kotlin.test.assertTrue
 
 internal class CommonHandlerTest {
 
+    private var updatingState = false
     private val interactor = FakeChartInteractor()
     private val resources = DayMonthOnlyResourceWrapper()
     private val strings = ReadoutStringResolver()
@@ -173,33 +176,48 @@ internal class CommonHandlerTest {
      */
     @Test
     fun `a response whose metric no longer matches the live state is dropped`() = runTest {
-        val flow = MutableStateFlow(
-            State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
-        )
-        val store = FakeCommonHandlerStore(flow, this)
-        val handler = CommonHandler(
-            interactor = interactor,
-            resourceWrapper = resources,
-            stringResolver = strings,
-            store = store,
-        )
-        // The tap lands while this load is in flight.
-        interactor.chartData = {
-            flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
-            ChartFoldDomain(
-                points = listOf(pointDomain("session-1"), pointDomain("session-2")),
-                footer = null,
+        for (duringCopy in listOf(false, true)) {
+            val flow = MutableStateFlow(
+                State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
             )
+            val enteredCopy = CompletableDeferred<Unit>()
+            val finishCopy = CompletableDeferred<Unit>()
+            strings.beforeRead = {
+                if (duringCopy) {
+                    enteredCopy.complete(Unit)
+                    finishCopy.await()
+                }
+            }
+            val store = FakeCommonHandlerStore(flow, this)
+            val handler = CommonHandler(
+                interactor = interactor,
+                resourceWrapper = resources,
+                stringResolver = strings,
+                store = store,
+            )
+            interactor.chartData = {
+                if (!duringCopy) flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
+                ChartFoldDomain(
+                    points = listOf(pointDomain("session-1"), pointDomain("session-2")),
+                    footer = null,
+                )
+            }
+
+            handler.loadChart(benchItem)
+            if (duringCopy) {
+                runCurrent()
+                assertTrue(enteredCopy.isCompleted, "the real copy resolution must suspend")
+                flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
+                finishCopy.complete(Unit)
+            }
+            advanceUntilIdle()
+
+            assertTrue(
+                flow.value.points.isEmpty(),
+                "a stale response was applied after ${if (duringCopy) "copy resolution" else "data loading"}",
+            )
+            assertEquals(ChartMetricUiModel.VOLUME_PER_SESSION, flow.value.metric)
         }
-
-        handler.loadChart(benchItem)
-        advanceUntilIdle()
-
-        assertTrue(
-            flow.value.points.isEmpty(),
-            "a stale response was applied: the chart would show the losing metric's data",
-        )
-        assertEquals(ChartMetricUiModel.VOLUME_PER_SESSION, flow.value.metric)
     }
 
     /** The discriminator: an uncontested response is still applied. */
@@ -419,7 +437,7 @@ internal class CommonHandlerTest {
      * scope), then `onSuccess`, and route a throw from either to `onError`. Every other member
      * fails fast, [logger] included.
      */
-    private class FakeCommonHandlerStore(
+    private inner class FakeCommonHandlerStore(
         private val flow: MutableStateFlow<State>,
         private val scope: CoroutineScope,
     ) : ExerciseChartHandlerStore {
@@ -441,11 +459,23 @@ internal class CommonHandlerTest {
             error("consumeOnMain must not be used by CommonHandler")
 
         override fun updateState(update: (State) -> State) {
-            flow.value = update(flow.value)
+            check(!updatingState)
+            updatingState = true
+            try {
+                flow.value = update(flow.value)
+            } finally {
+                updatingState = false
+            }
         }
 
         override suspend fun updateStateImmediate(update: suspend (State) -> State) {
-            flow.value = update(flow.value)
+            check(!updatingState)
+            updatingState = true
+            try {
+                flow.value = update(flow.value)
+            } finally {
+                updatingState = false
+            }
         }
 
         override suspend fun updateStateImmediate(state: State): Nothing =
@@ -526,7 +556,7 @@ internal class CommonHandlerTest {
     }
 
     /** The relaxed mock answered `formatDayMonth` with `""`; nothing else is reached. */
-    private class DayMonthOnlyResourceWrapper : ResourceWrapper {
+    private inner class DayMonthOnlyResourceWrapper : ResourceWrapper {
 
         override fun getString(id: Int, vararg args: Any): String = error("not used")
 
@@ -538,7 +568,10 @@ internal class CommonHandlerTest {
 
         override fun formatMediumDate(timestamp: Long): String = error("not used")
 
-        override fun formatDayMonth(timestamp: Long): String = ""
+        override fun formatDayMonth(timestamp: Long): String {
+            check(!updatingState) { "Resolve dates before updating State" }
+            return ""
+        }
     }
 
     /**
@@ -546,10 +579,13 @@ internal class CommonHandlerTest {
      * resolves (D3), and only for the arguments production passes — none for the six strings,
      * the quantity alone for the set plural. Any other resource or argument list throws.
      */
-    private class ReadoutStringResolver : StringResolver {
+    private inner class ReadoutStringResolver : StringResolver {
+        var beforeRead: suspend () -> Unit = {}
 
         override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String {
-            check(resource in READOUT_STRINGS) { "CommonHandler's loads must not read $resource" }
+            check(!updatingState) { "Resolve copy before updating State" }
+            beforeRead()
+            check(resource in readoutStrings) { "CommonHandler's loads must not read $resource" }
             check(formatArgs.isEmpty()) { "$resource is read verbatim; got ${formatArgs.toList()}" }
             return ""
         }
@@ -559,6 +595,8 @@ internal class CommonHandlerTest {
             quantity: Int,
             vararg formatArgs: Any,
         ): String {
+            check(!updatingState) { "Resolve plural copy before updating State" }
+            beforeRead()
             check(resource == Res.plurals.feature_exercise_chart_readout_sets) {
                 "CommonHandler's loads must not read $resource"
             }
@@ -568,16 +606,13 @@ internal class CommonHandlerTest {
             return ""
         }
 
-        private companion object {
-
-            val READOUT_STRINGS = setOf(
-                Res.string.feature_exercise_chart_metric_name_heaviest,
-                Res.string.feature_exercise_chart_metric_name_session,
-                Res.string.feature_exercise_chart_metric_name_volume,
-                Res.string.feature_exercise_chart_unit_kg,
-                Res.string.feature_exercise_chart_unit_reps,
-                Res.string.feature_exercise_chart_readout_record,
-            )
-        }
+        private val readoutStrings = setOf(
+            Res.string.feature_exercise_chart_metric_name_heaviest,
+            Res.string.feature_exercise_chart_metric_name_session,
+            Res.string.feature_exercise_chart_metric_name_volume,
+            Res.string.feature_exercise_chart_unit_kg,
+            Res.string.feature_exercise_chart_unit_reps,
+            Res.string.feature_exercise_chart_readout_record,
+        )
     }
 }

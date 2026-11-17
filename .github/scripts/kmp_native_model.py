@@ -1,6 +1,7 @@
 """Validate the evaluated Gradle export against the required Native roster."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -9,7 +10,7 @@ MODEL = Path("build/kmp-verification/model.json")
 SIMULATOR_START = Path("build/kmp-verification/native-test-start")
 DEVICE_START = Path("build/kmp-verification/device-link-start")
 IDENTITIES = Path(__file__).resolve().parents[2] / "gradle/kmp-native-identities.json"
-OUTPUT_FIELDS = ("simulatorResults", "simulatorBinary", "deviceBinary")
+OUTPUT_FIELDS = ("buildDirectory", "simulatorResults", "simulatorBinary", "deviceBinary")
 UPLOAD_ESCAPES = str.maketrans({char: f"\\{char}" for char in "\\*?[]"})
 
 
@@ -69,11 +70,12 @@ def upload_pattern(path: str) -> str:
     return "./" + Path(path).as_posix().translate(UPLOAD_ESCAPES)
 
 
-def check_device_links(rows: list[dict], marker: Path = DEVICE_START) -> None:
+def check_device_links(rows: list[dict], marker: Path = DEVICE_START) -> list[dict]:
     if not marker.is_file():
         raise ValueError(f"device-link start marker is missing: {marker}")
     started = marker.stat().st_mtime_ns
     failures = []
+    inspected = []
     for row in rows:
         binary = Path(row["deviceBinary"])
         try:
@@ -89,18 +91,28 @@ def check_device_links(rows: list[dict], marker: Path = DEVICE_START) -> None:
             ]
             if platforms != ["IOS"]:
                 raise ValueError(f"expected IOS device binary, inspected {platforms}")
+            digest = hashlib.sha256()
+            with binary.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(block)
+            inspected.append({
+                "module": row["module"], "path": binary.as_posix(), "size": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns, "marker_mtime_ns": started,
+                "sha256": digest.hexdigest(), "vtool": tool.stdout,
+            })
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             failures.append(f"{row['module']}: {error}")
     print(f"{len(rows) - len(failures)}/{len(rows)} fresh IOS device binaries")
     if failures:
         raise ValueError("\n".join(failures))
+    return inspected
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=(
         "simulator-tasks", "device-tasks", "result-upload-patterns", "epoch-binary", "apple-device-upload-pattern",
-        "mark-simulator", "mark-device", "check-device",
+        "mark-simulator", "mark-device", "check-device", "epoch-results", "sync-results",
     ))
     args = parser.parse_args()
     try:
@@ -111,12 +123,15 @@ def main() -> None:
             mark_start(DEVICE_START)
         elif args.command == "check-device":
             check_device_links(rows)
-        elif args.command in ("epoch-binary", "apple-device-upload-pattern"):
+        elif args.command in ("epoch-binary", "apple-device-upload-pattern", "epoch-results", "sync-results"):
             apple_host = next(row for row in rows if row["module"] == ":app:ios")
             if args.command == "epoch-binary":
                 print(apple_host["simulatorBinary"])
-            else:
+            elif args.command == "apple-device-upload-pattern":
                 print(upload_pattern(apple_host["deviceBinary"]))
+            else:
+                directory = "install-epoch-relaunch" if args.command == "epoch-results" else "install-epoch-sync"
+                print(str(Path(apple_host["buildDirectory"]) / directory))
         elif args.command == "result-upload-patterns":
             print("\n".join(upload_pattern(row["simulatorResults"]) for row in rows))
         else:
