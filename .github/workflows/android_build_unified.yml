@@ -170,7 +170,9 @@ jobs:
       # and stays in `ui_tests.yml` — a test that goes red on an assertion (as the chart test in
       # that same run did) is out of this step's reach by construction.
       - name: Assemble instrumented tests
-        run: ./gradlew assembleDebugAndroidTest --full-stacktrace
+        env:
+          CHECKPOINT_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/android_gradle_checkpoint.py assembleDebugAndroidTest
 
       # GUARD: nothing else builds this variant. `assembleDebug` builds no release variant and
       # `github_release_apk.yml` assembles only `:app:store`, so removing this step returns
@@ -248,8 +250,10 @@ jobs:
       - name: Run custom detekt rule tests
         run: ./gradlew :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 
-      - name: Test JUnit evidence validation
-        run: python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
+      - name: Test CI evidence helpers
+        run: |
+          python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
+          python3 -m unittest discover -s .github/scripts -p test_android_gradle_checkpoint.py
 
       - name: Run detekt
         run: ./gradlew detekt --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
@@ -263,7 +267,9 @@ jobs:
         run: python3 documentation/personal_data_gate.py -v
 
       - name: Run Android Lint
-        run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+        env:
+          CHECKPOINT_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/android_gradle_checkpoint.py lintDebug
 
       - name: Run forced MVI Android-host tests
         id: mvi_host_tests

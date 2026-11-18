@@ -76,16 +76,17 @@ manual dispatch, or inside the production deploy — never on a PR.
 
 ```bash
 bash .github/scripts/run_with_resource_samples.sh ./gradlew assembleDebug --full-stacktrace
-./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
+python3 .github/scripts/android_gradle_checkpoint.py assembleDebugAndroidTest   # compiles the instrumented tests; running them still needs a device
 python3 -m unittest discover -s .github/scripts -p 'test_kmp_native_*.py'
 ./gradlew -p build-logic :convention:check --rerun-tasks --no-build-cache --no-configuration-cache
 ./gradlew :verifyKmpMigrationContracts verifyKmpNativeTargets --rerun-tasks --no-build-cache --no-configuration-cache
 ./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
 ./gradlew :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache
 python3 -m unittest discover -s .github/scripts -p test_junit_identity.py
+python3 -m unittest discover -s .github/scripts -p test_android_gradle_checkpoint.py
 ./gradlew detekt --rerun-tasks --no-build-cache --no-configuration-cache
 python3 documentation/personal_data_gate.py -v     # no real names/emails in tracked files
-./gradlew lintDebug --no-configuration-cache --full-stacktrace
+python3 .github/scripts/android_gradle_checkpoint.py lintDebug
 mkdir -p build/kmp-verification
 touch build/kmp-verification/mvi-host-test-start
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
@@ -140,6 +141,16 @@ device linking starts. The final `kmp-ios-kit-smoke-results` artifact still incl
 Native results and device executable after linking.
 
 For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores the build cache the latest `master` or `dev` push saved (pull-request runs save none) and executes whatever that cache does not cover.
+
+`assembleDebugAndroidTest` and `lintDebug` each publish a neutral `Android checkpoint (<phase>)`
+check on the checked-out commit. Its `external_id` is `<run ID>/<attempt>/<phase>`. Read the
+latest JSON from `output.summary` through the GitHub Checks API while the job runs or after a
+runner interruption. Samples include UTC time, the last observed Gradle task (null until one
+is printed), available memory, free and total swap, and available workspace disk space in MiB.
+The wrapper updates one record per phase every 30 seconds and tries to write a final sample.
+The task is the last one Gradle printed and can already have finished. A stale sample only
+describes the runner at its timestamp. Restricted tokens or API failures can leave a missing
+or stale checkpoint. The Gradle process supplies the gate's exit status.
 
 Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
 `Run Unit Tests`. The wrapper writes a `[res]` sample block into each step's log every 15 s:
