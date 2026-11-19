@@ -98,7 +98,7 @@ sys.exit(c.main(sys.argv[1], interval=0.05))
     def test_checkpoint_read_after_abrupt_producer_loss(self):
         self.server.lose_reply = True
         p = self.start('assembleDebugAndroidTest', '''
-assert sys.argv[1:] == ['assembleDebugAndroidTest','--full-stacktrace','--console=plain']
+assert sys.argv[1:] == ['assembleDebugAndroidTest','--full-stacktrace','--max-workers=2','--console=plain']
 assert 'CHECKPOINT_TOKEN' not in os.environ
 print('> Task :module:compileDebug FROM-CACHE', flush=True)
 print('> Task :bad with-private-output', flush=True)
