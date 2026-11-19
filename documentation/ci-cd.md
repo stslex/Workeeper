@@ -379,7 +379,7 @@ source resolution and two independent execution jobs:
 | Job | Runner and budget | Required work |
 | --- | --- | --- |
 | `Resolve Native source` | Ubuntu 24.04, 10 minutes | Resolve the event SHA, or explicit reusable-workflow ref, once to an immutable SHA and tree |
-| `KMP iOS simulator` | macOS 26, 120 minutes | All 21 evaluated simulator tasks, exact identities, two-process epoch persistence and real syscall synchronization observation |
+| `KMP iOS simulator` | macOS 26, 150 minutes | All 21 evaluated simulator tasks, exact identities, two-process epoch persistence and real syscall synchronization observation |
 | `KMP iOS device links` | macOS 26, 120 minutes | All 21 evaluated device-link tasks and fresh, nonempty IOS executable inspection |
 | `KMP iOS kit smoke` | Ubuntu 24.04, 15 minutes | Require successful children and independently verify their archived evidence |
 
