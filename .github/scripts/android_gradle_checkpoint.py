@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 PHASES = {
     'assembleDebugAndroidTest': ['--full-stacktrace'],
-    'lintDebug': ['--no-configuration-cache', '--full-stacktrace'],
+    'lintDebug': ['--no-configuration-cache', '--full-stacktrace', '--max-workers=2'],
 }
 TASK = re.compile(rb'> Task ((?::[A-Za-z0-9_-]+)+)(?: (?:UP-TO-DATE|FROM-CACHE|NO-SOURCE|SKIPPED|FAILED))?')
 MEMINFO = Path('/proc/meminfo')

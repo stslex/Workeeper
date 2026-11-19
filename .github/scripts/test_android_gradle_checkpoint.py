@@ -137,7 +137,7 @@ time.sleep(120)
 
     def test_permission_denied_preserves_gradle_failure(self):
         self.server.deny = True
-        p = self.start('lintDebug', "assert sys.argv[1:] == ['lintDebug','--no-configuration-cache','--full-stacktrace','--console=plain']\nprint('original Gradle output')\nsys.exit(37)\n")
+        p = self.start('lintDebug', "assert sys.argv[1:] == ['lintDebug','--no-configuration-cache','--full-stacktrace','--max-workers=2','--console=plain']\nprint('original Gradle output')\nsys.exit(37)\n")
         stdout, stderr = p.communicate(timeout=10)
         self.assertEqual(37, p.returncode)
         self.assertIn(b'original Gradle output', stdout)
