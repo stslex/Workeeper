@@ -415,8 +415,10 @@ See the [ownership map](feature-specs/kmp-verification-ownership.md) and
 
 Each child records source SHA/tree, event SHA, workflow SHA/ref, source workflow hash,
 repository/run/attempt, toolchain and configuration hashes, task summary, markers and a file
-inventory with sizes, timestamps and SHA-256 digests. Artifact names include role, run and
-producer attempt. The simulator archive contains every model-derived XML result, each required
+inventory with sizes, timestamps and SHA-256 digests. The toolchain includes the real macOS
+build, machine architecture, Xcode and JDK builds, and both SDK versions and builds. The simulator
+also records the booted device's runtime identifier, version and build, bound to the device used
+by both storage proofs. Artifact names include role, run and producer attempt. The simulator archive contains every model-derived XML result, each required
 pre-open fixture file, all relaunch/sync receipts and logs, the observer library and the Apple-host
 simulator executable. The device archive contains all 21 binary inspection records and the
 Apple-host device executable: the other 20 binaries are inspected, not archived. Each required
@@ -426,8 +428,10 @@ XML, fixture, epoch and sync diagnostics even when a required file is missing.
 The aggregate runs under `always()`. Cancelled, failed, skipped or missing children cannot
 succeed. Its JavaScript action uses the runner's artifact transport credentials internally to
 retrieve the exact uploaded artifact IDs; credentials are never forwarded to signed storage
-URLs. The raw archive SHA-256 must match both the upload output and public GitHub artifact
-metadata. The aggregate verifies the artifact's run and event head, exact path inventory and
+URLs. The aggregate's Python verifier uses the job's GitHub token for artifact metadata and
+producer-job REST reads. It accepts HTTPS redirects within `api.github.com` and fails verification
+when REST access fails, reporting the operation and any HTTP status. The raw archive SHA-256
+must match both the upload output and GitHub artifact metadata. The aggregate verifies the artifact's run and event head, exact path inventory and
 file hashes, then replays the Gradle, model, XML, epoch and sync validators from the extracted
 archive. It rejects unsafe archive paths and links. Model-derived upload patterns preserve
 literal bracket paths; matcher escaping alone does not establish support for filenames rejected
@@ -438,9 +442,13 @@ the event SHA is the tested merge commit; REST artifact metadata identifies the 
 reusable workflow may explicitly select another source ref. Each identity is checked in its
 own role. A targeted retry can reuse a successful sibling's earlier attempt only when its
 receipt belongs to the same run/source/workflow and the producer's actual attempt has a unique
-successful job. A future or inconsistent attempt fails.
+successful job. A future or inconsistent attempt fails. Both producer receipts must include their
+runner image revisions, and the aggregate prints them. A difference in the image revision alone
+can pass. Every other shared toolchain field and the required Gradle input hashes must match.
 
-Global workflow permissions, events, concurrency and unrelated checks are unchanged. The cache
+The Native aggregate has job-scoped `contents: read` and `actions: read`. The production release
+workflow grants the reusable build job the permissions needed by its checks, including
+`actions: read` for the aggregate. Events, concurrency and unrelated checks are unchanged. The cache
 key remains `konan-<os>-kotlin-<version>-<sorted targets>` with the existing restore prefix. Only
 master/dev push runs may write caches. Within the macOS pair, only the device job may write;
 the simulator reads caches, avoiding competing writers for the same toolchain key.

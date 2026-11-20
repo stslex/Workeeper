@@ -1,4 +1,6 @@
+from contextlib import redirect_stdout
 import copy
+from email.message import Message
 import hashlib
 import io
 import json
@@ -7,14 +9,171 @@ import stat
 import uuid
 import xml.etree.ElementTree as ET
 import unittest
+from unittest.mock import patch
+from urllib.error import URLError
+from urllib.request import HTTPHandler, HTTPSHandler, ProxyHandler, build_opener
+from urllib.response import addinfourl
 import zipfile
 
-from kmp_native_evidence import child_outputs, digest, validate_archive, validate_metadata, validate_producer
+from kmp_native_evidence import (
+    GRADLE_INPUTS, api, child_outputs, compare_toolchains, digest, owned_simulator_runtime,
+    validate_archive, validate_metadata, validate_producer,
+)
 from kmp_native_model import read_json
 
 
 def encoded(value):
     return json.dumps(value).encode()
+
+
+HISTORICAL_TOOLCHAINS = Path(__file__).with_name("fixtures") / "kmp_native_attempt_3_toolchains.json"
+# Attempt 3 predates these fields. Use the same synthetic values for both receipts.
+NEW_TOOLCHAIN_FIELDS = {"macos_build": "25G332", "architecture": "arm64", "iphonesimulator_sdk_build": "23F81a"}
+
+
+def completed_toolchain(role):
+    return {**read_json(HISTORICAL_TOOLCHAINS)[role], **NEW_TOOLCHAIN_FIELDS}
+
+
+class NativeToolchainTest(unittest.TestCase):
+    def test_identical_toolchains(self):
+        simulator = completed_toolchain("simulator")
+        with redirect_stdout(io.StringIO()):
+            compare_toolchains(simulator, copy.deepcopy(simulator))
+
+    def test_attempt_three_image_only_drift_passes_and_reports_both_images(self):
+        history = read_json(HISTORICAL_TOOLCHAINS)
+        simulator, device = history["simulator"], history["device"]
+        changes = {name for name in simulator.keys() | device.keys() if simulator.get(name) != device.get(name)}
+        self.assertEqual({"runner_image"}, changes)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            compare_toolchains(completed_toolchain("simulator"), completed_toolchain("device"))
+        self.assertIn("simulator='20261102.0473.1', device='20261117.0516.1'", output.getvalue())
+
+    def test_non_image_toolchain_drift_fails(self):
+        for field in ("xcode", "iphonesimulator_sdk_build", "iphoneos_sdk_build", "architecture", "macos_build"):
+            with self.subTest(field=field), redirect_stdout(io.StringIO()):
+                device = dict(completed_toolchain("device"), **{field: "different"})
+                with self.assertRaisesRegex(ValueError, f"child toolchain drift: {field}"):
+                    compare_toolchains(completed_toolchain("simulator"), device)
+
+    def test_required_fields_and_gradle_input_hashes_cannot_be_missing_on_both_sides(self):
+        for field in completed_toolchain("simulator"):
+            with self.subTest(field=field):
+                incomplete = completed_toolchain("simulator")
+                del incomplete[field]
+                with self.assertRaisesRegex(ValueError, "missing"):
+                    compare_toolchains(incomplete, copy.deepcopy(incomplete))
+        for path in GRADLE_INPUTS:
+            with self.subTest(path=path):
+                incomplete = completed_toolchain("simulator")
+                del incomplete["inputs"][path]
+                with self.assertRaisesRegex(ValueError, "missing or invalid Gradle input hash"):
+                    compare_toolchains(incomplete, copy.deepcopy(incomplete))
+
+    def test_hash_drift_and_extra_toolchain_fields_fail(self):
+        device = completed_toolchain("device")
+        device["inputs"][GRADLE_INPUTS[0]] = "0" * 64
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(ValueError, "child toolchain drift: inputs"):
+            compare_toolchains(completed_toolchain("simulator"), device)
+        device = dict(completed_toolchain("device"), compiler="unexpected")
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(ValueError, "child toolchain drift: compiler"):
+            compare_toolchains(completed_toolchain("simulator"), device)
+
+    def test_shared_extra_fields_preserve_json_type(self):
+        simulator = dict(completed_toolchain("simulator"), extension=True)
+        device = dict(completed_toolchain("device"), extension=1)
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(ValueError, "child toolchain drift: extension"):
+            compare_toolchains(simulator, device)
+
+    def test_owned_runtime_is_selected_by_booted_device_identity(self):
+        identifier = "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+        udid = str(uuid.uuid4())
+        inventory = {"devices": {"other": [{"udid": "different", "state": "Booted"}],
+                                identifier: [{"udid": udid, "state": "Booted"}]},
+                     "runtimes": [{"identifier": identifier, "version": "26.5",
+                                   "buildversion": "23F81a", "isAvailable": True}]}
+        self.assertEqual({"simulator": udid, "identifier": identifier, "version": "26.5", "build": "23F81a"},
+                         owned_simulator_runtime(udid, inventory))
+        inventory["devices"][identifier][0]["state"] = "Shutdown"
+        with self.assertRaisesRegex(ValueError, "owned simulator must be booted"):
+            owned_simulator_runtime(udid, inventory)
+
+
+class NativeApiTest(unittest.TestCase):
+    token = "api-token-sentinel"
+    artifact_path = "repos/owner/project/actions/artifacts/12"
+
+    def mock_requests(self, sequence, operation="simulator artifact metadata"):
+        calls = []
+        responses = iter(sequence)
+
+        def receive(request):
+            calls.append((request.full_url, request.get_header("Authorization")))
+            reply = next(responses)
+            if isinstance(reply, Exception):
+                raise reply
+            status, location, data = reply
+            headers = Message()
+            if location:
+                headers["Location"] = location
+            response = addinfourl(io.BytesIO(data), headers, request.full_url, status)
+            response.msg = "server response"
+            return response
+
+        class MockHttp(HTTPHandler):
+            http_open = staticmethod(receive)
+
+        class MockHttps(HTTPSHandler):
+            https_open = staticmethod(receive)
+
+        def run():
+            with patch("kmp_native_evidence.build_opener",
+                       side_effect=lambda redirect: build_opener(ProxyHandler({}), redirect, MockHttp(), MockHttps())):
+                return api(operation, self.artifact_path, self.token)
+
+        return run, calls
+
+    def test_authenticated_artifact_lookup(self):
+        run, calls = self.mock_requests([(200, None, b'{"id": 12}')])
+        self.assertEqual({"id": 12}, run())
+        self.assertEqual([("https://api.github.com/" + self.artifact_path, "Bearer " + self.token)], calls)
+
+    def test_api_redirect_keeps_credential_on_github_api_only(self):
+        run, calls = self.mock_requests([(301, "/repos/owner/project/actions/artifacts/12", b""),
+                                         (200, None, b'{"id": 12}')])
+        self.assertEqual({"id": 12}, run())
+        self.assertEqual([("https://api.github.com/" + self.artifact_path, "Bearer " + self.token)] * 2, calls)
+
+    def test_cross_origin_downgrade_and_signed_storage_redirects_send_no_request(self):
+        for destination in ("https://objects.example/artifact?sig=secret", "http://api.github.com/metadata",
+                            "https://api.github.com@objects.example/metadata", "https://api.github.com:444/metadata"):
+            with self.subTest(destination=destination):
+                run, calls = self.mock_requests([(302, destination, b"")])
+                with self.assertRaisesRegex(ValueError, r"simulator artifact metadata: GitHub API HTTP 302") as err:
+                    run()
+                self.assertEqual(1, len(calls))
+                self.assertNotIn(destination, str(err.exception))
+                self.assertNotIn(self.token, str(err.exception))
+
+    def test_http_status_and_operation_fail_closed_without_echoing_body(self):
+        for status in (401, 403, 429, 503):
+            with self.subTest(status=status):
+                run, calls = self.mock_requests([(status, None, self.token.encode())], "device producer jobs")
+                with self.assertRaisesRegex(ValueError, f"device producer jobs: GitHub API HTTP {status}") as err:
+                    run()
+                self.assertNotIn(self.token, str(err.exception))
+                self.assertEqual(1, len(calls))
+
+    def test_unavailable_and_bad_json_fail_closed(self):
+        for reply, error in ((URLError(self.token), "unavailable"),
+                             ((200, None, self.token.encode()), r"invalid GitHub API response \(HTTP 200\)")):
+            with self.subTest(error=error):
+                run, _ = self.mock_requests([reply])
+                with self.assertRaisesRegex(ValueError, error) as err:
+                    run()
+                self.assertNotIn(self.token, str(err.exception))
 
 
 class NativeAggregateTest(unittest.TestCase):
@@ -93,7 +252,7 @@ class NativeArchiveTest(unittest.TestCase):
                              event_sha='merge', repository='owner/repo', run_id=1, attempt=2)
         source = dict(self.intended, role='device', attempt=1, created_ns=100, workspace='/producer',
                       source_workflow_sha256=digest(Path('.github/workflows/android_build_unified.yml')),
-                      toolchain={'xcode': 'Xcode 26.6\nBuild version pinned'})
+                      toolchain=completed_toolchain("device"))
         inspected = [dict(module=row['module'], path=row['deviceBinary'], size=3, mtime_ns=300,
                           marker_mtime_ns=200, sha256=hashlib.sha256(b'bin').hexdigest(), vtool=' platform IOS\n')
                      for row in self.model]
@@ -213,7 +372,6 @@ class NativeSimulatorArchiveTest(unittest.TestCase):
         sample.files = {key: value for key, value in sample.files.items()
                         if key.endswith(('model.json', 'kmp-native-identities.json'))}
         sample.files.update({
-            'build/kmp-verification/simulator-provenance.json': encoded(source),
             'build/kmp-verification/native-test-start': b'',
         })
         tasks = [row['simulatorTask'] for row in sample.model]
@@ -243,6 +401,9 @@ class NativeSimulatorArchiveTest(unittest.TestCase):
         invocation = '/producer/' + binary
         epoch = apple['buildDirectory'] + '/install-epoch-relaunch'
         simulator, nonce = str(uuid.uuid4()), str(uuid.uuid4())
+        source["simulator_runtime"] = {"simulator": simulator, "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-26-6",
+                                       "version": "26.6", "build": "fixture-build"}
+        sample.files["build/kmp-verification/simulator-provenance.json"] = encoded(source)
         sample.files[epoch + '/run.json'] = encoded(dict(started_ns=250, simulator=simulator, nonce=nonce))
         for index in (1, 2):
             launch = str(uuid.uuid4())
@@ -285,6 +446,14 @@ class NativeSimulatorArchiveTest(unittest.TestCase):
 
     def test_simulator_archive_replays_full_xml_epoch_and_sync_validators(self):
         self.assertTrue(self.sample.verify()['valid'])
+
+    def test_runtime_identity_must_match_both_storage_proofs(self):
+        sample = self.sample
+        source = sample.receipt["provenance"]
+        source["simulator_runtime"]["simulator"] = str(uuid.uuid4())
+        sample.files["build/kmp-verification/simulator-provenance.json"] = encoded(source)
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(ValueError, "runtime differs from storage proof"):
+            sample.verify()
 
     def test_each_simulator_evidence_file_is_individually_required(self):
         from contextlib import redirect_stdout

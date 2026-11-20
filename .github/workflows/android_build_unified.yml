@@ -665,9 +665,6 @@ jobs:
           ./gradlew :verifyKmpMigrationContracts :exportKmpVerificationModel verifyKmpNativeTargets \
             --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 
-      - name: Record source and toolchain provenance
-        run: python3 .github/scripts/kmp_native_evidence.py start simulator
-
       - name: Provision an owned database simulator
         shell: bash
         run: |
@@ -682,6 +679,9 @@ jobs:
           } >> "$GITHUB_ENV"
           xcrun simctl boot "$device"
           xcrun simctl bootstatus "$device" -b
+
+      - name: Record source, toolchain and owned simulator runtime
+        run: python3 .github/scripts/kmp_native_evidence.py start simulator
 
       - name: Run native shared UI, feature and application root tests
         id: native_tests
@@ -856,6 +856,9 @@ jobs:
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     env:
       NATIVE_NEEDS: ${{ toJSON(needs) }}
       NATIVE_SOURCE_SHA: ${{ needs.native-source.outputs.sha }}
@@ -876,4 +879,6 @@ jobs:
                 ? error.message : 'Native artifact transport failed; no valid archive was accepted');
             }
       - name: Require both successful jobs and verify archived evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/kmp_native_evidence.py aggregate

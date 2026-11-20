@@ -154,6 +154,12 @@ jobs:
   build:
     needs: guard
     if: ${{ !inputs.skip_buid_checks }}
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      checks: write
+      pull-requests: write
     uses: ./.github/workflows/android_build_unified.yml
     with:
       ref: ${{ needs.guard.outputs.sha }}

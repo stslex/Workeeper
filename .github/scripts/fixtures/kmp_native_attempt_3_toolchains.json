@@ -1,0 +1,39 @@
+{
+  "run_id": 44546043117,
+  "attempt": 3,
+  "candidate": "b15e4f7faac97ddc35727e358d33850853634bfd",
+  "simulator": {
+    "xcode": "Xcode 26.6\nBuild version 17F113",
+    "jdk": "openjdk version \"21.0.13\" 2026-10-20 LTS\nOpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "iphonesimulator_sdk": "26.5",
+    "iphonesimulator_sdk_path": "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+    "iphoneos_sdk": "26.5",
+    "iphoneos_sdk_build": "23F81a",
+    "runner_image": "20261102.0473.1",
+    "inputs": {
+      "gradle/libs.versions.toml": "52bc0599e0193d2b58d167e8c2914d7bae1a741f28e47bd38f503e10c36d95af",
+      "gradle/wrapper/gradle-wrapper.properties": "c94d41b634a5e0ff8a2f812023697b1337eebac18e9962610356a1793f72896d",
+      "gradle/wrapper/gradle-wrapper.jar": "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7",
+      "gradle/kmp-native-targets.txt": "a9b59ae3e1acc502ebdc99dd46d9f2012f466bdcbd86f4805d90e9a7ff0fee07",
+      "gradle.properties": "ba92570fcd07ce3736fbd1b45354da9b5b1904c7e18a91462aef4b17a545de73",
+      "build-logic/gradle.properties": "6e9845dc9a9acd551c842967b17619c24bd6d499ce1b8979abb4cfc6abafee7b"
+    }
+  },
+  "device": {
+    "xcode": "Xcode 26.6\nBuild version 17F113",
+    "jdk": "openjdk version \"21.0.13\" 2026-10-20 LTS\nOpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "iphonesimulator_sdk": "26.5",
+    "iphonesimulator_sdk_path": "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+    "iphoneos_sdk": "26.5",
+    "iphoneos_sdk_build": "23F81a",
+    "runner_image": "20261117.0516.1",
+    "inputs": {
+      "gradle/libs.versions.toml": "52bc0599e0193d2b58d167e8c2914d7bae1a741f28e47bd38f503e10c36d95af",
+      "gradle/wrapper/gradle-wrapper.properties": "c94d41b634a5e0ff8a2f812023697b1337eebac18e9962610356a1793f72896d",
+      "gradle/wrapper/gradle-wrapper.jar": "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7",
+      "gradle/kmp-native-targets.txt": "a9b59ae3e1acc502ebdc99dd46d9f2012f466bdcbd86f4805d90e9a7ff0fee07",
+      "gradle.properties": "ba92570fcd07ce3736fbd1b45354da9b5b1904c7e18a91462aef4b17a545de73",
+      "build-logic/gradle.properties": "6e9845dc9a9acd551c842967b17619c24bd6d499ce1b8979abb4cfc6abafee7b"
+    }
+  }
+}

@@ -11,7 +11,10 @@ import stat
 import subprocess
 import time
 from tempfile import TemporaryDirectory
-from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+from uuid import UUID
 from contextlib import contextmanager
 import zipfile
 
@@ -20,6 +23,24 @@ from kmp_native_model import DEVICE_START, MODEL, SIMULATOR_START, load_model, r
 ROOT = Path("build/kmp-verification")
 ROLES = ("simulator", "device")
 JOB_NAMES = {"simulator": "KMP iOS simulator", "device": "KMP iOS device links"}
+TOOLCHAIN_COMMANDS = {
+    "xcode": ("xcodebuild", "-version"),
+    "jdk": ("java", "-version"),
+    "macos_build": ("sw_vers", "-buildVersion"),
+    "architecture": ("uname", "-m"),
+    "iphonesimulator_sdk": ("xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"),
+    "iphonesimulator_sdk_path": ("xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"),
+    "iphonesimulator_sdk_build": ("xcrun", "--sdk", "iphonesimulator", "--show-sdk-build-version"),
+    "iphoneos_sdk": ("xcrun", "--sdk", "iphoneos", "--show-sdk-version"),
+    "iphoneos_sdk_build": ("xcrun", "--sdk", "iphoneos", "--show-sdk-build-version"),
+}
+GRADLE_INPUTS = (
+    "gradle/libs.versions.toml", "gradle/wrapper/gradle-wrapper.properties",
+    "gradle/wrapper/gradle-wrapper.jar", "gradle/kmp-native-targets.txt",
+    "gradle.properties", "build-logic/gradle.properties",
+)
+GITHUB_API = "https://api.github.com"
+
 
 
 @contextmanager
@@ -49,14 +70,69 @@ def command(*args):
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
 
 
+def nonempty_string(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
+def validate_toolchain(toolchain, role):
+    require(isinstance(toolchain, dict), f"{role}: missing toolchain")
+    for name in (*TOOLCHAIN_COMMANDS, "runner_image"):
+        require(nonempty_string(toolchain.get(name)), f"{role}: missing toolchain field {name}")
+    inputs = toolchain.get("inputs")
+    require(isinstance(inputs, dict), f"{role}: missing Gradle input hashes")
+    for name in GRADLE_INPUTS:
+        value = inputs.get(name)
+        require(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value),
+                f"{role}: missing or invalid Gradle input hash {name}")
+
+
+def compare_toolchains(simulator, device):
+    validate_toolchain(simulator, "simulator")
+    validate_toolchain(device, "device")
+    print(f"Native runner images: simulator={simulator['runner_image']!r}, device={device['runner_image']!r}")
+    differences = sorted(name for name in (simulator.keys() | device.keys()) - {"runner_image"}
+                         if name not in simulator or name not in device
+                         or json.dumps(simulator[name], sort_keys=True) != json.dumps(device[name], sort_keys=True))
+    require(not differences, f"child toolchain drift: {', '.join(differences)}")
+
+
+def owned_simulator_runtime(udid, inventory):
+    matches = [identifier for identifier, devices in inventory["devices"].items()
+               for device in devices if device["udid"] == udid and device["state"] == "Booted"]
+    require(len(matches) == 1, "owned simulator must be booted under one runtime")
+    identifier = matches[0]
+    runtimes = [runtime for runtime in inventory["runtimes"]
+                if runtime["identifier"] == identifier and runtime.get("isAvailable")]
+    require(len(runtimes) == 1, "owned simulator runtime is unavailable or ambiguous")
+    runtime = runtimes[0]
+    return {"simulator": udid, "identifier": identifier, "version": runtime["version"],
+            "build": runtime["buildversion"]}
+
+
+def validate_simulator_runtime(source, apple):
+    observed = source.get("simulator_runtime")
+    require(isinstance(observed, dict) and all(nonempty_string(observed.get(key))
+            for key in ("simulator", "identifier", "version", "build")), "missing owned simulator runtime")
+    require(observed["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-"),
+            "owned simulator runtime is not iOS")
+    UUID(observed["simulator"])
+    build = Path(apple["buildDirectory"])
+    for proof in ("install-epoch-relaunch/run.json", "install-epoch-sync/receipt.json"):
+        require(read_json(build / proof)["simulator"] == observed["simulator"],
+                "owned simulator runtime differs from storage proof simulator")
+
+
 def provenance(role):
     source = command("git", "rev-parse", "HEAD")
     tree = command("git", "rev-parse", "HEAD^{tree}")
     require(source == os.environ["NATIVE_SOURCE_SHA"], "checkout differs from resolved source")
     require(tree == os.environ["NATIVE_SOURCE_TREE"], "checkout tree differs from resolved source")
-    xcode = command("xcodebuild", "-version")
-    require(xcode.splitlines()[0] == "Xcode 26.6", "Native CI requires Xcode 26.6")
-    return {
+    toolchain = {name: command(*args) for name, args in TOOLCHAIN_COMMANDS.items()}
+    toolchain["runner_image"] = os.environ["ImageVersion"]
+    toolchain["inputs"] = {name: digest(Path(name)) for name in GRADLE_INPUTS}
+    validate_toolchain(toolchain, role)
+    require(toolchain["xcode"].splitlines()[0] == "Xcode 26.6", "Native CI requires Xcode 26.6")
+    source_record = {
         "role": role, "source_sha": source, "source_tree": tree,
         "workflow_sha": os.environ["GITHUB_WORKFLOW_SHA"],
         "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
@@ -66,20 +142,13 @@ def provenance(role):
         "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
         "created_ns": time.time_ns(), "workspace": str(Path.cwd()),
         "source_workflow_sha256": digest(Path(".github/workflows/android_build_unified.yml")),
-        "toolchain": {
-            "xcode": xcode, "jdk": command("java", "-version"),
-            "iphonesimulator_sdk": command("xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"),
-            "iphonesimulator_sdk_path": command("xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"),
-            "iphoneos_sdk": command("xcrun", "--sdk", "iphoneos", "--show-sdk-version"),
-            "iphoneos_sdk_build": command("xcrun", "--sdk", "iphoneos", "--show-sdk-build-version"),
-            "runner_image": os.environ["ImageVersion"],
-            "inputs": {name: digest(Path(name)) for name in (
-                "gradle/libs.versions.toml", "gradle/wrapper/gradle-wrapper.properties",
-                "gradle/wrapper/gradle-wrapper.jar", "gradle/kmp-native-targets.txt",
-                "gradle.properties", "build-logic/gradle.properties",
-            )},
-        },
+        "toolchain": toolchain,
     }
+    if role == "simulator":
+        source_record["simulator_runtime"] = owned_simulator_runtime(
+            os.environ["WORKEEPER_DATABASE_TEST_SIMULATOR"], json.loads(command("xcrun", "simctl", "list", "-j")),
+        )
+    return source_record
 
 
 def validate_gradle(role, rows):
@@ -178,6 +247,7 @@ def collect(role):
                 Path(apple["buildDirectory"]) / "install-epoch-sync", Path(apple["simulatorBinary"]),
                 toolchain=receipt["provenance"]["toolchain"],
             )
+            validate_simulator_runtime(receipt["provenance"], apple)
         paths = evidence_paths(role, rows)
         receipt["files"] = inventory(paths)
         receipt["valid"] = True
@@ -251,6 +321,7 @@ def validate_contents(receipt, source_workflow_digest, identities_digest):
         sync = Path(apple["buildDirectory"]) / "install-epoch-sync"
         require(read_json(sync / "receipt.json")["started_ns"] > marker.stat().st_mtime_ns, "stale sync execution")
         validate_receipt(sync, binary, toolchain=source["toolchain"], invocation_root=source["workspace"])
+        validate_simulator_runtime(source, apple)
 
 
 def validate_archive(data, expected_digest, role, intended, modules):
@@ -280,6 +351,7 @@ def validate_archive(data, expected_digest, role, intended, modules):
         files = receipt["files"]
         require(files and len({row["path"] for row in files}) == len(files), "empty or duplicate receipt inventory")
         require(set(names) == {receipt_name, *(row["path"] for row in files)}, "archive inventory differs from receipt")
+        validate_toolchain(source.get("toolchain"), role)
         require(source["toolchain"]["xcode"].splitlines()[0] == "Xcode 26.6", "wrong Xcode")
         with TemporaryDirectory(prefix="native-evidence-") as directory:
             root = Path(directory)
@@ -296,10 +368,33 @@ def validate_archive(data, expected_digest, role, intended, modules):
         return receipt
 
 
-def api(path):
-    request = Request("https://api.github.com/" + path, headers={"Accept": "application/vnd.github+json"})
-    with urlopen(request, timeout=30) as response:
-        return json.load(response)
+class GitHubApiRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        destination = urlsplit(newurl)
+        if (destination.scheme, destination.netloc) != ("https", "api.github.com"):
+            raise HTTPError(req.full_url, code, "redirect outside the GitHub API", headers, fp)
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None:
+            redirected.add_unredirected_header("Authorization", req.get_header("Authorization"))
+        return redirected
+
+
+def api(operation, path, token):
+    request = Request(f"{GITHUB_API}/{path}", headers={"Accept": "application/vnd.github+json"})
+    # urllib copies normal headers across redirects. Only the origin-checking handler may forward auth.
+    request.add_unredirected_header("Authorization", f"Bearer {token}")
+    try:
+        with build_opener(GitHubApiRedirect()).open(request, timeout=30) as response:
+            status = response.getcode()
+            body = response.read()
+    except HTTPError as error:
+        raise ValueError(f"{operation}: GitHub API HTTP {error.code}") from None
+    except (URLError, OSError, ValueError):
+        raise ValueError(f"{operation}: GitHub API unavailable") from None
+    try:
+        return json.loads(body)
+    except ValueError:
+        raise ValueError(f"{operation}: invalid GitHub API response (HTTP {status})") from None
 
 
 def child_outputs(needs):
@@ -331,6 +426,8 @@ def validate_producer(jobs, role):
 
 def aggregate(needs):
     outputs = child_outputs(needs)
+    token = os.environ.get("GITHUB_TOKEN")
+    require(nonempty_string(token), "aggregate GitHub API requires GITHUB_TOKEN")
     intended = {
         "source_sha": os.environ["NATIVE_SOURCE_SHA"], "source_tree": os.environ["NATIVE_SOURCE_TREE"],
         "workflow_sha": os.environ["GITHUB_WORKFLOW_SHA"], "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
@@ -343,15 +440,18 @@ def aggregate(needs):
     receipts = []
     for role in ROLES:
         output = outputs[role]
-        metadata = api(f"repos/{intended['repository']}/actions/artifacts/{output['artifact_id']}")
+        metadata = api(f"{role} artifact metadata",
+                       f"repos/{intended['repository']}/actions/artifacts/{output['artifact_id']}", token)
         validate_metadata(metadata, output, intended, os.environ["NATIVE_EVENT_HEAD"])
         receipt = validate_archive(ROOT / f"{role}.zip", output["artifact_digest"], role, intended, modules)
         attempt = receipt["provenance"]["attempt"]
         require(metadata["name"] == f"kmp-ios-{role}-{intended['run_id']}-{attempt}", "incorrect artifact phase/attempt")
-        jobs = api(f"repos/{intended['repository']}/actions/runs/{intended['run_id']}/attempts/{attempt}/jobs?per_page=100")
+        jobs = api(f"{role} producer jobs",
+                   f"repos/{intended['repository']}/actions/runs/{intended['run_id']}/attempts/{attempt}/jobs?per_page=100",
+                   token)
         validate_producer(jobs, role)
         receipts.append(receipt)
-    require(receipts[0]["provenance"]["toolchain"] == receipts[1]["provenance"]["toolchain"], "child toolchain drift")
+    compare_toolchains(*(receipt["provenance"]["toolchain"] for receipt in receipts))
     print("Both Native execution jobs succeeded with verified archives for " + intended["source_sha"])
 
 
