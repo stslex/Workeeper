@@ -144,13 +144,16 @@ For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: t
 
 `assembleDebugAndroidTest` and `lintDebug` each publish a neutral `Android checkpoint (<phase>)`
 check on the checked-out commit. Its `external_id` is `<run ID>/<attempt>/<phase>`. Read the
-latest JSON from `output.summary` through the GitHub Checks API while the job runs or after a
-runner interruption. Samples include UTC time, the last observed Gradle task (null until one
-is printed), available memory, free and total swap, and available workspace disk space in MiB.
-The wrapper updates one record per phase every 30 seconds and tries to write a final sample.
-The task is the last one Gradle printed and can already have finished. A stale sample only
-describes the runner at its timestamp. Restricted tokens or API failures can leave a missing
-or stale checkpoint. The Gradle process supplies the gate's exit status.
+latest JSON from `output.summary` through the GitHub Checks API using the checkout SHA, run ID,
+and attempt. Each phase has one writer and publishes every 30 seconds. Samples include UTC time,
+the last observed Gradle task, available memory, free and total swap, and workspace disk space
+in MiB. Assembly uses a separate observer process that can publish after the wrapper exits.
+Assembly samples add the task timestamp and any outcome Gradle printed, wrapper and Gradle
+client liveness, same-cgroup Gradle daemon PIDs, and baseline-relative cgroup v2 `oom` and
+`oom_kill` counts when readable. The observer publishes as soon as the wrapper sees a Gradle
+failure marker or obtains the client's exit code or terminating signal. The Gradle client still
+supplies the step's exit status. If the runner disappears, the final retrieved sample confirms
+state at its timestamp and the terminal cause may be unknown.
 
 Two steps run inside `.github/scripts/run_with_resource_samples.sh`, `Build with Gradle` and
 `Run Unit Tests`. The wrapper writes a `[res]` sample block into each step's log every 15 s:
