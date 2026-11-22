@@ -154,6 +154,20 @@ jobs:
           bash .github/scripts/run_with_resource_samples.sh
           ./gradlew assembleDebug --full-stacktrace
 
+      - name: Stop Gradle and Kotlin daemons before instrumented assembly
+        id: stop_assembly_daemons
+        timeout-minutes: 1
+        run: python3 .github/scripts/android_daemon_cleanup.py "$RUNNER_TEMP/android-assembly-daemons.json"
+
+      - name: Retain assembly daemon cleanup measurements
+        if: ${{ !cancelled() && steps.stop_assembly_daemons.outcome != 'skipped' }}
+        timeout-minutes: 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-assembly-daemons-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/android-assembly-daemons.json
+          if-no-files-found: error
+
       # The `androidTest` variants had NO gate on any PR. `assembleDebug` does not build them,
       # and the only workflow that does — `ui_tests.yml` — is `workflow_dispatch`/`workflow_call`
       # only. So the instrumented source sets were compiled exactly once per release, inside
