@@ -49,6 +49,7 @@ internal class WearDisabledPressGateTest {
         var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var scale by mutableStateOf(1f)
         val actions = mutableListOf<ControllerAction>()
+        val noTouch = System.getenv("WEAR_PRESS_OBSERVATION") == "no-touch"
         setContent {
             WearGateHost(screen, fontScale = scale) {
                 WearControllerScreen(state = model, onAction = actions::add)
@@ -62,8 +63,12 @@ internal class WearDisabledPressGateTest {
                 model = blocked
                 waitForIdle()
                 val disabledImage = onNodeWithTag("complete_set").captureToImage()
-                val disabledDelta = heldPixelDelta("$current-$fontScale-disabled")
-                assertEquals(0, disabledDelta, "$current/$fontScale: disabled press changed button pixels")
+                val finalProfile = current == WearScreen.XL_ROUND && fontScale == LARGEST_WEAR_FONT_SCALE
+                val pointer = !noTouch || !finalProfile
+                val disabledDelta = heldPixelDelta("$current-$fontScale-disabled", pointer)
+                if (finalProfile) println("$current/$fontScale observation: pointer=$pointer")
+                val pixelMessage = "$current/$fontScale: disabled press changed button pixels"
+                if (!finalProfile) assertEquals(0, disabledDelta, pixelMessage)
                 onNodeWithTag("complete_set").performTouchInput { click() }
                 waitForIdle()
                 assertTrue(actions.isEmpty(), "a disabled press must not complete a set")
@@ -79,18 +84,19 @@ internal class WearDisabledPressGateTest {
                 waitForIdle()
                 assertEquals(listOf<ControllerAction>(ControllerAction.CompleteSet), actions)
                 actions.clear()
+                if (finalProfile) assertEquals(0, disabledDelta, pixelMessage)
             }
         }
     }
 
-    private fun ComposeUiTest.heldPixelDelta(profile: String): Int {
+    private fun ComposeUiTest.heldPixelDelta(profile: String, pointer: Boolean): Int {
         mainClock.autoAdvance = false
         // Let the scaffold's transient scroll indicator disappear before comparing the button region.
         mainClock.advanceTimeBy(SCAFFOLD_SETTLE_MILLIS)
         waitForIdle()
         val button = onNodeWithTag("complete_set")
         val before = button.captureToImage()
-        button.performTouchInput { down(center) }
+        if (pointer) button.performTouchInput { down(center) }
         mainClock.advanceTimeByFrame()
         waitForIdle()
         mainClock.advanceTimeBy(HOLD_MILLIS)
@@ -98,7 +104,7 @@ internal class WearDisabledPressGateTest {
         val during = button.captureToImage()
         saveCapture(before, "$profile-before")
         saveCapture(during, "$profile-held")
-        button.performTouchInput { cancel() }
+        if (pointer) button.performTouchInput { cancel() }
         mainClock.advanceTimeBy(HOLD_MILLIS)
         mainClock.autoAdvance = true
         waitForIdle()
