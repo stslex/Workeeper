@@ -1,8 +1,10 @@
 package io.github.stslex.workeeper.lint_rules
 
+import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtFunctionLiteral
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
@@ -50,8 +52,25 @@ internal class KotlinContractNames(
         return (listOf(type(type)) + nested + expanded).toSet()
     }
 
-    fun reference(reference: KtNameReferenceExpression): String =
-        if (shadowed(reference)) reference.getReferencedName() else expand(reference.getReferencedName(), emptySet(), reference)
+    fun reference(
+        reference: KtNameReferenceExpression,
+        shadows: (KtNamedDeclaration) -> Boolean = { true },
+    ): String = if (shadowed(reference, shadows)) {
+        reference.getReferencedName()
+    } else {
+        expand(reference.getReferencedName(), emptySet(), reference)
+    }
+
+    fun declaredType(reference: KtNameReferenceExpression): String? {
+        val ancestors = generateSequence(reference.parent) { it.parent }.toList()
+        val declaration = visibleNamedDeclarations(reference, ancestors)
+            .filterIsInstance<KtCallableDeclaration>().filterNot { it is KtNamedFunction }
+            .minByOrNull { ancestors.indexOf(scopeOf(it)) }
+        return declaration?.typeReference?.typeElement?.let { type ->
+            val userType = if (type is KtNullableType) type.innerType else type
+            (userType as? KtUserType)?.let(::type)
+        }
+    }
 
     fun qualified(element: KtElement): String {
         val root = generateSequence(element) {
@@ -64,22 +83,32 @@ internal class KotlinContractNames(
         return if (root != null && shadowed(root)) referencePath(element) else expand(referencePath(element), emptySet(), element)
     }
 
-    private fun shadowed(reference: KtNameReferenceExpression): Boolean {
+    private fun shadowed(
+        reference: KtNameReferenceExpression,
+        shadows: (KtNamedDeclaration) -> Boolean = { true },
+    ): Boolean {
         if (externalSymbols.isEmpty()) return false
         val ancestors = generateSequence(reference.parent) { it.parent }.toSet()
-        return localDeclarations.any { declaration ->
-            val scope = if (declaration is KtParameter) {
-                generateSequence(declaration.parent) { it.parent }.firstOrNull {
-                    it is KtFunctionLiteral || it is KtNamedFunction || it is KtClassOrObject
-                }
-            } else declaration.parent
-            val visible = scope !is KtBlockExpression ||
-                (if (declaration is KtNamedFunction) declaration.textRange.startOffset else declaration.textRange.endOffset) <=
-                reference.textRange.startOffset
-            declaration.name == reference.getReferencedName() && declaration !is KtClassOrObject &&
-                declaration !is KtTypeAlias && scope in ancestors && visible
-        }
+        return visibleNamedDeclarations(reference, ancestors).any(shadows)
     }
+
+    private fun visibleNamedDeclarations(
+        reference: KtNameReferenceExpression,
+        ancestors: Collection<PsiElement>,
+    ): Sequence<KtNamedDeclaration> = localDeclarations.asSequence().filter { declaration ->
+        val scope = scopeOf(declaration)
+        val visible = scope !is KtBlockExpression ||
+            (if (declaration is KtNamedFunction) declaration.textRange.startOffset else declaration.textRange.endOffset) <=
+            reference.textRange.startOffset
+        declaration.name == reference.getReferencedName() && declaration !is KtClassOrObject &&
+            declaration !is KtTypeAlias && scope in ancestors && visible
+    }
+
+    private fun scopeOf(declaration: KtNamedDeclaration) = if (declaration is KtParameter) {
+        generateSequence(declaration.parent) { it.parent }.firstOrNull {
+            it is KtFunctionLiteral || it is KtNamedFunction || it is KtClassOrObject
+        }
+    } else declaration.parent
 
     fun nullable(type: KtUserType, seen: Set<String> = emptySet()): Boolean {
         val name = canonical(type.path(), type)

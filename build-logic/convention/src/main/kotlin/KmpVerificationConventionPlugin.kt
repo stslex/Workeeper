@@ -9,7 +9,9 @@ class KmpVerificationConventionPlugin : Plugin<Project> {
         with(target) {
             require(this == rootProject) { "Apply KMP verification to the root project" }
             pluginManager.apply(KmpResourceVerificationPlugin::class.java)
+            val iosHostBoundary = registerIosHostDependencyBoundary()
             tasks.register("verifyKmpMigrationContracts") {
+                dependsOn(iosHostBoundary)
                 dependsOn("verifyKmpResourceContracts")
                 group = "verification"
                 val sourceOwners = nativeModules() + "feature:app-dialogs:api"

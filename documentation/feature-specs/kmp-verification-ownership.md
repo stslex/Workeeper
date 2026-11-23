@@ -202,9 +202,40 @@ have tracked Kotlin in the selected projects. Verification checks file membershi
 compilations, so a legitimate configured custom root passes. The dependency task inspects direct
 declarations in the required configurations without resolving the runtime graphs.
 The aggregate requires source policies for the Native roster plus `:feature:app-dialogs:api`.
-It requires dependency policies for those projects plus `:app:app`. Both policy rosters
-must match before verification is scheduled. Other convention consumers can list their tasks
-without a migration policy.
+It requires per-module dependency policies for those projects plus `:app:app`. Both rosters
+must match before verification is scheduled. The aggregate also runs
+`:verifyIosHostDependencyBoundary` over evaluated project dependency declarations in every app,
+core and feature project except `:app:ios`. It reports each offending project and configuration
+without resolving remote artifacts. The iOS host keeps its legitimate outgoing dependencies.
+
+Production `detekt` runs `detektAndroidFactoryLookup` on evaluated Android production Kotlin.
+For KMP projects it subtracts the production inputs compiled by other platforms. For classic
+Android projects it uses the static Kotlin and Java roots of enabled production variants.
+The dedicated task runs the factory rule on those roots and keeps the ordinary Detekt inputs
+intact. The Android rule identifies the existing `Context.appDeps` factory call
+through its canonical import, including aliases. A locally declared receiver type distinguishes
+a same-name extension on another type. Rule tests also cover file-level suppression and ordinary
+factory injection. The existing shared-source rule and Android helper ABI retain their separate checks.
+
+### Review regression controls
+
+Each control ran on the published `aaf4320f` implementation and the corrected implementation
+with forced execution and byte-exact restoration. The three dependency mutations independently
+add `:app:ios` to the named project's `implementation` configuration.
+
+| Control | Published gate | Corrected gate |
+| --- | --- | --- |
+| `:app:dev` incoming iOS host edge | Passed, 72 tasks executed | Rejected `:app:dev:implementation -> :app:ios` |
+| `:app:store` incoming iOS host edge | Passed, 72 tasks executed | Rejected `:app:store:implementation -> :app:ios` |
+| `:feature:recovery` incoming iOS host edge | Passed, 72 tasks executed | Rejected `:feature:recovery:implementation -> :app:ios` |
+| Direct and aliased factory lookups in a custom Settings Android production root | Compiled with 104 tasks executed and passed Detekt with 10 tasks executed | Compiled with 104 tasks executed and produced exactly two `AndroidAppDepsFactoryLookupRule` findings in the production Detekt task |
+| Same-name call on a separate interface and ordinary injected factory use | Passed production Detekt | Passed production Detekt with 11 tasks executed |
+
+Both evaluated shipping `releaseRuntimeClasspath` reports match their published baselines
+byte for byte. Each comparison includes 2,273 dependency lines. The restored migration gate
+executed all 73 actionable tasks, checked the boundary across 46 projects and verified the
+iOS host's 11 required outgoing dependencies. The convention suite passed 29 tests, the
+Detekt rule suite passed 244 tests, and the Android MVI JVM ABI suite passed six tests.
 
 The Gradle source checks, `MviSharedPlatformRule`, the existing MVI ABI tests and the executed
 identity gates replace `assert_mvi_source_topology.py`. Detekt uses the evaluated MVI compilation

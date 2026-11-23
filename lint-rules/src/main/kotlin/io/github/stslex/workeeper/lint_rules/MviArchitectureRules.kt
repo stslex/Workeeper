@@ -22,6 +22,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MviStoreStateRule(config),
             MviSharedPlatformRule(config),
             KmpSharedContractsRule(config),
+            AndroidAppDepsFactoryLookupRule(config),
             KmpDeclarationContractsRule(config),
             MetroScopeRule(config),
             ContributesBindingScopeRule(config),

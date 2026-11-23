@@ -134,7 +134,8 @@ class KmpNativeTargetsTest {
         val sourceOwners = listOf("covered", "feature:app-dialogs:api")
         val dependencyOwners = sourceOwners + "app:app"
         val projects = dependencyOwners + "uncovered"
-        val gradleDir = setupFixture(projects)
+        val otherProjects = listOf("app:dev", "app:store", "feature:recovery", "app:ios")
+        val gradleDir = setupFixture(projects + otherProjects)
         gradleDir.resolve("kmp-resource-contracts.json").writeText(
             """{"modules": {}, "removedKeys": [], "assetGroups": []}""",
         )
@@ -157,6 +158,11 @@ class KmpNativeTargetsTest {
                 parentFile.mkdirs()
                 writeText("package fixture\n")
             }
+        }
+        for (project in otherProjects) {
+            val dir = fixture.resolve(project.replace(':', '/')).apply { mkdirs() }
+            val dependencies = if (project == "app:ios") "dependencies { implementation(project(\":covered\")) }" else ""
+            dir.resolve("build.gradle.kts").writeText("plugins { `java-library` }\n$dependencies\n")
         }
         git("add", ".")
         gradleDir.resolve("kmp-native-identities.json").writeText("""{"covered": {}}""")
@@ -196,7 +202,22 @@ class KmpNativeTargetsTest {
             }
         }
 
+        for (project in otherProjects - "app:ios") {
+            val build = fixture.resolve(project.replace(':', '/') + "/build.gradle.kts")
+            val original = build.readBytes()
+            try {
+                build.appendText("dependencies { implementation(project(\":app:ios\")) }\n")
+                val result = gradle(":verifyKmpMigrationContracts").buildAndFail()
+                assertExecuted(result, TaskOutcome.FAILED, "verifyIosHostDependencyBoundary")
+                assertTrue(result.output.contains(":$project:implementation -> :app:ios"), result.output)
+            } finally {
+                build.writeBytes(original)
+                assertTrue(original.contentEquals(build.readBytes()))
+            }
+        }
+
         val restored = gradle(":verifyKmpMigrationContracts").build()
+        assertExecuted(restored, TaskOutcome.SUCCESS, "verifyIosHostDependencyBoundary")
         for (project in sourceOwners) {
             assertExecuted(restored, TaskOutcome.SUCCESS, "$project:verifyKmpSourceOwnership")
         }
@@ -240,6 +261,73 @@ class KmpNativeTargetsTest {
         assertTrue("custom/host/Host.kt" in scope["allFiles"] as List<*>)
         assertFalse("custom/host/Host.kt" in portable)
         assertEquals("", scope["modulePath"])
+    }
+
+    @Test
+    fun androidFactoryGateUsesOnlyAndroidProductionMembership() {
+        val configuration = """
+            kotlin.sourceSets {
+                getByName("androidMain").kotlin.srcDir("custom/android")
+                getByName("androidHostTest").kotlin.srcDir("custom/host")
+            }
+            $androidFactorySourceProbe
+        """.trimIndent()
+        val result = runner(
+            configuration = configuration,
+            task = "printAndroidFactorySources",
+            sources = listOf(
+                "src/commonMain/kotlin/Shared.kt", "custom/android/Production.kt", "custom/host/Host.kt",
+            ),
+        ).build()
+        assertAndroidFactorySources(result, "custom/android/Production.kt")
+    }
+
+    @Test
+    fun androidLibraryFactoryGateIncludesCustomProductionRoot() {
+        setupFixture()
+        fixture.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library")
+                id("workeeper.lint.convention")
+            }
+            android {
+                namespace = "fixture.android"
+                compileSdk = libs.versions.compileSdk.get().toInt()
+            }
+            androidComponents.onVariants { variant ->
+                checkNotNull(variant.sources.kotlin).addStaticSourceDirectory("custom/main")
+            }
+            $androidFactorySourceProbe
+            """.trimIndent(),
+        )
+        for (path in listOf("custom/main/Production.kt", "src/test/kotlin/Host.kt")) {
+            fixture.resolve(path).apply {
+                parentFile.mkdirs()
+                writeText("package fixture\\n")
+            }
+        }
+        val result = gradle("printAndroidFactorySources").build()
+        assertAndroidFactorySources(result, "custom/main/Production.kt")
+    }
+
+    private val androidFactorySourceProbe = """
+        val factoryGate = tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detektAndroidFactoryLookup")
+        tasks.register("printAndroidFactorySources") {
+            doLast {
+                factoryGate.get().source.files.forEach { println("FACTORY_SOURCE " + it.relativeTo(projectDir)) }
+            }
+        }
+    """.trimIndent()
+
+    private fun assertAndroidFactorySources(result: BuildResult, source: String) {
+        assertExecuted(result, TaskOutcome.SUCCESS, "printAndroidFactorySources")
+        assertEquals(
+            listOf(source),
+            result.output.lineSequence().filter { it.startsWith("FACTORY_SOURCE ") }
+                .map { it.removePrefix("FACTORY_SOURCE ") }.toList(),
+            result.output,
+        )
     }
 
     private fun runner(

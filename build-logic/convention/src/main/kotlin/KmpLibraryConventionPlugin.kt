@@ -44,6 +44,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureHostTests()
             registerCiAliases()
             configureDetektSources(kmpExtension)
+            configureAndroidFactoryLookupGate(kmpExtension)
             if (path == ":core:ui:mvi") {
                 configureMviDetektScope(kmpExtension)
             }
