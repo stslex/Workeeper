@@ -54,7 +54,7 @@ internal class AllExercisesUiMapperTest {
             lastTrainedAt = fourDaysAgo,
             nowMillis = now,
         )
-        assertEquals("12 sessions · in 3 trainings · last 4d ago", result)
+        assertEquals("sessions:12 separator trainings:3 separator days:4", result)
     }
 
     @Test
@@ -68,7 +68,7 @@ internal class AllExercisesUiMapperTest {
             lastTrainedAt = twoHoursAgo,
             nowMillis = now,
         )
-        assertEquals("in 2 trainings · last 2h ago", result)
+        assertEquals("trainings:2 separator hours:2", result)
     }
 
     @Test
@@ -81,7 +81,7 @@ internal class AllExercisesUiMapperTest {
             lastTrainedAt = null,
             nowMillis = now,
         )
-        assertEquals("5 sessions", result)
+        assertEquals("sessions:5", result)
     }
 
     @Test
@@ -92,7 +92,7 @@ internal class AllExercisesUiMapperTest {
             linkedTrainingsCount = 1,
             lastTrainedAt = null,
         )
-        assertEquals("1 sessions · in 1 trainings", result)
+        assertEquals("sessions:1 separator trainings:1", result)
     }
 
     @Test
@@ -105,7 +105,7 @@ internal class AllExercisesUiMapperTest {
             lastTrainedAt = now - 30_000L,
             nowMillis = now,
         )
-        assertEquals("last just now", result)
+        assertEquals("localized-just-now", result)
     }
 
     @Test
@@ -118,7 +118,7 @@ internal class AllExercisesUiMapperTest {
             lastTrainedAt = now - 15L * 60L * 1000L,
             nowMillis = now,
         )
-        assertEquals("last 15m ago", result)
+        assertEquals("minutes:15", result)
     }
 
     @Test
@@ -146,7 +146,7 @@ internal class AllExercisesUiMapperTest {
         assertEquals(12, ui.sessionCount)
         assertEquals(3, ui.linkedTrainingsCount)
         assertEquals(fourDaysAgo, ui.lastTrainedAt)
-        assertEquals("12 sessions · in 3 trainings · last 4d ago", ui.footerLabel)
+        assertEquals("sessions:12 separator trainings:3 separator days:4", ui.footerLabel)
         assertEquals(listOf("Push", "Chest"), ui.tags.toList())
     }
 
@@ -187,11 +187,11 @@ internal class AllExercisesUiMapperTest {
 
         val dialog = result.toBlockedArchiveDialog(stringResolver)
 
-        assertEquals("1 archived", dialog.archivedSummary)
+        assertEquals("archived:1", dialog.archivedSummary)
         assertEquals(1, dialog.items.size)
         assertEquals("Bench", dialog.items.first().exerciseName)
-        // 4 trainings, first two shown, remaining two folded into "+2 more".
-        assertEquals("used in Push, Pull +2 more", dialog.items.first().trainingsLabel)
+        // 4 trainings, first two shown, remaining two folded into "more:2".
+        assertEquals("used-in:Push, Pull more:2", dialog.items.first().trainingsLabel)
     }
 
     @Test
@@ -209,32 +209,27 @@ internal class AllExercisesUiMapperTest {
         val dialog = result.toBlockedArchiveDialog(stringResolver)
 
         assertNull(dialog.archivedSummary)
-        assertEquals("used in Push, Legs", dialog.items.first().trainingsLabel)
+        assertEquals("used-in:Push, Legs", dialog.items.first().trainingsLabel)
     }
 }
 
-/**
- * The strict resolver: today's stub strings, built from the quantity (never from a plural's format
- * arguments), for exactly the mapper's resources, and only when a read passes what production
- * passes. Any other resource or argument shape throws.
- */
 private class MapperStringResolver : StringResolver {
 
     override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String =
         when (resource) {
             Res.string.feature_all_exercises_footer_separator -> {
                 check(formatArgs.isEmpty()) { "footer_separator takes no arguments" }
-                "·"
+                "separator"
             }
 
             Res.string.feature_all_exercises_last_trained_just_now -> {
                 check(formatArgs.isEmpty()) { "last_trained_just_now takes no arguments" }
-                "last just now"
+                "localized-just-now"
             }
 
             Res.string.feature_all_exercises_blocked_archive_used_in_format -> {
                 check(formatArgs.size == 1) { "used_in_format takes exactly one argument" }
-                "used in ${formatArgs.single()}"
+                "used-in:${formatArgs.single()}"
             }
 
             else -> error("the mapper must not read $resource")
@@ -249,13 +244,13 @@ private class MapperStringResolver : StringResolver {
             "a plural read passes its quantity as its one format argument; got ${formatArgs.toList()}"
         }
         return when (resource) {
-            Res.plurals.feature_all_exercises_session_count -> "$quantity sessions"
-            Res.plurals.feature_all_exercises_linked_trainings_count -> "in $quantity trainings"
-            Res.plurals.feature_all_exercises_last_trained_minutes -> "last ${quantity}m ago"
-            Res.plurals.feature_all_exercises_last_trained_hours -> "last ${quantity}h ago"
-            Res.plurals.feature_all_exercises_last_trained_days -> "last ${quantity}d ago"
-            Res.plurals.feature_all_exercises_bulk_archive_success -> "$quantity archived"
-            Res.plurals.feature_all_exercises_blocked_archive_more -> "+$quantity more"
+            Res.plurals.feature_all_exercises_session_count -> "sessions:$quantity"
+            Res.plurals.feature_all_exercises_linked_trainings_count -> "trainings:$quantity"
+            Res.plurals.feature_all_exercises_last_trained_minutes -> "minutes:$quantity"
+            Res.plurals.feature_all_exercises_last_trained_hours -> "hours:$quantity"
+            Res.plurals.feature_all_exercises_last_trained_days -> "days:$quantity"
+            Res.plurals.feature_all_exercises_bulk_archive_success -> "archived:$quantity"
+            Res.plurals.feature_all_exercises_blocked_archive_more -> "more:$quantity"
             else -> error("the mapper must not read $resource")
         }
     }

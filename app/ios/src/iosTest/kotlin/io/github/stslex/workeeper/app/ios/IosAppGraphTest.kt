@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.App
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.data.dataStore.core.IosDataStorePathResolver
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -39,8 +40,11 @@ class IosAppGraphTest {
     @Test
     fun qualifiedDispatchersReachProductionConsumers() {
         val fixture = IosGraphFixture()
+        val lifetime = AppScopeLifetime()
         try {
-            val graph = fixture.graph()
+            val graph = fixture.graph(lifetime = lifetime)
+            assertSame(lifetime, graph.appScopeLifetime)
+            assertTrue(lifetime.isActive)
             assertSame(Dispatchers.Default, graph.storeDispatchers.defaultDispatcher)
             assertSame(Dispatchers.Main.immediate, graph.storeDispatchers.mainImmediateDispatcher)
             assertSame(Dispatchers.Main, graph.mainDispatcher)
@@ -259,6 +263,11 @@ class IosAppGraphTest {
             started.await()
             first.appScopeLifetime.cancelAndJoin()
             completed.await()
+            val borrowedRead = withContext(Dispatchers.IO) {
+                runCatching { fixture.database.trainingDao.getById(active.uuid) }
+            }
+            assertTrue(borrowedRead.isSuccess, "Ending one graph must leave the borrowed database open")
+            assertEquals(active, borrowedRead.getOrNull())
             assertTrue(child.isCompleted)
             assertFalse(first.appScopeLifetime.isActive)
             assertTrue(successor.appScopeLifetime.isActive)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.app
 
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
@@ -17,6 +18,7 @@ import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.harness.MetroTestRule
 import io.github.stslex.workeeper.harness.NavPaths
 import io.github.stslex.workeeper.harness.NavSeed
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -72,7 +74,13 @@ internal class BackStackStateRestorationTest {
         paths.awaitTag(ALL_EXERCISES_GRAPH)
 
         // A reset-to-top list inverts both assertions.
-        composeRule.waitUntilAtLeastOneExists(hasTestTag(targetTag), NavPaths.ARRIVAL_TIMEOUT_MS)
+        val restoredTargetComposed = try {
+            composeRule.waitUntilAtLeastOneExists(hasTestTag(targetTag), NavPaths.ARRIVAL_TIMEOUT_MS)
+            true
+        } catch (_: ComposeTimeoutException) {
+            false
+        }
+        assertTrue("The scrolled row must remain composed after the detail round trip", restoredTargetComposed)
         composeRule.onNodeWithTag(targetTag).assertIsDisplayed()
         check(
             composeRule.onAllNodesWithTag(topRowTag).fetchSemanticsNodes().isEmpty(),

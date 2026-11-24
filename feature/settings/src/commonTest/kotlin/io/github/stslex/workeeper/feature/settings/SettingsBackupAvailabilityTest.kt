@@ -65,7 +65,8 @@ internal class SettingsBackupAvailabilityTest {
     fun unavailableBackupInitializesNoObservers() = runTest {
         val handler = object : SettingsBackupHandler {
             override val isAvailable = false
-            override fun invoke(action: Action.Backup): Unit = error("Unavailable backup invoked: $action")
+            override fun invoke(action: Action.Backup): Unit =
+                throw AssertionError("Unavailable backup invoked: $action")
         }
         val fixture = SettingsStoreFixture(StandardTestDispatcher(testScheduler), handler)
         try {

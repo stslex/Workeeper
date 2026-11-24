@@ -1,0 +1,2 @@
+iosArm64
+iosSimulatorArm64

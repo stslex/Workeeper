@@ -65,11 +65,11 @@ internal class PastSessionUiMapperTest {
             ),
         ).toUi(resourceWrapper = resources, stringResolver = strings)
 
-        assertEquals("Ad-hoc workout", ui.trainingName)
+        assertEquals("localized-adhoc", ui.trainingName)
         assertEquals("Apr 28", ui.finishedAtAbsoluteLabel)
         assertEquals("01:30", ui.durationLabel)
         // Tonnage counts the weighted exercise only: 5x100 + 3x90 = 770.
-        assertEquals("2 exercises · 3 sets · 770 kg", ui.totalsLabel)
+        assertEquals("totals-tonnage:exercise-many:2|set-many:3|tonnage:770", ui.totalsLabel)
 
         assertEquals(
             listOf("Pull Up", "Bench", "Skipped Fly"),
@@ -124,7 +124,7 @@ internal class PastSessionUiMapperTest {
                         SetDomain(
                             uuid = "set-4",
                             reps = 5,
-                            weight = 100.0,
+                            weight = 246_913.4,
                             type = SetTypeDomain.WORK,
                             position = 0,
                         ),
@@ -134,7 +134,7 @@ internal class PastSessionUiMapperTest {
         ).toUi(resourceWrapper = resources, stringResolver = strings)
 
         assertEquals("Push Day", ui.trainingName)
-        assertEquals("1 exercise · 1 set · 500 kg", ui.totalsLabel)
+        assertEquals("totals-tonnage:exercise-one:1|set-one:1|tonnage:1\u00a0234\u00a0567", ui.totalsLabel)
     }
 
     @Test
@@ -164,7 +164,7 @@ internal class PastSessionUiMapperTest {
         ).toUi(resourceWrapper = resources, stringResolver = strings)
 
         // No tonnage term at all — not "· 0 kg".
-        assertEquals("1 exercise · 1 set", ui.totalsLabel)
+        assertEquals("totals:exercise-one:1|set-one:1", ui.totalsLabel)
     }
 
     @Test
@@ -192,7 +192,7 @@ internal class PastSessionUiMapperTest {
             ),
         ).toUi(resourceWrapper = resources, stringResolver = strings)
 
-        assertEquals("1 exercise · 1 set", ui.totalsLabel)
+        assertEquals("totals:exercise-one:1|set-one:1", ui.totalsLabel)
     }
 
     @Test
@@ -400,40 +400,35 @@ internal class PastSessionUiMapperTest {
     )
 }
 
-/**
- * The mapper's copy through the strict resolver: today's stub strings, and only for the
- * arguments production passes. The mapper groups the tonnage itself with the catalog separator;
- * every fixture tonnage here is under 1,000, so no expected string depends on the grouping.
- */
 private class MapperStringResolver : StringResolver {
 
     override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String =
         when (resource) {
             Res.string.feature_past_session_adhoc_label -> {
                 check(formatArgs.isEmpty()) { "adhoc_label takes no arguments" }
-                "Ad-hoc workout"
+                "localized-adhoc"
             }
 
             Res.string.feature_past_session_totals_format -> {
                 check(formatArgs.size == 2) { "totals_format takes exactly two arguments" }
-                "${formatArgs[0]} · ${formatArgs[1]}"
+                "totals:${formatArgs[0]}|${formatArgs[1]}"
             }
 
             Res.string.feature_past_session_totals_format_with_tonnage -> {
                 check(formatArgs.size == 3) {
                     "totals_format_with_tonnage takes exactly three arguments"
                 }
-                "${formatArgs[0]} · ${formatArgs[1]} · ${formatArgs[2]}"
+                "totals-tonnage:${formatArgs[0]}|${formatArgs[1]}|${formatArgs[2]}"
             }
 
             Res.string.feature_past_session_tonnage_format -> {
                 check(formatArgs.size == 1) { "tonnage_format takes exactly one argument" }
-                "${formatArgs.single()} kg"
+                "tonnage:${formatArgs.single()}"
             }
 
             Res.string.feature_past_session_tonnage_group_separator -> {
                 check(formatArgs.isEmpty()) { "tonnage_group_separator takes no arguments" }
-                ","
+                "\u00a0"
             }
 
             else -> error("the mapper must not read $resource")
@@ -449,10 +444,10 @@ private class MapperStringResolver : StringResolver {
         }
         return when (resource) {
             Res.plurals.feature_past_session_exercises_count ->
-                if (quantity == 1) "$quantity exercise" else "$quantity exercises"
+                if (quantity == 1) "exercise-one:$quantity" else "exercise-many:$quantity"
 
             Res.plurals.feature_past_session_sets_count ->
-                if (quantity == 1) "$quantity set" else "$quantity sets"
+                if (quantity == 1) "set-one:$quantity" else "set-many:$quantity"
 
             else -> error("the mapper must not read $resource")
         }

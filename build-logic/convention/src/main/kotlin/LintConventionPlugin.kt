@@ -2,6 +2,7 @@ import AppExt.findPluginId
 import AppExt.libs
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
+import com.android.build.api.variant.AndroidComponentsExtension
 import io.github.stslex.workeeper.configureInstrumentedSuiteGate
 import io.github.stslex.workeeper.configureLintOptions
 import io.gitlab.arturbosch.detekt.Detekt
@@ -57,6 +58,9 @@ class LintConventionPlugin : Plugin<Project> {
 
             // Every module gets the gate, whether or not it has instrumented tests today.
             configureInstrumentedSuiteGate()
+            if (!pluginManager.hasPlugin("org.jetbrains.kotlin.multiplatform")) {
+                extensions.findByType(AndroidComponentsExtension::class.java)?.let(::configureAndroidFactoryLookupGate)
+            }
         }
     }
 }

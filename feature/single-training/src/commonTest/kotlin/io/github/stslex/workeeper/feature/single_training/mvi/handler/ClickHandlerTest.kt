@@ -30,7 +30,10 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.resources.Res
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_archive_blocked
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_archive_success_format
 import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_conflict_progress_format
+import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_conflict_unnamed
 import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_body
 import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_confirm
 import io.github.stslex.workeeper.feature.single_training.resources.feature_training_detail_permanent_delete_impact
@@ -345,24 +348,25 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnStartSessionClick reports the persisted active session progress`() = runTest {
-        store.launches = Launches.RunActionOnly(this)
-        stateFlow.value = stateFlow.value.copy(uuid = "training-1", name = "Push Day")
-        interactor.conflicts["training-1"] =
-            StartSessionConflict.NeedsUserChoice(
-                active = ActiveSessionDomain(
-                    sessionUuid = "active-1",
-                    trainingUuid = "active-training",
-                    startedAt = 1L,
-                ),
+        for (name in listOf("Push Day", "  ")) {
+            store.launches = Launches.RunActionOnly(this)
+            stateFlow.value = initialState.copy(uuid = "training-1", name = name)
+            interactor.conflicts["training-1"] = StartSessionConflict.NeedsUserChoice(
+                active = ActiveSessionDomain("active-1", "active-training", 1L),
                 doneCount = 1,
                 totalCount = 2,
             )
-
-        handler.invoke(Action.Click.OnStartSessionClick)
-        advanceUntilIdle()
-
-        val dialog = stateFlow.value.dialogState as DialogState.ActiveSessionConflict
-        assertEquals("1 of 2 exercises done", dialog.progressLabel)
+            handler.invoke(Action.Click.OnStartSessionClick)
+            advanceUntilIdle()
+            assertEquals(
+                DialogState.ActiveSessionConflict(
+                    sessionUuid = "active-1",
+                    activeSessionName = if (name.isBlank()) "localized-unnamed" else name,
+                    progressLabel = "localized-progress:1/2",
+                ),
+                stateFlow.value.dialogState,
+            )
+        }
     }
 
     @Test
@@ -1065,15 +1069,30 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `archive closes the menu before its result lands`() {
-        stateFlow.value = stateFlow.value.copy(
-            uuid = "training-1",
-            dialogState = DialogState.DetailMenu,
-        )
-
-        handler.invoke(Action.Click.OnArchiveClick)
-
-        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    fun `archive closes the menu before its result lands`() = runTest {
+        for (result in listOf(ArchiveResult.Success, ArchiveResult.Blocked("fixture-reason"))) {
+            stateFlow.value = initialState.copy(
+                uuid = "training-1",
+                name = "Push Day",
+                dialogState = DialogState.DetailMenu,
+            )
+            store.events.clear()
+            store.consumed.clear()
+            store.launches = Launches.Captured
+            interactor.archiveResult = result
+            handler.invoke(Action.Click.OnArchiveClick)
+            assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+            assertTrue(store.events.none { it is Event.ShowArchiveSuccess || it is Event.ShowArchiveBlocked })
+            assertTrue(store.consumed.isEmpty())
+            store.completeCaptured()
+            if (result == ArchiveResult.Success) {
+                assertTrue(Event.ShowArchiveSuccess("localized-archive:Push Day") in store.events)
+                assertTrue(Action.Navigation.Back in store.consumed)
+            } else {
+                assertTrue(Event.ShowArchiveBlocked("localized-blocked") in store.events)
+                assertTrue(store.consumed.isEmpty())
+            }
+        }
     }
 
     /** One sealed field: the confirm's write replaces the menu variant in the same transition. */
@@ -1090,7 +1109,10 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnPermanentDeleteClick)
         advanceUntilIdle()
 
-        assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
+        assertEquals(
+            DialogState.PermanentDeleteConfirm("confirm-title:", "confirm-body", "confirm-impact", "confirm-button"),
+            stateFlow.value.dialogState,
+        )
     }
 
     /** D2: the confirm lands only on the menu it replaces; a dismissal in its window wins. */
@@ -1273,6 +1295,7 @@ internal class ClickHandlerTest {
      */
     private class FakeSingleTrainingInteractor : SingleTrainingInteractor {
 
+        var archiveResult: ArchiveResult? = null
         val resolvedExercises = mutableMapOf<List<String>, List<PickerExercise>>()
         val conflicts = mutableMapOf<String, StartSessionConflict>()
         val createdTags = mutableMapOf<String, TagDomain>()
@@ -1299,7 +1322,8 @@ internal class ClickHandlerTest {
 
         override suspend fun archive(uuid: String): ArchiveResult {
             calls.add("archive")
-            error("archive was not set up")
+            check(uuid == "training-1")
+            return checkNotNull(archiveResult) { "archive was not set up" }
         }
 
         override suspend fun permanentlyDelete(uuid: String) {
@@ -1338,37 +1362,34 @@ internal class ClickHandlerTest {
         }
     }
 
-    /**
-     * Strict: answers exactly the five reads these identities reach, and only with the arguments
-     * production passes — the conflict progress with its two counts, the confirm's title with the
-     * training's name (State.create's empty default in both identities that reach it), and the
-     * confirm's other three verbatim. Any other resource or argument list throws.
-     */
     private class StrictClickStringResolver : StringResolver {
-
         override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String {
             val args = formatArgs.toList()
             return when (resource) {
                 Res.string.feature_training_detail_conflict_progress_format -> {
                     check(args == listOf<Any>(1, 2)) { "the progress passes done, then total; got $args" }
-                    "1 of 2 exercises done"
+                    "localized-progress:1/2"
                 }
-
                 Res.string.feature_training_detail_permanent_delete_title -> {
                     check(args == listOf<Any>("")) { "the title passes the training's name; got $args" }
-                    ""
+                    "confirm-title:${args.single()}"
                 }
-
-                Res.string.feature_training_detail_permanent_delete_body,
-                Res.string.feature_training_detail_permanent_delete_impact,
-                Res.string.feature_training_detail_permanent_delete_confirm,
-                -> {
-                    check(args.isEmpty()) { "$resource is read verbatim; got $args" }
-                    ""
+                Res.string.feature_training_detail_archive_success_format -> {
+                    check(args == listOf<Any>("Push Day"))
+                    "localized-archive:${args.single()}"
                 }
-
+                Res.string.feature_training_detail_permanent_delete_body -> plain(args, "confirm-body")
+                Res.string.feature_training_detail_permanent_delete_impact -> plain(args, "confirm-impact")
+                Res.string.feature_training_detail_permanent_delete_confirm -> plain(args, "confirm-button")
+                Res.string.feature_training_detail_archive_blocked -> plain(args, "localized-blocked")
+                Res.string.feature_training_detail_conflict_unnamed -> plain(args, "localized-unnamed")
                 else -> error("these identities must not read $resource")
             }
+        }
+
+        private fun plain(args: List<Any>, value: String): String {
+            check(args.isEmpty())
+            return value
         }
 
         override suspend fun getPluralString(

@@ -3,7 +3,9 @@
 
 package io.github.stslex.workeeper.feature.exercise
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
@@ -23,6 +25,15 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.v2.runComposeUiTest
+import coil3.PlatformContext
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePainter
+import coil3.compose.AsyncImagePreviewHandler
+import coil3.compose.LocalAsyncImagePreviewHandler
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.request.crossfadeMillis
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.resources.Res
 import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
@@ -91,6 +102,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceShee
 import io.github.stslex.workeeper.feature.exercise.ui.components.PlanInfoSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseClickCopy
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -98,6 +110,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import io.github.stslex.workeeper.feature.exercise.resources.Res as ExerciseRes
 
@@ -107,6 +120,7 @@ class ExerciseFeatureSceneIosTest {
     private val resolver = ComposeStringResolver()
 
     @Test
+    @OptIn(ExperimentalCoilApi::class)
     fun resourcesDetailEditorSheetsAndActionsRenderAndDispatch() = runComposeUiTest {
         // 1. The private catalog in file order through the real resolver, each read as stored;
         // the plural is also read filled, its count as the one format argument.
@@ -189,18 +203,30 @@ class ExerciseFeatureSceneIosTest {
         val shown = mutableStateOf<Shown>(Shown.Detail(d1))
         val actions = mutableListOf<Action>()
         val sources = mutableListOf<String>()
+        val requests = mutableListOf<ImageRequest>()
+        lateinit var platformContext: PlatformContext
+        val observer = AsyncImagePreviewHandler { _, request ->
+            requests += request
+            AsyncImagePainter.State.Empty
+        }
         setContent {
-            AppTheme {
-                when (val current = shown.value) {
-                    is Shown.Detail -> ExerciseDetailScreen(state = current.state, consume = actions::add)
-                    is Shown.Edit -> ExerciseEditScreen(state = current.state, consume = actions::add)
-                    is Shown.Menu -> ExerciseDetailMenuSheetContent(
-                        canPermanentlyDelete = current.canPermanentlyDelete,
-                        consume = actions::add,
-                    )
+            platformContext = LocalPlatformContext.current
+            CompositionLocalProvider(
+                LocalInspectionMode provides true,
+                LocalAsyncImagePreviewHandler provides observer,
+            ) {
+                AppTheme {
+                    when (val current = shown.value) {
+                        is Shown.Detail -> ExerciseDetailScreen(state = current.state, consume = actions::add)
+                        is Shown.Edit -> ExerciseEditScreen(state = current.state, consume = actions::add)
+                        is Shown.Menu -> ExerciseDetailMenuSheetContent(
+                            canPermanentlyDelete = current.canPermanentlyDelete,
+                            consume = actions::add,
+                        )
 
-                    Shown.PlanInfo -> PlanInfoSheetContent(consume = actions::add)
-                    Shown.Source -> ImageSourceSheetContent(onSourceSelected = { sources.add("source:${it.name}") })
+                        Shown.PlanInfo -> PlanInfoSheetContent(consume = actions::add)
+                        Shown.Source -> ImageSourceSheetContent(onSourceSelected = { sources.add("source:${it.name}") })
+                    }
                 }
             }
         }
@@ -259,6 +285,14 @@ class ExerciseFeatureSceneIosTest {
         onNodeWithTag("ExerciseDescriptionImage").assert(clickLabel("Open photo full screen"))
         onNodeWithTag("ExerciseDescriptionImage").performClick()
 
+        assertTrue(requests.isNotEmpty(), "The exercise thumbnail must construct its Coil request")
+        assertEquals("native-image-model?v=1", requests.last().data)
+        assertSame(platformContext, requests.last().context)
+        assertEquals(200, requests.last().crossfadeMillis)
+        shown.value = Shown.Detail(d2.copy(imagePath = "native-image-model", imageLastModified = 2))
+        settleScene()
+        assertEquals("native-image-model?v=2", requests.last().data)
+
         // 4. The editor: E1.
         shown.value = Shown.Edit(e1)
         settleUntilTag("ExerciseEditScreen")
@@ -313,6 +347,14 @@ class ExerciseFeatureSceneIosTest {
         settleUntil(hasText("Edit exercise"))
         onNode(hasText("Edit exercise"), useUnmergedTree = true).assertIsDisplayed()
         onNode(hasText("Exercise with this name already exists"), useUnmergedTree = true).assertIsDisplayed()
+
+        shown.value = Shown.Edit(e1.copy(pendingImage = PendingImage.NewFromUri(ImageRef("content://picked/exercise"))))
+        settleScene()
+        onNodeWithTag("ExerciseDescriptionImage").performScrollTo().assertIsDisplayed()
+        settleScene()
+        assertEquals("content://picked/exercise", requests.last().data)
+        assertSame(platformContext, requests.last().context)
+        assertEquals(200, requests.last().crossfadeMillis)
 
         // 5. The sheets: the menu with and without the permanent delete, the plan info, the source.
         shown.value = Shown.Menu(canPermanentlyDelete = true)
