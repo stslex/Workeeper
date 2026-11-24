@@ -8,9 +8,11 @@ import androidx.lifecycle.ViewModelStoreOwner
 import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
+import io.github.stslex.workeeper.app.common.runtime.UiAdmissionGate
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializationHost
 import io.github.stslex.workeeper.core.core.platform.CameraPermission
 import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
@@ -104,14 +106,15 @@ internal class GraphTestOwner : ViewModelStoreOwner {
 
 internal class GraphTestGenerations(owner: GraphTestOwner) : AppUiGenerationsHolder {
     override val appUiPhases = MutableStateFlow<AppUiPhase>(AppUiPhase.Generation(1, owner))
-    var allow = true
+    val gate = UiAdmissionGate(Log.tag("GraphTestGenerations"))
     val admitted = mutableListOf<AppUiAdmissionToken>()
     val released = mutableListOf<AppUiAdmissionToken>()
 
     override fun admitUiGeneration(id: Int): AppUiAdmissionToken? =
-        if (allow) object : AppUiAdmissionToken {}.also(admitted::add) else null
+        gate.admit(id)?.also(admitted::add)
 
     override fun releaseUiGeneration(token: AppUiAdmissionToken) {
+        gate.release(token)
         released += token
     }
 }

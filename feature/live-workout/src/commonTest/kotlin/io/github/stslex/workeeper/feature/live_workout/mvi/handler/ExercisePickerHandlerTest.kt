@@ -22,10 +22,14 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetStat
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
 import io.github.stslex.workeeper.feature.live_workout.resources.Res
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_error_add_exercise_failed
 import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_picker_create_format
 import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_picker_no_match_format
+import io.github.stslex.workeeper.feature.live_workout.resources.feature_live_workout_toast_exercise_added
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -34,11 +38,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 internal class ExercisePickerHandlerTest {
@@ -127,6 +133,7 @@ internal class ExercisePickerHandlerTest {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
     fun onCreateNewExercise_freshAdhoc_skipsPrBaseline() = runTest {
+        stringResolver.answer(Res.string.feature_live_workout_error_add_exercise_failed, value = "localized-add-failed")
         val state = MutableStateFlow(stateWithVisiblePicker())
         interactor.onCall("createInlineAdhocExercise", "Skull Crushers") {
             InlineAdhocResult(
@@ -144,14 +151,41 @@ internal class ExercisePickerHandlerTest {
             )
         }
 
+        val releaseCopy = CompletableDeferred<String>()
+        var reads = 0
+        var rejectCopy = false
+        val gatedCopy = object : StringResolver by stringResolver {
+            override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String {
+                if (resource != Res.string.feature_live_workout_toast_exercise_added) {
+                    return stringResolver.getString(resource, *formatArgs)
+                }
+                reads++
+                assertEquals(listOf("Skull Crushers"), formatArgs.toList())
+                if (rejectCopy) error("Controlled copy failure")
+                return releaseCopy.await()
+            }
+        }
+        val store = ExecutingLiveWorkoutHandlerStore(state, this)
         val handler = ExercisePickerHandler(
             interactor = interactor,
-            stringResolver = stringResolver,
+            stringResolver = gatedCopy,
             statusMapper = statusMapper,
-            store = ExecutingLiveWorkoutHandlerStore(state, this),
+            store = store,
         )
 
         handler.invoke(ExercisePickerAction.OnCreateNewExercise("Skull Crushers"))
+        runCurrent()
+        assertEquals(1, reads, "The add resolves copy before writing")
+        assertEquals(0, interactor.calls.count { it.member == "addExerciseToActiveSession" })
+        assertTrue(state.value.exercises.isEmpty(), "Suspended copy must leave exercise rows unchanged")
+        assertNull(state.value.pendingUndo)
+        releaseCopy.complete("Added controlled exercise")
+        runCurrent()
+        assertEquals("Added controlled exercise", state.value.pendingUndo?.message)
+        assertEquals(
+            PendingUndo.UndoCompensation.RemoveAddedExercise("pe-inline-1", "ex-inline-1", true),
+            state.value.pendingUndo?.undoCompensation,
+        )
         advanceUntilIdle()
 
         assertEquals(
@@ -160,6 +194,17 @@ internal class ExercisePickerHandlerTest {
         )
         // reusedExisting = false → no history → PR baseline fetch is skipped.
         assertEquals(0, interactor.count("fetchPrSnapshotForExercise", RecordingInteractor.ANY))
+
+        state.value = stateWithVisiblePicker()
+        interactor.calls.clear()
+        rejectCopy = true
+        handler.invoke(ExercisePickerAction.OnCreateNewExercise("Skull Crushers"))
+        advanceUntilIdle()
+        assertEquals(2, reads)
+        assertEquals(0, interactor.calls.count { it.member == "addExerciseToActiveSession" })
+        assertTrue(state.value.exercises.isEmpty(), "Failed copy must leave exercise rows unchanged")
+        assertNull(state.value.pendingUndo)
+        assertEquals(listOf(Event.ShowError("localized-add-failed")), store.events.filterIsInstance<Event.ShowError>())
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -359,14 +404,15 @@ internal class ExercisePickerHandlerTest {
         private val scope: CoroutineScope,
     ) : LiveWorkoutHandlerStore {
 
+        val events = mutableListOf<Event>()
         override val state: StateFlow<State> = stateFlow
         override val lastAction: io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action? =
             null
         override val logger: Logger = SilentLogger()
 
-        override fun sendEvent(
-            event: io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event,
-        ) = Unit
+        override fun sendEvent(event: Event) {
+            events += event
+        }
 
         override fun consume(
             action: io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action,

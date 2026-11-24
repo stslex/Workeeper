@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.runtime
 
 import androidx.lifecycle.ViewModelStore
+import io.github.stslex.workeeper.app.common.runtime.UiAdmissionGate
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import kotlinx.coroutines.CompletableDeferred

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
-import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
@@ -25,7 +24,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,7 +33,6 @@ import java.io.File
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -635,85 +632,6 @@ internal suspend fun runInlineRollback(
         // Preserve Prepared state and source; a non-durable swap is never Committed.
         is CommitResult.NotDurable -> ReplacementOutcome.FailedAfterMutation(committed.error)
     }
-}
-
-/** UI admission gate that atomically observes zero attachments and retires a generation. */
-internal class UiAdmissionGate(private val logger: Logger) {
-
-    /** Token identity makes late release ABA-safe. */
-    class Token internal constructor(
-        internal val generationId: Int,
-        internal val serial: Long,
-    ) : AppUiAdmissionToken
-
-    private data class State(
-        val live: Map<Int, Set<Long>> = emptyMap(),
-        val retired: Set<Int> = emptySet(),
-    )
-
-    private val state = MutableStateFlow(State())
-    private val nextSerial = AtomicLong(0)
-
-    /** Requests composition-time admission; a retired generation receives no token. */
-    fun admit(generationId: Int): Token? {
-        val serial = nextSerial.incrementAndGet()
-        // Read the verdict from the winning CAS state, not a retried update lambda.
-        val after = state.updateAndGet { s ->
-            if (generationId in s.retired) {
-                s
-            } else {
-                s.copy(live = s.live + (generationId to (s.live[generationId].orEmpty() + serial)))
-            }
-        }
-        val granted = serial in after.live[generationId].orEmpty()
-        if (!granted) {
-            logger.w {
-                "ui admission REFUSED for retired generation $generationId — the region renders nothing"
-            }
-            return null
-        }
-        return Token(generationId, serial)
-    }
-
-    /** Releases exactly this token. Idempotent, and a no-op for a token that never counted. */
-    fun release(token: Token) {
-        state.update { s ->
-            val serials = s.live[token.generationId] ?: return@update s
-            if (token.serial !in serials) return@update s
-            val remaining = serials - token.serial
-            s.copy(
-                live = if (remaining.isEmpty()) {
-                    s.live - token.generationId
-                } else {
-                    s.live + (token.generationId to remaining)
-                },
-            )
-        }
-    }
-
-    /** Atomically waits for zero admissions and retires the id; timeout leaves it admittable. */
-    suspend fun awaitRetired(id: Int, timeoutMillis: Long): Boolean =
-        withTimeoutOrNull(timeoutMillis) {
-            var retired = false
-            while (!retired) {
-                state.first { s -> s.live[id].isNullOrEmpty() || id in s.retired }
-                val after = state.updateAndGet { s ->
-                    if (s.live[id].isNullOrEmpty() && id !in s.retired) {
-                        s.copy(live = s.live - id, retired = s.retired + id)
-                    } else {
-                        s
-                    }
-                }
-                retired = id in after.retired
-            }
-        } != null
-
-    /** Reopens admission for an ABORTED transition's outgoing id. */
-    fun reopen(id: Int) {
-        state.update { s -> s.copy(retired = s.retired - id) }
-    }
-
-    fun admittedCount(id: Int): Int = state.value.live[id].orEmpty().size
 }
 
 /** DB-bound work admission; a lease binds dependencies atomically at first operation. */

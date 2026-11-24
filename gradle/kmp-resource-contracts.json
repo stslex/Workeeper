@@ -1,0 +1,4499 @@
+{
+  "modules": {
+    "core:ui:start-mode": {
+      "package": "io.github.stslex.workeeper.core.ui.start_mode.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": null
+    },
+    "core:ui:plan-editor": {
+      "package": "io.github.stslex.workeeper.core.ui.plan_editor.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "core_ui_plan_editor_read_plan_empty": {
+            "type": "string",
+            "value": "This exercise has no default plan."
+          }
+        },
+        "values-ru": {
+          "core_ui_plan_editor_read_plan_empty": {
+            "type": "string",
+            "value": "У упражнения нет плана по умолчанию."
+          }
+        }
+      }
+    },
+    "feature:image-viewer": {
+      "package": "io.github.stslex.workeeper.feature.image_viewer.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_image_viewer_back": {
+            "type": "string",
+            "value": "Back"
+          },
+          "feature_image_viewer_content_description": {
+            "type": "string",
+            "value": "Exercise image, full size"
+          },
+          "feature_image_viewer_unavailable": {
+            "type": "string",
+            "value": "Image unavailable"
+          },
+          "feature_image_viewer_menu": {
+            "type": "string",
+            "value": "Image actions"
+          },
+          "feature_image_viewer_action_replace": {
+            "type": "string",
+            "value": "Replace photo"
+          },
+          "feature_image_viewer_action_remove": {
+            "type": "string",
+            "value": "Remove photo"
+          }
+        },
+        "values-ru": {
+          "feature_image_viewer_back": {
+            "type": "string",
+            "value": "Назад"
+          },
+          "feature_image_viewer_content_description": {
+            "type": "string",
+            "value": "Полноразмерное фото упражнения"
+          },
+          "feature_image_viewer_unavailable": {
+            "type": "string",
+            "value": "Фото недоступно"
+          },
+          "feature_image_viewer_menu": {
+            "type": "string",
+            "value": "Действия с фото"
+          },
+          "feature_image_viewer_action_replace": {
+            "type": "string",
+            "value": "Заменить фото"
+          },
+          "feature_image_viewer_action_remove": {
+            "type": "string",
+            "value": "Удалить фото"
+          }
+        }
+      }
+    },
+    "feature:plan-editor": {
+      "package": "io.github.stslex.workeeper.feature.plan_editor.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "core_ui_plan_editor_screen_title_format": {
+            "type": "string",
+            "value": "Edit plan: %1$s"
+          },
+          "core_ui_plan_editor_screen_title_default": {
+            "type": "string",
+            "value": "Edit plan"
+          },
+          "core_ui_plan_editor_screen_back": {
+            "type": "string",
+            "value": "Back"
+          },
+          "core_ui_plan_editor_screen_save": {
+            "type": "string",
+            "value": "Save"
+          },
+          "core_ui_plan_editor_screen_cancel": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "core_ui_plan_editor_error_load": {
+            "type": "string",
+            "value": "Failed to load the plan."
+          },
+          "core_ui_plan_editor_error_save": {
+            "type": "string",
+            "value": "Failed to save the plan."
+          },
+          "feature_plan_editor_set_type_tooltip": {
+            "type": "string",
+            "value": "Tap to cycle: warmup → work → failure → drop"
+          },
+          "feature_plan_editor_type_change_weightless_title": {
+            "type": "string",
+            "value": "Switch to weightless?"
+          },
+          "feature_plan_editor_type_change_weightless_body": {
+            "type": "string",
+            "value": "Weight values from this exercise’s plans will be cleared. This cannot be undone."
+          },
+          "feature_plan_editor_type_change_weightless_impact": {
+            "type": "string",
+            "value": "All plan weights cleared"
+          },
+          "feature_plan_editor_type_change_weightless_confirm": {
+            "type": "string",
+            "value": "Switch"
+          }
+        },
+        "values-ru": {
+          "core_ui_plan_editor_screen_title_format": {
+            "type": "string",
+            "value": "План: %1$s"
+          },
+          "core_ui_plan_editor_screen_title_default": {
+            "type": "string",
+            "value": "План"
+          },
+          "core_ui_plan_editor_screen_back": {
+            "type": "string",
+            "value": "Назад"
+          },
+          "core_ui_plan_editor_screen_save": {
+            "type": "string",
+            "value": "Сохранить"
+          },
+          "core_ui_plan_editor_screen_cancel": {
+            "type": "string",
+            "value": "Отмена"
+          },
+          "core_ui_plan_editor_error_load": {
+            "type": "string",
+            "value": "Не удалось загрузить план."
+          },
+          "core_ui_plan_editor_error_save": {
+            "type": "string",
+            "value": "Не удалось сохранить план."
+          },
+          "feature_plan_editor_set_type_tooltip": {
+            "type": "string",
+            "value": "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп"
+          },
+          "feature_plan_editor_type_change_weightless_title": {
+            "type": "string",
+            "value": "Переключить на без веса?"
+          },
+          "feature_plan_editor_type_change_weightless_body": {
+            "type": "string",
+            "value": "Значения веса из планов этого упражнения будут очищены. Это нельзя отменить."
+          },
+          "feature_plan_editor_type_change_weightless_impact": {
+            "type": "string",
+            "value": "Все веса в планах очищены"
+          },
+          "feature_plan_editor_type_change_weightless_confirm": {
+            "type": "string",
+            "value": "Переключить"
+          }
+        }
+      }
+    },
+    "feature:archive": {
+      "package": "io.github.stslex.workeeper.feature.archive.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_archive_title": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_archive_action_more": {
+            "type": "string",
+            "value": "More"
+          },
+          "feature_archive_segment_exercises": {
+            "type": "string",
+            "value": "Exercises (%1$d)"
+          },
+          "feature_archive_segment_trainings": {
+            "type": "string",
+            "value": "Trainings (%1$d)"
+          },
+          "feature_archive_action_restore": {
+            "type": "string",
+            "value": "Restore"
+          },
+          "feature_archive_action_permanent_delete": {
+            "type": "string",
+            "value": "Delete permanently"
+          },
+          "feature_archive_kind_exercise": {
+            "type": "string",
+            "value": "exercise"
+          },
+          "feature_archive_kind_training": {
+            "type": "string",
+            "value": "training"
+          },
+          "feature_archive_label_archived": {
+            "type": "string",
+            "value": "archived"
+          },
+          "feature_archive_label_archived_since_format": {
+            "type": "string",
+            "value": "archived since %1$s"
+          },
+          "feature_archive_meta_separator": {
+            "type": "string",
+            "value": "·"
+          },
+          "feature_archive_empty_headline": {
+            "type": "string",
+            "value": "Nothing archived"
+          },
+          "feature_archive_empty_supporting_exercises": {
+            "type": "string",
+            "value": "Archived exercises appear here for restore or permanent delete."
+          },
+          "feature_archive_empty_supporting_trainings": {
+            "type": "string",
+            "value": "Archived trainings appear here for restore or permanent delete."
+          },
+          "feature_archive_dialog_permanent_delete_title": {
+            "type": "string",
+            "value": "Delete ‘%1$s’ permanently?"
+          },
+          "feature_archive_dialog_permanent_delete_body_no_history": {
+            "type": "string",
+            "value": "This action cannot be undone."
+          },
+          "feature_archive_dialog_impact_summary_empty": {
+            "type": "string",
+            "value": "No session history affected"
+          },
+          "feature_archive_dialog_confirm_delete": {
+            "type": "string",
+            "value": "Delete"
+          },
+          "feature_archive_snackbar_restored_format": {
+            "type": "string",
+            "value": "%1$s restored"
+          },
+          "feature_archive_snackbar_deleted_format": {
+            "type": "string",
+            "value": "%1$s permanently deleted"
+          },
+          "feature_archive_snackbar_undo": {
+            "type": "string",
+            "value": "Undo"
+          },
+          "feature_archive_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d session",
+              "other": "%1$d sessions"
+            }
+          },
+          "feature_archive_dialog_permanent_delete_body_with_history": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d session of history will also be deleted. This action cannot be undone.",
+              "other": "%1$d sessions of history will also be deleted. This action cannot be undone."
+            }
+          },
+          "feature_archive_paging_loading": {
+            "type": "string",
+            "value": "Loading"
+          },
+          "feature_archive_paging_error": {
+            "type": "string",
+            "value": "Couldn’t load more"
+          },
+          "feature_archive_paging_retry": {
+            "type": "string",
+            "value": "Retry"
+          },
+          "feature_archive_refresh_error": {
+            "type": "string",
+            "value": "Couldn’t load the archive"
+          }
+        },
+        "values-ru": {
+          "feature_archive_title": {
+            "type": "string",
+            "value": "Архив"
+          },
+          "feature_archive_action_more": {
+            "type": "string",
+            "value": "Ещё"
+          },
+          "feature_archive_segment_exercises": {
+            "type": "string",
+            "value": "Упражнения (%1$d)"
+          },
+          "feature_archive_segment_trainings": {
+            "type": "string",
+            "value": "Тренировки (%1$d)"
+          },
+          "feature_archive_action_restore": {
+            "type": "string",
+            "value": "Восстановить"
+          },
+          "feature_archive_action_permanent_delete": {
+            "type": "string",
+            "value": "Удалить навсегда"
+          },
+          "feature_archive_kind_exercise": {
+            "type": "string",
+            "value": "упражнение"
+          },
+          "feature_archive_kind_training": {
+            "type": "string",
+            "value": "тренировка"
+          },
+          "feature_archive_label_archived": {
+            "type": "string",
+            "value": "в архиве"
+          },
+          "feature_archive_label_archived_since_format": {
+            "type": "string",
+            "value": "в архиве с %1$s"
+          },
+          "feature_archive_meta_separator": {
+            "type": "string",
+            "value": "·"
+          },
+          "feature_archive_empty_headline": {
+            "type": "string",
+            "value": "Архив пуст"
+          },
+          "feature_archive_empty_supporting_exercises": {
+            "type": "string",
+            "value": "Здесь будут архивированные упражнения — для восстановления или удаления навсегда."
+          },
+          "feature_archive_empty_supporting_trainings": {
+            "type": "string",
+            "value": "Здесь будут архивированные тренировки — для восстановления или удаления навсегда."
+          },
+          "feature_archive_dialog_permanent_delete_title": {
+            "type": "string",
+            "value": "Удалить «%1$s» навсегда?"
+          },
+          "feature_archive_dialog_permanent_delete_body_no_history": {
+            "type": "string",
+            "value": "Это действие нельзя отменить."
+          },
+          "feature_archive_dialog_impact_summary_empty": {
+            "type": "string",
+            "value": "Сессии истории не затронуты"
+          },
+          "feature_archive_dialog_confirm_delete": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_archive_snackbar_restored_format": {
+            "type": "string",
+            "value": "«%1$s» восстановлено"
+          },
+          "feature_archive_snackbar_deleted_format": {
+            "type": "string",
+            "value": "«%1$s» удалено навсегда"
+          },
+          "feature_archive_snackbar_undo": {
+            "type": "string",
+            "value": "Отменить"
+          },
+          "feature_archive_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d сессия",
+              "few": "%1$d сессии",
+              "many": "%1$d сессий",
+              "other": "%1$d сессии"
+            }
+          },
+          "feature_archive_dialog_permanent_delete_body_with_history": {
+            "type": "plurals",
+            "value": {
+              "one": "Также будет удалена %1$d сессия истории. Это действие нельзя отменить.",
+              "few": "Также будут удалены %1$d сессии истории. Это действие нельзя отменить.",
+              "many": "Также будет удалено %1$d сессий истории. Это действие нельзя отменить.",
+              "other": "Также будет удалено %1$d сессии истории. Это действие нельзя отменить."
+            }
+          },
+          "feature_archive_paging_loading": {
+            "type": "string",
+            "value": "Загружаю"
+          },
+          "feature_archive_paging_error": {
+            "type": "string",
+            "value": "Не удалось загрузить дальше"
+          },
+          "feature_archive_paging_retry": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_archive_refresh_error": {
+            "type": "string",
+            "value": "Не удалось загрузить архив"
+          }
+        }
+      },
+      "prefix": "feature_archive_",
+      "foreignPrefixes": []
+    },
+    "feature:all-trainings": {
+      "package": "io.github.stslex.workeeper.feature.all_trainings.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_all_trainings_title": {
+            "type": "string",
+            "value": "Trainings"
+          },
+          "feature_all_trainings_empty_headline": {
+            "type": "string",
+            "value": "Your trainings will appear here"
+          },
+          "feature_all_trainings_empty_supporting": {
+            "type": "string",
+            "value": "Build a template in advance, or start an empty one and add exercises as you go."
+          },
+          "feature_all_trainings_fab_create": {
+            "type": "string",
+            "value": "Create training"
+          },
+          "feature_all_trainings_status_in_progress_format": {
+            "type": "string",
+            "value": "in progress · started %1$s ago"
+          },
+          "feature_all_trainings_status_last_format": {
+            "type": "string",
+            "value": "last: %1$s"
+          },
+          "feature_all_trainings_status_never": {
+            "type": "string",
+            "value": "never trained"
+          },
+          "feature_all_trainings_relative_just_now": {
+            "type": "string",
+            "value": "just now"
+          },
+          "feature_all_trainings_relative_minutes_format": {
+            "type": "string",
+            "value": "%1$dm"
+          },
+          "feature_all_trainings_relative_hours_format": {
+            "type": "string",
+            "value": "%1$dh"
+          },
+          "feature_all_trainings_relative_days_format": {
+            "type": "string",
+            "value": "%1$dd"
+          },
+          "feature_all_trainings_exercise_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise",
+              "other": "%1$d exercises"
+            }
+          },
+          "feature_all_trainings_selection_close": {
+            "type": "string",
+            "value": "Close selection"
+          },
+          "feature_all_trainings_selected_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d selected",
+              "other": "%1$d selected"
+            }
+          },
+          "feature_all_trainings_bulk_archive": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_all_trainings_bulk_archive_success": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d training archived",
+              "other": "%1$d trainings archived"
+            }
+          },
+          "feature_all_trainings_bulk_archive_partial_format": {
+            "type": "string",
+            "value": "Archived %1$d, blocked: %2$s"
+          },
+          "feature_all_trainings_bulk_archive_confirm_title": {
+            "type": "string",
+            "value": "Archive selected?"
+          },
+          "feature_all_trainings_bulk_archive_confirm_body": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d training will move to archive. Restore from Settings → Archive.",
+              "other": "%1$d trainings will move to archive. Restore from Settings → Archive."
+            }
+          },
+          "feature_all_trainings_bulk_archive_impact": {
+            "type": "string",
+            "value": "Reversible · history preserved"
+          },
+          "feature_all_trainings_paging_loading": {
+            "type": "string",
+            "value": "Loading"
+          },
+          "feature_all_trainings_paging_error": {
+            "type": "string",
+            "value": "Couldn’t load more"
+          },
+          "feature_all_trainings_paging_retry": {
+            "type": "string",
+            "value": "Retry"
+          },
+          "feature_all_trainings_empty_create": {
+            "type": "string",
+            "value": "Create a training"
+          },
+          "feature_all_trainings_empty_start_blank": {
+            "type": "string",
+            "value": "Start an empty training"
+          },
+          "feature_all_trainings_filtered_empty_headline": {
+            "type": "string",
+            "value": "Nothing matches these tags"
+          },
+          "feature_all_trainings_filtered_empty_clear": {
+            "type": "string",
+            "value": "Clear filter"
+          },
+          "feature_all_trainings_selection_empty_headline": {
+            "type": "string",
+            "value": "Nothing here, but your selection is kept"
+          },
+          "feature_all_trainings_selection_empty_supporting": {
+            "type": "string",
+            "value": "Your selection stays until you leave selection mode."
+          },
+          "feature_all_trainings_refresh_error": {
+            "type": "string",
+            "value": "Couldn’t load the list"
+          }
+        },
+        "values-ru": {
+          "feature_all_trainings_title": {
+            "type": "string",
+            "value": "Тренировки"
+          },
+          "feature_all_trainings_empty_headline": {
+            "type": "string",
+            "value": "Здесь появятся тренировки"
+          },
+          "feature_all_trainings_empty_supporting": {
+            "type": "string",
+            "value": "Собери шаблон заранее или начни пустую и добавляй упражнения по ходу."
+          },
+          "feature_all_trainings_fab_create": {
+            "type": "string",
+            "value": "Создать тренировку"
+          },
+          "feature_all_trainings_status_in_progress_format": {
+            "type": "string",
+            "value": "в процессе · началась %1$s назад"
+          },
+          "feature_all_trainings_status_last_format": {
+            "type": "string",
+            "value": "последняя: %1$s"
+          },
+          "feature_all_trainings_status_never": {
+            "type": "string",
+            "value": "ещё не было"
+          },
+          "feature_all_trainings_relative_just_now": {
+            "type": "string",
+            "value": "только что"
+          },
+          "feature_all_trainings_relative_minutes_format": {
+            "type": "string",
+            "value": "%1$d мин"
+          },
+          "feature_all_trainings_relative_hours_format": {
+            "type": "string",
+            "value": "%1$d ч"
+          },
+          "feature_all_trainings_relative_days_format": {
+            "type": "string",
+            "value": "%1$d дн"
+          },
+          "feature_all_trainings_exercise_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение",
+              "few": "%1$d упражнения",
+              "many": "%1$d упражнений",
+              "other": "%1$d упражнения"
+            }
+          },
+          "feature_all_trainings_selection_close": {
+            "type": "string",
+            "value": "Закрыть выбор"
+          },
+          "feature_all_trainings_selected_count": {
+            "type": "plurals",
+            "value": {
+              "one": "выбрана %1$d",
+              "few": "выбрано %1$d",
+              "many": "выбрано %1$d",
+              "other": "выбрано %1$d"
+            }
+          },
+          "feature_all_trainings_bulk_archive": {
+            "type": "string",
+            "value": "В архив"
+          },
+          "feature_all_trainings_bulk_archive_success": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d тренировка в архиве",
+              "few": "%1$d тренировки в архиве",
+              "many": "%1$d тренировок в архиве",
+              "other": "%1$d тренировки в архиве"
+            }
+          },
+          "feature_all_trainings_bulk_archive_partial_format": {
+            "type": "string",
+            "value": "В архиве: %1$d, не получилось: %2$s"
+          },
+          "feature_all_trainings_bulk_archive_confirm_title": {
+            "type": "string",
+            "value": "Архивировать выбранные?"
+          },
+          "feature_all_trainings_bulk_archive_confirm_body": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d тренировка будет перенесена в архив. Восстановить можно в Настройках → Архив.",
+              "few": "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив.",
+              "many": "%1$d тренировок будут перенесены в архив. Восстановить можно в Настройках → Архив.",
+              "other": "%1$d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив."
+            }
+          },
+          "feature_all_trainings_bulk_archive_impact": {
+            "type": "string",
+            "value": "Обратимо · история сохранится"
+          },
+          "feature_all_trainings_paging_loading": {
+            "type": "string",
+            "value": "Загружаю"
+          },
+          "feature_all_trainings_paging_error": {
+            "type": "string",
+            "value": "Не удалось загрузить дальше"
+          },
+          "feature_all_trainings_paging_retry": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_all_trainings_empty_create": {
+            "type": "string",
+            "value": "Создать тренировку"
+          },
+          "feature_all_trainings_empty_start_blank": {
+            "type": "string",
+            "value": "Начать пустую тренировку"
+          },
+          "feature_all_trainings_filtered_empty_headline": {
+            "type": "string",
+            "value": "По этим тегам ничего нет"
+          },
+          "feature_all_trainings_filtered_empty_clear": {
+            "type": "string",
+            "value": "Сбросить фильтр"
+          },
+          "feature_all_trainings_selection_empty_headline": {
+            "type": "string",
+            "value": "Здесь пусто, но выбор цел"
+          },
+          "feature_all_trainings_selection_empty_supporting": {
+            "type": "string",
+            "value": "Отметки останутся, пока не выйдешь из режима."
+          },
+          "feature_all_trainings_refresh_error": {
+            "type": "string",
+            "value": "Не удалось загрузить список"
+          }
+        }
+      },
+      "prefix": "feature_all_trainings_",
+      "foreignPrefixes": []
+    },
+    "feature:all-exercises": {
+      "package": "io.github.stslex.workeeper.feature.all_exercises.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_all_exercises_title": {
+            "type": "string",
+            "value": "Exercises"
+          },
+          "feature_all_exercises_empty_headline": {
+            "type": "string",
+            "value": "Your exercises will appear here"
+          },
+          "feature_all_exercises_empty_supporting": {
+            "type": "string",
+            "value": "Add the first one — after that you can put it into any training."
+          },
+          "feature_all_exercises_empty_create": {
+            "type": "string",
+            "value": "Add exercise"
+          },
+          "feature_all_exercises_fab_create": {
+            "type": "string",
+            "value": "Create exercise"
+          },
+          "feature_all_exercises_type_weighted": {
+            "type": "string",
+            "value": "with weight"
+          },
+          "feature_all_exercises_type_weightless": {
+            "type": "string",
+            "value": "bodyweight"
+          },
+          "feature_all_exercises_paging_loading": {
+            "type": "string",
+            "value": "Loading"
+          },
+          "feature_all_exercises_paging_error": {
+            "type": "string",
+            "value": "Couldn’t load more"
+          },
+          "feature_all_exercises_paging_retry": {
+            "type": "string",
+            "value": "Retry"
+          },
+          "feature_all_exercises_permanent_delete_title": {
+            "type": "string",
+            "value": "Delete ‘%1$s’ permanently?"
+          },
+          "feature_all_exercises_permanent_delete_body": {
+            "type": "string",
+            "value": "This exercise has no history and isn’t used. This cannot be undone."
+          },
+          "feature_all_exercises_permanent_delete_impact": {
+            "type": "string",
+            "value": "No history affected"
+          },
+          "feature_all_exercises_permanent_delete_confirm": {
+            "type": "string",
+            "value": "Delete"
+          },
+          "feature_all_exercises_permanent_delete_success": {
+            "type": "string",
+            "value": "Exercise deleted"
+          },
+          "feature_all_exercises_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d session",
+              "other": "%1$d sessions"
+            }
+          },
+          "feature_all_exercises_linked_trainings_count": {
+            "type": "plurals",
+            "value": {
+              "one": "in %1$d training",
+              "other": "in %1$d trainings"
+            }
+          },
+          "feature_all_exercises_last_trained_just_now": {
+            "type": "string",
+            "value": "last just now"
+          },
+          "feature_all_exercises_last_trained_minutes": {
+            "type": "plurals",
+            "value": {
+              "one": "last %1$dm ago",
+              "other": "last %1$dm ago"
+            }
+          },
+          "feature_all_exercises_last_trained_hours": {
+            "type": "plurals",
+            "value": {
+              "one": "last %1$dh ago",
+              "other": "last %1$dh ago"
+            }
+          },
+          "feature_all_exercises_last_trained_days": {
+            "type": "plurals",
+            "value": {
+              "one": "last %1$dd ago",
+              "other": "last %1$dd ago"
+            }
+          },
+          "feature_all_exercises_footer_separator": {
+            "type": "string",
+            "value": "·"
+          },
+          "feature_all_exercises_selection_close": {
+            "type": "string",
+            "value": "Close selection"
+          },
+          "feature_all_exercises_selected_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d selected",
+              "other": "%1$d selected"
+            }
+          },
+          "feature_all_exercises_bulk_archive": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_all_exercises_bulk_archive_success": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise archived",
+              "other": "%1$d exercises archived"
+            }
+          },
+          "feature_all_exercises_bulk_archive_confirm_title": {
+            "type": "string",
+            "value": "Archive selected?"
+          },
+          "feature_all_exercises_bulk_archive_confirm_body": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise will move to archive. Restore from Settings → Archive.",
+              "other": "%1$d exercises will move to archive. Restore from Settings → Archive."
+            }
+          },
+          "feature_all_exercises_bulk_archive_impact": {
+            "type": "string",
+            "value": "Reversible · history preserved"
+          },
+          "feature_all_exercises_blocked_archive_title": {
+            "type": "string",
+            "value": "Some couldn’t be archived"
+          },
+          "feature_all_exercises_blocked_archive_used_in_format": {
+            "type": "string",
+            "value": "used in %1$s"
+          },
+          "feature_all_exercises_blocked_archive_more": {
+            "type": "plurals",
+            "value": {
+              "one": "+%1$d more",
+              "other": "+%1$d more"
+            }
+          },
+          "feature_all_exercises_blocked_archive_next_step": {
+            "type": "string",
+            "value": "These are still in active trainings. Remove them from those trainings first, then archive."
+          },
+          "feature_all_exercises_blocked_archive_confirm": {
+            "type": "string",
+            "value": "Got it"
+          },
+          "feature_all_exercises_filtered_empty_headline": {
+            "type": "string",
+            "value": "Nothing matches these tags"
+          },
+          "feature_all_exercises_filtered_empty_clear": {
+            "type": "string",
+            "value": "Clear filter"
+          },
+          "feature_all_exercises_selection_empty_headline": {
+            "type": "string",
+            "value": "Nothing here, but your selection is kept"
+          },
+          "feature_all_exercises_selection_empty_supporting": {
+            "type": "string",
+            "value": "Your selection stays until you leave selection mode."
+          },
+          "feature_all_exercises_refresh_error": {
+            "type": "string",
+            "value": "Couldn’t load the list"
+          }
+        },
+        "values-ru": {
+          "feature_all_exercises_title": {
+            "type": "string",
+            "value": "Упражнения"
+          },
+          "feature_all_exercises_empty_headline": {
+            "type": "string",
+            "value": "Здесь появятся твои упражнения"
+          },
+          "feature_all_exercises_empty_supporting": {
+            "type": "string",
+            "value": "Добавь первое — дальше его можно будет класть в любую тренировку."
+          },
+          "feature_all_exercises_empty_create": {
+            "type": "string",
+            "value": "Добавить упражнение"
+          },
+          "feature_all_exercises_fab_create": {
+            "type": "string",
+            "value": "Создать упражнение"
+          },
+          "feature_all_exercises_type_weighted": {
+            "type": "string",
+            "value": "с весом"
+          },
+          "feature_all_exercises_type_weightless": {
+            "type": "string",
+            "value": "без веса"
+          },
+          "feature_all_exercises_paging_loading": {
+            "type": "string",
+            "value": "Загружаю"
+          },
+          "feature_all_exercises_paging_error": {
+            "type": "string",
+            "value": "Не удалось загрузить дальше"
+          },
+          "feature_all_exercises_paging_retry": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_all_exercises_permanent_delete_title": {
+            "type": "string",
+            "value": "Удалить «%1$s» навсегда?"
+          },
+          "feature_all_exercises_permanent_delete_body": {
+            "type": "string",
+            "value": "Упражнение не использовалось и не имеет истории. Это действие необратимо."
+          },
+          "feature_all_exercises_permanent_delete_impact": {
+            "type": "string",
+            "value": "История не пострадает"
+          },
+          "feature_all_exercises_permanent_delete_confirm": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_all_exercises_permanent_delete_success": {
+            "type": "string",
+            "value": "Упражнение удалено"
+          },
+          "feature_all_exercises_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d сессия",
+              "few": "%1$d сессии",
+              "many": "%1$d сессий",
+              "other": "%1$d сессии"
+            }
+          },
+          "feature_all_exercises_linked_trainings_count": {
+            "type": "plurals",
+            "value": {
+              "one": "в %1$d тренировке",
+              "few": "в %1$d тренировках",
+              "many": "в %1$d тренировках",
+              "other": "в %1$d тренировках"
+            }
+          },
+          "feature_all_exercises_last_trained_just_now": {
+            "type": "string",
+            "value": "только что"
+          },
+          "feature_all_exercises_last_trained_minutes": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d мин назад",
+              "few": "%1$d мин назад",
+              "many": "%1$d мин назад",
+              "other": "%1$d мин назад"
+            }
+          },
+          "feature_all_exercises_last_trained_hours": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d ч назад",
+              "few": "%1$d ч назад",
+              "many": "%1$d ч назад",
+              "other": "%1$d ч назад"
+            }
+          },
+          "feature_all_exercises_last_trained_days": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d д назад",
+              "few": "%1$d д назад",
+              "many": "%1$d д назад",
+              "other": "%1$d д назад"
+            }
+          },
+          "feature_all_exercises_footer_separator": {
+            "type": "string",
+            "value": "·"
+          },
+          "feature_all_exercises_selection_close": {
+            "type": "string",
+            "value": "Закрыть выбор"
+          },
+          "feature_all_exercises_selected_count": {
+            "type": "plurals",
+            "value": {
+              "one": "выбрано %1$d",
+              "few": "выбрано %1$d",
+              "many": "выбрано %1$d",
+              "other": "выбрано %1$d"
+            }
+          },
+          "feature_all_exercises_bulk_archive": {
+            "type": "string",
+            "value": "В архив"
+          },
+          "feature_all_exercises_bulk_archive_success": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение в архиве",
+              "few": "%1$d упражнения в архиве",
+              "many": "%1$d упражнений в архиве",
+              "other": "%1$d упражнения в архиве"
+            }
+          },
+          "feature_all_exercises_bulk_archive_confirm_title": {
+            "type": "string",
+            "value": "Архивировать выбранные?"
+          },
+          "feature_all_exercises_bulk_archive_confirm_body": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение будет перенесено в архив. Восстановить можно в Настройках → Архив.",
+              "few": "%1$d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив.",
+              "many": "%1$d упражнений будут перенесены в архив. Восстановить можно в Настройках → Архив.",
+              "other": "%1$d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив."
+            }
+          },
+          "feature_all_exercises_bulk_archive_impact": {
+            "type": "string",
+            "value": "Обратимо · история сохранится"
+          },
+          "feature_all_exercises_blocked_archive_title": {
+            "type": "string",
+            "value": "Не удалось архивировать"
+          },
+          "feature_all_exercises_blocked_archive_used_in_format": {
+            "type": "string",
+            "value": "в тренировках: %1$s"
+          },
+          "feature_all_exercises_blocked_archive_more": {
+            "type": "plurals",
+            "value": {
+              "one": "и ещё %1$d",
+              "few": "и ещё %1$d",
+              "many": "и ещё %1$d",
+              "other": "и ещё %1$d"
+            }
+          },
+          "feature_all_exercises_blocked_archive_next_step": {
+            "type": "string",
+            "value": "Они используются в активных тренировках. Сначала уберите их оттуда, затем архивируйте."
+          },
+          "feature_all_exercises_blocked_archive_confirm": {
+            "type": "string",
+            "value": "Понятно"
+          },
+          "feature_all_exercises_filtered_empty_headline": {
+            "type": "string",
+            "value": "По этим тегам ничего нет"
+          },
+          "feature_all_exercises_filtered_empty_clear": {
+            "type": "string",
+            "value": "Сбросить фильтр"
+          },
+          "feature_all_exercises_selection_empty_headline": {
+            "type": "string",
+            "value": "Здесь пусто, но выбор цел"
+          },
+          "feature_all_exercises_selection_empty_supporting": {
+            "type": "string",
+            "value": "Отметки останутся, пока не выйдешь из режима."
+          },
+          "feature_all_exercises_refresh_error": {
+            "type": "string",
+            "value": "Не удалось загрузить список"
+          }
+        }
+      },
+      "prefix": "feature_all_exercises_",
+      "foreignPrefixes": []
+    },
+    "feature:past-session": {
+      "package": "io.github.stslex.workeeper.feature.past_session.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_past_session_loading_title": {
+            "type": "string",
+            "value": "Past session"
+          },
+          "feature_past_session_adhoc_label": {
+            "type": "string",
+            "value": "Ad-hoc workout"
+          },
+          "feature_past_session_error_not_found": {
+            "type": "string",
+            "value": "Session not found"
+          },
+          "feature_past_session_error_load_failed": {
+            "type": "string",
+            "value": "Could not load session"
+          },
+          "feature_past_session_action_retry": {
+            "type": "string",
+            "value": "Retry"
+          },
+          "feature_past_session_action_delete": {
+            "type": "string",
+            "value": "Delete"
+          },
+          "feature_past_session_delete_dialog_title": {
+            "type": "string",
+            "value": "Delete session?"
+          },
+          "feature_past_session_delete_dialog_body": {
+            "type": "string",
+            "value": "This permanently removes the session and all its sets. The training template is unchanged."
+          },
+          "feature_past_session_deleted_snackbar": {
+            "type": "string",
+            "value": "Session deleted"
+          },
+          "feature_past_session_save_failed_snackbar": {
+            "type": "string",
+            "value": "Could not save change — try again"
+          },
+          "feature_past_session_skipped_line": {
+            "type": "string",
+            "value": "skipped"
+          },
+          "feature_past_session_no_sets": {
+            "type": "string",
+            "value": "No sets logged"
+          },
+          "feature_past_session_section_logged": {
+            "type": "string",
+            "value": "Logged"
+          },
+          "feature_past_session_section_editable": {
+            "type": "string",
+            "value": "editable"
+          },
+          "feature_past_session_finished_at_label": {
+            "type": "string",
+            "value": "Finished · %1$s"
+          },
+          "feature_past_session_action_more": {
+            "type": "string",
+            "value": "More"
+          },
+          "feature_past_session_menu_delete_session": {
+            "type": "string",
+            "value": "Delete session"
+          },
+          "feature_past_session_totals_format": {
+            "type": "string",
+            "value": "%1$s · %2$s"
+          },
+          "feature_past_session_totals_format_with_tonnage": {
+            "type": "string",
+            "value": "%1$s · %2$s · %3$s"
+          },
+          "feature_past_session_tonnage_format": {
+            "type": "string",
+            "value": "%1$s kg"
+          },
+          "feature_past_session_tonnage_group_separator": {
+            "type": "string",
+            "value": ","
+          },
+          "feature_past_session_exercises_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise",
+              "other": "%1$d exercises"
+            }
+          },
+          "feature_past_session_sets_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d set",
+              "other": "%1$d sets"
+            }
+          }
+        },
+        "values-ru": {
+          "feature_past_session_loading_title": {
+            "type": "string",
+            "value": "Прошедшая сессия"
+          },
+          "feature_past_session_adhoc_label": {
+            "type": "string",
+            "value": "Свободная тренировка"
+          },
+          "feature_past_session_error_not_found": {
+            "type": "string",
+            "value": "Сессия не найдена"
+          },
+          "feature_past_session_error_load_failed": {
+            "type": "string",
+            "value": "Не удалось загрузить сессию"
+          },
+          "feature_past_session_action_retry": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_past_session_action_delete": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_past_session_delete_dialog_title": {
+            "type": "string",
+            "value": "Удалить сессию?"
+          },
+          "feature_past_session_delete_dialog_body": {
+            "type": "string",
+            "value": "Сессия и все её подходы будут безвозвратно удалены. Шаблон тренировки не изменится."
+          },
+          "feature_past_session_deleted_snackbar": {
+            "type": "string",
+            "value": "Сессия удалена"
+          },
+          "feature_past_session_save_failed_snackbar": {
+            "type": "string",
+            "value": "Не удалось сохранить — попробуйте ещё раз"
+          },
+          "feature_past_session_skipped_line": {
+            "type": "string",
+            "value": "пропущено"
+          },
+          "feature_past_session_no_sets": {
+            "type": "string",
+            "value": "Подходы не записаны"
+          },
+          "feature_past_session_section_logged": {
+            "type": "string",
+            "value": "Записано"
+          },
+          "feature_past_session_section_editable": {
+            "type": "string",
+            "value": "можно править"
+          },
+          "feature_past_session_finished_at_label": {
+            "type": "string",
+            "value": "Завершена · %1$s"
+          },
+          "feature_past_session_action_more": {
+            "type": "string",
+            "value": "Ещё"
+          },
+          "feature_past_session_menu_delete_session": {
+            "type": "string",
+            "value": "Удалить сессию"
+          },
+          "feature_past_session_totals_format": {
+            "type": "string",
+            "value": "%1$s · %2$s"
+          },
+          "feature_past_session_totals_format_with_tonnage": {
+            "type": "string",
+            "value": "%1$s · %2$s · %3$s"
+          },
+          "feature_past_session_tonnage_format": {
+            "type": "string",
+            "value": "%1$s кг"
+          },
+          "feature_past_session_tonnage_group_separator": {
+            "type": "string",
+            "value": " "
+          },
+          "feature_past_session_exercises_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение",
+              "few": "%1$d упражнения",
+              "many": "%1$d упражнений",
+              "other": "%1$d упражнений"
+            }
+          },
+          "feature_past_session_sets_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d подход",
+              "few": "%1$d подхода",
+              "many": "%1$d подходов",
+              "other": "%1$d подходов"
+            }
+          }
+        }
+      },
+      "prefix": "feature_past_session_",
+      "foreignPrefixes": []
+    },
+    "feature:home": {
+      "package": "io.github.stslex.workeeper.feature.home.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_home_title": {
+            "type": "string",
+            "value": "Home"
+          },
+          "feature_home_active_session_label": {
+            "type": "string",
+            "value": "Session in progress"
+          },
+          "feature_home_active_session_progress_format": {
+            "type": "string",
+            "value": "%1$d of %2$d done"
+          },
+          "feature_home_empty_headline": {
+            "type": "string",
+            "value": "Ready when you are"
+          },
+          "feature_home_empty_supporting": {
+            "type": "string",
+            "value": "Start a training to log your first session"
+          },
+          "feature_home_settings": {
+            "type": "string",
+            "value": "Settings"
+          },
+          "feature_home_charts": {
+            "type": "string",
+            "value": "Charts"
+          },
+          "feature_home_start_action": {
+            "type": "string",
+            "value": "Start"
+          },
+          "feature_home_start_mode_switch": {
+            "type": "string",
+            "value": "Choose what to show"
+          },
+          "feature_home_start_mode_forgotten_label": {
+            "type": "string",
+            "value": "Longest not done"
+          },
+          "feature_home_start_empty_sessions": {
+            "type": "string",
+            "value": "No workouts yet"
+          },
+          "feature_home_start_empty_tags": {
+            "type": "string",
+            "value": "Exercises have no tags yet — tag muscle groups and they will show up here"
+          },
+          "feature_home_start_never_run": {
+            "type": "string",
+            "value": "never yet"
+          },
+          "feature_home_start_groups_footnote": {
+            "type": "string",
+            "value": "days since the group’s last workout"
+          },
+          "feature_home_start_other_training": {
+            "type": "string",
+            "value": "Another training"
+          },
+          "feature_home_start_week_day_mon": {
+            "type": "string",
+            "value": "Mo"
+          },
+          "feature_home_start_week_day_tue": {
+            "type": "string",
+            "value": "Tu"
+          },
+          "feature_home_start_week_day_wed": {
+            "type": "string",
+            "value": "We"
+          },
+          "feature_home_start_week_day_thu": {
+            "type": "string",
+            "value": "Th"
+          },
+          "feature_home_start_week_day_fri": {
+            "type": "string",
+            "value": "Fr"
+          },
+          "feature_home_start_week_day_sat": {
+            "type": "string",
+            "value": "Sa"
+          },
+          "feature_home_start_week_day_sun": {
+            "type": "string",
+            "value": "Su"
+          },
+          "feature_home_recent_adhoc_label": {
+            "type": "string",
+            "value": "Ad-hoc workout"
+          },
+          "feature_home_recent_stats_format": {
+            "type": "string",
+            "value": "%1$s · %2$s"
+          },
+          "feature_home_picker_title": {
+            "type": "string",
+            "value": "Choose a training"
+          },
+          "feature_home_picker_see_all": {
+            "type": "string",
+            "value": "See all templates"
+          },
+          "feature_home_picker_empty": {
+            "type": "string",
+            "value": "No templates yet"
+          },
+          "feature_home_picker_start_blank_title": {
+            "type": "string",
+            "value": "Start blank workout"
+          },
+          "feature_home_picker_start_blank_subtitle": {
+            "type": "string",
+            "value": "Add exercises as you go"
+          },
+          "feature_home_conflict_unnamed": {
+            "type": "string",
+            "value": "Workout"
+          },
+          "feature_home_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d of %2$d exercises done"
+          },
+          "feature_home_paging_loading": {
+            "type": "string",
+            "value": "Loading"
+          },
+          "feature_home_paging_error": {
+            "type": "string",
+            "value": "Couldn’t load more"
+          },
+          "feature_home_paging_retry": {
+            "type": "string",
+            "value": "Retry"
+          },
+          "feature_home_refresh_error": {
+            "type": "string",
+            "value": "Couldn’t load the list"
+          },
+          "feature_home_recent_exercises_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise",
+              "other": "%1$d exercises"
+            }
+          },
+          "feature_home_recent_sets_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d set",
+              "other": "%1$d sets"
+            }
+          },
+          "feature_home_start_week_sessions_count": {
+            "type": "plurals",
+            "value": {
+              "one": "workout",
+              "other": "workouts"
+            }
+          },
+          "feature_home_start_days_count": {
+            "type": "plurals",
+            "value": {
+              "one": "day",
+              "other": "days"
+            }
+          },
+          "feature_home_start_days_idle_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d day",
+              "other": "%1$d days"
+            }
+          }
+        },
+        "values-ru": {
+          "feature_home_title": {
+            "type": "string",
+            "value": "Главная"
+          },
+          "feature_home_active_session_label": {
+            "type": "string",
+            "value": "Сессия в процессе"
+          },
+          "feature_home_active_session_progress_format": {
+            "type": "string",
+            "value": "%1$d из %2$d"
+          },
+          "feature_home_empty_headline": {
+            "type": "string",
+            "value": "Готовы тренироваться"
+          },
+          "feature_home_empty_supporting": {
+            "type": "string",
+            "value": "Начните тренировку, чтобы записать первую сессию"
+          },
+          "feature_home_settings": {
+            "type": "string",
+            "value": "Настройки"
+          },
+          "feature_home_charts": {
+            "type": "string",
+            "value": "Прогресс"
+          },
+          "feature_home_start_action": {
+            "type": "string",
+            "value": "Начать"
+          },
+          "feature_home_start_mode_switch": {
+            "type": "string",
+            "value": "Выбрать, что показывать"
+          },
+          "feature_home_start_mode_forgotten_label": {
+            "type": "string",
+            "value": "Дольше всего не делали"
+          },
+          "feature_home_start_empty_sessions": {
+            "type": "string",
+            "value": "Ещё ни одной тренировки"
+          },
+          "feature_home_start_empty_tags": {
+            "type": "string",
+            "value": "Упражнения без тегов — отмечайте группы, и они появятся здесь"
+          },
+          "feature_home_start_never_run": {
+            "type": "string",
+            "value": "ещё ни разу"
+          },
+          "feature_home_start_groups_footnote": {
+            "type": "string",
+            "value": "дней с последней тренировки группы"
+          },
+          "feature_home_start_other_training": {
+            "type": "string",
+            "value": "Другая тренировка"
+          },
+          "feature_home_start_week_day_mon": {
+            "type": "string",
+            "value": "Пн"
+          },
+          "feature_home_start_week_day_tue": {
+            "type": "string",
+            "value": "Вт"
+          },
+          "feature_home_start_week_day_wed": {
+            "type": "string",
+            "value": "Ср"
+          },
+          "feature_home_start_week_day_thu": {
+            "type": "string",
+            "value": "Чт"
+          },
+          "feature_home_start_week_day_fri": {
+            "type": "string",
+            "value": "Пт"
+          },
+          "feature_home_start_week_day_sat": {
+            "type": "string",
+            "value": "Сб"
+          },
+          "feature_home_start_week_day_sun": {
+            "type": "string",
+            "value": "Вс"
+          },
+          "feature_home_recent_adhoc_label": {
+            "type": "string",
+            "value": "Свободная тренировка"
+          },
+          "feature_home_recent_stats_format": {
+            "type": "string",
+            "value": "%1$s · %2$s"
+          },
+          "feature_home_picker_title": {
+            "type": "string",
+            "value": "Выберите тренировку"
+          },
+          "feature_home_picker_see_all": {
+            "type": "string",
+            "value": "Все шаблоны"
+          },
+          "feature_home_picker_empty": {
+            "type": "string",
+            "value": "Пока нет шаблонов"
+          },
+          "feature_home_picker_start_blank_title": {
+            "type": "string",
+            "value": "Пустая тренировка"
+          },
+          "feature_home_picker_start_blank_subtitle": {
+            "type": "string",
+            "value": "Добавляйте упражнения по ходу"
+          },
+          "feature_home_conflict_unnamed": {
+            "type": "string",
+            "value": "Тренировка"
+          },
+          "feature_home_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d из %2$d упражнений выполнено"
+          },
+          "feature_home_paging_loading": {
+            "type": "string",
+            "value": "Загружаю"
+          },
+          "feature_home_paging_error": {
+            "type": "string",
+            "value": "Не удалось загрузить дальше"
+          },
+          "feature_home_paging_retry": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_home_refresh_error": {
+            "type": "string",
+            "value": "Не удалось загрузить список"
+          },
+          "feature_home_recent_exercises_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение",
+              "few": "%1$d упражнения",
+              "many": "%1$d упражнений",
+              "other": "%1$d упражнений"
+            }
+          },
+          "feature_home_recent_sets_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d подход",
+              "few": "%1$d подхода",
+              "many": "%1$d подходов",
+              "other": "%1$d подходов"
+            }
+          },
+          "feature_home_start_week_sessions_count": {
+            "type": "plurals",
+            "value": {
+              "one": "тренировка",
+              "few": "тренировки",
+              "many": "тренировок",
+              "other": "тренировки"
+            }
+          },
+          "feature_home_start_days_count": {
+            "type": "plurals",
+            "value": {
+              "one": "день",
+              "few": "дня",
+              "many": "дней",
+              "other": "дня"
+            }
+          },
+          "feature_home_start_days_idle_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d день",
+              "few": "%1$d дня",
+              "many": "%1$d дней",
+              "other": "%1$d дня"
+            }
+          }
+        }
+      },
+      "prefix": "feature_home_",
+      "foreignPrefixes": []
+    },
+    "feature:exercise-chart": {
+      "package": "io.github.stslex.workeeper.feature.exercise_chart.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_exercise_chart_picker_title": {
+            "type": "string",
+            "value": "Select exercise"
+          },
+          "feature_exercise_chart_picker_open": {
+            "type": "string",
+            "value": "Switch exercise"
+          },
+          "feature_exercise_chart_picker_search": {
+            "type": "string",
+            "value": "Search"
+          },
+          "feature_exercise_chart_picker_no_matches": {
+            "type": "string",
+            "value": "Nothing found"
+          },
+          "feature_exercise_chart_metric_heaviest": {
+            "type": "string",
+            "value": "Weight"
+          },
+          "feature_exercise_chart_metric_session": {
+            "type": "string",
+            "value": "Session"
+          },
+          "feature_exercise_chart_metric_volume": {
+            "type": "string",
+            "value": "Set"
+          },
+          "feature_exercise_chart_metric_name_heaviest": {
+            "type": "string",
+            "value": "Heaviest weight"
+          },
+          "feature_exercise_chart_metric_name_session": {
+            "type": "string",
+            "value": "Volume per session"
+          },
+          "feature_exercise_chart_metric_name_volume": {
+            "type": "string",
+            "value": "Volume per set"
+          },
+          "feature_exercise_chart_unit_kg": {
+            "type": "string",
+            "value": "kg"
+          },
+          "feature_exercise_chart_unit_reps": {
+            "type": "string",
+            "value": "reps"
+          },
+          "feature_exercise_chart_readout_record": {
+            "type": "string",
+            "value": "record"
+          },
+          "feature_exercise_chart_readout_sets": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d set",
+              "other": "%1$d sets"
+            }
+          },
+          "feature_exercise_chart_preset_1m": {
+            "type": "string",
+            "value": "1M"
+          },
+          "feature_exercise_chart_preset_3m": {
+            "type": "string",
+            "value": "3M"
+          },
+          "feature_exercise_chart_preset_1y": {
+            "type": "string",
+            "value": "1Y"
+          },
+          "feature_exercise_chart_preset_all": {
+            "type": "string",
+            "value": "All"
+          },
+          "feature_exercise_chart_footer_min": {
+            "type": "string",
+            "value": "Minimum"
+          },
+          "feature_exercise_chart_footer_max": {
+            "type": "string",
+            "value": "Maximum"
+          },
+          "feature_exercise_chart_footer_last": {
+            "type": "string",
+            "value": "Last"
+          },
+          "feature_exercise_chart_value_reps": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d rep",
+              "other": "%1$d reps"
+            }
+          },
+          "feature_exercise_chart_empty_no_sessions_title": {
+            "type": "string",
+            "value": "No finished workouts yet"
+          },
+          "feature_exercise_chart_empty_no_sessions_subtitle": {
+            "type": "string",
+            "value": "Finish a session — your progress will appear here."
+          },
+          "feature_exercise_chart_empty_no_sessions_cta": {
+            "type": "string",
+            "value": "Start a workout"
+          },
+          "feature_exercise_chart_empty_not_found_title": {
+            "type": "string",
+            "value": "Exercise unavailable"
+          },
+          "feature_exercise_chart_empty_not_found_subtitle": {
+            "type": "string",
+            "value": "It may be archived or have no logged sets. Pick another from the list."
+          },
+          "feature_exercise_chart_empty_not_found_cta": {
+            "type": "string",
+            "value": "Choose exercise"
+          },
+          "feature_exercise_chart_error_load_title": {
+            "type": "string",
+            "value": "Couldn’t load the chart"
+          },
+          "feature_exercise_chart_error_load_subtitle": {
+            "type": "string",
+            "value": "Something went wrong while reading your history. Try again."
+          },
+          "feature_exercise_chart_error_load_cta": {
+            "type": "string",
+            "value": "Try again"
+          },
+          "feature_exercise_chart_empty_no_data_title": {
+            "type": "string",
+            "value": "Nothing to show yet"
+          },
+          "feature_exercise_chart_empty_no_data_subtitle": {
+            "type": "string",
+            "value": "The chart appears after two recorded sessions with this exercise."
+          }
+        },
+        "values-ru": {
+          "feature_exercise_chart_picker_title": {
+            "type": "string",
+            "value": "Выбрать упражнение"
+          },
+          "feature_exercise_chart_picker_open": {
+            "type": "string",
+            "value": "Сменить упражнение"
+          },
+          "feature_exercise_chart_picker_search": {
+            "type": "string",
+            "value": "Поиск"
+          },
+          "feature_exercise_chart_picker_no_matches": {
+            "type": "string",
+            "value": "Ничего не найдено"
+          },
+          "feature_exercise_chart_metric_heaviest": {
+            "type": "string",
+            "value": "Вес"
+          },
+          "feature_exercise_chart_metric_session": {
+            "type": "string",
+            "value": "Сессия"
+          },
+          "feature_exercise_chart_metric_volume": {
+            "type": "string",
+            "value": "Подход"
+          },
+          "feature_exercise_chart_metric_name_heaviest": {
+            "type": "string",
+            "value": "Максимальный вес"
+          },
+          "feature_exercise_chart_metric_name_session": {
+            "type": "string",
+            "value": "Объём за сессию"
+          },
+          "feature_exercise_chart_metric_name_volume": {
+            "type": "string",
+            "value": "Объём за подход"
+          },
+          "feature_exercise_chart_unit_kg": {
+            "type": "string",
+            "value": "кг"
+          },
+          "feature_exercise_chart_unit_reps": {
+            "type": "string",
+            "value": "повт."
+          },
+          "feature_exercise_chart_readout_record": {
+            "type": "string",
+            "value": "рекорд"
+          },
+          "feature_exercise_chart_readout_sets": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d подход",
+              "few": "%1$d подхода",
+              "many": "%1$d подходов",
+              "other": "%1$d подходов"
+            }
+          },
+          "feature_exercise_chart_preset_1m": {
+            "type": "string",
+            "value": "1М"
+          },
+          "feature_exercise_chart_preset_3m": {
+            "type": "string",
+            "value": "3М"
+          },
+          "feature_exercise_chart_preset_1y": {
+            "type": "string",
+            "value": "1Г"
+          },
+          "feature_exercise_chart_preset_all": {
+            "type": "string",
+            "value": "Всё"
+          },
+          "feature_exercise_chart_footer_min": {
+            "type": "string",
+            "value": "Минимум"
+          },
+          "feature_exercise_chart_footer_max": {
+            "type": "string",
+            "value": "Максимум"
+          },
+          "feature_exercise_chart_footer_last": {
+            "type": "string",
+            "value": "Последний"
+          },
+          "feature_exercise_chart_value_reps": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d повторение",
+              "few": "%1$d повторения",
+              "many": "%1$d повторений",
+              "other": "%1$d повторений"
+            }
+          },
+          "feature_exercise_chart_empty_no_sessions_title": {
+            "type": "string",
+            "value": "Нет завершённых тренировок"
+          },
+          "feature_exercise_chart_empty_no_sessions_subtitle": {
+            "type": "string",
+            "value": "Завершите тренировку — здесь появится прогресс."
+          },
+          "feature_exercise_chart_empty_no_sessions_cta": {
+            "type": "string",
+            "value": "Начать тренировку"
+          },
+          "feature_exercise_chart_empty_not_found_title": {
+            "type": "string",
+            "value": "Упражнение недоступно"
+          },
+          "feature_exercise_chart_empty_not_found_subtitle": {
+            "type": "string",
+            "value": "Возможно, оно архивировано или подходов не было. Выберите другое из списка."
+          },
+          "feature_exercise_chart_empty_not_found_cta": {
+            "type": "string",
+            "value": "Выберите упражнение"
+          },
+          "feature_exercise_chart_error_load_title": {
+            "type": "string",
+            "value": "Не удалось загрузить график"
+          },
+          "feature_exercise_chart_error_load_subtitle": {
+            "type": "string",
+            "value": "Что-то пошло не так при чтении истории. Попробуйте ещё раз."
+          },
+          "feature_exercise_chart_error_load_cta": {
+            "type": "string",
+            "value": "Повторить"
+          },
+          "feature_exercise_chart_empty_no_data_title": {
+            "type": "string",
+            "value": "Пока нечего показать"
+          },
+          "feature_exercise_chart_empty_no_data_subtitle": {
+            "type": "string",
+            "value": "График появится после двух записанных сессий с этим упражнением."
+          }
+        }
+      },
+      "prefix": "feature_exercise_chart_",
+      "foreignPrefixes": []
+    },
+    "feature:single-training": {
+      "package": "io.github.stslex.workeeper.feature.single_training.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_training_detail_more": {
+            "type": "string",
+            "value": "More"
+          },
+          "feature_training_detail_exercises": {
+            "type": "string",
+            "value": "Exercises"
+          },
+          "feature_training_detail_past_sessions": {
+            "type": "string",
+            "value": "Past sessions"
+          },
+          "feature_training_detail_start_session": {
+            "type": "string",
+            "value": "Start session"
+          },
+          "feature_training_detail_resume_session": {
+            "type": "string",
+            "value": "Resume session"
+          },
+          "feature_training_detail_edit": {
+            "type": "string",
+            "value": "Edit"
+          },
+          "feature_training_detail_archive": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_training_detail_archive_blocked": {
+            "type": "string",
+            "value": "Cannot archive — finish active session first"
+          },
+          "feature_training_detail_archive_success_format": {
+            "type": "string",
+            "value": "‘%1$s’ archived"
+          },
+          "feature_training_detail_permanent_delete": {
+            "type": "string",
+            "value": "Delete permanently"
+          },
+          "feature_training_detail_permanent_delete_title": {
+            "type": "string",
+            "value": "Delete ‘%1$s’ permanently?"
+          },
+          "feature_training_detail_permanent_delete_body": {
+            "type": "string",
+            "value": "This training has no history. This cannot be undone."
+          },
+          "feature_training_detail_permanent_delete_impact": {
+            "type": "string",
+            "value": "No history affected"
+          },
+          "feature_training_detail_permanent_delete_confirm": {
+            "type": "string",
+            "value": "Delete"
+          },
+          "feature_training_detail_conflict_unnamed": {
+            "type": "string",
+            "value": "Workout"
+          },
+          "feature_training_detail_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d of %2$d exercises done"
+          },
+          "feature_training_detail_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d session",
+              "other": "%1$d sessions"
+            }
+          },
+          "feature_training_edit_close": {
+            "type": "string",
+            "value": "Close"
+          },
+          "feature_training_edit_title_create": {
+            "type": "string",
+            "value": "New training"
+          },
+          "feature_training_edit_title_edit": {
+            "type": "string",
+            "value": "Edit training"
+          },
+          "feature_training_edit_label_name": {
+            "type": "string",
+            "value": "Name"
+          },
+          "feature_training_edit_label_description": {
+            "type": "string",
+            "value": "Description"
+          },
+          "feature_training_edit_placeholder_description": {
+            "type": "string",
+            "value": "Optional notes — focus, week, etc."
+          },
+          "feature_training_edit_label_tags": {
+            "type": "string",
+            "value": "Tags"
+          },
+          "feature_training_edit_label_exercises_format": {
+            "type": "string",
+            "value": "Exercises (%1$d)"
+          },
+          "feature_training_edit_add_exercise": {
+            "type": "string",
+            "value": "Add exercise"
+          },
+          "feature_training_edit_exercise_removed": {
+            "type": "string",
+            "value": "Exercise removed from training"
+          },
+          "feature_training_edit_no_plan": {
+            "type": "string",
+            "value": "no plan yet"
+          },
+          "feature_training_edit_plan_set_removed": {
+            "type": "string",
+            "value": "Set removed"
+          },
+          "feature_training_edit_remove_exercise": {
+            "type": "string",
+            "value": "Remove exercise"
+          },
+          "feature_training_edit_drag_handle": {
+            "type": "string",
+            "value": "Reorder"
+          },
+          "feature_training_edit_error_name_required": {
+            "type": "string",
+            "value": "Name is required"
+          },
+          "feature_training_edit_error_no_exercises": {
+            "type": "string",
+            "value": "Add at least one exercise"
+          },
+          "feature_training_picker_title": {
+            "type": "string",
+            "value": "Add exercises"
+          },
+          "feature_training_picker_search_placeholder": {
+            "type": "string",
+            "value": "Search exercises…"
+          },
+          "feature_training_picker_add_format": {
+            "type": "string",
+            "value": "Add (%1$d)"
+          },
+          "feature_training_picker_cancel": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "feature_training_picker_empty": {
+            "type": "string",
+            "value": "No exercises match"
+          }
+        },
+        "values-ru": {
+          "feature_training_detail_more": {
+            "type": "string",
+            "value": "Ещё"
+          },
+          "feature_training_detail_exercises": {
+            "type": "string",
+            "value": "Упражнения"
+          },
+          "feature_training_detail_past_sessions": {
+            "type": "string",
+            "value": "История"
+          },
+          "feature_training_detail_start_session": {
+            "type": "string",
+            "value": "Начать сессию"
+          },
+          "feature_training_detail_resume_session": {
+            "type": "string",
+            "value": "Продолжить сессию"
+          },
+          "feature_training_detail_edit": {
+            "type": "string",
+            "value": "Изменить"
+          },
+          "feature_training_detail_archive": {
+            "type": "string",
+            "value": "В архив"
+          },
+          "feature_training_detail_archive_blocked": {
+            "type": "string",
+            "value": "Нельзя архивировать — завершите активную сессию"
+          },
+          "feature_training_detail_archive_success_format": {
+            "type": "string",
+            "value": "«%1$s» в архиве"
+          },
+          "feature_training_detail_permanent_delete": {
+            "type": "string",
+            "value": "Удалить навсегда"
+          },
+          "feature_training_detail_permanent_delete_title": {
+            "type": "string",
+            "value": "Удалить «%1$s» навсегда?"
+          },
+          "feature_training_detail_permanent_delete_body": {
+            "type": "string",
+            "value": "У тренировки нет истории. Это нельзя отменить."
+          },
+          "feature_training_detail_permanent_delete_impact": {
+            "type": "string",
+            "value": "История не пострадает"
+          },
+          "feature_training_detail_permanent_delete_confirm": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_training_detail_conflict_unnamed": {
+            "type": "string",
+            "value": "Тренировка"
+          },
+          "feature_training_detail_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d из %2$d упражнений выполнено"
+          },
+          "feature_training_detail_session_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d сессия",
+              "few": "%1$d сессии",
+              "many": "%1$d сессий",
+              "other": "%1$d сессии"
+            }
+          },
+          "feature_training_edit_close": {
+            "type": "string",
+            "value": "Закрыть"
+          },
+          "feature_training_edit_title_create": {
+            "type": "string",
+            "value": "Новая тренировка"
+          },
+          "feature_training_edit_title_edit": {
+            "type": "string",
+            "value": "Изменить тренировку"
+          },
+          "feature_training_edit_label_name": {
+            "type": "string",
+            "value": "Название"
+          },
+          "feature_training_edit_label_description": {
+            "type": "string",
+            "value": "Описание"
+          },
+          "feature_training_edit_placeholder_description": {
+            "type": "string",
+            "value": "Заметки — фокус, неделя и т.д."
+          },
+          "feature_training_edit_label_tags": {
+            "type": "string",
+            "value": "Теги"
+          },
+          "feature_training_edit_label_exercises_format": {
+            "type": "string",
+            "value": "Упражнения (%1$d)"
+          },
+          "feature_training_edit_add_exercise": {
+            "type": "string",
+            "value": "Добавить упражнение"
+          },
+          "feature_training_edit_exercise_removed": {
+            "type": "string",
+            "value": "Упражнение убрано из тренировки"
+          },
+          "feature_training_edit_no_plan": {
+            "type": "string",
+            "value": "плана пока нет"
+          },
+          "feature_training_edit_plan_set_removed": {
+            "type": "string",
+            "value": "Подход удалён"
+          },
+          "feature_training_edit_remove_exercise": {
+            "type": "string",
+            "value": "Удалить упражнение"
+          },
+          "feature_training_edit_drag_handle": {
+            "type": "string",
+            "value": "Переместить"
+          },
+          "feature_training_edit_error_name_required": {
+            "type": "string",
+            "value": "Введите название"
+          },
+          "feature_training_edit_error_no_exercises": {
+            "type": "string",
+            "value": "Добавьте хотя бы одно упражнение"
+          },
+          "feature_training_picker_title": {
+            "type": "string",
+            "value": "Добавить упражнения"
+          },
+          "feature_training_picker_search_placeholder": {
+            "type": "string",
+            "value": "Поиск упражнений…"
+          },
+          "feature_training_picker_add_format": {
+            "type": "string",
+            "value": "Добавить (%1$d)"
+          },
+          "feature_training_picker_cancel": {
+            "type": "string",
+            "value": "Отмена"
+          },
+          "feature_training_picker_empty": {
+            "type": "string",
+            "value": "Ничего не найдено"
+          }
+        }
+      },
+      "prefix": "feature_training_",
+      "foreignPrefixes": []
+    },
+    "feature:exercise": {
+      "package": "io.github.stslex.workeeper.feature.exercise.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_exercise_detail_recent": {
+            "type": "string",
+            "value": "History"
+          },
+          "feature_exercise_detail_track_now": {
+            "type": "string",
+            "value": "Log now"
+          },
+          "feature_exercise_detail_default_plan": {
+            "type": "string",
+            "value": "Default plan"
+          },
+          "feature_exercise_track_now_default_training_name": {
+            "type": "string",
+            "value": "Track now"
+          },
+          "feature_exercise_track_now_conflict_unnamed": {
+            "type": "string",
+            "value": "Workout"
+          },
+          "feature_exercise_track_now_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d of %2$d exercises done"
+          },
+          "feature_exercise_detail_edit": {
+            "type": "string",
+            "value": "Edit"
+          },
+          "feature_exercise_detail_action_more": {
+            "type": "string",
+            "value": "More actions"
+          },
+          "feature_exercise_detail_archive": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_exercise_detail_archive_success_format": {
+            "type": "string",
+            "value": "‘%1$s’ archived"
+          },
+          "feature_exercise_detail_archive_blocked_title": {
+            "type": "string",
+            "value": "Cannot archive"
+          },
+          "feature_exercise_detail_archive_blocked_used_in_format": {
+            "type": "string",
+            "value": "used in %1$s"
+          },
+          "feature_exercise_detail_archive_blocked_next_step": {
+            "type": "string",
+            "value": "Remove it from those trainings first, then archive."
+          },
+          "feature_exercise_detail_archive_blocked_ok": {
+            "type": "string",
+            "value": "OK"
+          },
+          "feature_exercise_detail_archive_undo": {
+            "type": "string",
+            "value": "Undo"
+          },
+          "feature_exercise_detail_permanent_delete": {
+            "type": "string",
+            "value": "Delete permanently"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_title": {
+            "type": "string",
+            "value": "Delete ‘%1$s’ permanently?"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_body": {
+            "type": "string",
+            "value": "This exercise has no history. This cannot be undone."
+          },
+          "feature_exercise_detail_permanent_delete_confirm_impact": {
+            "type": "string",
+            "value": "No history affected"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_button": {
+            "type": "string",
+            "value": "Delete"
+          },
+          "feature_exercise_detail_permanent_delete_success": {
+            "type": "string",
+            "value": "Exercise deleted"
+          },
+          "feature_exercise_edit_title_create": {
+            "type": "string",
+            "value": "New exercise"
+          },
+          "feature_exercise_edit_title_edit": {
+            "type": "string",
+            "value": "Edit exercise"
+          },
+          "feature_exercise_edit_close_description": {
+            "type": "string",
+            "value": "Close"
+          },
+          "feature_exercise_edit_label_name": {
+            "type": "string",
+            "value": "Name"
+          },
+          "feature_exercise_edit_label_tags": {
+            "type": "string",
+            "value": "Tags"
+          },
+          "feature_exercise_edit_label_description": {
+            "type": "string",
+            "value": "Description"
+          },
+          "feature_exercise_edit_placeholder_description": {
+            "type": "string",
+            "value": "Optional notes — technique, gym-specific details"
+          },
+          "feature_exercise_edit_tag_limit": {
+            "type": "string",
+            "value": "Maximum 10 tags per exercise"
+          },
+          "feature_exercise_edit_error_name_required": {
+            "type": "string",
+            "value": "Name is required"
+          },
+          "feature_exercise_edit_error_name_duplicate": {
+            "type": "string",
+            "value": "Exercise with this name already exists"
+          },
+          "feature_exercise_edit_plan_info_body": {
+            "type": "string",
+            "value": "This is the plan for when the exercise is performed on its own — from its card, with the “Log now” button, outside any training.\\n\\nInside a training every exercise has a plan of its own: it is set in the training editor and does not touch this one. If neither plan exists, sets are added right in the session."
+          },
+          "feature_exercise_edit_plan_info_description": {
+            "type": "string",
+            "value": "What the default plan is for"
+          },
+          "feature_exercise_edit_plan_set_type_tooltip": {
+            "type": "string",
+            "value": "Tap to cycle: warmup → work → failure → drop"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_title": {
+            "type": "string",
+            "value": "Switch to weightless?"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_body": {
+            "type": "string",
+            "value": "Weight values from this exercise’s plans will be cleared. This cannot be undone."
+          },
+          "feature_exercise_edit_plan_type_change_weightless_impact": {
+            "type": "string",
+            "value": "All plan weights cleared"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_confirm": {
+            "type": "string",
+            "value": "Switch"
+          },
+          "feature_exercise_edit_plan_set_removed": {
+            "type": "string",
+            "value": "Set removed"
+          },
+          "feature_exercise_edit_tags_counter": {
+            "type": "string",
+            "value": "%1$d of %2$d"
+          },
+          "feature_exercise_image_thumb_description": {
+            "type": "string",
+            "value": "Attached exercise photo"
+          },
+          "feature_exercise_image_thumb_open_description": {
+            "type": "string",
+            "value": "Open photo full screen"
+          },
+          "feature_exercise_image_thumb_pick_description": {
+            "type": "string",
+            "value": "Add a photo"
+          },
+          "feature_exercise_image_placeholder_description": {
+            "type": "string",
+            "value": "No exercise photo attached"
+          },
+          "feature_exercise_image_source_dialog_title": {
+            "type": "string",
+            "value": "Choose source"
+          },
+          "feature_exercise_image_source_camera": {
+            "type": "string",
+            "value": "Take photo"
+          },
+          "feature_exercise_image_source_gallery": {
+            "type": "string",
+            "value": "Choose from gallery"
+          },
+          "feature_exercise_image_permission_denied_title": {
+            "type": "string",
+            "value": "Camera permission denied"
+          },
+          "feature_exercise_image_permission_denied_body": {
+            "type": "string",
+            "value": "To take a photo, grant camera access in app settings. You can still choose an existing photo from your gallery."
+          },
+          "feature_exercise_image_permission_denied_action_settings": {
+            "type": "string",
+            "value": "Open settings"
+          },
+          "feature_exercise_image_error_save_failed": {
+            "type": "string",
+            "value": "Could not save image — try again"
+          },
+          "feature_exercise_image_error_load_failed": {
+            "type": "string",
+            "value": "Could not load image"
+          },
+          "feature_exercise_image_error_decode_failed": {
+            "type": "string",
+            "value": "Image format not supported"
+          },
+          "feature_exercise_detail_history_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d session",
+              "other": "%1$d sessions"
+            }
+          }
+        },
+        "values-ru": {
+          "feature_exercise_detail_recent": {
+            "type": "string",
+            "value": "История"
+          },
+          "feature_exercise_detail_track_now": {
+            "type": "string",
+            "value": "Записать сейчас"
+          },
+          "feature_exercise_detail_default_plan": {
+            "type": "string",
+            "value": "План по умолчанию"
+          },
+          "feature_exercise_track_now_default_training_name": {
+            "type": "string",
+            "value": "Отдельная тренировка"
+          },
+          "feature_exercise_track_now_conflict_unnamed": {
+            "type": "string",
+            "value": "Тренировка"
+          },
+          "feature_exercise_track_now_conflict_progress_format": {
+            "type": "string",
+            "value": "%1$d из %2$d упражнений выполнено"
+          },
+          "feature_exercise_detail_edit": {
+            "type": "string",
+            "value": "Изменить"
+          },
+          "feature_exercise_detail_action_more": {
+            "type": "string",
+            "value": "Ещё"
+          },
+          "feature_exercise_detail_archive": {
+            "type": "string",
+            "value": "В архив"
+          },
+          "feature_exercise_detail_archive_success_format": {
+            "type": "string",
+            "value": "«%1$s» в архиве"
+          },
+          "feature_exercise_detail_archive_blocked_title": {
+            "type": "string",
+            "value": "Нельзя архивировать"
+          },
+          "feature_exercise_detail_archive_blocked_used_in_format": {
+            "type": "string",
+            "value": "в тренировках: %1$s"
+          },
+          "feature_exercise_detail_archive_blocked_next_step": {
+            "type": "string",
+            "value": "Сначала уберите его из этих тренировок, затем архивируйте."
+          },
+          "feature_exercise_detail_archive_blocked_ok": {
+            "type": "string",
+            "value": "ОК"
+          },
+          "feature_exercise_detail_archive_undo": {
+            "type": "string",
+            "value": "Восстановить"
+          },
+          "feature_exercise_detail_permanent_delete": {
+            "type": "string",
+            "value": "Удалить навсегда"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_title": {
+            "type": "string",
+            "value": "Удалить «%1$s» навсегда?"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_body": {
+            "type": "string",
+            "value": "У упражнения нет истории. Действие необратимо."
+          },
+          "feature_exercise_detail_permanent_delete_confirm_impact": {
+            "type": "string",
+            "value": "История не затронута"
+          },
+          "feature_exercise_detail_permanent_delete_confirm_button": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_exercise_detail_permanent_delete_success": {
+            "type": "string",
+            "value": "Упражнение удалено"
+          },
+          "feature_exercise_edit_title_create": {
+            "type": "string",
+            "value": "Новое упражнение"
+          },
+          "feature_exercise_edit_title_edit": {
+            "type": "string",
+            "value": "Изменить упражнение"
+          },
+          "feature_exercise_edit_close_description": {
+            "type": "string",
+            "value": "Закрыть"
+          },
+          "feature_exercise_edit_label_name": {
+            "type": "string",
+            "value": "Название"
+          },
+          "feature_exercise_edit_label_tags": {
+            "type": "string",
+            "value": "Теги"
+          },
+          "feature_exercise_edit_label_description": {
+            "type": "string",
+            "value": "Описание"
+          },
+          "feature_exercise_edit_placeholder_description": {
+            "type": "string",
+            "value": "Заметки — техника, особенности зала"
+          },
+          "feature_exercise_edit_tag_limit": {
+            "type": "string",
+            "value": "Максимум 10 тегов на упражнение"
+          },
+          "feature_exercise_edit_error_name_required": {
+            "type": "string",
+            "value": "Введите название"
+          },
+          "feature_exercise_edit_error_name_duplicate": {
+            "type": "string",
+            "value": "Упражнение с таким именем уже есть"
+          },
+          "feature_exercise_edit_plan_info_body": {
+            "type": "string",
+            "value": "Это план на случай, когда упражнение выполняется само по себе — из его карточки, кнопкой «Записать сейчас», без тренировки.\\n\\nВнутри тренировки план у каждого упражнения свой: он задаётся в редакторе тренировки и этот план не трогает. Если планов нет ни там, ни тут, подходы добавляются прямо в сессии."
+          },
+          "feature_exercise_edit_plan_info_description": {
+            "type": "string",
+            "value": "Что такое план по умолчанию"
+          },
+          "feature_exercise_edit_plan_set_type_tooltip": {
+            "type": "string",
+            "value": "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_title": {
+            "type": "string",
+            "value": "Переключить на без веса?"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_body": {
+            "type": "string",
+            "value": "Значения веса из планов этого упражнения будут очищены. Это нельзя отменить."
+          },
+          "feature_exercise_edit_plan_type_change_weightless_impact": {
+            "type": "string",
+            "value": "Все веса в планах очищены"
+          },
+          "feature_exercise_edit_plan_type_change_weightless_confirm": {
+            "type": "string",
+            "value": "Переключить"
+          },
+          "feature_exercise_edit_plan_set_removed": {
+            "type": "string",
+            "value": "Подход удалён"
+          },
+          "feature_exercise_edit_tags_counter": {
+            "type": "string",
+            "value": "%1$d из %2$d"
+          },
+          "feature_exercise_image_thumb_description": {
+            "type": "string",
+            "value": "Прикреплённое фото упражнения"
+          },
+          "feature_exercise_image_thumb_open_description": {
+            "type": "string",
+            "value": "Открыть фото на весь экран"
+          },
+          "feature_exercise_image_thumb_pick_description": {
+            "type": "string",
+            "value": "Добавить фото"
+          },
+          "feature_exercise_image_placeholder_description": {
+            "type": "string",
+            "value": "Фото упражнения не прикреплено"
+          },
+          "feature_exercise_image_source_dialog_title": {
+            "type": "string",
+            "value": "Выберите источник"
+          },
+          "feature_exercise_image_source_camera": {
+            "type": "string",
+            "value": "Сделать фото"
+          },
+          "feature_exercise_image_source_gallery": {
+            "type": "string",
+            "value": "Выбрать из галереи"
+          },
+          "feature_exercise_image_permission_denied_title": {
+            "type": "string",
+            "value": "Доступ к камере запрещён"
+          },
+          "feature_exercise_image_permission_denied_body": {
+            "type": "string",
+            "value": "Чтобы сделать фото, разрешите доступ к камере в настройках приложения. Вы можете выбрать фото из галереи."
+          },
+          "feature_exercise_image_permission_denied_action_settings": {
+            "type": "string",
+            "value": "Открыть настройки"
+          },
+          "feature_exercise_image_error_save_failed": {
+            "type": "string",
+            "value": "Не удалось сохранить фото — попробуйте ещё раз"
+          },
+          "feature_exercise_image_error_load_failed": {
+            "type": "string",
+            "value": "Не удалось загрузить фото"
+          },
+          "feature_exercise_image_error_decode_failed": {
+            "type": "string",
+            "value": "Формат изображения не поддерживается"
+          },
+          "feature_exercise_detail_history_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d сессия",
+              "few": "%1$d сессии",
+              "many": "%1$d сессий",
+              "other": "%1$d сессии"
+            }
+          }
+        }
+      },
+      "prefix": "feature_exercise_",
+      "foreignPrefixes": [
+        "feature_exercise_chart_",
+        "feature_exercise_detail_type_"
+      ]
+    },
+    "feature:live-workout": {
+      "package": "io.github.stslex.workeeper.feature.live_workout.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_live_workout_meta_format": {
+            "type": "string",
+            "value": "%1$d of %2$d exercises · %3$d of %4$d sets"
+          },
+          "feature_live_workout_meta_skipped_format": {
+            "type": "string",
+            "value": "%1$s · %2$d skipped"
+          },
+          "feature_live_workout_railmeta_detail_sets": {
+            "type": "string",
+            "value": "detail: sets"
+          },
+          "feature_live_workout_railmeta_detail_exercises": {
+            "type": "string",
+            "value": "detail: exercises"
+          },
+          "feature_live_workout_railmeta_detail_overall": {
+            "type": "string",
+            "value": "detail: overall"
+          },
+          "feature_live_workout_railmeta_counts": {
+            "type": "string",
+            "value": "%1$d exercises · %2$d sets"
+          },
+          "feature_live_workout_railmeta_one_off_suffix": {
+            "type": "string",
+            "value": "%1$s · one-off: %2$d"
+          },
+          "feature_live_workout_status_skipped": {
+            "type": "string",
+            "value": "skipped"
+          },
+          "feature_live_workout_status_no_plan": {
+            "type": "string",
+            "value": "no plan"
+          },
+          "feature_live_workout_one_off_badge": {
+            "type": "string",
+            "value": "one-off"
+          },
+          "feature_live_workout_expand": {
+            "type": "string",
+            "value": "Expand"
+          },
+          "feature_live_workout_collapse": {
+            "type": "string",
+            "value": "Collapse"
+          },
+          "feature_live_workout_action_edit_plan": {
+            "type": "string",
+            "value": "Edit plan"
+          },
+          "feature_live_workout_action_reset_sets": {
+            "type": "string",
+            "value": "Reset sets"
+          },
+          "feature_live_workout_action_skip": {
+            "type": "string",
+            "value": "Skip exercise"
+          },
+          "feature_live_workout_action_unskip": {
+            "type": "string",
+            "value": "Return to session"
+          },
+          "feature_live_workout_action_delete_exercise": {
+            "type": "string",
+            "value": "Delete exercise"
+          },
+          "feature_live_workout_one_off_row_title": {
+            "type": "string",
+            "value": "Only for today"
+          },
+          "feature_live_workout_one_off_row_sub": {
+            "type": "string",
+            "value": "stays in this session, but won’t be added to the training plan"
+          },
+          "feature_live_workout_delete_workout_title": {
+            "type": "string",
+            "value": "Remove from this workout?"
+          },
+          "feature_live_workout_delete_workout_body": {
+            "type": "string",
+            "value": "“%1$s” will be removed from this workout. Its logged sets will be lost."
+          },
+          "feature_live_workout_delete_workout_confirm": {
+            "type": "string",
+            "value": "Remove from workout"
+          },
+          "feature_live_workout_delete_plan_title": {
+            "type": "string",
+            "value": "Remove from the training plan?"
+          },
+          "feature_live_workout_delete_plan_body_added": {
+            "type": "string",
+            "value": "“%1$s” was added in this session. Its logged sets will be lost."
+          },
+          "feature_live_workout_delete_plan_body_planned": {
+            "type": "string",
+            "value": "“%1$s” will disappear from the training plan and future sessions. If you just don’t want it today — skipping is the better move."
+          },
+          "feature_live_workout_delete_plan_keep": {
+            "type": "string",
+            "value": "Keep"
+          },
+          "feature_live_workout_delete_plan_confirm": {
+            "type": "string",
+            "value": "Remove from plan"
+          },
+          "feature_live_workout_sheet_close": {
+            "type": "string",
+            "value": "Close"
+          },
+          "feature_live_workout_toast_set_added": {
+            "type": "string",
+            "value": "Set added"
+          },
+          "feature_live_workout_toast_set_removed": {
+            "type": "string",
+            "value": "Set removed"
+          },
+          "feature_live_workout_toast_exercise_added": {
+            "type": "string",
+            "value": "“%1$s” added"
+          },
+          "feature_live_workout_toast_exercise_removed": {
+            "type": "string",
+            "value": "“%1$s” removed from plan"
+          },
+          "feature_live_workout_toast_exercise_removed_from_workout": {
+            "type": "string",
+            "value": "“%1$s” removed from workout"
+          },
+          "feature_live_workout_toast_undo": {
+            "type": "string",
+            "value": "Undo"
+          },
+          "feature_live_workout_setbar_add": {
+            "type": "string",
+            "value": "+ set"
+          },
+          "feature_live_workout_setbar_remove": {
+            "type": "string",
+            "value": "− set"
+          },
+          "feature_live_workout_set_type_tooltip": {
+            "type": "string",
+            "value": "Tap to cycle: warmup → work → failure → drop"
+          },
+          "feature_live_workout_reset_title": {
+            "type": "string",
+            "value": "Reset sets?"
+          },
+          "feature_live_workout_reset_body": {
+            "type": "string",
+            "value": "All logged sets for this exercise will be deleted. This cannot be undone."
+          },
+          "feature_live_workout_reset_confirm": {
+            "type": "string",
+            "value": "Reset"
+          },
+          "feature_live_workout_reset_dismiss": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "feature_live_workout_finish": {
+            "type": "string",
+            "value": "Finish session"
+          },
+          "feature_live_workout_finish_title": {
+            "type": "string",
+            "value": "Finish session?"
+          },
+          "feature_live_workout_finish_body": {
+            "type": "string",
+            "value": "Your sets will be logged and plans will update with what you actually performed."
+          },
+          "feature_live_workout_finish_name_label": {
+            "type": "string",
+            "value": "Workout name"
+          },
+          "feature_live_workout_finish_name_required": {
+            "type": "string",
+            "value": "Name is required"
+          },
+          "feature_live_workout_finish_stat_duration": {
+            "type": "string",
+            "value": "Duration"
+          },
+          "feature_live_workout_finish_stat_exercises": {
+            "type": "string",
+            "value": "Exercises"
+          },
+          "feature_live_workout_finish_stat_sets": {
+            "type": "string",
+            "value": "Sets logged"
+          },
+          "feature_live_workout_finish_stat_sets_count": {
+            "type": "string",
+            "value": "%1$d"
+          },
+          "feature_live_workout_finish_stat_exercises_format": {
+            "type": "string",
+            "value": "%1$d of %2$d done"
+          },
+          "feature_live_workout_finish_stat_exercises_with_skipped_format": {
+            "type": "string",
+            "value": "%1$d of %2$d done · %3$d skipped"
+          },
+          "feature_live_workout_finish_keep_going": {
+            "type": "string",
+            "value": "Keep going"
+          },
+          "feature_live_workout_finish_confirm": {
+            "type": "string",
+            "value": "Finish"
+          },
+          "feature_live_workout_finish_success": {
+            "type": "string",
+            "value": "Session saved"
+          },
+          "feature_live_workout_finish_new_pr_title": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d new personal record",
+              "other": "%1$d new personal records"
+            }
+          },
+          "feature_live_workout_finish_new_pr_row_format": {
+            "type": "string",
+            "value": "%1$s — %2$s"
+          },
+          "feature_live_workout_finish_unfilled_discarded": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d empty set will not be saved",
+              "other": "%1$d empty sets will not be saved"
+            }
+          },
+          "feature_live_workout_finish_pr_weighted_format": {
+            "type": "string",
+            "value": "%1$s × %2$d"
+          },
+          "feature_live_workout_finish_pr_weightless_format": {
+            "type": "string",
+            "value": "%1$d reps"
+          },
+          "feature_live_workout_session_overflow_cancel": {
+            "type": "string",
+            "value": "Cancel session"
+          },
+          "feature_live_workout_cancel_title": {
+            "type": "string",
+            "value": "Cancel session?"
+          },
+          "feature_live_workout_cancel_body": {
+            "type": "string",
+            "value": "All progress will be deleted. This cannot be undone."
+          },
+          "feature_live_workout_cancel_confirm": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "feature_live_workout_cancel_dismiss": {
+            "type": "string",
+            "value": "Keep going"
+          },
+          "feature_live_workout_delete_session_unnamed": {
+            "type": "string",
+            "value": "Workout"
+          },
+          "feature_live_workout_delete_session_progress_format": {
+            "type": "string",
+            "value": "%1$d of %2$d exercises done · %3$d sets logged"
+          },
+          "feature_live_workout_empty_headline": {
+            "type": "string",
+            "value": "No exercises yet"
+          },
+          "feature_live_workout_empty_supporting": {
+            "type": "string",
+            "value": "Add your first exercise to begin logging sets."
+          },
+          "feature_live_workout_training_name_placeholder": {
+            "type": "string",
+            "value": "Untitled"
+          },
+          "feature_live_workout_picker_search_hint": {
+            "type": "string",
+            "value": "Type to filter or create new"
+          },
+          "feature_live_workout_picker_no_match_format": {
+            "type": "string",
+            "value": "No exercises match “%1$s”"
+          },
+          "feature_live_workout_picker_create_format": {
+            "type": "string",
+            "value": "Create “%1$s”"
+          },
+          "feature_live_workout_add_exercise_cta": {
+            "type": "string",
+            "value": "Add exercise"
+          },
+          "feature_live_workout_empty_finish_title": {
+            "type": "string",
+            "value": "Discard empty workout?"
+          },
+          "feature_live_workout_empty_finish_body": {
+            "type": "string",
+            "value": "This workout has no logged sets. It looks like you haven’t started yet."
+          },
+          "feature_live_workout_empty_finish_continue": {
+            "type": "string",
+            "value": "Continue edit"
+          },
+          "feature_live_workout_empty_finish_discard": {
+            "type": "string",
+            "value": "Discard"
+          },
+          "feature_live_workout_back": {
+            "type": "string",
+            "value": "Back"
+          },
+          "feature_live_workout_more": {
+            "type": "string",
+            "value": "More"
+          },
+          "feature_live_workout_description": {
+            "type": "string",
+            "value": "Description"
+          },
+          "feature_live_workout_error_invalid_reps": {
+            "type": "string",
+            "value": "Reps must be greater than 0"
+          },
+          "feature_live_workout_error_set_save_failed": {
+            "type": "string",
+            "value": "Could not save set"
+          },
+          "feature_live_workout_error_set_delete_failed": {
+            "type": "string",
+            "value": "Could not remove set"
+          },
+          "feature_live_workout_error_reset_failed": {
+            "type": "string",
+            "value": "Could not reset sets"
+          },
+          "feature_live_workout_error_skip_failed": {
+            "type": "string",
+            "value": "Could not skip exercise"
+          },
+          "feature_live_workout_error_finish_missing_session": {
+            "type": "string",
+            "value": "Session is no longer available"
+          },
+          "feature_live_workout_error_finish_failed": {
+            "type": "string",
+            "value": "Could not finish session"
+          },
+          "feature_live_workout_error_cancel_failed": {
+            "type": "string",
+            "value": "Could not cancel session"
+          },
+          "feature_live_workout_error_plan_save_failed": {
+            "type": "string",
+            "value": "Could not save plan"
+          },
+          "feature_live_workout_error_training_name_save_failed": {
+            "type": "string",
+            "value": "Could not save workout name"
+          },
+          "feature_live_workout_error_add_exercise_failed": {
+            "type": "string",
+            "value": "Could not add exercise"
+          },
+          "feature_live_workout_error_create_inline_exercise_failed": {
+            "type": "string",
+            "value": "Could not create exercise"
+          },
+          "feature_live_workout_error_discard_session_failed": {
+            "type": "string",
+            "value": "Could not discard workout"
+          },
+          "feature_live_workout_error_unknown": {
+            "type": "string",
+            "value": "Something went wrong"
+          },
+          "feature_live_workout_error_session_load_failed": {
+            "type": "string",
+            "value": "Could not open the workout"
+          }
+        },
+        "values-ru": {
+          "feature_live_workout_meta_format": {
+            "type": "string",
+            "value": "%1$d из %2$d упражнений · %3$d из %4$d подходов"
+          },
+          "feature_live_workout_meta_skipped_format": {
+            "type": "string",
+            "value": "%1$s · пропущено %2$d"
+          },
+          "feature_live_workout_railmeta_detail_sets": {
+            "type": "string",
+            "value": "детализация: подходы"
+          },
+          "feature_live_workout_railmeta_detail_exercises": {
+            "type": "string",
+            "value": "детализация: упражнения"
+          },
+          "feature_live_workout_railmeta_detail_overall": {
+            "type": "string",
+            "value": "детализация: общая"
+          },
+          "feature_live_workout_railmeta_counts": {
+            "type": "string",
+            "value": "%1$d упражнений · %2$d подходов"
+          },
+          "feature_live_workout_railmeta_one_off_suffix": {
+            "type": "string",
+            "value": "%1$s · разовых: %2$d"
+          },
+          "feature_live_workout_status_skipped": {
+            "type": "string",
+            "value": "пропущено"
+          },
+          "feature_live_workout_status_no_plan": {
+            "type": "string",
+            "value": "плана нет"
+          },
+          "feature_live_workout_one_off_badge": {
+            "type": "string",
+            "value": "разовое"
+          },
+          "feature_live_workout_expand": {
+            "type": "string",
+            "value": "Развернуть"
+          },
+          "feature_live_workout_collapse": {
+            "type": "string",
+            "value": "Свернуть"
+          },
+          "feature_live_workout_action_edit_plan": {
+            "type": "string",
+            "value": "Изменить план"
+          },
+          "feature_live_workout_action_reset_sets": {
+            "type": "string",
+            "value": "Сбросить подходы"
+          },
+          "feature_live_workout_action_skip": {
+            "type": "string",
+            "value": "Пропустить упражнение"
+          },
+          "feature_live_workout_action_unskip": {
+            "type": "string",
+            "value": "Вернуть в сессию"
+          },
+          "feature_live_workout_action_delete_exercise": {
+            "type": "string",
+            "value": "Удалить упражнение"
+          },
+          "feature_live_workout_one_off_row_title": {
+            "type": "string",
+            "value": "Только на сегодня"
+          },
+          "feature_live_workout_one_off_row_sub": {
+            "type": "string",
+            "value": "останется в этой сессии, но не попадёт в план тренировки"
+          },
+          "feature_live_workout_delete_workout_title": {
+            "type": "string",
+            "value": "Удалить из этой тренировки?"
+          },
+          "feature_live_workout_delete_workout_body": {
+            "type": "string",
+            "value": "«%1$s» будет удалено из текущей тренировки. Записанные подходы пропадут."
+          },
+          "feature_live_workout_delete_workout_confirm": {
+            "type": "string",
+            "value": "Удалить из тренировки"
+          },
+          "feature_live_workout_delete_plan_title": {
+            "type": "string",
+            "value": "Удалить из плана тренировки?"
+          },
+          "feature_live_workout_delete_plan_body_added": {
+            "type": "string",
+            "value": "«%1$s» было добавлено в этой сессии. Записанные подходы пропадут."
+          },
+          "feature_live_workout_delete_plan_body_planned": {
+            "type": "string",
+            "value": "«%1$s» исчезнет из плана тренировки и не появится в следующих сессиях. Если не хочешь делать его только сегодня — лучше пропустить."
+          },
+          "feature_live_workout_delete_plan_keep": {
+            "type": "string",
+            "value": "Оставить"
+          },
+          "feature_live_workout_delete_plan_confirm": {
+            "type": "string",
+            "value": "Удалить из плана"
+          },
+          "feature_live_workout_sheet_close": {
+            "type": "string",
+            "value": "Закрыть"
+          },
+          "feature_live_workout_toast_set_added": {
+            "type": "string",
+            "value": "Подход добавлен"
+          },
+          "feature_live_workout_toast_set_removed": {
+            "type": "string",
+            "value": "Подход удалён"
+          },
+          "feature_live_workout_toast_exercise_added": {
+            "type": "string",
+            "value": "«%1$s» добавлено"
+          },
+          "feature_live_workout_toast_exercise_removed": {
+            "type": "string",
+            "value": "«%1$s» удалено из плана"
+          },
+          "feature_live_workout_toast_exercise_removed_from_workout": {
+            "type": "string",
+            "value": "«%1$s» удалено из тренировки"
+          },
+          "feature_live_workout_toast_undo": {
+            "type": "string",
+            "value": "Отменить"
+          },
+          "feature_live_workout_setbar_add": {
+            "type": "string",
+            "value": "+ подход"
+          },
+          "feature_live_workout_setbar_remove": {
+            "type": "string",
+            "value": "− подход"
+          },
+          "feature_live_workout_set_type_tooltip": {
+            "type": "string",
+            "value": "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп"
+          },
+          "feature_live_workout_reset_title": {
+            "type": "string",
+            "value": "Сбросить подходы?"
+          },
+          "feature_live_workout_reset_body": {
+            "type": "string",
+            "value": "Все записанные подходы этого упражнения будут удалены. Это нельзя отменить."
+          },
+          "feature_live_workout_reset_confirm": {
+            "type": "string",
+            "value": "Сбросить"
+          },
+          "feature_live_workout_reset_dismiss": {
+            "type": "string",
+            "value": "Отмена"
+          },
+          "feature_live_workout_finish": {
+            "type": "string",
+            "value": "Завершить сессию"
+          },
+          "feature_live_workout_finish_title": {
+            "type": "string",
+            "value": "Завершить сессию?"
+          },
+          "feature_live_workout_finish_body": {
+            "type": "string",
+            "value": "Подходы будут записаны, планы обновятся под фактически выполненные значения."
+          },
+          "feature_live_workout_finish_name_label": {
+            "type": "string",
+            "value": "Название тренировки"
+          },
+          "feature_live_workout_finish_name_required": {
+            "type": "string",
+            "value": "Введите название"
+          },
+          "feature_live_workout_finish_stat_duration": {
+            "type": "string",
+            "value": "Длительность"
+          },
+          "feature_live_workout_finish_stat_exercises": {
+            "type": "string",
+            "value": "Упражнения"
+          },
+          "feature_live_workout_finish_stat_sets": {
+            "type": "string",
+            "value": "Подходы"
+          },
+          "feature_live_workout_finish_stat_sets_count": {
+            "type": "string",
+            "value": "%1$d"
+          },
+          "feature_live_workout_finish_stat_exercises_format": {
+            "type": "string",
+            "value": "%1$d из %2$d"
+          },
+          "feature_live_workout_finish_stat_exercises_with_skipped_format": {
+            "type": "string",
+            "value": "%1$d из %2$d · %3$d пропущено"
+          },
+          "feature_live_workout_finish_keep_going": {
+            "type": "string",
+            "value": "Продолжить"
+          },
+          "feature_live_workout_finish_confirm": {
+            "type": "string",
+            "value": "Завершить"
+          },
+          "feature_live_workout_finish_success": {
+            "type": "string",
+            "value": "Сессия сохранена"
+          },
+          "feature_live_workout_finish_new_pr_title": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d новый рекорд",
+              "few": "%1$d новых рекорда",
+              "many": "%1$d новых рекордов",
+              "other": "%1$d новых рекордов"
+            }
+          },
+          "feature_live_workout_finish_new_pr_row_format": {
+            "type": "string",
+            "value": "%1$s — %2$s"
+          },
+          "feature_live_workout_finish_unfilled_discarded": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d пустой подход не будет сохранён",
+              "few": "%1$d пустых подхода не будут сохранены",
+              "many": "%1$d пустых подходов не будут сохранены",
+              "other": "%1$d пустых подходов не будут сохранены"
+            }
+          },
+          "feature_live_workout_finish_pr_weighted_format": {
+            "type": "string",
+            "value": "%1$s × %2$d"
+          },
+          "feature_live_workout_finish_pr_weightless_format": {
+            "type": "string",
+            "value": "%1$d повт"
+          },
+          "feature_live_workout_session_overflow_cancel": {
+            "type": "string",
+            "value": "Отменить сессию"
+          },
+          "feature_live_workout_cancel_title": {
+            "type": "string",
+            "value": "Отменить сессию?"
+          },
+          "feature_live_workout_cancel_body": {
+            "type": "string",
+            "value": "Весь прогресс будет удалён. Это нельзя отменить."
+          },
+          "feature_live_workout_cancel_confirm": {
+            "type": "string",
+            "value": "Отменить"
+          },
+          "feature_live_workout_cancel_dismiss": {
+            "type": "string",
+            "value": "Продолжить"
+          },
+          "feature_live_workout_delete_session_unnamed": {
+            "type": "string",
+            "value": "Тренировка"
+          },
+          "feature_live_workout_delete_session_progress_format": {
+            "type": "string",
+            "value": "%1$d из %2$d упражнений · %3$d подходов записано"
+          },
+          "feature_live_workout_empty_headline": {
+            "type": "string",
+            "value": "Нет упражнений"
+          },
+          "feature_live_workout_empty_supporting": {
+            "type": "string",
+            "value": "Добавьте первое упражнение, чтобы начать запись подходов."
+          },
+          "feature_live_workout_training_name_placeholder": {
+            "type": "string",
+            "value": "Без названия"
+          },
+          "feature_live_workout_picker_search_hint": {
+            "type": "string",
+            "value": "Введите чтобы найти или создать"
+          },
+          "feature_live_workout_picker_no_match_format": {
+            "type": "string",
+            "value": "Нет упражнений по запросу «%1$s»"
+          },
+          "feature_live_workout_picker_create_format": {
+            "type": "string",
+            "value": "Создать «%1$s»"
+          },
+          "feature_live_workout_add_exercise_cta": {
+            "type": "string",
+            "value": "Добавить упражнение"
+          },
+          "feature_live_workout_empty_finish_title": {
+            "type": "string",
+            "value": "Удалить пустую тренировку?"
+          },
+          "feature_live_workout_empty_finish_body": {
+            "type": "string",
+            "value": "В этой тренировке нет ни одного выполненного подхода. Похоже, она ещё не начата."
+          },
+          "feature_live_workout_empty_finish_continue": {
+            "type": "string",
+            "value": "Продолжить"
+          },
+          "feature_live_workout_empty_finish_discard": {
+            "type": "string",
+            "value": "Удалить"
+          },
+          "feature_live_workout_back": {
+            "type": "string",
+            "value": "Назад"
+          },
+          "feature_live_workout_more": {
+            "type": "string",
+            "value": "Меню"
+          },
+          "feature_live_workout_description": {
+            "type": "string",
+            "value": "Описание"
+          },
+          "feature_live_workout_error_invalid_reps": {
+            "type": "string",
+            "value": "Повторения должны быть больше 0"
+          },
+          "feature_live_workout_error_set_save_failed": {
+            "type": "string",
+            "value": "Не удалось сохранить подход"
+          },
+          "feature_live_workout_error_set_delete_failed": {
+            "type": "string",
+            "value": "Не удалось удалить подход"
+          },
+          "feature_live_workout_error_reset_failed": {
+            "type": "string",
+            "value": "Не удалось сбросить подходы"
+          },
+          "feature_live_workout_error_skip_failed": {
+            "type": "string",
+            "value": "Не удалось пропустить упражнение"
+          },
+          "feature_live_workout_error_finish_missing_session": {
+            "type": "string",
+            "value": "Сессия больше недоступна"
+          },
+          "feature_live_workout_error_finish_failed": {
+            "type": "string",
+            "value": "Не удалось завершить сессию"
+          },
+          "feature_live_workout_error_cancel_failed": {
+            "type": "string",
+            "value": "Не удалось отменить сессию"
+          },
+          "feature_live_workout_error_plan_save_failed": {
+            "type": "string",
+            "value": "Не удалось сохранить план"
+          },
+          "feature_live_workout_error_training_name_save_failed": {
+            "type": "string",
+            "value": "Не удалось сохранить название тренировки"
+          },
+          "feature_live_workout_error_add_exercise_failed": {
+            "type": "string",
+            "value": "Не удалось добавить упражнение"
+          },
+          "feature_live_workout_error_create_inline_exercise_failed": {
+            "type": "string",
+            "value": "Не удалось создать упражнение"
+          },
+          "feature_live_workout_error_discard_session_failed": {
+            "type": "string",
+            "value": "Не удалось отменить тренировку"
+          },
+          "feature_live_workout_error_unknown": {
+            "type": "string",
+            "value": "Что-то пошло не так"
+          },
+          "feature_live_workout_error_session_load_failed": {
+            "type": "string",
+            "value": "Не удалось открыть тренировку"
+          }
+        }
+      },
+      "prefix": "feature_live_workout_",
+      "foreignPrefixes": []
+    },
+    "feature:app-dialogs:impl": {
+      "package": "io.github.stslex.workeeper.feature.app_dialogs.impl.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "app_dialog_restore_success_title": {
+            "type": "string",
+            "value": "Restore complete"
+          },
+          "app_dialog_restore_success_body": {
+            "type": "string",
+            "value": "Your data was restored from a backup dated %1$s. You can revert to your previous data in Settings if needed."
+          },
+          "app_dialog_restore_success_body_no_previous": {
+            "type": "string",
+            "value": "Your data was restored from a backup dated %1$s."
+          },
+          "app_dialog_restore_success_confirm": {
+            "type": "string",
+            "value": "OK"
+          },
+          "app_dialog_restore_success_undo_action": {
+            "type": "string",
+            "value": "Undo restore"
+          },
+          "app_dialog_restore_failure_title": {
+            "type": "string",
+            "value": "Restore failed"
+          },
+          "app_dialog_restore_failure_body": {
+            "type": "string",
+            "value": "Your data is intact. Reason: %1$s. Please report this issue so we can fix it."
+          },
+          "app_dialog_restore_failure_confirm": {
+            "type": "string",
+            "value": "OK"
+          },
+          "app_dialog_restore_failure_report_action": {
+            "type": "string",
+            "value": "Report"
+          },
+          "app_dialog_restore_failure_export_action": {
+            "type": "string",
+            "value": "Export diagnostics"
+          },
+          "app_dialog_undo_restore_confirmation_title": {
+            "type": "string",
+            "value": "Undo last restore?"
+          },
+          "app_dialog_undo_restore_confirmation_body": {
+            "type": "string",
+            "value": "Your data will revert to the state it was in on %1$s. This cannot be undone."
+          },
+          "app_dialog_undo_restore_confirmation_confirm": {
+            "type": "string",
+            "value": "Undo restore"
+          },
+          "app_dialog_undo_restore_confirmation_cancel": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "app_dialog_undo_restore_success_title": {
+            "type": "string",
+            "value": "Reverted"
+          },
+          "app_dialog_undo_restore_success_body": {
+            "type": "string",
+            "value": "Your data has been restored to the previous state."
+          },
+          "app_dialog_undo_restore_success_confirm": {
+            "type": "string",
+            "value": "OK"
+          },
+          "app_dialog_restore_failure_reason_not_authenticated": {
+            "type": "string",
+            "value": "not signed in"
+          },
+          "app_dialog_restore_failure_reason_network_unavailable": {
+            "type": "string",
+            "value": "no network"
+          },
+          "app_dialog_restore_failure_reason_auth_revoked": {
+            "type": "string",
+            "value": "Google account access was revoked"
+          },
+          "app_dialog_restore_failure_reason_missing_required_scope": {
+            "type": "string",
+            "value": "Drive access was not granted"
+          },
+          "app_dialog_restore_failure_reason_storage_quota_exceeded": {
+            "type": "string",
+            "value": "Drive storage is full"
+          },
+          "app_dialog_restore_failure_reason_corrupted_backup": {
+            "type": "string",
+            "value": "the backup file is corrupted"
+          },
+          "app_dialog_restore_failure_reason_schema_too_new": {
+            "type": "string",
+            "value": "the backup was created by a newer app version"
+          },
+          "app_dialog_restore_failure_reason_missing_migration_path": {
+            "type": "string",
+            "value": "no migration path to this app version"
+          },
+          "app_dialog_restore_failure_reason_io": {
+            "type": "string",
+            "value": "a read or write error occurred"
+          },
+          "app_dialog_restore_failure_reason_unknown": {
+            "type": "string",
+            "value": "an unexpected error occurred"
+          }
+        },
+        "values-ru": {
+          "app_dialog_restore_success_title": {
+            "type": "string",
+            "value": "Восстановление завершено"
+          },
+          "app_dialog_restore_success_body": {
+            "type": "string",
+            "value": "Данные восстановлены из резервной копии от %1$s. При необходимости вы можете вернуться к предыдущим данным в настройках."
+          },
+          "app_dialog_restore_success_body_no_previous": {
+            "type": "string",
+            "value": "Данные восстановлены из резервной копии от %1$s."
+          },
+          "app_dialog_restore_success_confirm": {
+            "type": "string",
+            "value": "ОК"
+          },
+          "app_dialog_restore_success_undo_action": {
+            "type": "string",
+            "value": "Откатить восстановление"
+          },
+          "app_dialog_restore_failure_title": {
+            "type": "string",
+            "value": "Не удалось восстановить"
+          },
+          "app_dialog_restore_failure_body": {
+            "type": "string",
+            "value": "Ваши данные сохранены. Причина: %1$s. Сообщите об ошибке, чтобы мы могли её исправить."
+          },
+          "app_dialog_restore_failure_confirm": {
+            "type": "string",
+            "value": "ОК"
+          },
+          "app_dialog_restore_failure_report_action": {
+            "type": "string",
+            "value": "Сообщить"
+          },
+          "app_dialog_restore_failure_export_action": {
+            "type": "string",
+            "value": "Экспорт диагностики"
+          },
+          "app_dialog_undo_restore_confirmation_title": {
+            "type": "string",
+            "value": "Отменить последнее восстановление?"
+          },
+          "app_dialog_undo_restore_confirmation_body": {
+            "type": "string",
+            "value": "Данные вернутся к состоянию на %1$s. Это действие необратимо."
+          },
+          "app_dialog_undo_restore_confirmation_confirm": {
+            "type": "string",
+            "value": "Отменить восстановление"
+          },
+          "app_dialog_undo_restore_confirmation_cancel": {
+            "type": "string",
+            "value": "Отмена"
+          },
+          "app_dialog_undo_restore_success_title": {
+            "type": "string",
+            "value": "Возврат выполнен"
+          },
+          "app_dialog_undo_restore_success_body": {
+            "type": "string",
+            "value": "Данные восстановлены к предыдущему состоянию."
+          },
+          "app_dialog_undo_restore_success_confirm": {
+            "type": "string",
+            "value": "ОК"
+          },
+          "app_dialog_restore_failure_reason_not_authenticated": {
+            "type": "string",
+            "value": "не выполнен вход"
+          },
+          "app_dialog_restore_failure_reason_network_unavailable": {
+            "type": "string",
+            "value": "нет подключения к сети"
+          },
+          "app_dialog_restore_failure_reason_auth_revoked": {
+            "type": "string",
+            "value": "доступ к Google-аккаунту был отозван"
+          },
+          "app_dialog_restore_failure_reason_missing_required_scope": {
+            "type": "string",
+            "value": "не предоставлен доступ к Drive"
+          },
+          "app_dialog_restore_failure_reason_storage_quota_exceeded": {
+            "type": "string",
+            "value": "место в Drive закончилось"
+          },
+          "app_dialog_restore_failure_reason_corrupted_backup": {
+            "type": "string",
+            "value": "файл резервной копии повреждён"
+          },
+          "app_dialog_restore_failure_reason_schema_too_new": {
+            "type": "string",
+            "value": "резервная копия создана более новой версией приложения"
+          },
+          "app_dialog_restore_failure_reason_missing_migration_path": {
+            "type": "string",
+            "value": "нет пути миграции к этой версии приложения"
+          },
+          "app_dialog_restore_failure_reason_io": {
+            "type": "string",
+            "value": "произошла ошибка чтения или записи"
+          },
+          "app_dialog_restore_failure_reason_unknown": {
+            "type": "string",
+            "value": "произошла непредвиденная ошибка"
+          }
+        }
+      },
+      "prefix": "app_dialog_",
+      "foreignPrefixes": []
+    },
+    "app:common": {
+      "package": "io.github.stslex.workeeper.app.common.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "bottom_bar_label_home": {
+            "type": "string",
+            "value": "Home"
+          },
+          "bottom_bar_label_trainings": {
+            "type": "string",
+            "value": "Trainings"
+          },
+          "bottom_bar_label_exercises": {
+            "type": "string",
+            "value": "Exercises"
+          }
+        },
+        "values-ru": {
+          "bottom_bar_label_home": {
+            "type": "string",
+            "value": "Главная"
+          },
+          "bottom_bar_label_trainings": {
+            "type": "string",
+            "value": "Тренировки"
+          },
+          "bottom_bar_label_exercises": {
+            "type": "string",
+            "value": "Упражнения"
+          }
+        }
+      }
+    },
+    "feature:settings": {
+      "package": "io.github.stslex.workeeper.feature.settings.resources",
+      "public": false,
+      "locales": [
+        "values",
+        "values-ru"
+      ],
+      "catalogs": {
+        "values": {
+          "feature_settings_title": {
+            "type": "string",
+            "value": "Settings"
+          },
+          "feature_settings_section_about": {
+            "type": "string",
+            "value": "About"
+          },
+          "feature_settings_section_appearance": {
+            "type": "string",
+            "value": "Appearance"
+          },
+          "feature_settings_section_data": {
+            "type": "string",
+            "value": "Data"
+          },
+          "feature_settings_theme_row_title": {
+            "type": "string",
+            "value": "Theme"
+          },
+          "feature_settings_start_card_row_title": {
+            "type": "string",
+            "value": "Start card"
+          },
+          "feature_settings_theme_system": {
+            "type": "string",
+            "value": "System"
+          },
+          "feature_settings_theme_light": {
+            "type": "string",
+            "value": "Light"
+          },
+          "feature_settings_theme_dark": {
+            "type": "string",
+            "value": "Dark"
+          },
+          "feature_settings_about_app_name": {
+            "type": "string",
+            "value": "Workeeper"
+          },
+          "feature_settings_about_version_format": {
+            "type": "string",
+            "value": "Version %1$s (%2$d)"
+          },
+          "feature_settings_about_license": {
+            "type": "string",
+            "value": "GPLv3 license"
+          },
+          "feature_settings_about_github": {
+            "type": "string",
+            "value": "Source code"
+          },
+          "feature_settings_about_privacy": {
+            "type": "string",
+            "value": "Privacy Policy"
+          },
+          "feature_settings_archive_entry": {
+            "type": "string",
+            "value": "Archive"
+          },
+          "feature_settings_backup_title": {
+            "type": "string",
+            "value": "Backups"
+          },
+          "feature_settings_backup_sign_in": {
+            "type": "string",
+            "value": "Sign in to Google Drive"
+          },
+          "feature_settings_backup_sign_out": {
+            "type": "string",
+            "value": "Sign out"
+          },
+          "feature_settings_backup_create": {
+            "type": "string",
+            "value": "Create backup now"
+          },
+          "feature_settings_backup_restore": {
+            "type": "string",
+            "value": "Restore from backup"
+          },
+          "feature_settings_backup_revert_last_restore_label": {
+            "type": "string",
+            "value": "Revert last restore"
+          },
+          "feature_settings_backup_restore_title": {
+            "type": "string",
+            "value": "Restore backup?"
+          },
+          "feature_settings_backup_restore_warning": {
+            "type": "string",
+            "value": "Replaces your current data with the backup from %1$s (%2$s). This cannot be undone."
+          },
+          "feature_settings_backup_restore_impact": {
+            "type": "string",
+            "value": "All current data will be replaced"
+          },
+          "feature_settings_backup_restore_confirm": {
+            "type": "string",
+            "value": "Restore"
+          },
+          "feature_settings_backup_restore_cancel": {
+            "type": "string",
+            "value": "Cancel"
+          },
+          "feature_settings_backup_created": {
+            "type": "string",
+            "value": "Backup created"
+          },
+          "feature_settings_backup_error_not_authenticated": {
+            "type": "string",
+            "value": "Sign in to Drive first"
+          },
+          "feature_settings_backup_error_network_unavailable": {
+            "type": "string",
+            "value": "No internet connection"
+          },
+          "feature_settings_backup_error_auth_revoked": {
+            "type": "string",
+            "value": "Drive access revoked. Sign in again."
+          },
+          "feature_settings_backup_error_missing_required_scope": {
+            "type": "string",
+            "value": "Drive access wasn’t granted. Sign in again and allow Drive access — you’ll see the consent screen once more."
+          },
+          "feature_settings_backup_error_storage_quota_exceeded": {
+            "type": "string",
+            "value": "Drive storage is full"
+          },
+          "feature_settings_backup_error_corrupted_backup": {
+            "type": "string",
+            "value": "Backup file is corrupted"
+          },
+          "feature_settings_backup_error_backup_too_new": {
+            "type": "string",
+            "value": "This backup is from a newer version of the app. Update Workeeper to restore it."
+          },
+          "feature_settings_backup_error_missing_migration_path": {
+            "type": "string",
+            "value": "This backup is from an older version that this app build cannot migrate. Try updating the app or use a newer backup."
+          },
+          "feature_settings_backup_error_io": {
+            "type": "string",
+            "value": "Read/write error"
+          },
+          "feature_settings_backup_error_unknown": {
+            "type": "string",
+            "value": "Something went wrong"
+          },
+          "feature_settings_backup_error_no_backups_found": {
+            "type": "string",
+            "value": "No backups available"
+          },
+          "feature_settings_backup_sign_out_title": {
+            "type": "string",
+            "value": "Sign out of Google Drive?"
+          },
+          "feature_settings_backup_sign_out_body": {
+            "type": "string",
+            "value": "Auto-backups will stop. Existing backups in Drive will remain and can be restored after signing in again."
+          },
+          "feature_settings_backup_sign_out_impact": {
+            "type": "string",
+            "value": "Auto-backups will stop"
+          },
+          "feature_settings_backup_info_last_backup_never": {
+            "type": "string",
+            "value": "Never backed up"
+          },
+          "feature_settings_backup_info_last_backup_format": {
+            "type": "string",
+            "value": "last %1$s"
+          },
+          "feature_settings_backup_info_count_zero": {
+            "type": "string",
+            "value": "No backups yet"
+          },
+          "feature_settings_backup_restore_in_progress": {
+            "type": "string",
+            "value": "Restoring backup…"
+          },
+          "feature_settings_backup_restore_completed": {
+            "type": "string",
+            "value": "Restore complete. Restarting app…"
+          },
+          "feature_settings_backup_info_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d backup",
+              "other": "%1$d backups"
+            }
+          },
+          "feature_settings_backup_frequency_daily": {
+            "type": "string",
+            "value": "Daily"
+          },
+          "feature_settings_backup_frequency_weekly": {
+            "type": "string",
+            "value": "Weekly"
+          },
+          "feature_settings_backup_auto_row_title": {
+            "type": "string",
+            "value": "Auto-backup"
+          },
+          "feature_settings_backup_auto_next_short": {
+            "type": "string",
+            "value": "next %1$s"
+          },
+          "feature_settings_backup_auto_on": {
+            "type": "string",
+            "value": "On"
+          },
+          "feature_settings_backup_auto_off": {
+            "type": "string",
+            "value": "Off"
+          },
+          "feature_settings_backup_frequency_manual_only": {
+            "type": "string",
+            "value": "Manual only"
+          },
+          "feature_settings_backup_frequency_picker_title": {
+            "type": "string",
+            "value": "Backup frequency"
+          },
+          "feature_settings_backup_frequency_picker_save": {
+            "type": "string",
+            "value": "Save"
+          },
+          "feature_settings_backup_allow_mobile_data_label": {
+            "type": "string",
+            "value": "Allow on mobile data"
+          },
+          "feature_settings_backup_allow_mobile_data_caption": {
+            "type": "string",
+            "value": "Backups will use mobile data when Wi-Fi unavailable"
+          },
+          "feature_settings_backup_ai_export_label": {
+            "type": "string",
+            "value": "AI assistant snapshot"
+          },
+          "feature_settings_backup_ai_export_caption": {
+            "type": "string",
+            "value": "Saves a plain-text JSON copy of your workouts to a visible, shareable folder in your Google Drive (not the hidden app backup) so an AI assistant you authorize can read it."
+          },
+          "feature_settings_backup_ai_export_access_needed": {
+            "type": "string",
+            "value": "Google Drive access is needed for AI export"
+          },
+          "feature_settings_backup_auto_paused_banner_title": {
+            "type": "string",
+            "value": "Auto-backup paused"
+          },
+          "feature_settings_backup_auto_paused_banner_body": {
+            "type": "string",
+            "value": "Sign in to Google Drive again to resume."
+          },
+          "feature_settings_backup_auto_paused_banner_action": {
+            "type": "string",
+            "value": "Sign in"
+          },
+          "feature_settings_backup_auto_enabled_default": {
+            "type": "string",
+            "value": "Auto-backup enabled, daily"
+          },
+          "feature_settings_backup_auto_enabled_change_action": {
+            "type": "string",
+            "value": "Change"
+          },
+          "feature_settings_archive_exercise_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d exercise",
+              "other": "%1$d exercises"
+            }
+          },
+          "feature_settings_archive_training_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d training",
+              "other": "%1$d trainings"
+            }
+          }
+        },
+        "values-ru": {
+          "feature_settings_title": {
+            "type": "string",
+            "value": "Настройки"
+          },
+          "feature_settings_section_about": {
+            "type": "string",
+            "value": "О приложении"
+          },
+          "feature_settings_section_appearance": {
+            "type": "string",
+            "value": "Оформление"
+          },
+          "feature_settings_section_data": {
+            "type": "string",
+            "value": "Данные"
+          },
+          "feature_settings_theme_row_title": {
+            "type": "string",
+            "value": "Тема"
+          },
+          "feature_settings_start_card_row_title": {
+            "type": "string",
+            "value": "Карточка старта"
+          },
+          "feature_settings_theme_system": {
+            "type": "string",
+            "value": "Системная"
+          },
+          "feature_settings_theme_light": {
+            "type": "string",
+            "value": "Светлая"
+          },
+          "feature_settings_theme_dark": {
+            "type": "string",
+            "value": "Тёмная"
+          },
+          "feature_settings_about_app_name": {
+            "type": "string",
+            "value": "Workeeper"
+          },
+          "feature_settings_about_version_format": {
+            "type": "string",
+            "value": "Версия %1$s (%2$d)"
+          },
+          "feature_settings_about_license": {
+            "type": "string",
+            "value": "Лицензия GPLv3"
+          },
+          "feature_settings_about_github": {
+            "type": "string",
+            "value": "Исходный код"
+          },
+          "feature_settings_about_privacy": {
+            "type": "string",
+            "value": "Политика конфиденциальности"
+          },
+          "feature_settings_archive_entry": {
+            "type": "string",
+            "value": "Архив"
+          },
+          "feature_settings_backup_title": {
+            "type": "string",
+            "value": "Резервные копии"
+          },
+          "feature_settings_backup_sign_in": {
+            "type": "string",
+            "value": "Войти в Google Drive"
+          },
+          "feature_settings_backup_sign_out": {
+            "type": "string",
+            "value": "Выйти из аккаунта"
+          },
+          "feature_settings_backup_create": {
+            "type": "string",
+            "value": "Создать копию сейчас"
+          },
+          "feature_settings_backup_restore": {
+            "type": "string",
+            "value": "Восстановить из копии"
+          },
+          "feature_settings_backup_revert_last_restore_label": {
+            "type": "string",
+            "value": "Откатить последнее восстановление"
+          },
+          "feature_settings_backup_restore_title": {
+            "type": "string",
+            "value": "Восстановить резервную копию?"
+          },
+          "feature_settings_backup_restore_warning": {
+            "type": "string",
+            "value": "Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо."
+          },
+          "feature_settings_backup_restore_impact": {
+            "type": "string",
+            "value": "Все текущие данные будут заменены"
+          },
+          "feature_settings_backup_restore_confirm": {
+            "type": "string",
+            "value": "Восстановить"
+          },
+          "feature_settings_backup_restore_cancel": {
+            "type": "string",
+            "value": "Отмена"
+          },
+          "feature_settings_backup_created": {
+            "type": "string",
+            "value": "Резервная копия создана"
+          },
+          "feature_settings_backup_error_not_authenticated": {
+            "type": "string",
+            "value": "Сначала войдите в Drive"
+          },
+          "feature_settings_backup_error_network_unavailable": {
+            "type": "string",
+            "value": "Нет соединения с интернетом"
+          },
+          "feature_settings_backup_error_auth_revoked": {
+            "type": "string",
+            "value": "Доступ к Drive отозван. Войдите снова."
+          },
+          "feature_settings_backup_error_missing_required_scope": {
+            "type": "string",
+            "value": "Доступ к Google Drive не предоставлен. Войдите снова и разрешите доступ к Drive — экран согласия появится ещё раз."
+          },
+          "feature_settings_backup_error_storage_quota_exceeded": {
+            "type": "string",
+            "value": "В Drive закончилось место"
+          },
+          "feature_settings_backup_error_corrupted_backup": {
+            "type": "string",
+            "value": "Файл резервной копии повреждён"
+          },
+          "feature_settings_backup_error_backup_too_new": {
+            "type": "string",
+            "value": "Эта резервная копия из более новой версии приложения. Обновите Workeeper, чтобы её восстановить."
+          },
+          "feature_settings_backup_error_missing_migration_path": {
+            "type": "string",
+            "value": "Эта резервная копия из старой версии, которую эта сборка приложения не может мигрировать. Обновите приложение или используйте более новую копию."
+          },
+          "feature_settings_backup_error_io": {
+            "type": "string",
+            "value": "Ошибка чтения или записи"
+          },
+          "feature_settings_backup_error_unknown": {
+            "type": "string",
+            "value": "Что-то пошло не так"
+          },
+          "feature_settings_backup_error_no_backups_found": {
+            "type": "string",
+            "value": "Нет доступных резервных копий"
+          },
+          "feature_settings_backup_sign_out_title": {
+            "type": "string",
+            "value": "Выйти из Google Drive?"
+          },
+          "feature_settings_backup_sign_out_body": {
+            "type": "string",
+            "value": "Автоматические резервные копии остановятся. Существующие копии в Drive сохранятся, их можно будет восстановить после повторного входа."
+          },
+          "feature_settings_backup_sign_out_impact": {
+            "type": "string",
+            "value": "Автоматические резервные копии остановятся"
+          },
+          "feature_settings_backup_info_last_backup_never": {
+            "type": "string",
+            "value": "Резервных копий ещё нет"
+          },
+          "feature_settings_backup_info_last_backup_format": {
+            "type": "string",
+            "value": "последняя %1$s"
+          },
+          "feature_settings_backup_info_count_zero": {
+            "type": "string",
+            "value": "Ещё нет резервных копий"
+          },
+          "feature_settings_backup_restore_in_progress": {
+            "type": "string",
+            "value": "Восстановление резервной копии…"
+          },
+          "feature_settings_backup_restore_completed": {
+            "type": "string",
+            "value": "Восстановление завершено. Перезапуск приложения…"
+          },
+          "feature_settings_backup_info_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d копия",
+              "few": "%1$d копии",
+              "many": "%1$d копий",
+              "other": "%1$d копий"
+            }
+          },
+          "feature_settings_backup_frequency_daily": {
+            "type": "string",
+            "value": "Ежедневно"
+          },
+          "feature_settings_backup_frequency_weekly": {
+            "type": "string",
+            "value": "Еженедельно"
+          },
+          "feature_settings_backup_auto_row_title": {
+            "type": "string",
+            "value": "Автокопия"
+          },
+          "feature_settings_backup_auto_next_short": {
+            "type": "string",
+            "value": "следующая %1$s"
+          },
+          "feature_settings_backup_auto_on": {
+            "type": "string",
+            "value": "Вкл"
+          },
+          "feature_settings_backup_auto_off": {
+            "type": "string",
+            "value": "Выкл"
+          },
+          "feature_settings_backup_frequency_manual_only": {
+            "type": "string",
+            "value": "Только вручную"
+          },
+          "feature_settings_backup_frequency_picker_title": {
+            "type": "string",
+            "value": "Частота резервного копирования"
+          },
+          "feature_settings_backup_frequency_picker_save": {
+            "type": "string",
+            "value": "Сохранить"
+          },
+          "feature_settings_backup_allow_mobile_data_label": {
+            "type": "string",
+            "value": "Разрешить мобильные данные"
+          },
+          "feature_settings_backup_allow_mobile_data_caption": {
+            "type": "string",
+            "value": "Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi"
+          },
+          "feature_settings_backup_ai_export_label": {
+            "type": "string",
+            "value": "Снимок для ИИ-ассистента"
+          },
+          "feature_settings_backup_ai_export_caption": {
+            "type": "string",
+            "value": "Сохраняет копию ваших тренировок в виде обычного текста (JSON) в видимую и доступную для общего доступа папку в Google Drive (не в скрытую резервную копию), чтобы ИИ-ассистент, которому вы дали доступ, мог её прочитать."
+          },
+          "feature_settings_backup_ai_export_access_needed": {
+            "type": "string",
+            "value": "Для экспорта в ИИ нужен доступ к Google Drive"
+          },
+          "feature_settings_backup_auto_paused_banner_title": {
+            "type": "string",
+            "value": "Авто-копирование приостановлено"
+          },
+          "feature_settings_backup_auto_paused_banner_body": {
+            "type": "string",
+            "value": "Войдите в Google Drive снова, чтобы возобновить."
+          },
+          "feature_settings_backup_auto_paused_banner_action": {
+            "type": "string",
+            "value": "Войти"
+          },
+          "feature_settings_backup_auto_enabled_default": {
+            "type": "string",
+            "value": "Авто-копирование включено, ежедневно"
+          },
+          "feature_settings_backup_auto_enabled_change_action": {
+            "type": "string",
+            "value": "Изменить"
+          },
+          "feature_settings_archive_exercise_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d упражнение",
+              "few": "%1$d упражнения",
+              "many": "%1$d упражнений",
+              "other": "%1$d упражнения"
+            }
+          },
+          "feature_settings_archive_training_count": {
+            "type": "plurals",
+            "value": {
+              "one": "%1$d тренировка",
+              "few": "%1$d тренировки",
+              "many": "%1$d тренировок",
+              "other": "%1$d тренировки"
+            }
+          }
+        }
+      },
+      "prefix": "feature_settings_",
+      "foreignPrefixes": []
+    }
+  },
+  "removedKeys": [
+    "core_ui_plan_editor_set_type_tooltip",
+    "core_ui_plan_editor_toast_set_removed",
+    "core_ui_plan_editor_type_change_weightless_body",
+    "core_ui_plan_editor_type_change_weightless_confirm",
+    "core_ui_plan_editor_type_change_weightless_impact",
+    "core_ui_plan_editor_type_change_weightless_title"
+  ],
+  "assetGroups": [
+    {
+      "directory": "feature/settings/src/androidHostTest/snapshots/images",
+      "files": {
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_dark.png": "12e5d7136b00f66ddf169ee1d883365c3b27f08836133e1791f7d24e9b17e8fa",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenAuthPaused_light.png": "e04199695c47af21c615eff07b910c5a1dc1503794eb15dca0002b0f756b1616",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_dark.png": "eeebfbe29fc31ab9172f9b3957ae72ace88dcb22ef1acd86c4b4b9d885040a0b",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayCompleted_light.png": "e35d72cce4509f60eb653f664734a73ff634fc9f1e2f3e4d9bc5a0974ae8cd0d",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_dark.png": "a21872011118c8571a0d897019d26a7fdc46e71eac16b58335a219b000b22581",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenRestoreOverlayRestoring_light.png": "dbe6dc45da258a1ef1359a35584009156f38a41e18441fe13dbd907225fa92a3",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_dark.png": "282c68e562fdd267f13332da15016b20958c7282dd0f3954e5218b565a4f49c3",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedIn_light.png": "fccc3193b1bcd9fd2c1855d019706b4a58c22dd6b2fdaea9b204786a0ec95242",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_dark.png": "c0ede387a8b5a9591320c5b4cbbb8bd8ea9b4965abec8db29c26592b0c043e75",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenSignedOut_light.png": "46f4e024fecdb56755994c26e78c548d34856c9345dbf4462ae3243090ae788d",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_dark.png": "f018807fe69d1895b9ab38e260eacfc8275fee8463b8f8db6e8c97ac0d3ab8e0",
+        "feature/settings/src/androidHostTest/snapshots/images/io.github.stslex.workeeper.feature.settings.golden_SettingsGoldenTest_screenThemeDark_light.png": "3533548ad1e5e7742b3f039081170207c56cff199f3b68325c6e2f16ced4ad35"
+      }
+    }
+  ]
+}

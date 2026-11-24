@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.lifecycle.viewModelScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
@@ -23,12 +24,15 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
 import io.github.stslex.workeeper.navigation.newTestBus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import platform.Foundation.NSUserDefaults
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -75,6 +79,7 @@ class AppRootIosTest {
         }
         try {
             onNodeWithTag("HomeGraph").assertIsDisplayed()
+            val rootModel = owner.rootModel()
             onNodeWithTag("WorkeeperBottomAppBar").assertIsDisplayed()
             listOf("Home", "Trainings", "Exercises").forEach {
                 onNodeWithContentDescription(it).assertIsDisplayed()
@@ -87,6 +92,7 @@ class AppRootIosTest {
             repeat(3) {
                 runOnIdle { revision.value++ }
                 waitForIdle()
+                assertSame(rootModel, owner.rootModel())
             }
             assertEquals(1, resolves)
             assertEquals(1, generations.admitted.size)
@@ -110,6 +116,7 @@ class AppRootIosTest {
         val generations = RootGenerations(firstOwner)
         val visible = mutableStateOf(true)
         val registry = SaveableStateRegistry(null) { true }
+        val rootScopes = mutableListOf<CoroutineScope>()
         setContent {
             CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
                 if (visible.value) App(generations, { fixture }, {})
@@ -117,6 +124,9 @@ class AppRootIosTest {
         }
         try {
             onNodeWithTag("HomeGraph").assertIsDisplayed()
+            val firstModel = firstOwner.rootModel()
+            rootScopes += firstModel.viewModelScope
+            assertTrue(firstModel.viewModelScope.isActive)
             runOnIdle { fixture.navigatorEventBus.navTo(Screen.ExerciseImage("file:///root-test.png")) }
             waitForIdle()
             onNodeWithTag("ImageViewerGraph").assertIsDisplayed()
@@ -127,10 +137,15 @@ class AppRootIosTest {
             runOnIdle { generations.appUiPhases.value = AppUiPhase.Generation(1, firstOwner) }
             waitForIdle()
             onNodeWithTag("ImageViewerGraph").assertIsDisplayed()
+            assertSame(firstModel, firstOwner.rootModel())
             runOnIdle { generations.appUiPhases.value = AppUiPhase.Generation(2, successorOwner) }
             waitForIdle()
             onNodeWithTag("HomeGraph").assertIsDisplayed()
             onNodeWithTag("ImageViewerGraph").assertDoesNotExist()
+            val successorModel = successorOwner.rootModel()
+            assertNotSame(firstModel, successorModel)
+            rootScopes += successorModel.viewModelScope
+            assertTrue(rootScopes.all { it.isActive })
             runOnIdle {
                 val slots = registry.performSave().values.flatten().filterIsInstance<Map<*, *>>()
                     .single { 2 in it }
@@ -145,6 +160,7 @@ class AppRootIosTest {
                 firstOwner.viewModelStore.clear()
                 successorOwner.viewModelStore.clear()
             }
+            assertTrue(rootScopes.none { it.isActive }, "Clearing generation owners ends their root ViewModel scopes")
             runBlocking { fixture.close() }
         }
     }
@@ -275,4 +291,10 @@ class AppRootIosTest {
         NSUserDefaults.standardUserDefaults.setObject(listOf("en"), forKey = "AppleLanguages")
         NSUserDefaults.standardUserDefaults.setObject("en_US", forKey = "AppleLocale")
     }
+}
+
+private fun RootOwner.rootModel(): AppRootViewModel {
+    val roots = viewModelStore.keys().mapNotNull { viewModelStore[it] as? AppRootViewModel }
+    assertEquals(1, roots.size, "The supplied generation owner retains one AppRootViewModel")
+    return roots.single()
 }

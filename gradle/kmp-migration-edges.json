@@ -1,0 +1,242 @@
+{
+  "app:common": {
+    "required": {
+      "androidHostTestImplementation": ["io.mockk:mockk-agent", "io.mockk:mockk-android"],
+      "commonMainApi": [":core:core", ":core:data:dataStore", ":core:ui:navigation", ":feature:all-exercises", ":feature:all-trainings", ":feature:app-dialogs:impl", ":feature:archive", ":feature:exercise", ":feature:exercise-chart", ":feature:home", ":feature:image-viewer", ":feature:live-workout", ":feature:past-session", ":feature:plan-editor", ":feature:settings", ":feature:single-training", "androidx.lifecycle:lifecycle-viewmodel", "org.jetbrains.compose.components:components-resources", "org.jetbrains.compose.runtime:runtime", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:ui:kit", ":core:ui:mvi", "androidx.lifecycle:lifecycle-viewmodel-compose", "androidx.lifecycle:lifecycle-viewmodel-navigation3", "org.jetbrains.androidx.navigation3:navigation3-ui", "org.jetbrains.compose.animation:animation"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": [":core:data:backup:api", ":core:data:exercise", "org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "*": [":feature:recovery"]
+    }
+  },
+  "app:ios": {
+    "required": {
+      "iosMainApi": [":app:common", ":core:core", ":core:data:backup:api", ":core:data:database"],
+      "iosMainImplementation": [":core:data:dataStore", ":core:data:exercise", ":core:ui:kit", ":core:ui:mvi"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"]
+    },
+    "forbidden": {}
+  },
+  "core:data:database": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "androidHostTestImplementation": ["androidx.room3:room3-testing", "androidx.sqlite:sqlite-framework", "androidx.test:core-ktx", "org.robolectric:robolectric", "tech.apter.junit5.jupiter:robolectric-extension"],
+      "androidMainImplementation": [":core:data:backup:api"],
+      "commonMainImplementation": [":core:core", "org.jetbrains.kotlinx:kotlinx-serialization-json"],
+      "iosMainImplementation": ["androidx.sqlite:sqlite-bundled"],
+      "iosTestImplementation": ["androidx.room3:room3-testing", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "core:ui:kit": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test:core-ktx", "org.robolectric:robolectric", "tech.apter.junit5.jupiter:robolectric-extension"],
+      "androidMainImplementation": ["androidx.activity:activity-compose", "androidx.core:core-ktx", "javax.inject:javax.inject"],
+      "commonMainApi": ["org.jetbrains.compose.components:components-resources"],
+      "commonMainImplementation": [":core:core", ":core:ui:design-tokens", "androidx.paging:paging-compose", "dev.chrisbanes.haze:haze", "dev.chrisbanes.haze:haze-materials", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-core", "org.jetbrains.compose.material:material-icons-extended", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "core:ui:mvi": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": ["androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test:core-ktx", "io.mockk:mockk-agent", "io.mockk:mockk-android", "org.jetbrains.kotlin:kotlin-reflect", "org.robolectric:robolectric", "tech.apter.junit5.jupiter:robolectric-extension"],
+      "androidMainImplementation": ["androidx.activity:activity-compose", "com.google.firebase:firebase-perf", "javax.inject:javax.inject", "platform:com.google.firebase:firebase-bom"],
+      "commonMainApi": [":core:core", ":core:ui:navigation", "androidx.lifecycle:lifecycle-runtime", "androidx.lifecycle:lifecycle-runtime-compose", "androidx.lifecycle:lifecycle-viewmodel", "androidx.lifecycle:lifecycle-viewmodel-compose", "org.jetbrains.compose.runtime:runtime", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "commonMain": ["com.google.firebase:firebase-perf", "com.google.firebase:firebase-bom", "javax.inject:javax.inject"]
+    }
+  },
+  "core:ui:navigation": {
+    "required": {
+      "androidHostTestImplementation": ["org.jetbrains.kotlin:kotlin-reflect", "org.jetbrains.kotlinx:kotlinx-serialization-json"],
+      "commonMainApi": ["androidx.navigation3:navigation3-runtime", "androidx.savedstate:savedstate", "org.jetbrains.kotlinx:kotlinx-coroutines-core", "org.jetbrains.kotlinx:kotlinx-serialization-core"],
+      "iosTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-serialization-json"]
+    },
+    "forbidden": {}
+  },
+  "core:ui:plan-editor": {
+    "required": {
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:kit", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-serialization-core"],
+      "commonMainImplementation": ["org.jetbrains.compose.material:material-icons-core"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "core:ui:start-mode": {
+    "required": {
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainImplementation": [":core:ui:kit"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:all-exercises": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", "androidx.paging:paging-common", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:exercise", "androidx.paging:paging-compose", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-core"],
+      "commonTestImplementation": [":core:data:database", "org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:all-trainings": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", "androidx.paging:paging-common", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:exercise", "androidx.paging:paging-compose", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-core"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:app-dialogs:api": {
+    "required": {
+      "commonMainImplementation": [":core:data:backup:api", "org.jetbrains.kotlinx:kotlinx-coroutines-core"]
+    },
+    "forbidden": {}
+  },
+  "feature:app-dialogs:impl": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "commonMainApi": [":core:data:backup:api", ":core:data:dataStore", ":core:ui:mvi", ":feature:app-dialogs:api", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:ui:kit", "androidx.datastore:datastore-core", "androidx.datastore:datastore-preferences-core"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:archive": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", "androidx.paging:paging-common", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:exercise", "androidx.paging:paging-compose", "org.jetbrains.compose.material:material-icons-extended", "org.jetbrains.kotlinx:kotlinx-collections-immutable"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:exercise": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:core", ":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:data:database", ":core:data:exercise", "io.coil-kt.coil3:coil-compose", "org.jetbrains.compose.animation:animation"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "*": [":core:data:database-test"]
+    }
+  },
+  "feature:exercise-chart": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:data:database-test", ":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core", "org.jetbrains.kotlinx:kotlinx-datetime"],
+      "commonMainImplementation": [":core:core", ":core:data:exercise", ":core:ui:kit", "org.jetbrains.compose.animation:animation"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "*": [":core:data:database"]
+    }
+  },
+  "feature:home": {
+    "required": {
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", ":core:ui:start-mode", "androidx.paging:paging-common", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core", "org.jetbrains.kotlinx:kotlinx-datetime"],
+      "commonMainImplementation": [":core:core", ":core:data:dataStore", ":core:data:exercise", "androidx.paging:paging-compose", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-extended"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:image-viewer": {
+    "required": {
+      "commonMainApi": [":core:ui:mvi", ":core:ui:navigation", "org.jetbrains.compose.ui:ui"],
+      "commonMainImplementation": [":core:core", ":core:ui:kit", "io.coil-kt.coil3:coil-compose", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-extended"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:live-workout": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:data:database-test", ":core:ui:golden-harness"],
+      "commonMainApi": [":core:data:exercise", ":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:database", ":core:ui:kit", "org.jetbrains.compose.animation:animation"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:past-session": {
+    "required": {
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:exercise", ":core:ui:kit", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-extended"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:plan-editor": {
+    "required": {
+      "commonMainApi": [":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable"],
+      "commonMainImplementation": [":core:core", ":core:data:database", ":core:data:exercise", ":core:ui:kit"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {}
+  },
+  "feature:settings": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test:core-ktx", "io.mockk:mockk-agent", "io.mockk:mockk-android", "org.robolectric:robolectric", "platform:androidx.compose:compose-bom-alpha", "tech.apter.junit5.jupiter:robolectric-extension"],
+      "androidMainImplementation": [":core:data:backup:api", ":core:data:database", ":feature:app-dialogs:api", "androidx.activity:activity-compose"],
+      "commonMainApi": [":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", ":core:ui:start-mode", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:dataStore", ":core:data:exercise", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-extended", "org.jetbrains.kotlinx:kotlinx-collections-immutable"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "commonMain": ["com.google.firebase:firebase-perf", "com.google.firebase:firebase-bom", "javax.inject:javax.inject"]
+    }
+  },
+  "feature:single-training": {
+    "required": {
+      "androidDeviceTestImplementation": [":core:ui:test-utils", "androidx.compose.ui:ui-test-junit4", "androidx.compose.ui:ui-test-manifest", "androidx.test.espresso:espresso-core", "androidx.test.ext:junit", "androidx.test:runner", "platform:androidx.compose:compose-bom-alpha"],
+      "androidHostTestImplementation": [":core:ui:golden-harness"],
+      "commonMainApi": [":core:data:exercise", ":core:ui:kit", ":core:ui:mvi", ":core:ui:navigation", ":core:ui:plan-editor", "org.jetbrains.compose.ui:ui", "org.jetbrains.kotlinx:kotlinx-collections-immutable", "org.jetbrains.kotlinx:kotlinx-coroutines-core"],
+      "commonMainImplementation": [":core:core", ":core:data:database", "org.jetbrains.compose.animation:animation", "org.jetbrains.compose.material:material-icons-extended"],
+      "commonTestImplementation": ["org.jetbrains.kotlin:kotlin-test", "org.jetbrains.kotlinx:kotlinx-coroutines-test"],
+      "iosTestImplementation": ["org.jetbrains.compose.ui:ui-test", "org.jetbrains.kotlin:kotlin-test"]
+    },
+    "forbidden": {
+      "*": [":core:data:database-test"]
+    }
+  },
+  "app:app": {
+    "required": {
+      "api": [":feature:app-dialogs:api", ":feature:app-dialogs:impl", ":feature:recovery", ":feature:wear-bridge"],
+      "implementation": [":feature:all-exercises", ":feature:all-trainings", ":feature:archive", ":feature:exercise", ":feature:exercise-chart", ":feature:home", ":feature:image-viewer", ":feature:live-workout", ":feature:past-session", ":feature:plan-editor", ":feature:settings", ":feature:single-training"]
+    },
+    "forbidden": {"*": [":app:ios"]}
+  }
+}

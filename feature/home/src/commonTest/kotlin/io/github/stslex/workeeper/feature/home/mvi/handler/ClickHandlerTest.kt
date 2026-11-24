@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
 import io.github.stslex.workeeper.feature.home.resources.Res
 import io.github.stslex.workeeper.feature.home.resources.feature_home_conflict_progress_format
+import io.github.stslex.workeeper.feature.home.resources.feature_home_conflict_unnamed
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -251,19 +252,19 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnPickerTrainingSelected reports the persisted active session progress`() = runTest {
-        val flow = MutableStateFlow(baseState)
-        val store = newStoreWithFlow(flow)
-        val handler = ClickHandler(
-            interactor = interactor,
-            resourceWrapper = resources,
-            stringResolver = strings,
-            store = store,
-        )
-
-        handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
-        store.runLaunches(this)
-
-        assertEquals("1 of 2 exercises done", flow.value.pendingConflict?.progressLabel)
+        for (name in listOf("Push Day", null, "  ")) {
+            val flow = MutableStateFlow(baseState)
+            val store = newStoreWithFlow(flow)
+            interactor.trainingName = name
+            val handler = ClickHandler(interactor, resources, strings, store)
+            handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
+            store.runLaunches(this)
+            assertEquals("localized-progress:1/2", flow.value.pendingConflict?.progressLabel)
+            assertEquals(
+                name?.takeIf { it.isNotBlank() } ?: "localized-unnamed",
+                flow.value.pendingConflict?.activeSessionName,
+            )
+        }
     }
 
     /** The card sends one action carrying nothing, so this uuid came from the body in state. */
@@ -494,6 +495,7 @@ internal class ClickHandlerTest {
      */
     private class RecordingHomeInteractor : HomeInteractor {
 
+        var trainingName: String? = "Push Day"
         val setModes = mutableListOf<StartCardModeDomain>()
         val recentTrainingLimits = mutableListOf<Int>()
 
@@ -517,9 +519,9 @@ internal class ClickHandlerTest {
                 else -> error("unexpected requested training $requestedTrainingUuid")
             }
 
-        override suspend fun getTrainingName(trainingUuid: String): String {
+        override suspend fun getTrainingName(trainingUuid: String): String? {
             check(trainingUuid == "active-training") { "unexpected training $trainingUuid" }
-            return "Push Day"
+            return trainingName
         }
 
         override fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItemDomain>> {
@@ -559,10 +561,6 @@ internal class ClickHandlerTest {
         override fun formatDayMonth(timestamp: Long): Nothing = error("Not used on this screen")
     }
 
-    /**
-     * The strict resolver: today's stub for the conflict progress, and only with the two arguments
-     * production passes. Any other resource or argument shape throws.
-     */
     private class ClickHandlerStringResolver : StringResolver {
 
         override suspend fun getString(resource: StringResource, vararg formatArgs: Any): String =
@@ -571,9 +569,13 @@ internal class ClickHandlerTest {
                     check(formatArgs.toList() == listOf(1, 2)) {
                         "conflict_progress_format takes exactly (done, total); got ${formatArgs.toList()}"
                     }
-                    "1 of 2 exercises done"
+                    "localized-progress:1/2"
                 }
 
+                Res.string.feature_home_conflict_unnamed -> {
+                    check(formatArgs.isEmpty())
+                    "localized-unnamed"
+                }
                 else -> error("no ClickHandler identity reads $resource")
             }
 

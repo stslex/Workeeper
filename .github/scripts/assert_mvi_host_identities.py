@@ -28,6 +28,7 @@ EXPECTED = [
     {
         "module": "core:ui:mvi (androidHostTest)",
         "results_dir": "core/ui/mvi/build/test-results/testAndroidHostTest",
+        "freshness_marker": "build/kmp-verification/mvi-host-test-start",
         "identities": [
             # Generation join.
             host(

@@ -203,6 +203,17 @@ class IosInstallEpochSourceTest {
                 { NSURL.fileURLWithPath(sandbox.root, true) },
                 verifyExcluded = { error("lookup fixture") },
             ),
+            IosInstallEpochSource(
+                { NSURL.fileURLWithPath(sandbox.root, true) },
+                markExcluded = { directory ->
+                    assertTrue(
+                        NSURL.fileURLWithPath(
+                            directory,
+                            true,
+                        ).setResourceValue(false, NSURLIsExcludedFromBackupKey, null),
+                    )
+                },
+            ),
         )) {
             val before = readText(sandbox.file)
             assertFails { source.installEpoch() }
