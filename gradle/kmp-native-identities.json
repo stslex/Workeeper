@@ -744,6 +744,7 @@
       "OnRemoveImageClick stages a RemoveExisting pending image",
       "saving an image removal clears the persisted path before deleting the old file",
       "a rejected image removal keeps the attachment file and the staged draft",
+      "rejectedImageReplacementDiscardsOnlyPrivateCandidate",
       "cancelling an image removal restores the attachment without deleting its file",
       "OnImageSourceDialogDismiss hides the source dialog",
       "OnPermissionDeniedDialogDismiss hides the permission dialog",

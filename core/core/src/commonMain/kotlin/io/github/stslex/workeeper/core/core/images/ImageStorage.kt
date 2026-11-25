@@ -9,7 +9,7 @@ interface ImageStorage {
     fun resolvePath(path: String): String? = path
 
     /**
-     * Downsamples [sourceRef] and writes it atomically as JPEG to the exercise's canonical path.
+     * Downsamples [sourceRef] and writes it atomically as JPEG. The returned path is stored with the exercise.
      * Never throws; the caller must delete the exercise's previous path itself.
      */
     suspend fun saveImage(sourceRef: ImageRef, exerciseUuid: String): ImageSaveResult

@@ -1,5 +1,7 @@
 """Validate installed-app XCTest evidence on the producer and aggregate."""
+import json
 import re
+import subprocess
 
 HOST = "WorkeeperTests/HostWindowTests/testSharedRootIsAttachedToKeyWindow"
 PERSISTENCE = "WorkeeperUITests/TrainingPersistenceTests/testTemplateSurvivesProcessRelaunch"
@@ -72,8 +74,19 @@ def validate_embed(log):
     return executed(log)
 
 
+def replay_bundle(folder, bundle_name):
+    bundle = folder / bundle_name
+    results = []
+    for view in ("summary", "tests"):
+        raw = subprocess.check_output(["xcrun", "xcresulttool", "get", "test-results", view, "--path", str(bundle)])
+        decoded = json.loads(raw)
+        require(decoded == json.loads((folder / f"{view}.json").read_text()),
+                f"{folder.name}: archived {view} differs from {bundle_name}")
+        results.append(decoded)
+    return results
+
+
 def validate_archive_contents(root, receipt):
-    import json
 
     def read(path):
         return json.loads(path.read_text())
@@ -91,31 +104,27 @@ def validate_archive_contents(root, receipt):
         runs.add(udid)
         require(details["exit"] == (65 if failure else 0) and details["scheme"] == "Workeeper" and
                 details["bundle_id"] == "io.github.stslex.workeeper.dev", "wrong app execution")
-        summary = read(folder / "summary.json")
+        summary, hierarchy = replay_bundle(folder, "Workeeper.xcresult")
         require(previous_end <= summary["startTime"] < summary["finishTime"], "stale or out-of-order test run")
         previous_end = summary["finishTime"]
         simulator = summary["devicesAndConfigurations"][0]["device"]
         require(simulator["osVersion"] == details["device"]["version"] and
                 simulator["osBuildNumber"] == details["device"]["build"], "simulator runtime differs from XCTest")
-        actual = validate(summary, read(folder / "tests.json"), udid, failure)
+        actual = validate(summary, hierarchy, udid, failure)
         require(actual == details["identities"], "identity receipt differs")
         build = (folder / "build.log").read_text()
         require(validate_embed(build) == details["summary"],
                 "installed app embed did not execute")
-        bundle = folder / "Workeeper.xcresult"
-        require((bundle / "Info.plist").is_file() and any((bundle / "Data").glob("data.*")), "incomplete xcresult")
         testlog = (folder / "test.log").read_text()
         if role == "process":
             require("Initial unique template row saved" in testlog, "per-process control failed before relaunch")
         if role == "positive":
             require(receipt["summary"] == details["summary"], "aggregate build count differs")
             recovery = folder / "recovery"
-            result = read(recovery / "summary.json")
+            result, recovery_tests = replay_bundle(recovery, "Recovery.xcresult")
             require(result["startTime"] >= summary["finishTime"], "stale recovery run")
-            require(validate(result, read(recovery / "tests.json"), udid, required={RECOVERY}) ==
+            require(validate(result, recovery_tests, udid, required={RECOVERY}) ==
                     {RECOVERY: "Passed"}, "unexpected recovery identities")
-            require((recovery / "Recovery.xcresult/Info.plist").is_file() and
-                    any((recovery / "Recovery.xcresult/Data").glob("data.*")), "incomplete recovery xcresult")
             sentinel = read(folder / "sentinel.json")
             require(sentinel["version"] == 87008 and sentinel["device"] == udid and sentinel["sentinel"],
                     "missing unsupported database evidence")

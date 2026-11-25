@@ -69,9 +69,13 @@ extension HostWindowTests {
         let image = try XCTUnwrap(UIImage(data: bytes)?.cgImage)
         XCTAssertEqual(image.width, 640)
         XCTAssertEqual(image.height, 1280)
-        let old = "/private/var/mobile/Containers/Data/Application/\(UUID())/Library/Application Support/WorkeeperMedia/exercise_images/\(uuid).jpg"
+        let old = "/private/var/mobile/Containers/Data/Application/\(UUID())/Library/Application Support/WorkeeperMedia/exercise_images/\(saved.lastPathComponent)"
         XCTAssertEqual(files.resolved(old)?.standardizedFileURL, saved.standardizedFileURL)
         XCTAssertNil(files.resolved("/tmp/\(uuid).jpg"))
+        let candidate = try XCTUnwrap(files.save(source: source.path, uuid: uuid, maxEdge: 1280, quality: 85).path)
+        XCTAssertNotEqual(candidate, saved.path)
+        try FileManager.default.removeItem(atPath: candidate)
+        XCTAssertEqual(try Data(contentsOf: saved), bytes)
         let fullDisk = ExerciseImageFiles(support: support) { _, _ in throw CocoaError(.fileWriteOutOfSpace) }
         XCTAssertTrue(fullDisk.save(source: source.path, uuid: uuid, maxEdge: 1280, quality: 85).outOfSpace)
         XCTAssertEqual(try Data(contentsOf: saved), bytes)
@@ -99,19 +103,30 @@ private final class MediaOutcome: NSObject, AppleMediaRequest {
 
 extension HostWindowTests {
     @MainActor
-    func testUnavailableCameraAndRetiredPresenterFinishOnce() throws {
+    func testUnavailableCameraAndRetiredPresenterFinishOnce() async throws {
         let app = try XCTUnwrap(UIApplication.shared.delegate as? AppDelegate)
         let root = try XCTUnwrap(app.media.presenter)
         var checks = 0
-        let media = AppleMedia {
+        var pendingAuthorization: ((Bool) -> Void)?
+        let media = AppleMedia(requestVideoAccess: { pendingAuthorization = $0 }, cameraAvailable: {
             checks += 1
             return false
-        }
+        })
         media.presenter = root
         let unavailable = MediaOutcome()
         media.camera(target: media.capturePath(), request: unavailable)
         XCTAssertEqual(checks, 1)
         XCTAssertEqual(unavailable.outcomes, ["cancelled"])
+
+        let authorization = MediaOutcome()
+        media.permission(request: authorization)
+        let answer = try XCTUnwrap(pendingAuthorization)
+        media.presenter = nil
+        answer(true)
+        // Drain the queued AVFoundation reply before counting terminal callbacks.
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        XCTAssertEqual(authorization.outcomes, ["denied"])
+        media.presenter = root
 
         let active = MediaOutcome()
         media.gallery(request: active)

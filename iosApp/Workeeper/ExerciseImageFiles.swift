@@ -66,7 +66,8 @@ final class ExerciseImageFiles {
         guard CGImageDestinationFinalize(jpeg) else {
             return AppleImageWrite(path: nil, outOfSpace: false, unreadable: false)
         }
-        let target = directory.appendingPathComponent(uuid + ".jpg")
+        // Room still points at the previous image until it accepts this edit.
+        let target = directory.appendingPathComponent(UUID().uuidString + ".jpg")
         do {
             try replace(encoded as Data, target)
             return AppleImageWrite(path: target.path, outOfSpace: false, unreadable: false)

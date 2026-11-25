@@ -10,7 +10,7 @@ final class AppleMedia: NSObject, AppleMediaServices {
         didSet {
             if oldValue !== presenter, let pending {
                 pending.controller?.dismiss(animated: false)
-                pending.finish { $0.cancelled() }
+                pending.cancel()
             }
         }
     }
@@ -18,7 +18,12 @@ final class AppleMedia: NSObject, AppleMediaServices {
     private var pending: Acquisition?
     private let cameraAvailable: () -> Bool
 
-    init(cameraAvailable: @escaping () -> Bool = { UIImagePickerController.isSourceTypeAvailable(.camera) }) {
+    private let requestVideoAccess: (@escaping (Bool) -> Void) -> Void
+
+    init(requestVideoAccess: @escaping (@escaping (Bool) -> Void) -> Void = { reply in
+             AVCaptureDevice.requestAccess(for: .video) { reply($0) }
+         }, cameraAvailable: @escaping () -> Bool = { UIImagePickerController.isSourceTypeAvailable(.camera) }) {
+        self.requestVideoAccess = requestVideoAccess
         self.cameraAvailable = cameraAvailable
         super.init()
     }
@@ -47,15 +52,15 @@ final class AppleMedia: NSObject, AppleMediaServices {
 
     func cleanTemps() { files.cleanTemps() }
 
-    private func begin(_ request: AppleMediaRequest, permission: Bool = false) -> Acquisition? {
+    private func begin(_ request: AppleMediaRequest, onCancel: @escaping (AppleMediaRequest) -> Void = { $0.cancelled() }) -> Acquisition? {
         dispatchPrecondition(condition: .onQueue(.main))
         if let pending, pending.request === request { return nil }
         guard pending == nil, let root = presenter, root.viewIfLoaded?.window?.windowScene?.activationState == .foregroundActive,
               root.presentedViewController == nil else {
-            if permission { request.permissionResult(granted: false) } else { request.cancelled() }
+            onCancel(request)
             return nil
         }
-        let session = Acquisition(owner: self, request: request)
+        let session = Acquisition(owner: self, request: request, onCancel: onCancel)
         pending = session
         return session
     }
@@ -86,8 +91,8 @@ final class AppleMedia: NSObject, AppleMediaServices {
     }
 
     func permission(request: AppleMediaRequest) {
-        guard let session = begin(request, permission: true) else { return }
-        AVCaptureDevice.requestAccess(for: .video) { granted in
+        guard let session = begin(request, onCancel: { $0.permissionResult(granted: false) }) else { return }
+        requestVideoAccess { granted in
             DispatchQueue.main.async { session.finish { $0.permissionResult(granted: granted) } }
         }
     }
@@ -111,10 +116,15 @@ final class AppleMedia: NSObject, AppleMediaServices {
         weak var controller: UIViewController?
         var target: URL?
 
-        init(owner: AppleMedia, request: AppleMediaRequest) {
+        private let onCancel: (AppleMediaRequest) -> Void
+
+        init(owner: AppleMedia, request: AppleMediaRequest, onCancel: @escaping (AppleMediaRequest) -> Void) {
+            self.onCancel = onCancel
             self.owner = owner
             self.request = request
         }
+
+        func cancel() { finish(onCancel) }
 
         func present(_ controller: UIViewController) {
             self.controller = controller

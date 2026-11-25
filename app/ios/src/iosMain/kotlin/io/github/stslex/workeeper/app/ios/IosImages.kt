@@ -41,7 +41,7 @@ internal class IosImages(private val services: AppleMediaServices) : ImageStorag
     ): ImageSaveResult = withContext(Dispatchers.IO) {
         val write = services.save(sourceRef.value, exerciseUuid, ImageStorage.MAX_EDGE, ImageStorage.QUALITY)
         when {
-            write.path != null -> ImageSaveResult.Success(write.path)
+            write.path != null -> ImageSaveResult.Success(write.path, discardOnRejection = true)
             write.outOfSpace -> ImageSaveResult.Failure(ImageSaveError.OutOfSpace)
             write.unreadable -> ImageSaveResult.Failure(ImageSaveError.SourceUnreadable)
             else -> ImageSaveResult.Failure(ImageSaveError.IoFailure)

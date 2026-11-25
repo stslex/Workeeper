@@ -1,6 +1,11 @@
 import copy
+import json
+from pathlib import Path
+import subprocess
+from tempfile import TemporaryDirectory
 import unittest
-from ios_app_results import HOST, PERSISTENCE, REQUIRED, validate, validate_embed
+from unittest.mock import patch
+from ios_app_results import HOST, PERSISTENCE, REQUIRED, replay_bundle, validate, validate_embed
 
 
 class InstalledAppEvidenceTest(unittest.TestCase):
@@ -28,6 +33,28 @@ class InstalledAppEvidenceTest(unittest.TestCase):
             case["nodeIdentifierURL"] += "Renamed"
             with self.assertRaises(ValueError):
                 validate(self.summary, altered, self.udid)
+
+    def test_aggregate_replays_each_raw_bundle_and_rejects_swapped_or_unreadable_results(self):
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for view, data in (("summary", self.summary), ("tests", self.nodes)):
+                (folder / f"{view}.json").write_text(json.dumps(data))
+            bundle = "Recovery.xcresult"
+            with patch("ios_app_results.subprocess.check_output") as extract:
+                extract.side_effect = [json.dumps(self.summary), json.dumps(self.nodes)]
+                self.assertEqual(replay_bundle(folder, bundle), [self.summary, self.nodes])
+                for view, call in zip(("summary", "tests"), extract.call_args_list):
+                    self.assertEqual(call.args[0], ["xcrun", "xcresulttool", "get", "test-results", view,
+                                                     "--path", str(folder / bundle)])
+                extract.side_effect = [json.dumps(dict(self.summary, result="Failed"))]
+                with self.assertRaisesRegex(ValueError, "archived summary differs"):
+                    replay_bundle(folder, bundle)
+                extract.side_effect = [json.dumps(self.summary), json.dumps(dict(self.nodes, testNodes=[]))]
+                with self.assertRaisesRegex(ValueError, "archived tests differs"):
+                    replay_bundle(folder, bundle)
+                extract.side_effect = subprocess.CalledProcessError(1, "xcresulttool")
+                with self.assertRaises(subprocess.CalledProcessError):
+                    replay_bundle(folder, bundle)
 
     def test_static_embed_requires_executed_link_assembly_resources_and_all_flags(self):
         log = ("Workeeper Gradle :app:ios:embedAndSignAppleFrameworkForXcode --rerun-tasks --no-build-cache "
