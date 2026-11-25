@@ -11,7 +11,9 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from ios_app_results import HOST, PERSISTENCE, RECOVERY, executed, require, validate, validate_embed
+from ios_app_results import (
+    APP_RUNS, HOST, PERSISTENCE, RECOVERY, empty_xcresult_payloads, executed, require, validate, validate_embed,
+)
 from ios_app_test_photo import write_photo
 from kmp_native_evidence import ROOT, command, inventory, owned_simulator_runtime, provenance
 from kmp_native_model import load_model
@@ -214,12 +216,13 @@ def main():
         scripts = command("git", "ls-files", "--", ":(glob)**/build.gradle.kts").splitlines()
         build_dirs.update(Path(script).parent / "build" for script in scripts if "/" in script)
         build_dirs = sorted(build_dirs)
-        for role in ("entry", "empty", "process", "positive"):
+        for role in APP_RUNS:
             with separate_builds(root / (role + "-gradle"), build_dirs):
                 exercise(role, runtime, root)
             require(subprocess.check_output(["git", "diff", "--binary", "HEAD"]) == initial, "source tree changed")
     paths = [p for p in APP.rglob("*") if p.is_file()] + [ROOT / "app-provenance.json", Path("gradle/kmp-native-identities.json")]
-    receipt = {"role": "app", "valid": True, "provenance": prod, "files": inventory(paths),
+    receipt = {"role": "app", "valid": True, "provenance": prod,
+               "files": inventory(paths, allowed_empty=empty_xcresult_payloads(APP)),
                "summary": executed((APP / "positive/build.log").read_text())}
     (ROOT / "app-receipt.json").write_text(json.dumps(receipt, indent=2))
 

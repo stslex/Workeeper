@@ -302,9 +302,17 @@ class NativeArchiveTest(unittest.TestCase):
             'gradle/kmp-native-identities.json': self.files['gradle/kmp-native-identities.json'],
             'build/kmp-verification/app-provenance.json': encoded(source),
         }
+        from ios_app_results import empty_xcresult_payloads
+        for payload in empty_xcresult_payloads(Path('build/kmp-verification/installed')):
+            self.files[payload.as_posix()] = b''
         with patch('ios_app_results.validate_archive_contents') as replay:
             self.assertEqual(self.verify()['provenance']['attempt'], 1)
             replay.assert_called_once()
+            report = 'build/kmp-verification/installed/positive/summary.json'
+            self.files[report] = b''
+            with self.assertRaisesRegex(ValueError, 'empty required evidence'):
+                self.verify()
+            del self.files[report]
             for field in ('source_sha', 'source_tree', 'workflow_sha', 'run_id', 'attempt'):
                 with self.subTest(field=field):
                     original = source[field]

@@ -1,4 +1,6 @@
 """Validate installed-app XCTest evidence on the producer and aggregate."""
+import base64
+import hashlib
 import json
 import re
 import subprocess
@@ -16,6 +18,16 @@ REQUIRED = {
     "WorkeeperTests/HostWindowTests/testImageReplacementAndSandboxRelocation",
     "WorkeeperTests/HostWindowTests/testUnavailableCameraAndRetiredPresenterFinishOnce",
 }
+
+APP_RUNS = ("entry", "empty", "process", "positive")
+
+
+def empty_xcresult_payloads(root):
+    # Xcode 26.6 keeps the empty payload as a zero-byte, content-addressed Data object.
+    name = "data.0~" + base64.urlsafe_b64encode(hashlib.blake2b(b"").digest()).decode("ascii")
+    bundles = [root / role / "Workeeper.xcresult" for role in APP_RUNS]
+    bundles.append(root / "positive/recovery/Recovery.xcresult")
+    return {bundle / "Data" / name for bundle in bundles}
 
 
 def require(condition, message):

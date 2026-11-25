@@ -204,13 +204,18 @@ def evidence_paths(role, rows):
     return paths
 
 
-def inventory(paths):
+def require_evidence_size(path, size, allowed_empty):
+    require(size > 0 or path in allowed_empty, f"empty required evidence: {path}")
+
+
+def inventory(paths, *, allowed_empty=(SIMULATOR_START, DEVICE_START)):
     result = []
     for path in paths:
         require(not path.is_symlink() and path.is_file(), f"required evidence is absent or linked: {path}")
-        require(path.stat().st_size > 0 or path in (SIMULATOR_START, DEVICE_START), f"empty required evidence: {path}")
-        result.append({"path": path.as_posix(), "size": path.stat().st_size,
-                       "mtime_ns": path.stat().st_mtime_ns, "sha256": digest(path)})
+        info = path.stat()
+        require_evidence_size(path, info.st_size, allowed_empty)
+        result.append({"path": path.as_posix(), "size": info.st_size,
+                       "mtime_ns": info.st_mtime_ns, "sha256": digest(path)})
     require(len({row["path"] for row in result}) == len(result), "duplicate evidence path")
     return result
 
@@ -304,8 +309,12 @@ def validate_contents(receipt, source_workflow_digest, identities_digest):
     require(source["source_workflow_sha256"] == source_workflow_digest, "source workflow differs")
     require(read_json(ROOT / f"{role}-provenance.json") == source, "provenance files differ")
     if role == "app":
-        from ios_app_results import validate_archive_contents
-        validate_archive_contents(ROOT / "installed", receipt)
+        from ios_app_results import empty_xcresult_payloads, validate_archive_contents
+        installed = ROOT / "installed"
+        allowed = empty_xcresult_payloads(installed)
+        for row in receipt["files"]:
+            require_evidence_size(Path(row["path"]), row["size"], allowed)
+        validate_archive_contents(installed, receipt)
         return
     rows = load_model()
     expected_paths = {path.as_posix() for path in evidence_paths(role, rows)}

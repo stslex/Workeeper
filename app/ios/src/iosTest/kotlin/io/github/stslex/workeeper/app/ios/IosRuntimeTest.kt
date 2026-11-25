@@ -3,7 +3,6 @@
 
 package io.github.stslex.workeeper.app.ios
 
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -111,27 +110,31 @@ class IosRuntimeTest {
     }
 
     @Test
-    fun navigationOpensDatabaseIndependentRecovery() = runComposeUiTest {
+    fun navigationOpensDatabaseIndependentRecovery() {
         val fixture = IosGraphFixture()
         val runtime = IosRuntime(StartupImages, { false }, { fixture.database })
-        val visible = mutableStateOf(true)
-        runtime.start()
         try {
-            runtime.awaitGeneration()
-            setContent { if (visible.value) WorkeeperRoot(runtime) }
-            onNodeWithTag("HomeGraph").assertIsDisplayed()
-            runOnIdle { (runtime.resolve() as IosAppGraph).navigator.openRecovery() }
-            waitForIdle()
-            onNodeWithText("Workeeper recovery").assertIsDisplayed()
-            onNodeWithText("Retry").assertIsDisplayed()
-            onNodeWithTag("HomeGraph").assertDoesNotExist()
-            assertNull(runtime.currentId())
+            // Room opens on IO and publishes on the Darwin main run loop.
+            onMain {
+                runtime.start()
+                runtime.awaitGeneration()
+            }
+            runComposeUiTest {
+                setContent { WorkeeperRoot(runtime) }
+                onNodeWithTag("HomeGraph").assertIsDisplayed()
+                runOnIdle { (runtime.resolve() as IosAppGraph).navigator.openRecovery() }
+                waitForIdle()
+                onNodeWithText("Workeeper recovery").assertIsDisplayed()
+                onNodeWithText("Retry").assertIsDisplayed()
+                onNodeWithTag("HomeGraph").assertDoesNotExist()
+                assertNull(runtime.currentId())
+            }
         } finally {
-            runOnIdle { visible.value = false }
-            waitForIdle()
-            runtime.dispose().join()
-            assertTrue(runtime.isDisposed)
-            fixture.close(databaseAlreadyClosed = true)
+            onMain {
+                runtime.dispose().join()
+                assertTrue(runtime.isDisposed)
+                fixture.close(databaseAlreadyClosed = true)
+            }
         }
     }
 
