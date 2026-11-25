@@ -1268,6 +1268,10 @@
     ]
   },
   "app:ios": {
+    "io.github.stslex.workeeper.app.ios.IosRuntimeTest": [
+      "refreshDrainsExactUiAndDatabaseUsersBeforePublishing",
+      "navigationOpensDatabaseIndependentRecovery"
+    ],
     "io.github.stslex.workeeper.app.ios.IosAppGraphTest": [
       "qualifiedDispatchersReachProductionConsumers",
       "allThirteenFactoriesConstructRealStores",

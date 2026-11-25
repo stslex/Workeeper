@@ -72,27 +72,30 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedActive,
     ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
+        .map { pagingData -> pagingData.map { it.withCurrentImagePath() } }
         .flowOn(bgDispatcher)
 
     override fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedActive,
     ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
+        .map { pagingData -> pagingData.map { it.withCurrentImagePath() } }
         .flowOn(bgDispatcher)
 
     override suspend fun getExercisesByUuid(
         uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
-        dao.getByUuids(uuids.map(Uuid::parse)).map { it.toData() }
+        dao.getByUuids(uuids.map(Uuid::parse)).map { it.withCurrentImagePath() }
     }
 
     override suspend fun getExercise(
         uuid: String,
     ): ExerciseDataModel? = withContext(bgDispatcher) {
-        dao.getById(Uuid.parse(uuid))?.toData()
+        dao.getById(Uuid.parse(uuid))?.withCurrentImagePath()
     }
+
+    private fun ExerciseEntity.withCurrentImagePath(): ExerciseDataModel =
+        toData(imagePath?.let(imageStorage::resolvePath))
 
     override suspend fun getLabels(
         exerciseUuid: String,
@@ -154,7 +157,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         val existing = dao.findByName(trimmed)
         if (existing != null) {
             return@mutate InlineAdhocResult(
-                exercise = existing.toData(),
+                exercise = existing.withCurrentImagePath(),
                 reusedExisting = true,
             )
         }
@@ -250,7 +253,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
                     entity.uuid !in excluded &&
                         (query.isBlank() || entity.name.contains(query, ignoreCase = true)),
                 ) {
-                    entity.toData()
+                    entity.withCurrentImagePath()
                 }
             }
     }
@@ -310,7 +313,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedArchived,
     ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
+        .map { pagingData -> pagingData.map { it.withCurrentImagePath() } }
         .flowOn(bgDispatcher)
 
     override fun observeArchivedCount(): Flow<Int> = dao.observeArchivedCount()
@@ -374,7 +377,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
                 config = pagingConfig,
                 pagingSourceFactory = dao::pagedActive,
             ).flow
-                .map { pagingData -> pagingData.map { it.toData() } }
+                .map { pagingData -> pagingData.map { it.withCurrentImagePath() } }
                 .flowOn(bgDispatcher)
         }
         val parsed = tagUuids.map(Uuid::parse)
@@ -383,7 +386,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             config = pagingConfig,
             pagingSourceFactory = { dao.pagedActiveByTags(parsed) },
         ).flow
-            .map { pagingData -> pagingData.map { it.toData() } }
+            .map { pagingData -> pagingData.map { it.withCurrentImagePath() } }
             .flowOn(bgDispatcher)
     }
 

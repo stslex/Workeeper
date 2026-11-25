@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 
 plugins {
@@ -5,7 +6,19 @@ plugins {
     alias(libs.plugins.metro)
 }
 
+compose.resources {
+    packageOfResClass = "io.github.stslex.workeeper.app.ios.resources"
+}
+
 kotlin {
+    targets.withType<KotlinNativeTarget>().configureEach {
+        binaries.framework {
+            baseName = "WorkeeperKit"
+            isStatic = true
+            binaryOption("bundleId", "io.github.stslex.workeeper.kit")
+        }
+    }
+
     sourceSets {
         iosMain.dependencies {
             api(project(":app:common"))

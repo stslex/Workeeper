@@ -15,7 +15,7 @@ const bytes = Buffer.from('the exact archived bytes');
 const digest = crypto.createHash('sha256').update(bytes).digest('hex');
 function fixture() {
   const needs = { 'native-source': { result: 'success' } };
-  for (const [index, role] of ['simulator', 'device'].entries()) {
+  for (const [index, role] of ['simulator', 'device', 'app'].entries()) {
     needs[`kmp-ios-${role}`] = { result: 'success', outputs: { artifact_id: String(index + 10), artifact_digest: digest } };
   }
   return { NATIVE_NEEDS: JSON.stringify(needs), GITHUB_RUN_ID: '15',
@@ -35,7 +35,7 @@ async function probe(change = () => {}) {
       const body = JSON.parse(options.body);
       assert.equal(body.workflow_run_backend_id, run);
       assert.equal(body.workflow_job_run_backend_id, aggregate);
-      role = body.id_filter === '10' ? 'simulator' : 'device';
+      role = ({10: 'simulator', 11: 'device', 12: 'app'})[body.id_filter];
       const response = { artifacts: [{ database_id: body.id_filter, name: `kmp-ios-${role}-15-1`,
         workflow_run_backend_id: run, workflow_job_run_backend_id: producer, digest }] };
       const override = change('list', response);
@@ -56,8 +56,8 @@ async function probe(change = () => {}) {
   };
   try {
     await download({ env, fetchImpl, directory });
-    for (const role of ['simulator', 'device']) assert.deepEqual(fs.readFileSync(path.join(directory, `${role}.zip`)), bytes);
-    assert.equal(requests.length, 6);
+    for (const role of ['simulator', 'device', 'app']) assert.deepEqual(fs.readFileSync(path.join(directory, `${role}.zip`)), bytes);
+    assert.equal(requests.length, 9);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -79,7 +79,7 @@ test('snake and camel protobuf names agree or fail closed', () => {
 });
 
 test('all children and artifact outputs are mandatory', () => {
-  for (const role of ['simulator', 'device']) {
+  for (const role of ['simulator', 'device', 'app']) {
     for (const state of ['failure', 'cancelled', 'skipped', undefined]) {
       const needs = JSON.parse(fixture().NATIVE_NEEDS);
       needs[`kmp-ios-${role}`].result = state;

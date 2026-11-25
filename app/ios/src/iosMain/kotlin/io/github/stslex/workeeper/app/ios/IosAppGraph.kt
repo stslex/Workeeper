@@ -22,6 +22,8 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpochSourc
 import io.github.stslex.workeeper.core.data.dataStore.core.DataStorePathResolver
 import io.github.stslex.workeeper.core.data.dataStore.core.IosDataStorePathResolver
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.common.DatabaseAdmission
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -35,6 +37,8 @@ import kotlinx.coroutines.IO
  * lifetime, then closes its database.
  * Ownership: `documentation/feature-specs/kmp-phase-7-20b-ios-metro-graph.md#production-graph-and-ownership`.
  */
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 fun buildIosAppGraph(
     database: AppDatabase,
     lifetime: AppScopeLifetime,
@@ -55,6 +59,8 @@ fun buildIosAppGraph(
 
 @DependencyGraph(AppScope::class)
 internal interface IosAppGraph : AppRootDeps {
+    val transactions: DbTransitionRunner
+    val reinitializer: AppReinitializer
     val appDatabase: AppDatabase
     val appScopeLifetime: AppScopeLifetime
     val storeDispatchers: StoreDispatchers
@@ -72,6 +78,10 @@ internal interface IosAppGraph : AppRootDeps {
 
     @IODispatcher
     val ioDispatcher: CoroutineDispatcher
+
+    @Provides
+    fun databaseAdmission(host: AppReinitializationHost): DatabaseAdmission =
+        host as? DatabaseAdmission ?: DatabaseAdmission.Unrestricted
 
     @Provides
     @MainDispatcher

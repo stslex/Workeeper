@@ -10,6 +10,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.common.DatabaseAdmission
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
@@ -41,6 +42,7 @@ public object DbCascadeBindingContainer {
     public fun provideDbTransitionRunner(
         db: AppDatabase,
         @IODispatcher ioDispatcher: CoroutineDispatcher,
+        admission: DatabaseAdmission = DatabaseAdmission.Unrestricted,
     ): DbTransitionRunner = object : DbTransitionRunner {
 
         private val afterMutationCommitListeners = MutableStateFlow<List<() -> Unit>>(emptyList())
@@ -51,16 +53,16 @@ public object DbCascadeBindingContainer {
 
         override suspend fun <T> invoke(
             block: suspend CoroutineScope.() -> T,
-        ): T = withContext(ioDispatcher) { runTransaction(block) }
+        ): T = admission.use { withContext(ioDispatcher) { runTransaction(block) } }
 
         override suspend fun <T> mutate(
             block: suspend CoroutineScope.() -> T,
-        ): T = withContext(ioDispatcher) {
-            val result = runTransaction(block)
-            afterMutationCommitListeners.value.forEach { listener ->
-                runCatching { listener() }
+        ): T = admission.use {
+            withContext(ioDispatcher) {
+                val result = runTransaction(block)
+                afterMutationCommitListeners.value.forEach { listener -> runCatching { listener() } }
+                result
             }
-            result
         }
 
         private suspend fun <T> runTransaction(

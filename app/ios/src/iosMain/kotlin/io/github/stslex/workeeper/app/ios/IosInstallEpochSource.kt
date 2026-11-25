@@ -53,6 +53,8 @@ import platform.posix.write
 import kotlin.uuid.Uuid
 
 /** Installation-owned storage, independent of graph generations and the backed-up database. */
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 fun buildIosInstallEpochSource(): InstallEpochSource = IosInstallEpochSource()
 
 internal class IosInstallEpochSource(

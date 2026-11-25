@@ -740,6 +740,96 @@ jobs:
           xcrun simctl delete "$WORKEEPER_DATABASE_TEST_SIMULATOR"
 
 
+  kmp-ios-app:
+    name: KMP iOS installed app
+    needs: native-source
+    runs-on: macos-26
+    timeout-minutes: 240
+    env:
+      NATIVE_SOURCE_SHA: ${{ needs.native-source.outputs.sha }}
+      NATIVE_SOURCE_TREE: ${{ needs.native-source.outputs.tree }}
+    outputs:
+      artifact_id: ${{ steps.app_evidence.outputs.artifact-id }}
+      artifact_digest: ${{ steps.app_evidence.outputs.artifact-digest }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.native-source.outputs.sha }}
+
+      - name: Select Xcode 26.6 and assert the simulator runtime
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          grep -q "Xcode 26.6" <<< "$xcode_version"
+          # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
+          simulator_runtimes="$(xcrun simctl list runtimes)"
+          printf '%s\n' "$simulator_runtimes"
+          grep -q "iOS" <<< "$simulator_runtimes"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      - name: Compute the Kotlin/Native cache key
+        id: konan_key
+        run: python3 .github/scripts/kmp_native_cache_key.py
+
+      - name: Restore Kotlin/Native toolchain
+        id: konan
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan_key.outputs.key }}
+          restore-keys: |
+            ${{ steps.konan_key.outputs.prefix }}
+
+      - name: Configure ephemeral signing material
+        run: |
+          keytool -genkeypair -alias ci-smoke -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-smoke-pass -keypass ci-smoke-pass \
+            -dname "CN=kmp-ios-kit-smoke" -keystore "$RUNNER_TEMP/ci-smoke.jks"
+          cp "$RUNNER_TEMP/ci-smoke.jks" ci-smoke.jks
+          {
+            echo "storeFile=ci-smoke.jks"
+            echo "keyAlias=ci-smoke"
+            echo "storePassword=ci-smoke-pass"
+            echo "keyPassword=ci-smoke-pass"
+          } > keystore.properties
+
+      - name: Exercise the installed product and isolated controls
+        run: python3 .github/scripts/run_ios_app.py
+
+      - name: Archive installed app results
+        id: app_evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmp-ios-app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            gradle/kmp-native-identities.json
+            build/kmp-verification/app-*.json
+            build/kmp-verification/installed
+          if-no-files-found: error
+          retention-days: 30
+
   kmp-ios-device:
     name: KMP iOS device links
     needs: native-source
@@ -866,7 +956,7 @@ jobs:
 
   kmp-ios-kit-smoke:
     name: KMP iOS kit smoke
-    needs: [native-source, kmp-ios-simulator, kmp-ios-device]
+    needs: [native-source, kmp-ios-simulator, kmp-ios-device, kmp-ios-app]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -892,7 +982,7 @@ jobs:
               core.setFailed(error.message.startsWith('Native artifact transport:')
                 ? error.message : 'Native artifact transport failed; no valid archive was accepted');
             }
-      - name: Require both successful jobs and verify archived evidence
+      - name: Require successful Native and installed app jobs and verify archived evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/kmp_native_evidence.py aggregate

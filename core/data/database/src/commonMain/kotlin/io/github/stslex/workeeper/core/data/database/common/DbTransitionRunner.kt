@@ -12,3 +12,12 @@ interface DbTransitionRunner {
     /** Registers an app-scope observer for successful [mutate] commits. */
     fun addAfterMutationCommitListener(listener: () -> Unit)
 }
+
+/** Admission for the complete transaction, including post-commit listeners. */
+interface DatabaseAdmission {
+    suspend fun <T> use(block: suspend () -> T): T
+
+    object Unrestricted : DatabaseAdmission {
+        override suspend fun <T> use(block: suspend () -> T): T = block()
+    }
+}

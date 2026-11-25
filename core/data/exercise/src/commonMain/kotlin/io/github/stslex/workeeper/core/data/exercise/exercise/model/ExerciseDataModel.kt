@@ -19,12 +19,12 @@ data class ExerciseDataModel(
     val lastAdhocSets: List<PlanSetDataModel>?,
 )
 
-internal fun ExerciseEntity.toData(): ExerciseDataModel = ExerciseDataModel(
+internal fun ExerciseEntity.toData(resolvedImagePath: String? = imagePath): ExerciseDataModel = ExerciseDataModel(
     uuid = uuid.toString(),
     name = name,
     type = type.toData(),
     description = description,
-    imagePath = imagePath,
+    imagePath = resolvedImagePath,
     archived = archived,
     archivedAt = archivedAt,
     timestamp = createdAt,
