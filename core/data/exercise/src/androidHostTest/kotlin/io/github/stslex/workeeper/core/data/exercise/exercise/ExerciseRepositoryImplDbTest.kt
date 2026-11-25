@@ -65,6 +65,7 @@ internal class ExerciseRepositoryImplDbTest {
         every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         env = RepositoryTestEnv()
         imageStorage = mockk<ImageStorage>(relaxed = true)
+        every { imageStorage.resolvePath(any()) } answers { callOriginal() }
         repository = ExerciseRepositoryImpl(
             dao = env.exerciseDao,
             tagDao = env.tagDao,
