@@ -321,7 +321,7 @@ internal class ClickHandler @Inject constructor(
                 return@launch SaveOutcome.ImageSaveFailed
             }
             val finalImagePath = when (imageOutcome) {
-                is ImageCommitOutcome.Stored -> imageOutcome.newPath
+                is ImageCommitOutcome.Stored -> imageOutcome.saved.absolutePath
                 is ImageCommitOutcome.Removed -> null
                 ImageCommitOutcome.Unchanged -> current.imagePath
                 ImageCommitOutcome.Failed -> error("unreachable")
@@ -342,7 +342,7 @@ internal class ClickHandler @Inject constructor(
                     // Delete the previous file only after the DB row is updated.
                     if (imageOutcome is ImageCommitOutcome.Stored) {
                         imageOutcome.previousPath
-                            ?.takeIf { it.isNotBlank() && it != imageOutcome.newPath }
+                            ?.takeIf { it.isNotBlank() && it != imageOutcome.saved.absolutePath }
                             ?.let { interactor.deleteImageFile(it) }
                     }
                     if (imageOutcome is ImageCommitOutcome.Removed) {
@@ -354,7 +354,12 @@ internal class ClickHandler @Inject constructor(
                     )
                 }
 
-                SaveResult.DuplicateName -> SaveOutcome.DuplicateName
+                SaveResult.DuplicateName -> {
+                    if (imageOutcome is ImageCommitOutcome.Stored && imageOutcome.saved.discardOnRejection) {
+                        interactor.deleteImageFile(imageOutcome.saved.absolutePath)
+                    }
+                    SaveOutcome.DuplicateName
+                }
             }
         }
     }
@@ -370,7 +375,7 @@ internal class ClickHandler @Inject constructor(
                 interactor.saveImage(pending.ref, resolvedUuid.toString())
         ) {
             is ImageSaveResult.Success -> ImageCommitOutcome.Stored(
-                newPath = saveResult.absolutePath,
+                saved = saveResult,
                 previousPath = current.imagePath,
             )
 
@@ -426,7 +431,7 @@ internal class ClickHandler @Inject constructor(
 
         data object Unchanged : ImageCommitOutcome
 
-        data class Stored(val newPath: String, val previousPath: String?) : ImageCommitOutcome
+        data class Stored(val saved: ImageSaveResult.Success, val previousPath: String?) : ImageCommitOutcome
 
         data class Removed(val previousPath: String?) : ImageCommitOutcome
 

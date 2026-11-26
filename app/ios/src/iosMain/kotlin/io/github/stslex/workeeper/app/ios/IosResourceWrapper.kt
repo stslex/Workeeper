@@ -24,6 +24,8 @@ import platform.Foundation.localTimeZone
 import platform.Foundation.localeIdentifier
 import platform.Foundation.timeZoneWithName
 
+@OptIn(kotlin.experimental.ExperimentalObjCRefinement::class)
+@kotlin.native.HiddenFromObjC
 fun buildIosResourceWrapper(): ResourceWrapper = IosResourceWrapper {
     IosDateSettings(NSLocale.autoupdatingCurrentLocale.localeIdentifier, NSTimeZone.localTimeZone.name)
 }

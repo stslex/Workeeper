@@ -77,10 +77,10 @@ internal class IosGraphFixture {
         ) as IosAppGraph
     }
 
-    suspend fun close() {
+    suspend fun close(databaseAlreadyClosed: Boolean = false) {
         lifetimes.forEach { it.cancelAndJoin() }
         withContext(Dispatchers.IO) {
-            database.close()
+            if (!databaseAlreadyClosed) database.close()
             check(manager.removeItemAtPath(ownedDirectory, null))
         }
         // DataStore owns its live preference files until this test process exits.

@@ -179,11 +179,11 @@ class NativeApiTest(unittest.TestCase):
 class NativeAggregateTest(unittest.TestCase):
     def setUp(self):
         self.needs = {'native-source': {'result': 'success'}}
-        for role in ('simulator', 'device'):
+        for role in ('simulator', 'device', 'app'):
             self.needs[f'kmp-ios-{role}'] = {'result': 'success', 'outputs': {'artifact_id': '12', 'artifact_digest': 'a' * 64}}
 
-    def test_success_requires_both_children_and_source(self):
-        self.assertEqual({'simulator', 'device'}, set(child_outputs(self.needs)))
+    def test_success_requires_all_children_and_source(self):
+        self.assertEqual({'simulator', 'device', 'app'}, set(child_outputs(self.needs)))
         for job in self.needs:
             for status in ('failure', 'cancelled', 'skipped', ''):
                 with self.subTest(job=job, status=status):
@@ -294,6 +294,34 @@ class NativeArchiveTest(unittest.TestCase):
 
     def test_complete_relocated_bracket_archive_and_earlier_successful_attempt(self):
         self.assertTrue(self.verify()['valid'])
+
+    def test_selective_rerun_checks_installed_app_source_before_replaying_results(self):
+        source = dict(self.receipt['provenance'], role='app')
+        self.receipt = dict(role='app', valid=True, summary='21 actionable tasks: 21 executed', provenance=source)
+        self.files = {
+            'gradle/kmp-native-identities.json': self.files['gradle/kmp-native-identities.json'],
+            'build/kmp-verification/app-provenance.json': encoded(source),
+        }
+        from ios_app_results import empty_xcresult_payloads
+        for payload in empty_xcresult_payloads(Path('build/kmp-verification/installed')):
+            self.files[payload.as_posix()] = b''
+        with patch('ios_app_results.validate_archive_contents') as replay:
+            self.assertEqual(self.verify()['provenance']['attempt'], 1)
+            replay.assert_called_once()
+            report = 'build/kmp-verification/installed/positive/summary.json'
+            self.files[report] = b''
+            with self.assertRaisesRegex(ValueError, 'empty required evidence'):
+                self.verify()
+            del self.files[report]
+            for field in ('source_sha', 'source_tree', 'workflow_sha', 'run_id', 'attempt'):
+                with self.subTest(field=field):
+                    original = source[field]
+                    source[field] = 3 if field == 'attempt' else 'wrong'
+                    self.files['build/kmp-verification/app-provenance.json'] = encoded(source)
+                    with self.assertRaises(ValueError):
+                        self.verify()
+                    source[field] = original
+            replay.assert_called_once()
 
     def test_literal_glob_and_backslash_path_remains_a_valid_posix_path(self):
         self.build_suffix = r'literal*?\dir'

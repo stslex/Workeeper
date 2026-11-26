@@ -29,7 +29,7 @@ function backend(token) {
 
 function children(needs) {
   requireValue(needs['native-source']?.result === 'success', 'source did not resolve');
-  return ['simulator', 'device'].map(role => {
+  return ['simulator', 'device', 'app'].map(role => {
     const child = needs[`kmp-ios-${role}`];
     requireValue(child?.result === 'success', `${role} did not succeed`);
     const { artifact_id: id, artifact_digest: digest } = child.outputs;

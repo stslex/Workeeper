@@ -1044,6 +1044,37 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun rejectedImageReplacementDiscardsOnlyPrivateCandidate() = runTest {
+        val pending = PendingImage.NewFromUri(ImageRef("staged-photo"))
+        val old = "/files/original.jpg"
+        val candidate = "/files/candidate.jpg"
+        val (state, store, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Duplicate",
+                imagePath = old,
+                pendingImage = pending,
+            ),
+        )
+        store.launches = Launches.RunThenSuccess(this)
+        interactor.saveResult = SaveResult.DuplicateName
+        interactor.imageResult = ImageSaveResult.Success(candidate, discardOnRejection = true)
+        handler.invoke(Action.Click.OnSaveClick)
+        advanceUntilIdle()
+        assertEquals(candidate, interactor.savedSnapshots.single().imagePath)
+        assertEquals(listOf("deleteImageFile:$candidate"), interactor.calls.filter { it.startsWith("deleteImageFile") })
+        assertEquals(old, state.value.imagePath)
+        assertEquals(pending, state.value.pendingImage)
+        assertTrue(state.value.nameDuplicateError)
+
+        interactor.calls.clear()
+        interactor.imageResult = ImageSaveResult.Success(old)
+        handler.invoke(Action.Click.OnSaveClick)
+        advanceUntilIdle()
+        assertTrue(interactor.calls.none { it.startsWith("deleteImageFile") })
+    }
+
+    @Test
     fun `cancelling an image removal restores the attachment without deleting its file`() {
         val oldPath = "/files/old.jpg"
         val (stateFlow, _, handler) = setup(
@@ -1624,6 +1655,7 @@ internal class ClickHandlerTest {
     private class FakeExerciseInteractor : ExerciseInteractor {
 
         var saveResult: SaveResult? = null
+        var imageResult: ImageSaveResult? = null
         var archiveResult: ArchiveResult? = null
         val startedSessions = mutableListOf<Pair<String, String>>()
         val createdTags = mutableMapOf<String, TagDomain>()
@@ -1678,7 +1710,7 @@ internal class ClickHandlerTest {
 
         override suspend fun saveImage(ref: ImageRef, exerciseUuid: String): ImageSaveResult {
             calls.add("saveImage")
-            error("saveImage was not set up")
+            return imageResult ?: error("saveImage was not set up")
         }
 
         override suspend fun createTempCaptureRef(): ImageRef =

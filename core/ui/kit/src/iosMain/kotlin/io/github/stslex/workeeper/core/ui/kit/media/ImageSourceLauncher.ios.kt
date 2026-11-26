@@ -2,22 +2,41 @@
 package io.github.stslex.workeeper.core.ui.kit.media
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
 
-/**
- * Inert: no iOS host exists yet, and a throwaway iosApp stays forbidden. The permanent iOS host
- * implements the camera, the photo picker and the settings link here. Nothing calls back, so a
- * Store stays in the state it wrote before asking.
- */
+interface AppleImageSession : ImageSourceLauncher {
+    fun retire()
+}
+
+fun interface AppleImagePresenter {
+    fun bind(picked: (String) -> Unit, cancelled: () -> Unit, permission: (Boolean) -> Unit): AppleImageSession
+}
+
+val LocalAppleImagePresenter = staticCompositionLocalOf<AppleImagePresenter?> { null }
+
 @Composable
 actual fun rememberImageSourceLauncher(
     onImagePicked: (ref: String) -> Unit,
     onImagePickCancelled: () -> Unit,
     onCameraPermissionResult: (granted: Boolean) -> Unit,
-): ImageSourceLauncher = InertImageSourceLauncher
-
-private object InertImageSourceLauncher : ImageSourceLauncher {
-    override fun launchCamera(targetRef: String) = Unit
-    override fun launchGallery() = Unit
-    override fun requestCameraPermission() = Unit
-    override fun openAppSettings() = Unit
+): ImageSourceLauncher {
+    val presenter = LocalAppleImagePresenter.current
+    val picked = rememberUpdatedState(onImagePicked)
+    val cancelled = rememberUpdatedState(onImagePickCancelled)
+    val permission = rememberUpdatedState(onCameraPermissionResult)
+    val session = remember(presenter) {
+        presenter?.bind({ picked.value(it) }, { cancelled.value() }, { permission.value(it) })
+            ?: object : AppleImageSession {
+                override fun launchCamera(targetRef: String) = cancelled.value()
+                override fun launchGallery() = cancelled.value()
+                override fun requestCameraPermission() = permission.value(false)
+                override fun openAppSettings() = Unit
+                override fun retire() = Unit
+            }
+    }
+    DisposableEffect(session) { onDispose(session::retire) }
+    return session
 }

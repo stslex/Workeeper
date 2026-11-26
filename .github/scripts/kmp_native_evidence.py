@@ -22,7 +22,7 @@ from kmp_native_model import DEVICE_START, MODEL, SIMULATOR_START, load_model, r
 
 ROOT = Path("build/kmp-verification")
 ROLES = ("simulator", "device")
-JOB_NAMES = {"simulator": "KMP iOS simulator", "device": "KMP iOS device links"}
+JOB_NAMES = {"simulator": "KMP iOS simulator", "device": "KMP iOS device links", "app": "KMP iOS installed app"}
 TOOLCHAIN_COMMANDS = {
     "xcode": ("xcodebuild", "-version"),
     "jdk": ("java", "-version"),
@@ -204,13 +204,18 @@ def evidence_paths(role, rows):
     return paths
 
 
-def inventory(paths):
+def require_evidence_size(path, size, allowed_empty):
+    require(size > 0 or path in allowed_empty, f"empty required evidence: {path}")
+
+
+def inventory(paths, *, allowed_empty=(SIMULATOR_START, DEVICE_START)):
     result = []
     for path in paths:
         require(not path.is_symlink() and path.is_file(), f"required evidence is absent or linked: {path}")
-        require(path.stat().st_size > 0 or path in (SIMULATOR_START, DEVICE_START), f"empty required evidence: {path}")
-        result.append({"path": path.as_posix(), "size": path.stat().st_size,
-                       "mtime_ns": path.stat().st_mtime_ns, "sha256": digest(path)})
+        info = path.stat()
+        require_evidence_size(path, info.st_size, allowed_empty)
+        result.append({"path": path.as_posix(), "size": info.st_size,
+                       "mtime_ns": info.st_mtime_ns, "sha256": digest(path)})
     require(len({row["path"] for row in result}) == len(result), "duplicate evidence path")
     return result
 
@@ -303,6 +308,14 @@ def validate_contents(receipt, source_workflow_digest, identities_digest):
     require(digest(Path("gradle/kmp-native-identities.json")) == identities_digest, "identity roster differs from source")
     require(source["source_workflow_sha256"] == source_workflow_digest, "source workflow differs")
     require(read_json(ROOT / f"{role}-provenance.json") == source, "provenance files differ")
+    if role == "app":
+        from ios_app_results import empty_xcresult_payloads, validate_archive_contents
+        installed = ROOT / "installed"
+        allowed = empty_xcresult_payloads(installed)
+        for row in receipt["files"]:
+            require_evidence_size(Path(row["path"]), row["size"], allowed)
+        validate_archive_contents(installed, receipt)
+        return
     rows = load_model()
     expected_paths = {path.as_posix() for path in evidence_paths(role, rows)}
     require(expected_paths == {item["path"] for item in receipt["files"]}, "required evidence inventory differs")
@@ -346,7 +359,8 @@ def validate_archive(data, expected_digest, role, intended, modules):
             if key != "attempt":
                 require(source.get(key) == value, f"{key}: inconsistent child provenance")
         require(type(source["attempt"]) is int and 1 <= source["attempt"] <= intended["attempt"], "invalid child attempt")
-        require(receipt["modules"] == modules, "incomplete Native module coverage")
+        if role in ROLES:
+            require(receipt["modules"] == modules, "incomplete Native module coverage")
         require(re.fullmatch(r"([1-9]\d*) actionable tasks: \1 executed", receipt["summary"]), "invalid task summary")
         files = receipt["files"]
         require(files and len({row["path"] for row in files}) == len(files), "empty or duplicate receipt inventory")
@@ -400,7 +414,7 @@ def api(operation, path, token):
 def child_outputs(needs):
     require(needs["native-source"]["result"] == "success", "source resolution did not succeed")
     result = {}
-    for role in ROLES:
+    for role in JOB_NAMES:
         child = needs[f"kmp-ios-{role}"]
         require(child["result"] == "success", f"{role} child result is {child['result']}")
         outputs = child["outputs"]
@@ -438,7 +452,7 @@ def aggregate(needs):
     require(command("git", "rev-parse", "HEAD^{tree}") == intended["source_tree"], "aggregate source tree differs")
     modules = [":" + module for module in read_json(Path("gradle/kmp-native-identities.json"))]
     receipts = []
-    for role in ROLES:
+    for role in JOB_NAMES:
         output = outputs[role]
         metadata = api(f"{role} artifact metadata",
                        f"repos/{intended['repository']}/actions/artifacts/{output['artifact_id']}", token)
@@ -451,8 +465,9 @@ def aggregate(needs):
                    token)
         validate_producer(jobs, role)
         receipts.append(receipt)
-    compare_toolchains(*(receipt["provenance"]["toolchain"] for receipt in receipts))
-    print("Both Native execution jobs succeeded with verified archives for " + intended["source_sha"])
+    for sibling in receipts[1:]:
+        compare_toolchains(receipts[0]["provenance"]["toolchain"], sibling["provenance"]["toolchain"])
+    print("Native and installed app jobs succeeded with verified archives for " + intended["source_sha"])
 
 
 def main():
